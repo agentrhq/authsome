@@ -1,1 +1,5 @@
 Update AGENTS.md to ensure that work always happens in a branch and never on main branch, second ensure that everytime you touch a function you update the docstring.
+
+---
+
+Commit and push
