@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "a67cae1674f7",
+  "strategy": "manual-commit",
+  "branch": "bugfix/go-tls-macos-keychain",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/authsome/proxy/runner.py",
+    "tests/proxy/test_proxy.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a6/7cae1674f7/0/metadata.json",
+      "transcript": "/a6/7cae1674f7/0/full.jsonl",
+      "content_hash": "/a6/7cae1674f7/0/content_hash.txt",
+      "prompt": "/a6/7cae1674f7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 73062,
+    "cache_read_tokens": 1072777,
+    "output_tokens": 16937,
+    "api_call_count": 22
+  }
+}

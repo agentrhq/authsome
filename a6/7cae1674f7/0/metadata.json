@@ -1,0 +1,67 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "a67cae1674f7",
+  "session_id": "0431c7ac-20f9-45d2-a8bb-80c79c4e6dfd",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-12T10:31:16.542455Z",
+  "branch": "bugfix/go-tls-macos-keychain",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/authsome/proxy/runner.py",
+    "tests/proxy/test_proxy.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "e6cbb60be7d0",
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 73062,
+    "cache_read_tokens": 1072777,
+    "output_tokens": 16937,
+    "api_call_count": 22
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-12T10:31:16.537644Z",
+    "agent_lines": 223,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 223,
+    "total_lines_changed": 223,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 186,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 50,
+        ".codex/agents/entire-search.toml": 23,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 159,
+      "user_lines_removed": 0,
+      "agent_lines_added": 250,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 50
+      }
+    }
+  ]
+}
