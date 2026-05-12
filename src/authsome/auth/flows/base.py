@@ -7,12 +7,15 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+import requests as http_client
+from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.requests_client import OAuth2Session
 from loguru import logger
 
 from authsome.auth.models.connection import AccountInfo, ConnectionRecord, ProviderClientRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
+from authsome.errors import RefreshFailedError
 from authsome.server.urls import DEFAULT_SERVER_BASE_URL, build_callback_url
 from authsome.utils import utc_now
 
@@ -117,6 +120,50 @@ class AuthFlow(ABC):
 
         if record.refresh_token:
             _do_revoke(record.refresh_token, "refresh_token")
+
+    def refresh(
+        self,
+        provider: ProviderDefinition,
+        record: ConnectionRecord,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+    ) -> ConnectionRecord:
+        """Refresh an OAuth2 token (RFC 6749 §6).
+
+        Default implementation that uses authlib's ``OAuth2Session.refresh_token``.
+        Subclasses may override if the flow demands custom request shaping
+        or uses dynamic registration keys.
+        """
+        if provider.oauth is None:
+            raise RefreshFailedError("No OAuth config", provider=provider.name)
+        if record.refresh_token is None:
+            raise RefreshFailedError("No refresh token available", provider=provider.name)
+        if not client_id:
+            raise RefreshFailedError("No client_id available for refresh", provider=provider.name)
+
+        client = OAuth2Session(
+            token_endpoint_auth_method="client_secret_post" if client_secret else "none",
+            client_id=client_id,
+            client_secret=client_secret,
+        )
+        try:
+            token = client.refresh_token(
+                provider.oauth.token_url,
+                refresh_token=record.refresh_token,
+            )
+        except (OAuthError, http_client.RequestException) as exc:
+            raise RefreshFailedError(str(exc), provider=provider.name) from exc
+
+        now = utc_now()
+        record.access_token = token["access_token"]
+        if "refresh_token" in token:
+            record.refresh_token = token["refresh_token"]
+        if "expires_in" in token:
+            record.expires_at = now + timedelta(seconds=int(token["expires_in"]))
+        record.obtained_at = now
+        record.status = ConnectionStatus.CONNECTED
+
+        return record
 
 
 def token_to_connection_record(

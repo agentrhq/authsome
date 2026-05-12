@@ -91,7 +91,6 @@ class PkceFlow(AuthFlow):
         if not auth_code:
             raise AuthenticationFailedError("Authorization timed out or no code received", provider=provider.name)
 
-       
         expected_state = runtime_session.payload.get("internal_state")
         if callback_data.get("state") != expected_state:
             raise AuthenticationFailedError("OAuth state mismatch — potential CSRF attack", provider=provider.name)
