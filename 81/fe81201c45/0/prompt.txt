@@ -1,0 +1,5 @@
+Work on a branch and push from there
+
+---
+
+Continue working on the skill. Improve the usage section and skip for check of if inside proxy or not. Always ask the agent to use authsome run -- command. Give concrete examples, for eg calling github api.
