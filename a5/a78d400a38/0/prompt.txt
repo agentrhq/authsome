@@ -1,0 +1,5 @@
+/skill-creator Review @skills/authsome/SKILL.md and improve it. Discuss with me first
+
+---
+
+Fix all these
