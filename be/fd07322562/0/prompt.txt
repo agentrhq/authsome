@@ -1,0 +1,1 @@
+Also, make the usage instructions in SKILL.md simpler. Talk about usage with authsome run -- <command> . if authsome isn't found, refer to installation section. If unauthenticated , refer to logging in section. That should simplify the skill
