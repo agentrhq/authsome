@@ -15,6 +15,7 @@ from authsome.auth.models.provider import ProviderDefinition
 from authsome.errors import AuthenticationFailedError, RefreshFailedError
 
 _PKCE_VERIFIER_LENGTH = 64
+_DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 
 
 def create_pkce_authorization(
@@ -139,6 +140,40 @@ def revoke_oauth_token(
         token_type_hint=token_type_hint,
         timeout=15,
     )
+
+
+def fetch_device_token(
+    *,
+    provider: ProviderDefinition,
+    device_code: str,
+    client_id: str | None,
+    client_secret: str | None,
+) -> dict[str, Any]:
+    """Poll a device-code token endpoint once using Authlib response handling."""
+    assert provider.oauth is not None
+
+    session = OAuth2Session(
+        client_id=client_id,
+        client_secret=client_secret,
+        token_endpoint_auth_method=_token_endpoint_auth_method(client_secret),
+    )
+
+    if provider.oauth.device_token_request == "json":
+        response = http_client.post(
+            provider.oauth.token_url,
+            json={"device_code": device_code},
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            timeout=30,
+        )
+        return dict(session.parse_response_token(response))
+
+    token = session.fetch_token(
+        provider.oauth.token_url,
+        grant_type=_DEVICE_CODE_GRANT,
+        device_code=device_code,
+        timeout=30,
+    )
+    return dict(token)
 
 
 def _token_endpoint_auth_method(client_secret: str | None) -> str:

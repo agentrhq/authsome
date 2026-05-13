@@ -11,6 +11,7 @@ from requests import Session
 from authsome.auth.flows.oauth2_client import (
     create_pkce_authorization,
     exchange_authorization_code,
+    fetch_device_token,
     refresh_oauth_token,
     revoke_oauth_token,
 )
@@ -170,6 +171,59 @@ def test_revoke_oauth_token_uses_authlib_revocation_request(monkeypatch: pytest.
     assert captured["data"]["token"] == "access-token"
     assert captured["data"]["token_type_hint"] == "access_token"
     assert captured["auth"] is not None
+
+
+def test_fetch_device_token_uses_authlib_form_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    provider = _make_oauth_provider()
+    captured: dict[str, Any] = {}
+
+    def fake_post(self: Session, url: str, data: dict[str, str], **kwargs: Any) -> _TokenResponse:
+        captured["url"] = url
+        captured["data"] = data
+        captured["auth"] = kwargs.get("auth")
+        return _TokenResponse()
+
+    monkeypatch.setattr(Session, "post", fake_post)
+
+    token = fetch_device_token(
+        provider=provider,
+        device_code="device-code",
+        client_id="client-id",
+        client_secret=None,
+    )
+
+    assert token["access_token"] == "access-token"
+    assert captured["url"] == "https://example.com/oauth/token"
+    assert captured["data"]["grant_type"] == "urn:ietf:params:oauth:grant-type:device_code"
+    assert captured["data"]["device_code"] == "device-code"
+    assert captured["auth"] is not None
+
+
+def test_fetch_device_token_keeps_json_variant(monkeypatch: pytest.MonkeyPatch) -> None:
+    provider = _make_oauth_provider()
+    assert provider.oauth is not None
+    provider.oauth.device_token_request = "json"
+    captured: dict[str, Any] = {}
+
+    def fake_post(url: str, json: dict[str, str], **kwargs: Any) -> _TokenResponse:
+        captured["url"] = url
+        captured["json"] = json
+        captured["headers"] = kwargs.get("headers")
+        return _TokenResponse()
+
+    monkeypatch.setattr("authsome.auth.flows.oauth2_client.http_client.post", fake_post)
+
+    token = fetch_device_token(
+        provider=provider,
+        device_code="device-code",
+        client_id="client-id",
+        client_secret="client-secret",
+    )
+
+    assert token["access_token"] == "access-token"
+    assert captured["url"] == "https://example.com/oauth/token"
+    assert captured["json"] == {"device_code": "device-code"}
+    assert captured["headers"] == {"Accept": "application/json", "Content-Type": "application/json"}
 
 
 @pytest.mark.asyncio

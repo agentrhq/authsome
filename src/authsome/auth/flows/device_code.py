@@ -8,9 +8,12 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 import requests
+from authlib.integrations.base_client.errors import OAuthError
+from authlib.oauth2 import OAuth2Error
 from loguru import logger
 
 from authsome.auth.flows.base import AuthFlow, FlowResult
+from authsome.auth.flows.oauth2_client import fetch_device_token
 from authsome.auth.models.connection import AccountInfo, ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
@@ -183,57 +186,39 @@ class DeviceCodeFlow(AuthFlow):
         effective_expires_in = min(expires_in, 300)
         deadline = time.monotonic() + effective_expires_in
 
-        use_json = provider.oauth.device_token_request == "json"
-
         while time.monotonic() < deadline:
             await asyncio.sleep(poll_interval)
 
             try:
-                if use_json:
-                    resp = requests.post(
-                        provider.oauth.token_url,
-                        json={"device_code": device_code},
-                        headers={"Accept": "application/json", "Content-Type": "application/json"},
-                        timeout=30,
-                    )
-                else:
-                    payload: dict[str, str] = {
-                        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-                        "device_code": device_code,
-                    }
-                    if client_id:
-                        payload["client_id"] = client_id
-                    if client_secret:
-                        payload["client_secret"] = client_secret
-                    resp = requests.post(
-                        provider.oauth.token_url, data=payload, headers={"Accept": "application/json"}, timeout=30
-                    )
+                return fetch_device_token(
+                    provider=provider,
+                    device_code=device_code,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                )
             except requests.RequestException as exc:
                 logger.warning("Token poll request failed: {}, retrying...", exc)
                 continue
-
-            try:
-                data = resp.json()
             except json.JSONDecodeError:
                 logger.warning("Token poll response was not JSON, retrying...")
                 continue
-
-            if resp.status_code == 200 and "access_token" in data:
-                return data
-
-            error = data.get("error", "")
-            if error == "authorization_pending":
-                continue
-            elif error == "slow_down":
-                poll_interval += 5
-            elif error == "access_denied":
-                raise AuthenticationFailedError("User denied the authorization request", provider=provider.name)
-            elif error == "expired_token":
-                raise AuthenticationFailedError("Device code has expired. Please try again.", provider=provider.name)
-            else:
+            except (OAuthError, OAuth2Error) as exc:
+                error = getattr(exc, "error", "")
+                if error == "authorization_pending":
+                    continue
+                if error == "slow_down":
+                    poll_interval += 5
+                    continue
+                if error == "access_denied":
+                    raise AuthenticationFailedError("User denied the authorization request", provider=provider.name)
+                if error == "expired_token":
+                    raise AuthenticationFailedError(
+                        "Device code has expired. Please try again.", provider=provider.name
+                    )
+                description = getattr(exc, "description", None)
                 raise AuthenticationFailedError(
-                    f"Token endpoint error: {data.get('error_description', error or 'Unknown error')}",
+                    f"Token endpoint error: {description or error or 'Unknown error'}",
                     provider=provider.name,
-                )
+                ) from exc
 
         raise AuthenticationFailedError("Device authorization timed out.", provider=provider.name)
