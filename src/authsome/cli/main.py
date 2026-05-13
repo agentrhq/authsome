@@ -27,6 +27,7 @@ from authsome.cli.helpers import (
     auth_command,
     setup_logging,
 )
+from authsome.cli.skills import ensure_skill_installed, install_skill
 from authsome.utils import connection_is_active, format_error_code, format_expires_at, redact
 
 
@@ -674,6 +675,7 @@ async def export(ctx_obj: ContextObj, provider: str | None, connection: str, exp
 @auth_command
 async def run(ctx_obj: ContextObj, command: tuple[str]) -> None:
     """Run COMMAND as a subprocess injected with authentication credentials."""
+    ensure_skill_installed(list(command))
     actx = await ctx_obj.initialize()
     result = await actx.require_local_proxy().run(list(command))
     sys.exit(result.returncode)
@@ -1014,6 +1016,25 @@ async def daemon_logs(ctx_obj: ContextObj, lines: int) -> None:
         return
     for line in LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:]:
         ctx_obj.echo(line)
+
+
+@cli.group()
+def skill() -> None:
+    """Manage agent skills."""
+
+
+@skill.command(name="install")
+@click.argument("agent", required=False)
+@auth_command
+async def skill_install(ctx_obj: ContextObj, agent: str | None) -> None:
+    """Install the authsome skill for the specified AGENT."""
+    paths = install_skill(agent)
+    if not paths:
+        ctx_obj.echo("No skills installed. Check logs for errors.", err=True, color="red")
+        sys.exit(1)
+
+    for p in paths:
+        ctx_obj.echo(f"Installed authsome skill to {p}", color="green")
 
 
 if __name__ == "__main__":

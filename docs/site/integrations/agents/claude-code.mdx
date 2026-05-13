@@ -16,7 +16,7 @@ keywords: ["claude code authsome", "claude code oauth", "claude code api key", "
 >
 Install the authsome skill into Claude Code and log me into GitHub.
 
-1. Run `git clone https://github.com/agentrhq/authsome.git /tmp/authsome && mkdir -p ~/.claude/skills && cp -r /tmp/authsome/skills/authsome ~/.claude/skills/` to install the bundled skill.
+1. Run `uvx authsome skill install claude` to install the bundled skill.
 2. Then run `uvx authsome login github` and walk me through approving the OAuth flow.
 3. After the login completes, run `uvx authsome list` and report which providers are now connected.
 
@@ -32,13 +32,13 @@ If anything fails, show me the exact error and `uvx authsome doctor` output.
 
 ## Install the skill
 
-The authsome repository ships a Claude Code skill at `skills/authsome/SKILL.md`. Install it into your local Claude Code skills directory:
+The authsome repository ships a Claude Code skill. Install it into your local Claude Code skills directory:
 
 ```bash
-git clone https://github.com/agentrhq/authsome.git /tmp/authsome
-mkdir -p ~/.claude/skills
-cp -r /tmp/authsome/skills/authsome ~/.claude/skills/
+uvx authsome skill install claude
 ```
+
+This command copies the skill manifest to `~/.claude/skills/authsome/`. It also installs a global version to `~/.skills/authsome/` which is verifiable via `npx skills list -g`.
 
 In Claude Code, invoke the skill by name once it's installed:
 
