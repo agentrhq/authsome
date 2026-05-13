@@ -1,0 +1,1 @@
+Work on https://github.com/agentrhq/authsome/issues/251 . Use uv tool install, update @skills/authsome/SKILL.md to use that.
