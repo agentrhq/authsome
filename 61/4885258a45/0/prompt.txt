@@ -1,0 +1,85 @@
+/grill-with-docs
+
+---
+
+They are same. profile is the concept and handle is just human readable name (bright-silver-bullet-2)
+
+---
+
+yes. It should be removed.
+
+---
+
+yes. did is easuer, maybe spiffe is needed at a later stage, but did works better for now. Identity = the cryptographic agent (Ed25519 key pair + DID + Handle) is correct. yes, everything else makes sense. profile is credential based namespace inside
+
+---
+
+Keep it open. We will worry about this later.
+
+---
+
+Just add as a note to 002 adr
+
+---
+
+yes. registered should e collapsed. description, owner_email are optional but then need to be captured.
+
+---
+
+We will do it when we do hosted version. Not now.
+
+---
+
+This is wrong. The default identity should be in config file, and it should load that identity.
+
+---
+
+path only is conscious simplification. Lets keep it that wat
+
+---
+
+its fine for now.
+
+---
+
+yes. Throw hard error
+
+---
+
+Show a hard error for now.
+
+---
+
+remove default profile logic. We have active profile
+
+---
+
+The version is not live anywhere, so we don't need to worry about backwards compatibility
+
+---
+
+add it
+
+---
+
+We need to clean that, profile = identiy and we will keep 1:1 relationship. Remove the old code then. profile will come as a sideeffect.
+
+---
+
+yes
+
+---
+
+yes. remove
+
+---
+
+correct adr and claude.md
+
+---
+
+Compare with code and confirm if its up to date
+
+---
+
+site pages aren't touched intentionally
