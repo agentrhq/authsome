@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-import requests as http_client
 from loguru import logger
 
+from authsome.auth.flows.oauth2_client import refresh_oauth_token, revoke_oauth_token
 from authsome.auth.models.connection import ConnectionRecord, ProviderClientRecord
 from authsome.auth.models.enums import ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
@@ -92,27 +92,23 @@ class AuthFlow(ABC):
         if not revocation_url:
             return
 
-        def _do_revoke(token: str, token_type: str) -> None:
-            payload = {"token": token}
-            if client_id:
-                payload["client_id"] = client_id
-            if client_secret:
-                payload["client_secret"] = client_secret
-
+        def _do_revoke(token: str, token_type: str, token_type_hint: str) -> None:
             try:
-                http_client.post(
-                    revocation_url,
-                    data=payload,
-                    timeout=15,
+                revoke_oauth_token(
+                    provider=provider,
+                    token=token,
+                    token_type_hint=token_type_hint,
+                    client_id=client_id,
+                    client_secret=client_secret,
                 )
             except Exception as exc:
                 logger.warning(f"{token_type.capitalize()} token revocation failed (continuing): {{}}", exc)
 
         if record.access_token:
-            _do_revoke(record.access_token, "access")
+            _do_revoke(record.access_token, "access", "access_token")
 
         if record.refresh_token:
-            _do_revoke(record.refresh_token, "refresh")
+            _do_revoke(record.refresh_token, "refresh", "refresh_token")
 
     def refresh(
         self,
@@ -134,22 +130,12 @@ class AuthFlow(ABC):
         if not client_id:
             raise RefreshFailedError("No client_id available for refresh", provider=provider.name)
 
-        payload: dict[str, str] = {
-            "grant_type": "refresh_token",
-            "refresh_token": record.refresh_token,
-            "client_id": client_id,
-        }
-        if client_secret:
-            payload["client_secret"] = client_secret
-
-        resp = http_client.post(
-            provider.oauth.token_url,
-            data=payload,
-            headers={"Accept": "application/json"},
-            timeout=30,
+        token = refresh_oauth_token(
+            provider=provider,
+            refresh_token=record.refresh_token,
+            client_id=client_id,
+            client_secret=client_secret,
         )
-        resp.raise_for_status()
-        token = resp.json()
 
         now = utc_now()
         record.access_token = token["access_token"]

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import secrets
 import urllib.parse
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
@@ -11,10 +10,11 @@ from typing import TYPE_CHECKING, Any
 import requests as http_client
 
 from authsome.auth.flows.base import AuthFlow, FlowResult
+from authsome.auth.flows.oauth2_client import create_pkce_authorization, exchange_authorization_code
 from authsome.auth.models.connection import AccountInfo, ConnectionRecord, ProviderClientRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
-from authsome.auth.utils import generate_pkce, resolve_callback_url
+from authsome.auth.utils import resolve_callback_url
 from authsome.errors import AuthenticationFailedError, DiscoveryError
 from authsome.utils import utc_now
 
@@ -51,21 +51,13 @@ class DcrPkceFlow(AuthFlow):
 
         assert client_id is not None  # guaranteed: either passed in or registered above
 
-        code_verifier, code_challenge = generate_pkce()
-
-        state = secrets.token_urlsafe(32)
-        auth_params: dict[str, str] = {
-            "response_type": "code",
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "state": state,
-            "code_challenge": code_challenge,
-            "code_challenge_method": "S256",
-        }
-        if effective_scopes:
-            auth_params["scope"] = " ".join(effective_scopes)
-
-        auth_url = f"{provider.oauth.authorization_url}?{urllib.parse.urlencode(auth_params)}"
+        auth_url, state, code_verifier = create_pkce_authorization(
+            provider=provider,
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=redirect_uri,
+            scopes=effective_scopes,
+        )
 
         runtime_session.state = "waiting_for_user"
         runtime_session.payload["auth_url"] = auth_url
@@ -99,10 +91,10 @@ class DcrPkceFlow(AuthFlow):
         if not auth_code:
             raise AuthenticationFailedError("Authorization timed out or no code received", provider=provider.name)
 
-        returned_state = callback_data.get("state")
+        returned_state = callback_data.get("state", "")
         expected_state = runtime_session.payload.get("internal_state")
-        if returned_state != expected_state:
-            raise AuthenticationFailedError("OAuth state mismatch — potential CSRF attack", provider=provider.name)
+        if not expected_state:
+            raise AuthenticationFailedError("OAuth state missing from session", provider=provider.name)
 
         # If DCR registered a client, it's stored in payload
         if "internal_client_id" in runtime_session.payload:
@@ -119,9 +111,11 @@ class DcrPkceFlow(AuthFlow):
         redirect_uri = runtime_session.payload.get("callback_url", "")
         effective_scopes = json.loads(runtime_session.payload.get("internal_scopes", "[]"))
 
-        token_data = await self._exchange_code(
+        token_data = exchange_authorization_code(
             provider=provider,
             auth_code=auth_code,
+            expected_state=expected_state,
+            returned_state=returned_state,
             redirect_uri=redirect_uri,
             client_id=client_id,
             client_secret=client_secret,
@@ -223,42 +217,3 @@ class DcrPkceFlow(AuthFlow):
         if not client_id:
             raise AuthenticationFailedError("DCR response missing client_id", provider=provider.name)
         return client_id, reg_data.get("client_secret")
-
-    @staticmethod
-    async def _exchange_code(
-        *,
-        provider: ProviderDefinition,
-        auth_code: str,
-        redirect_uri: str,
-        client_id: str,
-        client_secret: str | None,
-        code_verifier: str,
-    ) -> dict[str, Any]:
-        assert provider.oauth is not None
-        payload: dict[str, str] = {
-            "grant_type": "authorization_code",
-            "code": auth_code,
-            "redirect_uri": redirect_uri,
-            "client_id": client_id,
-            "code_verifier": code_verifier,
-        }
-        if client_secret:
-            payload["client_secret"] = client_secret
-
-        try:
-            resp = http_client.post(
-                provider.oauth.token_url, data=payload, headers={"Accept": "application/json"}, timeout=30
-            )
-            resp.raise_for_status()
-            data = resp.json()
-        except http_client.RequestException as exc:
-            raise AuthenticationFailedError(f"Token exchange failed: {exc}", provider=provider.name) from exc
-        except json.JSONDecodeError as exc:
-            raise AuthenticationFailedError("Token response was not valid JSON", provider=provider.name) from exc
-
-        if "access_token" not in data:
-            raise AuthenticationFailedError(
-                f"Token exchange error: {data.get('error', '')} — {data.get('error_description', 'Unknown error')}",
-                provider=provider.name,
-            )
-        return data

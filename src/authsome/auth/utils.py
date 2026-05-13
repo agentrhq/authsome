@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import hashlib
 import re
-import secrets
-from base64 import urlsafe_b64encode
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
@@ -15,14 +12,6 @@ if TYPE_CHECKING:
     from authsome.auth.sessions import AuthSession
 
 _DEFAULT_CALLBACK_URL = build_callback_url(DEFAULT_SERVER_BASE_URL)
-
-
-def generate_pkce() -> tuple[str, str]:
-    """Generate code verifier and challenge for PKCE."""
-    code_verifier = secrets.token_urlsafe(64)[:128]
-    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
-    code_challenge = urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
-    return code_verifier, code_challenge
 
 
 def resolve_callback_url(runtime_session: AuthSession) -> str:
