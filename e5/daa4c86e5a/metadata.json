@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "e5daa4c86e5a",
+  "strategy": "manual-commit",
+  "branch": "feature/uv-tool-install-recommendation",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "skills/authsome/SKILL.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e5/daa4c86e5a/0/metadata.json",
+      "transcript": "/e5/daa4c86e5a/0/full.jsonl",
+      "content_hash": "/e5/daa4c86e5a/0/content_hash.txt",
+      "prompt": "/e5/daa4c86e5a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 11040,
+    "cache_read_tokens": 426273,
+    "output_tokens": 1852,
+    "api_call_count": 6
+  }
+}
