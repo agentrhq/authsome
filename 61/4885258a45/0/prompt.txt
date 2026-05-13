@@ -83,3 +83,7 @@ Compare with code and confirm if its up to date
 ---
 
 site pages aren't touched intentionally
+
+---
+
+commit these changes
