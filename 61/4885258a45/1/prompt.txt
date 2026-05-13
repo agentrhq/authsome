@@ -1,0 +1,13 @@
+/setup-matt-pocock-skills
+
+---
+
+Refer to docs folder and help me clean and organize it. The spec is a draft, mark it so. docs/agents (is for local working agents), docs/site is for authsome documentation mintlify site. What else is there and how should i organzie
+
+---
+
+remove the spec, its not needed. All the other docs are internal contributor guidelines, architechture, authsome design cli manual testing and security are probably already repeated in site. How do i keep them same and at one plane
+
+---
+
+Yes. Do all except moving register provider.
