@@ -1,0 +1,5 @@
+Should we put description of what authsome is and how to use it.
+
+---
+
+Usage should also tell how authsome works, (as a proxy that injects creds)
