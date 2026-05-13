@@ -31,7 +31,9 @@ def mock_client() -> AsyncMock:
     client.whoami.return_value = {
         "version": "0.0.0",
         "home": "/home/test/.authsome",
-        "active_identity": "default",
+        "identity": "steady-wisely-boldly-0042",
+        "did": "did:key:z6MkTest",
+        "registration_status": "registered",
         "encryption_backend": "local_key",
     }
 

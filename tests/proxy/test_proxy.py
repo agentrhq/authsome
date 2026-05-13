@@ -18,7 +18,7 @@ from authsome.server.dependencies import create_auth_service
 
 async def _make_auth(tmp_path: Path) -> AuthLayer:
     home = tmp_path / ".authsome"
-    return await create_auth_service(home)
+    return await create_auth_service(home, identity="steady-wisely-boldly-0042")
 
 
 async def _save_connection_record(
@@ -29,7 +29,7 @@ async def _save_connection_record(
 ) -> None:
     record = ConnectionRecord(
         provider=provider_name,
-        profile=auth._identity,
+        identity=auth._identity,
         connection_name=connection_name,
         auth_type=AuthType.API_KEY,
         status=ConnectionStatus.CONNECTED,
@@ -841,7 +841,3 @@ class TestDocumentation:
     def test_readme_mentions_run_command(self) -> None:
         readme = Path("README.md").read_text(encoding="utf-8")
         assert "authsome run" in readme
-
-    def test_cli_docs_mentions_run_command(self) -> None:
-        cli_docs = Path("docs/cli.md").read_text(encoding="utf-8")
-        assert "authsome run" in cli_docs

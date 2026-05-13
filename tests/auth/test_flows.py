@@ -35,7 +35,7 @@ class TestApiKeyFlow:
 
         result = await flow.resume(
             provider=provider,
-            profile="default",
+            identity="default",
             connection_name="default",
             runtime_session=session,
             callback_data={},
@@ -43,7 +43,7 @@ class TestApiKeyFlow:
         record = result.connection
 
         assert record.provider == "testapi"
-        assert record.profile == "default"
+        assert record.identity == "default"
         assert record.connection_name == "default"
         assert record.auth_type == AuthType.API_KEY
         assert record.status == ConnectionStatus.CONNECTED
@@ -62,7 +62,7 @@ class TestApiKeyFlow:
         with pytest.raises(AuthenticationFailedError, match="cannot be empty"):
             await flow.resume(
                 provider=provider,
-                profile="default",
+                identity="default",
                 connection_name="default",
                 runtime_session=session,
                 callback_data={},
@@ -79,7 +79,7 @@ class TestApiKeyFlow:
         with pytest.raises(AuthenticationFailedError, match="cannot be empty"):
             await flow.resume(
                 provider=provider,
-                profile="default",
+                identity="default",
                 connection_name="default",
                 runtime_session=session,
                 callback_data={},
@@ -101,7 +101,7 @@ class TestApiKeyFlow:
         with pytest.raises(AuthenticationFailedError, match="missing 'api_key'"):
             await flow.resume(
                 provider=provider,
-                profile="default",
+                identity="default",
                 connection_name="default",
                 runtime_session=session,
                 callback_data={},
@@ -118,7 +118,7 @@ class TestApiKeyFlow:
         with pytest.raises(AuthenticationFailedError, match="cannot be empty"):
             await flow.resume(
                 provider=provider,
-                profile="default",
+                identity="default",
                 connection_name="default",
                 runtime_session=session,
                 callback_data={},
@@ -134,7 +134,7 @@ class TestApiKeyFlow:
 
         result = await flow.resume(
             provider=provider,
-            profile="default",
+            identity="default",
             connection_name="default",
             runtime_session=session,
             callback_data={},
@@ -160,7 +160,7 @@ class TestApiKeyFlow:
 
         result = await flow.resume(
             provider=provider,
-            profile="default",
+            identity="default",
             connection_name="default",
             runtime_session=session,
             callback_data={},
@@ -187,7 +187,7 @@ class TestApiKeyFlow:
         with pytest.raises(AuthenticationFailedError, match="Keys start with 'sk-'"):
             await flow.resume(
                 provider=provider,
-                profile="default",
+                identity="default",
                 connection_name="default",
                 runtime_session=session,
                 callback_data={},
@@ -210,7 +210,7 @@ class TestApiKeyFlow:
         with pytest.raises(AuthenticationFailedError, match="doesn't match the expected format"):
             await flow.resume(
                 provider=provider,
-                profile="default",
+                identity="default",
                 connection_name="default",
                 runtime_session=session,
                 callback_data={},
@@ -226,7 +226,7 @@ class TestApiKeyFlow:
 
         result = await flow.resume(
             provider=provider,
-            profile="default",
+            identity="default",
             connection_name="default",
             runtime_session=session,
             callback_data={},
@@ -243,7 +243,7 @@ class TestApiKeyFlow:
 
         result = await flow.resume(
             provider=provider,
-            profile="default",
+            identity="default",
             connection_name="default",
             runtime_session=session,
             callback_data={"api_key": "sk-from-callback"},

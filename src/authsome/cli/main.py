@@ -758,6 +758,90 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
 
 @cli.command()
 @auth_command
+async def init(ctx_obj: ContextObj) -> None:
+    """Initialize local storage and register a fresh profile."""
+    from authsome.identity import ensure_local_identity, mark_registered
+
+    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    identity = ensure_local_identity(home)
+
+    actx = await ctx_obj.initialize()
+    if not identity.registered:
+        await actx.runtime_client.register_identity(identity.handle, identity.did)
+        identity = mark_registered(home, identity.handle)
+
+    data = {
+        "status": "initialized",
+        "home": str(home),
+        "profile": identity.handle,
+        "did": identity.did,
+        "registration_status": "registered",
+    }
+    if ctx_obj.json_output:
+        ctx_obj.print_json(data)
+    else:
+        ctx_obj.echo(f"Initialized authsome at {home}", color="green")
+        ctx_obj.echo(f"Profile: {identity.handle}")
+        ctx_obj.echo(f"DID: {identity.did}")
+
+
+@cli.group(name="profile")
+def profile() -> None:
+    """Manage local profiles backed by identity keys."""
+
+
+@profile.command(name="create")
+@click.option("--handle", default=None, metavar="HANDLE", help="Create or reuse a specific local profile handle.")
+@auth_command
+async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
+    """Create a local profile keypair."""
+    from authsome.identity.keys import create_identity
+
+    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    identity_meta = create_identity(home, handle)
+
+    data = {
+        "status": "created",
+        "home": str(home),
+        "profile": identity_meta.handle,
+        "did": identity_meta.did,
+        "registration_status": "registered" if identity_meta.registered else "local",
+        "switched": True,
+    }
+    if ctx_obj.json_output:
+        ctx_obj.print_json(data)
+    else:
+        ctx_obj.echo(f"Created local profile {identity_meta.handle}", color="green")
+        ctx_obj.echo("Switched to new profile")
+        ctx_obj.echo(f"DID: {identity_meta.did}")
+
+
+@profile.command(name="use")
+@click.argument("handle")
+@auth_command
+async def profile_use(ctx_obj: ContextObj, handle: str) -> None:
+    """Select the active local profile."""
+    from authsome.identity import load_client_config, save_client_config
+    from authsome.identity.keys import load_identity
+
+    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    identity_meta = load_identity(home, handle)
+    save_client_config(home, load_client_config(home).model_copy(update={"active_identity": identity_meta.handle}))
+
+    data = {
+        "status": "active",
+        "profile": identity_meta.handle,
+        "did": identity_meta.did,
+    }
+    if ctx_obj.json_output:
+        ctx_obj.print_json(data)
+    else:
+        ctx_obj.echo(f"Active profile: {data['profile']}", color="green")
+        ctx_obj.echo(f"DID: {data['did']}")
+
+
+@cli.command()
+@auth_command
 async def whoami(ctx_obj: ContextObj) -> None:
     """Show basic local context."""
     actx = await ctx_obj.initialize()
@@ -785,7 +869,10 @@ async def whoami(ctx_obj: ContextObj) -> None:
     data = {
         "authsome_version": whoami_data["version"],
         "home_directory": whoami_data["home"],
-        "active_identity": whoami_data["active_identity"],
+        "profile": whoami_data.get("identity", whoami_data.get("active_identity")),
+        "did": whoami_data.get("did"),
+        "registration_status": whoami_data.get("registration_status"),
+        "daemon_url": whoami_data.get("daemon_url", actx.runtime_client.base_url),
         "encryption_backend": whoami_data["encryption_backend"],
         "vault_status": vault_status,
         "connected_providers_count": len(connected_providers),
@@ -797,7 +884,12 @@ async def whoami(ctx_obj: ContextObj) -> None:
     else:
         ctx_obj.echo(f"Authsome Version:  {data['authsome_version']}")
         ctx_obj.echo(f"Home Directory:    {data['home_directory']}")
-        ctx_obj.echo(f"Active Identity:   {data['active_identity']}")
+        ctx_obj.echo(f"Profile:           {data['profile']}")
+        if data["did"]:
+            ctx_obj.echo(f"DID:               {data['did']}")
+        if data["registration_status"]:
+            ctx_obj.echo(f"Registration:      {data['registration_status']}")
+        ctx_obj.echo(f"Daemon URL:        {data['daemon_url']}")
         status_color = "green" if vault_status == "OK" else "red"
         ctx_obj.echo(f"Encryption:        {data['encryption_backend']} [", nl=False)
         ctx_obj.echo(vault_status, color=status_color, nl=False)

@@ -73,41 +73,43 @@ uvx authsome whoami
 uvx authsome doctor
 ```
 
-`whoami` prints the home directory and active encryption mode. `doctor` walks the home directory, verifies encryption is available, and parses every bundled provider definition. A healthy install reports `OK` for each check and exits with code `0`.
+`whoami` prints the home directory, registered identity handle, DID, and active encryption mode. `doctor` walks the home directory, verifies encryption is available, and parses every bundled provider definition. A healthy install reports `OK` for each check and exits with code `0`.
 
 If `doctor` reports failures, see [Diagnose with doctor](/troubleshooting/doctor).
 
 ## First-run initialization
 
-On the first command, authsome initializes its home directory at `~/.authsome/`:
+On `authsome init`, authsome initializes its home directory at `~/.authsome/`, creates a generated identity handle and Ed25519 DID, and registers that identity with the local daemon:
 
 ```text
 ~/.authsome/
   config.json
-  master.key            mode 0600
   audit.log
-  profiles/default/
-    store.db
-    lock
+  identities/<generated-handle>.json
+  identities/<generated-handle>.key
+  server/
+    master.key            mode 0600
+    kv_store/
+    identity_registry.json
+    daemon/
 ```
 
-The master key is generated locally with 256 bits of entropy. Override the home location with `AUTHSOME_HOME` for ephemeral or per-project setups:
+The daemon-owned master key is generated locally with 256 bits of entropy. Override the home location with `AUTHSOME_HOME` for ephemeral or per-project setups:
 
 ```bash
 export AUTHSOME_HOME=/var/lib/authsome
-uvx authsome whoami
+uvx authsome init
 ```
 
 See [Filesystem layout](/reference/file-layout) for the full directory model.
 
 ## Choose the encryption backend
 
-By default, the master key sits in `~/.authsome/master.key` with mode `0600`. To use the OS keychain instead (macOS Keychain, GNOME Keyring, Windows Credential Manager), edit `~/.authsome/config.json`:
+By default, the master key sits in `~/.authsome/server/master.key` with mode `0600`. To use the OS keychain instead (macOS Keychain, GNOME Keyring, Windows Credential Manager), edit the Authsome config:
 
 ```json
 {
   "spec_version": 1,
-  "default_profile": "default",
   "encryption": {
     "mode": "keyring"
   }
@@ -115,6 +117,8 @@ By default, the master key sits in `~/.authsome/master.key` with mode `0600`. To
 ```
 
 Re-run `uvx authsome doctor` to confirm the backend is reachable. The trade-offs are covered in [Encryption at rest](/security/encryption).
+
+Older installs that used the implicit `default` profile must run `authsome init` again. This release does not migrate credentials under old `profile:default:*` keys.
 
 ## Optional: trust the proxy CA
 

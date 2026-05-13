@@ -102,9 +102,15 @@ These rules govern all changes to this codebase — apply them without exception
 
 ## Architecture
 
-**`AuthClient` (`src/authsome/client.py`)** is the single entry point for all SDK operations. It lazily initializes four sub-systems: `GlobalConfig`, `CryptoBackend`, `ProviderRegistry`, and per-profile `CredentialStore`. All public methods accept an optional `profile` parameter that overrides `active_profile`.
+**Identity (`src/authsome/identity/`)** manages local Ed25519 key pairs and `did:key` DIDs. `ensure_local_identity(home, active_handle)` returns the identity named in `GlobalConfig.active_identity`, or creates a new one if none exists. Key material lives at `~/.authsome/identities/<handle>.key` (mode `0600`); metadata at `~/.authsome/identities/<handle>.json`. Identity = Profile: the handle is both the cryptographic identity name and the credential namespace key.
 
-**Flows (`src/authsome/flows/`)** implement the `AuthFlow.authenticate()` interface. Each flow returns a `ConnectionRecord` with secrets already encrypted. The mapping from `FlowType` enum to handler class lives in `_FLOW_HANDLERS` in `client.py`.
+**PoP Auth (`src/authsome/identity/proof.py`)** implements Proof-of-Possession JWT creation and validation. Every protected daemon request carries `Authorization: PoP <jwt>` signed with the local Ed25519 key. The JWT is bound to the specific HTTP method, path, and body SHA-256. The daemon validates the signature, checks the `jti` replay cache, and confirms `sub` (handle) → `iss` (DID) via the Identity Registry.
+
+**Identity Registry (`src/authsome/identity/registry.py`)** is the daemon-owned authoritative handle→DID mapping, persisted at `~/.authsome/server/identity_registry.json`.
+
+**AuthService (`src/authsome/auth/service.py`)** is the authentication and credential lifecycle layer. It owns OAuth flows, token refresh, login/logout/revoke. Constructed with `vault` and `identity` (the handle); all store keys are namespaced as `profile:<handle>:...`.
+
+**Flows (`src/authsome/auth/flows/`)** implement the `AuthFlow.authenticate()` interface. Each flow returns a `ConnectionRecord`.
 
 | Flow | Class | Notes |
 |------|-------|-------|
@@ -113,22 +119,32 @@ These rules govern all changes to this codebase — apply them without exception
 | `dcr_pkce` | `DcrPkceFlow` | Dynamic Client Registration then PKCE |
 | `api_key` | `ApiKeyFlow` | Prompts via secure browser bridge |
 
-**Provider Registry (`src/authsome/providers/registry.py`)** resolves providers in this order: local `~/.authsome/providers/<name>.json` overrides bundled JSON in `src/authsome/bundled_providers/`. Bundled providers (GitHub, Google, Okta, Linear, OpenAI) are loaded via `importlib.resources`.
+**Provider Registry (`src/authsome/auth/service.py`)** resolves providers in this order: local `~/.authsome/providers/<name>.json` overrides bundled JSON in `src/authsome/bundled_providers/`. Bundled providers (GitHub, Google, Okta, Linear, OpenAI) are loaded via `importlib.resources`.
 
-**Storage (`src/authsome/store/sqlite_store.py`)** is a SQLite KV store per profile at `~/.authsome/profiles/<name>/store.db`. Writes use `fcntl.flock` advisory locking via a `lock` file. Store keys follow the pattern:
+**Vault (`src/authsome/vault/`)** is the encrypted KV store. The master key lives at `~/.authsome/server/master.key` (mode `0600`) or in the OS keyring. All credential blobs are encrypted at rest; the AuthService reads and writes plaintext through the Vault without knowing encryption details.
+
+**Storage** uses a DiskStore-backed KV at `~/.authsome/server/kv_store/`. Store keys follow the pattern:
 ```
-profile:<profile>:<provider>:connection:<connection_name>
-profile:<profile>:<provider>:metadata
-profile:<profile>:<provider>:state
+profile:<handle>:<provider>:connection:<connection_name>
+profile:<handle>:<provider>:metadata
+profile:<handle>:<provider>:state
+server:<provider>:client
 ```
 
-**Crypto (`src/authsome/crypto/`)** provides AES-256-GCM field-level encryption. `LocalFileCryptoBackend` stores the master key at `~/.authsome/master.key` (mode `0600`). `KeyringCryptoBackend` uses the OS keyring. Secrets are stored as `EncryptedField` Pydantic models (`nonce`, `ciphertext`, `tag` all base64-encoded). The active backend is selected by `config.encryption.mode`.
+**Config** (`GlobalConfig`) is stored in the KV store under `config/global`. Key field: `active_identity` (the handle of the current identity). Encryption mode is set via `config.encryption.mode` (`local_key` or `keyring`).
 
-**Models (`src/authsome/models/`)** are all Pydantic v2 models:
-- `ProviderDefinition` — provider JSON schema with `OAuthConfig`, `ClientConfig`, `ApiKeyConfig`
-- `ConnectionRecord` — per-connection credential record; sensitive fields are `EncryptedField`
-- `GlobalConfig` — loaded from `~/.authsome/config.json`
+**CLI (`src/authsome/cli/main.py`)** is Click-based. All commands support `--json` for machine-readable output. `authsome init` creates the local identity, registers it with the daemon, and writes `active_identity` to config.
 
-`ClientConfig` supports `env:VAR_NAME` syntax so client credentials can come from environment variables without hardcoding them in the provider JSON.
+## Agent skills
 
-**CLI (`src/authsome/cli.py`)** is Click-based. All commands support `--json` for machine-readable output.
+### Issue tracker
+
+Issues live in GitHub Issues for `agentrhq/authsome`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

@@ -15,7 +15,6 @@ from authsome.auth.models.enums import (
     ExportFormat,
     FlowType,
 )
-from authsome.auth.models.profile import ProfileMetadata
 from authsome.auth.models.provider import (
     ApiKeyConfig,
     ExportConfig,
@@ -35,7 +34,6 @@ __all__ = [
     "FlowType",
     "GlobalConfig",
     "OAuthConfig",
-    "ProfileMetadata",
     "ProviderClientRecord",
     "ProviderDefinition",
     "ProviderMetadataRecord",

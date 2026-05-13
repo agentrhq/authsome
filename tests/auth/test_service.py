@@ -38,7 +38,7 @@ class TestAuthServiceRefreshLogs:
 
         record = ConnectionRecord(
             provider="github",
-            profile="test-profile",
+            identity="test-profile",
             connection_name="default",
             auth_type=AuthType.OAUTH2,
             status=ConnectionStatus.CONNECTED,
@@ -80,7 +80,7 @@ class TestAuthServiceRefreshLogs:
 
         record = ConnectionRecord(
             provider="github",
-            profile="test-profile",
+            identity="test-profile",
             connection_name="default",
             auth_type=AuthType.OAUTH2,
             status=ConnectionStatus.CONNECTED,
@@ -109,3 +109,9 @@ class TestAuthServiceRefreshLogs:
                 entry = json.loads(lines[0])
                 assert entry["event"] == "refresh_failed"
                 assert entry["fallback_available"] is False
+
+
+def test_auth_service_requires_explicit_identity() -> None:
+    mock_vault = mock.AsyncMock()
+    with pytest.raises(ValueError, match="explicit identity"):
+        AuthService(mock_vault, identity="")

@@ -1,24 +1,49 @@
-"""Local identity helpers.
-
-V1 intentionally supports a single local identity. Multi-profile/user/org
-support should grow from this module later instead of leaking profile arguments
-through server and CLI APIs.
-"""
+"""Local identity helpers."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pathlib import Path
 
-DEFAULT_IDENTITY = "default"
+from authsome.identity.client_config import ClientConfig, client_config_path, load_client_config, save_client_config
+from authsome.identity.keys import (
+    IdentityMetadata,
+    create_identity,
+    ensure_local_identity,
+    identities_dir,
+    identity_exists,
+    identity_key_path,
+    identity_metadata_path,
+    load_identity,
+    load_private_key,
+    mark_registered,
+    public_key_from_did_key,
+    public_key_to_did_key,
+    remove_legacy_default_identity,
+)
 
 
-@dataclass(frozen=True)
-class Identity:
-    """The current local identity."""
-
-    name: str = DEFAULT_IDENTITY
+async def current_from_home(home: Path) -> IdentityMetadata:
+    """Return the configured local identity, bootstrapping it if needed."""
+    return ensure_local_identity(home)
 
 
-def current() -> Identity:
-    """Return the current local identity."""
-    return Identity()
+__all__ = [
+    "IdentityMetadata",
+    "ClientConfig",
+    "client_config_path",
+    "create_identity",
+    "current_from_home",
+    "ensure_local_identity",
+    "identities_dir",
+    "identity_exists",
+    "identity_key_path",
+    "identity_metadata_path",
+    "load_client_config",
+    "load_identity",
+    "load_private_key",
+    "mark_registered",
+    "public_key_from_did_key",
+    "public_key_to_did_key",
+    "remove_legacy_default_identity",
+    "save_client_config",
+]

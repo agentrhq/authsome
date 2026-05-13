@@ -20,7 +20,7 @@ rm -rf ~/.authsome
 uv run authsome whoami
 ```
 
-**Expected:** Home directory, active identity (`default`), encryption mode, and connected provider count.
+**Expected:** Home directory, registered non-default identity handle, DID, encryption mode, and connected provider count.
 
 ```bash
 uv run authsome whoami --json

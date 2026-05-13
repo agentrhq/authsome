@@ -17,7 +17,7 @@ def _make_connection_record() -> dict:
     return {
         "schema_version": 2,
         "provider": "openai",
-        "profile": "default",
+        "identity": "default",
         "connection_name": "default",
         "auth_type": "api_key",
         "status": "connected",
@@ -87,7 +87,7 @@ class TestGetCommand:
     def test_connection_not_found_exits_3(self, runner: CliRunner, mock_client: MagicMock) -> None:
         mock_client.get_provider.return_value = {"name": "openai"}
         mock_client.get_connection.side_effect = ConnectionNotFoundError(
-            provider="openai", connection="missing", profile="default"
+            provider="openai", connection="missing", identity="default"
         )
 
         result = runner.invoke(cli, ["--log-file", "", "get", "openai", "--connection", "missing"])

@@ -112,8 +112,9 @@ class Vault:
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
-    async def check_integrity(self, *, profile: str | None = None) -> bool:
+    async def check_integrity(self, *, identity: str | None = None) -> bool:
         """Perform health check on underlying store."""
+        _ = identity
         return await self._app_store.check_integrity()
 
     async def close(self) -> None:

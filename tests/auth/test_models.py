@@ -1,6 +1,6 @@
 """Tests for authsome data models."""
 
-from authsome.auth.models.config import GlobalConfig
+from authsome.auth.models.config import GlobalConfig, current_spec_version
 from authsome.auth.models.connection import (
     ConnectionRecord,
     ProviderClientRecord,
@@ -9,8 +9,8 @@ from authsome.auth.models.connection import (
     Sensitive,
 )
 from authsome.auth.models.enums import AuthType, ConnectionStatus, ExportFormat, FlowType
-from authsome.auth.models.profile import ProfileMetadata
 from authsome.auth.models.provider import ApiKeyConfig, OAuthConfig, ProviderDefinition
+from authsome.identity.keys import IdentityMetadata
 
 
 class TestEnums:
@@ -39,41 +39,44 @@ class TestGlobalConfig:
 
     def test_defaults(self) -> None:
         config = GlobalConfig()
-        assert config.spec_version == 1
-        assert config.default_profile == "default"
+        assert config.spec_version == current_spec_version()
         assert config.encryption is not None
         assert config.encryption.mode == "local_key"
 
     def test_json_roundtrip(self) -> None:
-        config = GlobalConfig(spec_version=1, default_profile="work")
+        config = GlobalConfig(spec_version=1)
         json_str = config.model_dump_json()
         restored = GlobalConfig.model_validate_json(json_str)
-        assert restored.default_profile == "work"
+        assert restored.spec_version == 1
 
     def test_extra_fields_preserved(self) -> None:
-        config = GlobalConfig.model_validate({"spec_version": 1, "default_profile": "x", "custom": "val"})
+        config = GlobalConfig.model_validate({"spec_version": 1, "custom": "val"})
         dumped = config.model_dump()
         assert dumped.get("custom") == "val"
 
 
-class TestProfileMetadata:
-    """Profile metadata model tests."""
+class TestIdentityMetadata:
+    """Identity metadata model tests."""
 
     def test_required_fields(self) -> None:
-        meta = ProfileMetadata(name="test")
-        assert meta.name == "test"
+        meta = IdentityMetadata(handle="steady-wisely-boldly-0042", did="did:key:z6MkTest")
+        assert meta.handle == "steady-wisely-boldly-0042"
+        assert meta.did == "did:key:z6MkTest"
+        assert meta.registered is False
         assert meta.created_at is not None
         assert meta.updated_at is not None
 
     def test_json_roundtrip(self) -> None:
-        meta = ProfileMetadata(
-            name="work",
-            description="Work profile",
+        meta = IdentityMetadata(
+            handle="steady-wisely-boldly-0042",
+            did="did:key:z6MkTest",
+            registered=True,
         )
         json_str = meta.model_dump_json()
-        restored = ProfileMetadata.model_validate_json(json_str)
-        assert restored.name == "work"
-        assert restored.description == "Work profile"
+        restored = IdentityMetadata.model_validate_json(json_str)
+        assert restored.handle == "steady-wisely-boldly-0042"
+        assert restored.did == "did:key:z6MkTest"
+        assert restored.registered is True
 
 
 class TestProviderDefinition:
@@ -150,7 +153,7 @@ class TestSensitiveAnnotation:
         record = ConnectionRecord(
             schema_version=2,
             provider="openai",
-            profile="default",
+            identity="default",
             connection_name="default",
             auth_type=AuthType.API_KEY,
             status=ConnectionStatus.CONNECTED,
@@ -165,14 +168,14 @@ class TestSensitiveAnnotation:
         record = ConnectionRecord(
             schema_version=2,
             provider="openai",
-            profile="default",
+            identity="default",
             connection_name="default",
             auth_type=AuthType.API_KEY,
             status=ConnectionStatus.CONNECTED,
         )
         data = redact(record)
         assert data["provider"] == "openai"
-        assert data["profile"] == "default"
+        assert data["identity"] == "default"
 
     def test_none_sensitive_fields_not_redacted_when_none(self) -> None:
         from authsome.utils import redact
@@ -180,7 +183,7 @@ class TestSensitiveAnnotation:
         record = ConnectionRecord(
             schema_version=2,
             provider="openai",
-            profile="default",
+            identity="default",
             connection_name="default",
             auth_type=AuthType.API_KEY,
             status=ConnectionStatus.CONNECTED,
@@ -193,7 +196,7 @@ class TestSensitiveAnnotation:
         from authsome.utils import redact
 
         record = ProviderClientRecord(
-            profile="default",
+            identity="default",
             provider="github",
             client_id="public-cid",
             client_secret="secret-csec",
@@ -210,7 +213,7 @@ class TestConnectionRecord:
         record = ConnectionRecord(
             schema_version=2,
             provider="github",
-            profile="default",
+            identity="default",
             connection_name="personal",
             auth_type=AuthType.OAUTH2,
             status=ConnectionStatus.CONNECTED,
@@ -224,7 +227,7 @@ class TestConnectionRecord:
         record = ConnectionRecord(
             schema_version=2,
             provider="openai",
-            profile="default",
+            identity="default",
             connection_name="default",
             auth_type=AuthType.API_KEY,
             status=ConnectionStatus.CONNECTED,
@@ -235,7 +238,7 @@ class TestConnectionRecord:
         record = ConnectionRecord(
             schema_version=2,
             provider="test",
-            profile="default",
+            identity="default",
             connection_name="default",
             auth_type=AuthType.OAUTH2,
             status=ConnectionStatus.CONNECTED,
@@ -248,7 +251,7 @@ class TestConnectionRecord:
     def test_schema_version_defaults_to_2(self) -> None:
         record = ConnectionRecord(
             provider="test",
-            profile="default",
+            identity="default",
             connection_name="default",
             auth_type=AuthType.API_KEY,
             status=ConnectionStatus.CONNECTED,
@@ -260,13 +263,13 @@ class TestProviderMetadataRecord:
     """Provider metadata record tests."""
 
     def test_defaults(self) -> None:
-        meta = ProviderMetadataRecord(profile="default", provider="github")
+        meta = ProviderMetadataRecord(identity="default", provider="github")
         assert meta.default_connection == "default"
         assert meta.connection_names == []
 
     def test_connection_tracking(self) -> None:
         meta = ProviderMetadataRecord(
-            profile="default",
+            identity="default",
             provider="github",
             connection_names=["personal", "work"],
             last_used_connection="work",
@@ -279,7 +282,7 @@ class TestProviderStateRecord:
     """Provider state record tests."""
 
     def test_defaults(self) -> None:
-        state = ProviderStateRecord(provider="github", profile="default")
+        state = ProviderStateRecord(provider="github", identity="default")
         assert state.last_refresh_at is None
         assert state.last_refresh_error is None
 

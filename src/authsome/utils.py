@@ -12,7 +12,7 @@ from authsome.errors import AuthsomeError
 class StoreKeyParts(NamedTuple):
     """Parsed components of a credential store key."""
 
-    profile: str | None = None
+    identity: str | None = None
     provider: str | None = None
     record_type: str | None = None
     connection: str | None = None
@@ -71,7 +71,7 @@ def is_filesystem_safe(name: str) -> bool:
 
 def build_store_key(
     *,
-    profile: str | None = None,
+    identity: str | None = None,
     provider: str | None = None,
     record_type: str | None = None,
     connection: str | None = None,
@@ -81,26 +81,26 @@ def build_store_key(
 
     Spec §10.1 key namespace:
       provider:<provider_name>:definition
-      profile:<profile_name>:<provider_name>:metadata
-      profile:<profile_name>:<provider_name>:state
-      profile:<profile_name>:<provider_name>:connection:<connection_name>
-      profile:<profile_name>:<provider_name>:client
+      identity:<identity_name>:<provider_name>:metadata
+      identity:<identity_name>:<provider_name>:state
+      identity:<identity_name>:<provider_name>:connection:<connection_name>
+      identity:<identity_name>:<provider_name>:client
     """
     if record_type == "definition" and provider:
         return f"provider:{provider}:definition"
 
-    if profile and provider:
+    if identity and provider:
         if record_type == "metadata":
-            return f"profile:{profile}:{provider}:metadata"
+            return f"identity:{identity}:{provider}:metadata"
         elif record_type == "state":
-            return f"profile:{profile}:{provider}:state"
+            return f"identity:{identity}:{provider}:state"
         elif record_type == "connection" and connection:
-            return f"profile:{profile}:{provider}:connection:{connection}"
+            return f"identity:{identity}:{provider}:connection:{connection}"
         elif record_type == "client":
-            return f"profile:{profile}:{provider}:client"
+            return f"identity:{identity}:{provider}:client"
 
     raise ValueError(
-        f"Cannot build store key with profile={profile}, provider={provider}, "
+        f"Cannot build store key with identity={identity}, provider={provider}, "
         f"record_type={record_type}, connection={connection}"
     )
 
@@ -115,25 +115,25 @@ def parse_store_key(key: str) -> StoreKeyParts:
         provider = key[len("provider:") : -len(":definition")]
         return StoreKeyParts(provider=provider, record_type="definition")
 
-    if key.startswith("profile:"):
-        # Format: profile:<profile_name>:<remainder>
+    if key.startswith("identity:"):
+        # Format: identity:<identity_name>:<remainder>
         parts = key.split(":", 2)
         if len(parts) < 3:
             return StoreKeyParts()
-        profile = parts[1]
+        identity = parts[1]
         remainder = parts[2]
 
         if remainder.endswith(":metadata"):
-            return StoreKeyParts(profile=profile, provider=remainder[:-9], record_type="metadata")
+            return StoreKeyParts(identity=identity, provider=remainder[:-9], record_type="metadata")
         if remainder.endswith(":state"):
-            return StoreKeyParts(profile=profile, provider=remainder[:-6], record_type="state")
+            return StoreKeyParts(identity=identity, provider=remainder[:-6], record_type="state")
         if remainder.endswith(":client"):
-            return StoreKeyParts(profile=profile, provider=remainder[:-7], record_type="client")
+            return StoreKeyParts(identity=identity, provider=remainder[:-7], record_type="client")
 
         if ":connection:" in remainder:
             provider, _, connection = remainder.partition(":connection:")
             return StoreKeyParts(
-                profile=profile,
+                identity=identity,
                 provider=provider,
                 record_type="connection",
                 connection=connection,

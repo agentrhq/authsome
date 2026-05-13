@@ -296,7 +296,7 @@ async def connect_app(
     flow = definition.flow
     session = sessions.create(
         provider=provider_name,
-        profile=auth.identity,
+        identity=auth.identity,
         connection_name=connection_name,
         flow_type=flow.value,
     )

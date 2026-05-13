@@ -31,13 +31,13 @@ class ConnectionRecord(BaseModel):
     """
     Credential record for a named connection (schema v2).
 
-    Stored at key: profile:<identity>:<provider>:connection:<name>
+    Stored at key: identity:<identity>:<provider>:connection:<name>
     All sensitive fields are plaintext — encryption is at vault level.
     """
 
     schema_version: int = 2
     provider: str
-    profile: str
+    identity: str
     connection_name: str
     auth_type: AuthType
     status: ConnectionStatus
@@ -66,13 +66,13 @@ class ConnectionRecord(BaseModel):
 
 class ProviderMetadataRecord(BaseModel):
     """
-    Non-secret metadata about a provider within a profile.
+    Non-secret metadata about a provider within an identity.
 
-    Stored at key: profile:<identity>:<provider>:metadata
+    Stored at key: identity:<identity>:<provider>:metadata
     """
 
     schema_version: int = 2
-    profile: str
+    identity: str
     provider: str
     default_connection: str = "default"
     connection_names: list[str] = Field(default_factory=list)
@@ -84,14 +84,14 @@ class ProviderMetadataRecord(BaseModel):
 
 class ProviderStateRecord(BaseModel):
     """
-    Transient, non-secret provider state within a profile.
+    Transient, non-secret provider state within an identity.
 
-    Stored at key: profile:<identity>:<provider>:state
+    Stored at key: identity:<identity>:<provider>:state
     """
 
     schema_version: int = 2
     provider: str
-    profile: str
+    identity: str
     last_refresh_at: datetime | None = None
     last_refresh_error: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -101,13 +101,13 @@ class ProviderStateRecord(BaseModel):
 
 class ProviderClientRecord(BaseModel):
     """
-    Client credentials configured for a provider within a profile.
+    Client credentials configured for a provider within an identity.
 
-    Stored at key: profile:<identity>:<provider>:client
+    Stored at key: identity:<identity>:<provider>:client
     """
 
     schema_version: int = 2
-    profile: str
+    identity: str
     provider: str
     client_id: str | None = None
     client_secret: Annotated[str | None, Sensitive()] = None

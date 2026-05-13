@@ -236,7 +236,7 @@ async def test_pkce_flow_begin_stores_authlib_authorization_state() -> None:
 
     await PkceFlow().begin(
         provider=provider,
-        profile="default",
+        identity="default",
         connection_name="default",
         runtime_session=session,
         client_id="client-id",

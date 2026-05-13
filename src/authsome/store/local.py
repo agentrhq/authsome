@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from key_value.aio.protocols.key_value import AsyncKeyValue
@@ -23,11 +24,17 @@ class LocalAppStore(AppStore):
     def __init__(self, home_dir: Path) -> None:
         self._home = home_dir
         self._home.mkdir(parents=True, exist_ok=True)
-        self._store = DiskStore(directory=str(self._home / "kv_store"))
+        self._server_home = self._home / "server"
+        self._server_home.mkdir(parents=True, exist_ok=True)
+        self._store = DiskStore(directory=str(self._server_home / "kv_store"))
 
     @property
     def home(self) -> Path:
         return self._home
+
+    @property
+    def server_home(self) -> Path:
+        return self._server_home
 
     @property
     def kv(self) -> AsyncKeyValue:
@@ -37,6 +44,8 @@ class LocalAppStore(AppStore):
 
     async def ensure_initialized(self) -> None:
         if await self._store.get("version", collection="config") is not None:
+            config = await self.get_config()
+            await self.save_config(config)
             return
         await self._store.put("version", {"data": "1"}, collection="config")
         await self.save_config(GlobalConfig())
@@ -60,7 +69,8 @@ class LocalAppStore(AppStore):
             return GlobalConfig()
 
     async def save_config(self, config: GlobalConfig) -> None:
-        await self._store.put("global", {"data": config.model_dump_json(indent=2)}, collection="config")
+        data = config.model_dump(mode="json")
+        await self._store.put("global", {"data": json.dumps(data, indent=2)}, collection="config")
 
     async def close(self) -> None:
         pass

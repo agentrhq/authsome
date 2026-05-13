@@ -95,11 +95,11 @@ class InvalidProviderSchemaError(AuthsomeError):
         super().__init__(f"Invalid provider schema: {message}", provider=provider)
 
 
-class ProfileNotFoundError(AuthsomeError):
-    """Raised when a requested profile does not exist."""
+class IdentityNotFoundError(AuthsomeError):
+    """Raised when a requested identity does not exist."""
 
     def __init__(self, name: str) -> None:
-        super().__init__(f"Profile '{name}' not found")
+        super().__init__(f"Identity '{name}' not found")
 
 
 class ConnectionNotFoundError(AuthsomeError):
@@ -110,10 +110,10 @@ class ConnectionNotFoundError(AuthsomeError):
         *,
         provider: str,
         connection: str = "default",
-        profile: str = "default",
+        identity: str = "default",
     ) -> None:
         super().__init__(
-            f"Connection '{connection}' not found for provider '{provider}' in profile '{profile}'",
+            f"Connection '{connection}' not found for provider '{provider}' in identity '{identity}'",
             provider=provider,
         )
 

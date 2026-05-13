@@ -4,7 +4,7 @@ The vault uses AES-256-GCM to encrypt record blobs at rest.
 The compact wire format is: base64(nonce) + "." + base64(ciphertext || tag)
 
 Two backends are available:
-- LocalFileCrypto: master key stored in ~/.authsome/master.key (mode 0600)
+- LocalFileCrypto: master key stored in ~/.authsome/server/master.key (mode 0600)
 - KeyringCrypto: master key stored in the OS keyring
 """
 

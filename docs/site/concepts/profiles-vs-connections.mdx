@@ -56,17 +56,7 @@ uvx authsome get github --connection work --field access_token --show-secret
 
 ## Which one is active
 
-The active profile is whichever `default_profile` is set to in `~/.authsome/config.json`. CLI-level `--profile` switching is planned but not yet wired up.
-
-```json
-{
-  "spec_version": 1,
-  "default_profile": "work",
-  "encryption": { "mode": "local_key" }
-}
-```
-
-To run a single command against a different profile today, switch the file (or symlink it) before invoking the CLI.
+Authsome no longer reads an active profile from `default_profile` in `config.json`. The daemon scopes protected calls by the registered identity handle in the PoP token, and validates that handle against its server-owned registry.
 
 ## On-disk shape
 

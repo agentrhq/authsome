@@ -43,7 +43,7 @@ class AuthFlow(ABC):
     async def begin(
         self,
         provider: ProviderDefinition,
-        profile: str,
+        identity: str,
         connection_name: str,
         runtime_session: AuthSession,
         scopes: list[str] | None = None,
@@ -62,7 +62,7 @@ class AuthFlow(ABC):
     async def resume(
         self,
         provider: ProviderDefinition,
-        profile: str,
+        identity: str,
         connection_name: str,
         runtime_session: AuthSession,
         callback_data: dict[str, Any],

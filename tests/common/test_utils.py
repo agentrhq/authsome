@@ -54,29 +54,31 @@ def test_build_store_key():
     assert build_store_key(record_type="definition", provider="github") == "provider:github:definition"
     # Test metadata key
     assert (
-        build_store_key(profile="default", provider="github", record_type="metadata")
-        == "profile:default:github:metadata"
+        build_store_key(identity="default", provider="github", record_type="metadata")
+        == "identity:default:github:metadata"
     )
     # Test state key
-    assert build_store_key(profile="default", provider="github", record_type="state") == "profile:default:github:state"
+    assert (
+        build_store_key(identity="default", provider="github", record_type="state") == "identity:default:github:state"
+    )
     # Test connection key
     assert (
         build_store_key(
-            profile="default",
+            identity="default",
             provider="github",
             record_type="connection",
             connection="personal",
         )
-        == "profile:default:github:connection:personal"
+        == "identity:default:github:connection:personal"
     )
     # Test client key
     assert (
-        build_store_key(profile="default", provider="github", record_type="client") == "profile:default:github:client"
+        build_store_key(identity="default", provider="github", record_type="client") == "identity:default:github:client"
     )
     # Test value error
     with pytest.raises(ValueError):
-        build_store_key(profile="default", provider="github", record_type="unknown")
+        build_store_key(identity="default", provider="github", record_type="unknown")
 
-    # Test missing provider with profile
+    # Test missing provider with identity
     with pytest.raises(ValueError):
-        build_store_key(profile="default", record_type="metadata")
+        build_store_key(identity="default", record_type="metadata")

@@ -21,7 +21,7 @@ from authsome.cli.client import (
 from authsome.server.daemon import DEFAULT_HOST, DEFAULT_PORT
 
 AUTHSOME_HOME = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
-DAEMON_DIR = AUTHSOME_HOME / "daemon"
+DAEMON_DIR = AUTHSOME_HOME / "server" / "daemon"
 PID_FILE = DAEMON_DIR / "daemon.pid"
 LOG_FILE = DAEMON_DIR / "daemon.log"
 STATE_FILE = DAEMON_DIR / "daemon.json"

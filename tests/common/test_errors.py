@@ -7,8 +7,8 @@ from authsome.errors import (
     CredentialMissingError,
     DiscoveryError,
     EncryptionUnavailableError,
+    IdentityNotFoundError,
     InvalidProviderSchemaError,
-    ProfileNotFoundError,
     ProviderNotFoundError,
     RefreshFailedError,
     StoreUnavailableError,
@@ -79,14 +79,14 @@ def test_invalid_provider_schema_error():
     assert "Invalid provider schema: bad json" in str(err)
 
 
-def test_profile_not_found_error():
-    err = ProfileNotFoundError("work")
-    assert "Profile 'work' not found" in str(err)
+def test_identity_not_found_error():
+    err = IdentityNotFoundError("work")
+    assert "Identity 'work' not found" in str(err)
 
 
 def test_connection_not_found_error():
-    err = ConnectionNotFoundError(provider="github", connection="work", profile="default")
-    assert "Connection 'work' not found for provider 'github' in profile 'default'" in str(err)
+    err = ConnectionNotFoundError(provider="github", connection="work", identity="default")
+    assert "Connection 'work' not found for provider 'github' in identity 'default'" in str(err)
 
 
 def test_authentication_failed_error():

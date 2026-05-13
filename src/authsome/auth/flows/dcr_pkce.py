@@ -30,7 +30,7 @@ class DcrPkceFlow(AuthFlow):
     async def begin(
         self,
         provider: ProviderDefinition,
-        profile: str,
+        identity: str,
         connection_name: str,
         runtime_session: AuthSession,
         scopes: list[str] | None = None,
@@ -73,7 +73,7 @@ class DcrPkceFlow(AuthFlow):
     async def resume(
         self,
         provider: ProviderDefinition,
-        profile: str,
+        identity: str,
         connection_name: str,
         runtime_session: AuthSession,
         callback_data: dict[str, Any],
@@ -130,7 +130,7 @@ class DcrPkceFlow(AuthFlow):
         dcr_client = (
             ProviderClientRecord(
                 schema_version=2,
-                profile=profile,
+                identity=identity,
                 provider=provider.name,
                 client_id=client_id,
                 client_secret=client_secret,
@@ -142,7 +142,7 @@ class DcrPkceFlow(AuthFlow):
             connection=ConnectionRecord(
                 schema_version=2,
                 provider=provider.name,
-                profile=profile,
+                identity=identity,
                 connection_name=connection_name,
                 auth_type=AuthType.OAUTH2,
                 status=ConnectionStatus.CONNECTED,

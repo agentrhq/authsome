@@ -38,7 +38,7 @@ r = httpx.get(
 print(r.json())
 ```
 
-`create_auth_service()` is the same constructor the daemon uses. It reads `~/.authsome/config.json`, opens the active profile's vault, wires the provider registry, and returns an `AuthService`. Use it when you want one-line library access against the standard `~/.authsome/` install.
+`create_auth_service(..., identity="<handle>")` is the same constructor the daemon uses after it has validated a registered identity handle. It reads `~/.authsome/config.json`, opens the vault scoped to that identity, wires the provider registry, and returns an `AuthService`.
 
 To target a non-default home directory:
 
@@ -166,7 +166,7 @@ The exact session shape depends on the flow type. For automation, prefer driving
 auth.list_profiles()                          # -> list[ProfileMetadata]
 auth.get_profile("work")
 auth.create_profile("work", description="Work GitHub + Linear")
-auth.set_default_profile("work")
+auth = await create_auth_service(identity="steady-wisely-boldly-0042")
 ```
 
 CLI-level `--profile` switching is not yet wired up. The library is the supported way to manage profiles programmatically today.

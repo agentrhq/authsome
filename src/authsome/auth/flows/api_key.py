@@ -22,7 +22,7 @@ class ApiKeyFlow(AuthFlow):
     async def begin(
         self,
         provider: ProviderDefinition,
-        profile: str,
+        identity: str,
         connection_name: str,
         runtime_session: AuthSession,
         scopes: list[str] | None = None,
@@ -39,7 +39,7 @@ class ApiKeyFlow(AuthFlow):
     async def resume(
         self,
         provider: ProviderDefinition,
-        profile: str,
+        identity: str,
         connection_name: str,
         runtime_session: AuthSession,
         callback_data: dict[str, Any],
@@ -68,7 +68,7 @@ class ApiKeyFlow(AuthFlow):
             connection=ConnectionRecord(
                 schema_version=2,  # TODO: Version should be somewhere else, like a global var
                 provider=provider.name,
-                profile=profile,
+                identity=identity,
                 connection_name=connection_name,
                 auth_type=AuthType.API_KEY,
                 status=ConnectionStatus.CONNECTED,
