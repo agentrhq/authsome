@@ -492,11 +492,16 @@ h2 {
 
 .detail-grid {
     display: grid;
-    grid-template-columns: 1fr 240px;
+    grid-template-columns: minmax(0, 1fr) 240px;
     gap: 18px;
     align-items: start;
 }
-.detail-main { display: flex; flex-direction: column; gap: 14px; }
+.detail-main {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
 .detail-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 14px; }
 
 .docs-card {
@@ -543,6 +548,8 @@ h2 {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 16px 18px;
+    min-width: 0;
+    max-width: 100%;
 }
 .card-title {
     font-size: 12px;
@@ -569,13 +576,29 @@ h2 {
     border-radius: var(--radius-sm);
     padding: 7px 10px;
     min-height: 32px;
+    min-width: 0;
+    max-width: 100%;
+}
+.field-row .icon-btn {
+    flex-shrink: 0;
 }
 .field-row .mono {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
     color: var(--text-secondary);
+}
+/* Masked placeholder: single line + ellipsis inside the flex row */
+.field-row .mono.mask {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+/* Revealed secrets can be huge; keep row width stable and scroll horizontally */
+.field-row .mono:not(.mask) {
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: pre;
 }
 .mono { font-family: var(--font-mono); font-size: 12.5px; }
 
