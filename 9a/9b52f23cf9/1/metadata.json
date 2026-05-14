@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "9a9b52f23cf9",
+  "session_id": "f833d04f-aaf1-4933-9f35-e3df21bb92b2",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-14T12:10:35.759795Z",
+  "branch": "refactor/design-improvements",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/agents/domain.md",
+    "docs/agents/issue-tracker.md",
+    "docs/agents/triage-labels.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "664f3587d2c3",
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 41729,
+    "cache_read_tokens": 940570,
+    "output_tokens": 13328,
+    "api_call_count": 27
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-14T12:10:35.756139Z",
+    "agent_lines": 72,
+    "agent_removed": 0,
+    "human_added": 714,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 786,
+    "total_lines_changed": 788,
+    "agent_percentage": 9.137055837563452,
+    "metric_version": 2
+  }
+}
