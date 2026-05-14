@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "9a9b52f23cf9",
+  "strategy": "manual-commit",
+  "branch": "refactor/design-improvements",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "docs/UBIQUITOUS_LANGUAGE.md",
+    "docs/refactor.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9a/9b52f23cf9/0/metadata.json",
+      "transcript": "/9a/9b52f23cf9/0/full.jsonl",
+      "content_hash": "/9a/9b52f23cf9/0/content_hash.txt",
+      "prompt": "/9a/9b52f23cf9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 45,
+    "cache_creation_tokens": 53584,
+    "cache_read_tokens": 1618482,
+    "output_tokens": 16152,
+    "api_call_count": 37
+  }
+}

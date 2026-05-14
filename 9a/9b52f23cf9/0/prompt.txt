@@ -1,0 +1,31 @@
+Read @docs/refactor.md And be a critic and tell me what else could be done
+
+---
+
+Is Fernet that bad compared to AES-GCM? If yes we can create a wrapper just like Fernet wrapper for AES-GCM and use that . No need to worry about migration as this is a new product . Also the plan still says "overly abstracting things". Reduce that. We don't want to overly abstract things. Calling a function is just as sufficient . - Flow registry
+- AuthServiceFactory
+- ProofVerifier
+If these are all very thin wrappers, we don't need those. The logic is to remove all the thin wrappers that are there . Create a better definition of authsome. authsome currently has both the server-side and the client-side things . So I don't think authsome should be in key-value as this is a log that is append-only , Key value doesn't make sense. You probably will need a different backend for it and we can keep that out of scope if it increases significantly . Also Doc should be updated as we go with the phases .
+
+---
+
+Let's remove audit from the refactor plan . We should keep it as an audit.log file, which is correct .
+
+---
+
+Incorporate this into the plan file as well   Revised plan summary
+
+  ┌──────────────────────────────────────────────────────────────┬─────────────────────────────────────────────┐
+  │                            Change                            │                What it means                │
+  ├──────────────────────────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ Replace FernetEncryptionWrapper with AesGcmEncryptionWrapper │ Same interface, stronger primitive          │
+  ├──────────────────────────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ Cut FlowRegistry, AuthServiceFactory, ProofVerifier          │ Call functions directly                     │
+  ├──────────────────────────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ Cut AuditRepository from Phase 1                             │ Audit is out of scope; don't wire a phantom │
+  ├──────────────────────────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ Lead with client/server split as the organizing principle    │ Every module says which side it belongs to  │
+  ├──────────────────────────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ Docs update is per-phase, not Phase 9                        │ Language stays current as code lands        │
+  ├──────────────────────────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ No migration concern                                         │ New product, clean slate                    │
