@@ -9,6 +9,10 @@
 | **CliRuntime** | The runtime wiring container assembled once per CLI invocation (`src/authsome/cli/context.py`). Holds a `RuntimeClient` (HTTP client for daemon requests) and a `ProxyRunner`. No business logic of its own. | Client, session, app, AuthsomeContext |
 | **RuntimeClient** | The CLI's internal async HTTP client for daemon requests. Attaches PoP JWT headers to protected requests and manages identity bootstrapping. | Daemon client, HTTP client |
 | **Sensitive** | A field annotation (`Annotated[str, Sensitive()]`) marking fields that contain secret values and must be redacted before display or logging. The `redact()` utility in `utils.py` inspects this annotation to replace values with `"***REDACTED***"`. | Secret field, encrypted field |
+| **StorageSubstrate** | The concrete `AsyncKeyValue` backend where records physically live, such as DiskStore, PostgreSQLStore, or MemoryStore. In local mode, Client and Server may share one substrate. | Store, database, filesystem |
+| **StorageNamespace** | A prefixed collection/key space over a StorageSubstrate that defines ownership, such as `client/*`, `server/*`, or `vault/*`. Shared substrate does not imply shared namespace or shared write authority. | Folder, bucket, table |
+| **SecretSource** | A source for root key material or signing key material, resolved in priority order such as environment, OS keyring, then local fallback. SecretSources hold keys; StorageSubstrates hold records. | Key store, secret store |
+| **Repository** | A domain API over a StorageNamespace. It owns key naming, model serialization, and invariants for one domain concept while depending on `AsyncKeyValue` by composition. | DAO, model manager |
 
 ## Identity & Authentication
 
@@ -42,8 +46,9 @@
 
 | Term | Definition | Aliases to avoid |
 | --- | --- | --- |
-| **IdentityMetadata** | Client-side record for a local Identity, stored at `~/.authsome/identities/<handle>.json`. Fields: `handle`, `did`, `registered` (bool), `created_at`, `updated_at`. Written by the CLI; never read by the daemon. | Identity record, key metadata |
-| **IdentityRegistration** | Daemon-owned record in the Identity Registry binding a Handle to a DID. Fields: `handle`, `did`, `created_at`, `updated_at`. Authoritative for PoP JWT validation. | Registry entry, daemon identity |
+| **IdentityMetadata** | Client-owned record for a local Identity. Fields: `handle`, `did`, `registered` (client-side cache), `created_at`, `updated_at`. The daemon never treats this as authoritative. | Identity record, key metadata |
+| **ActiveIdentity** | Client-owned selection of which Identity signs outgoing protected requests. It is local caller state and must not be mirrored into server-owned storage. | Active profile, default profile |
+| **IdentityRegistration** | Server-owned record in the Identity Registry binding a Handle to a DID. Fields: `handle`, `did`, `created_at`, `updated_at`. Authoritative for PoP JWT validation. It does not include `registered` or `active_identity`. | Registry entry, daemon identity |
 | **ConnectionRecord** | The persisted credential record for a Connection: plaintext tokens or API key (encrypted at rest by the Vault), scopes, expiry, and account info. `schema_version = 2`. | Token record, credential record |
 | **ProviderMetadataRecord** | Non-secret per-profile record tracking which Connections exist for a Provider and which is the default | Provider metadata |
 | **ProviderStateRecord** | Transient per-profile record tracking the last refresh attempt and any errors for a Provider | Provider state |
@@ -83,6 +88,7 @@
 - **CliRuntime** wires **RuntimeClient** and **ProxyRunner** together; the CLI creates one runtime per invocation via `ContextObj.initialize()`.
 - **ClientCredentials** are server-scoped, not profile-scoped. A single `ProviderClientRecord` per Provider is shared by all Profiles on a server instance. `ConnectionRecord` tokens are always profile-scoped.
 - A **PoP JWT** is issued by the CLI for each protected daemon request. The daemon validates the signature against the **DID** embedded in `iss`, then checks the **Identity Registry** to confirm `sub` (the Handle) maps to that same DID.
+- Client and Server may share a **StorageSubstrate** in local mode, but they do not share a **StorageNamespace** or ownership authority. Remote Server storage must never contain client Identity private keys; client signing keys resolve only from client-side **SecretSources**.
 
 ## Example dialogue
 

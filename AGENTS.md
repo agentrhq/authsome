@@ -56,6 +56,8 @@ These rules govern all changes to this codebase — apply them without exception
 
 **Deep modules over shallow ones.** Prefer a small surface area with rich internals over many thin wrappers. More files is not more modular.
 
+**Composition over inheritance.** Prefer small collaborators wired together through explicit dependencies over inheritance hierarchies. Use inheritance only when there is a real subtype relationship and composition would make the design less clear.
+
 **Single responsibility and separation of concerns.** Auth authenticates. Vault stores credentials. CLI presents output. A flow must not write to storage; storage must not know about OAuth. If a function is hard to name, it's doing too many things.
 
 **No premature optimization.** Don't add caching, batching, or concurrency before a measured performance problem exists. Simple and slow is fixable; complex and wrong is not.

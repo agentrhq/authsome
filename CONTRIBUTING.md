@@ -33,6 +33,9 @@ Reach for a well-maintained dependency before writing your own crypto, HTTP clie
 **Deep modules over shallow ones.**
 Prefer a module with a small surface area and rich internals over a sprawl of thin wrappers. A single `AuthClient` that handles everything cleanly beats a dozen one-method classes. More files is not more modular.
 
+**Composition over inheritance.**
+Prefer small collaborators wired together through explicit dependencies over inheritance hierarchies. Use inheritance only when there is a real subtype relationship and composition would make the design less clear.
+
 **Single responsibility and separation of concerns.**
 Auth authenticates. Vault stores credentials. The CLI presents output. These boundaries are not negotiable — a flow should not write to storage, and storage should not know about OAuth. If a function is hard to name, it's doing too many things.
 
