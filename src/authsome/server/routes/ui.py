@@ -308,6 +308,9 @@ async def app_detail(
                 has_client_secret=bool(
                     client_record and client_record.client_secret and policy["show_provider_client_details"]
                 ),
+                client_scopes=client_record.scopes
+                if client_record and policy["show_provider_client_details"]
+                else None,
                 redirect_uri=redirect_uri,
                 auth_url=provider.oauth.authorization_url if provider.oauth else None,
                 token_url=provider.oauth.token_url if provider.oauth else None,
@@ -338,6 +341,9 @@ async def app_detail(
                 ),
                 "has_client_secret": bool(
                     client_record and client_record.client_secret and policy["show_provider_client_details"]
+                ),
+                "client_scopes": (
+                    client_record.scopes if client_record and policy["show_provider_client_details"] else None
                 ),
                 "redirect_uri": redirect_uri,
                 "auth_url": provider.oauth.authorization_url if provider.oauth else "",
@@ -393,6 +399,10 @@ async def update_client_credentials(
 
     client_id_val = str(client_id).strip() if client_id else ""
     client_secret_val = str(client_secret).strip() if client_secret else ""
+    scopes = form.get("scopes")
+    scopes_val = [s.strip() for s in str(scopes).split(",") if s.strip()] if scopes else None
+    if scopes_val == []:
+        scopes_val = None
 
     # Break all connections
     await auth.revoke(provider_name)
@@ -410,6 +420,7 @@ async def update_client_credentials(
         client_record.client_id = client_id_val
         if client_secret_val and client_secret_val != "••••••••••••••••":
             client_record.client_secret = client_secret_val
+        client_record.scopes = scopes_val
 
     await auth._save_provider_client_credentials(client_record)
     return _redirect(request, f"/ui/apps/{provider_name}")

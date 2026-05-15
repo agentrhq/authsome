@@ -26,6 +26,12 @@
             <input type="password" name="client_secret" placeholder="{% if has_client_secret %}••••••••••••••••{% else %}Required during setup{% endif %}" style="width: 100%; background: transparent; border: 1px solid var(--border, #ccc); color: inherit; padding: 4px; font-family: monospace;">
         </div>
     </div>
+    <div class="field">
+        <div class="field-label">Default Scopes (comma-separated)</div>
+        <div class="field-row">
+            <input type="text" name="scopes" value="{{ client_scopes|join(', ') if client_scopes else '' }}" placeholder="e.g. repo, user" style="width: 100%; background: transparent; border: 1px solid var(--border, #ccc); color: inherit; padding: 4px; font-family: monospace;">
+        </div>
+    </div>
     </form>
     {% else %}
     <p class="card-body">
