@@ -35,7 +35,7 @@ from authsome.server.schemas import UiBootstrapResponse
 from authsome.server.ui import pages
 from authsome.server.ui_sessions import UiSessionStore
 from authsome.server.urls import build_auth_input_url, build_callback_url, build_device_url
-from authsome.utils import utc_now
+from authsome.utils import is_admin, utc_now
 
 router = APIRouter(prefix="/ui", tags=["ui"], include_in_schema=False)
 
@@ -73,13 +73,17 @@ def _ui_cookie_secure(server_base_url: str) -> bool:
     return server_base_url.startswith("https://")
 
 
-def _ui_policy() -> dict[str, Any]:
+def _ui_policy(identity: str | None = None) -> dict[str, Any]:
     hosted = _is_hosted_ui()
+    admin = is_admin(identity)
+    show_details = not hosted or admin
+    label = "OAuth application managed by Authsome" if hosted and not admin else "OAuth Application"
     return {
         "ui_mode": "hosted" if hosted else "local",
-        "show_provider_client_details": not hosted,
-        "provider_management_label": "OAuth application managed by Authsome" if hosted else "OAuth Application",
+        "show_provider_client_details": show_details,
+        "provider_management_label": label,
         "show_hosted_identity": hosted,
+        "is_admin": admin,
     }
 
 
@@ -118,11 +122,12 @@ def _clear_ui_session_cookie(response: Response) -> None:
 
 
 def _page_context(request: Request, page: str, **kwargs: Any) -> dict[str, Any]:
+    identity = getattr(request.state, "ui_identity", None)
     return {
         "page": page,
         "version": __version__,
-        "ui_identity": getattr(request.state, "ui_identity", None),
-        **_ui_policy(),
+        "ui_identity": identity,
+        **_ui_policy(identity),
         **kwargs,
     }
 
@@ -284,7 +289,7 @@ async def app_detail(
     client_record = await auth.get_provider_client(provider_name)
     redirect_uri = build_callback_url(server_base_url)
     host_url = provider.host_url or (provider.oauth.base_url if provider.oauth else None) or provider.name
-    policy = _ui_policy()
+    policy = _ui_policy(auth.identity)
 
     if connection_record is None:
         return templates.TemplateResponse(
@@ -367,6 +372,47 @@ async def disconnect_app(
         return _redirect(request, "/ui/")
     await auth.logout(provider_name, connection_name)
     return _redirect(request, "/ui/connections")
+
+
+@router.post("/apps/{provider_name}/credentials")
+async def update_client_credentials(
+    provider_name: str,
+    request: Request,
+) -> Response:
+    """Update provider client credentials."""
+    auth = await _resolve_ui_auth(request)
+    if auth is None:
+        return _redirect(request, "/ui/")
+
+    if _is_hosted_ui() and not is_admin(auth.identity):
+        return _redirect(request, f"/ui/apps/{provider_name}")
+
+    form = await request.form()
+    client_id = form.get("client_id")
+    client_secret = form.get("client_secret")
+
+    client_id_val = str(client_id).strip() if client_id else ""
+    client_secret_val = str(client_secret).strip() if client_secret else ""
+
+    # Break all connections
+    await auth.revoke(provider_name)
+
+    from authsome.auth.models.connection import ProviderClientRecord
+
+    client_record = await auth.get_provider_client(provider_name)
+    if not client_record:
+        client_record = ProviderClientRecord(provider=provider_name)
+
+    if not client_id_val:
+        client_record.client_id = None
+        client_record.client_secret = None
+    else:
+        client_record.client_id = client_id_val
+        if client_secret_val and client_secret_val != "••••••••••••••••":
+            client_record.client_secret = client_secret_val
+
+    await auth._save_provider_client_credentials(client_record)
+    return _redirect(request, f"/ui/apps/{provider_name}")
 
 
 @router.post("/apps/{provider_name}/connect")

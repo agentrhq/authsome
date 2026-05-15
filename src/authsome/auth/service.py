@@ -236,7 +236,9 @@ class AuthService:
         return handles or [self._identity]
 
     def _ensure_local_provider_admin_operation_allowed(self, operation: str, provider: str) -> None:
-        if self._deployment_mode == "hosted":
+        from authsome.utils import is_admin
+
+        if self._deployment_mode == "hosted" and not is_admin(self._identity):
             raise OperationNotAllowedError(
                 operation,
                 f"{operation} is not allowed in hosted deployments",
@@ -244,7 +246,9 @@ class AuthService:
             )
 
     def _ensure_provider_client_mutation_allowed(self, provider: str) -> None:
-        if self._deployment_mode == "hosted":
+        from authsome.utils import is_admin
+
+        if self._deployment_mode == "hosted" and not is_admin(self._identity):
             raise OperationNotAllowedError(
                 "login",
                 "provider client configuration is not allowed in hosted deployments",

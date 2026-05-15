@@ -5,21 +5,20 @@
 <section class="card">
     <div class="card-title">{{ provider_management_label }}</div>
     {% if show_provider_client_details %}
+    <form id="credentials-form" method="post" action="/ui/apps/{{ provider.name }}/credentials" onsubmit="return confirm('Warning: This is a breaking change and all connections will be revoked. Do you want to proceed?');">
     <div class="field">
         <div class="field-label">Client ID</div>
         <div class="field-row">
-            <code class="mono">{{ client_id or '—' }}</code>
-            {% if client_id %}<button class="icon-btn" data-copy="{{ client_id }}" type="button" title="Copy">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-            </button>{% endif %}
+            <input type="text" name="client_id" value="{{ client_id or '' }}" style="width: 100%; background: transparent; border: 1px solid var(--border, #ccc); color: inherit; padding: 4px; font-family: monospace;">
         </div>
     </div>
     <div class="field">
         <div class="field-label">Client Secret</div>
         <div class="field-row">
-            <code class="mono mask" data-secret>{% if has_client_secret %}••••••••••••••••{% else %}—{% endif %}</code>
+            <input type="password" name="client_secret" placeholder="{% if has_client_secret %}••••••••••••••••{% else %}—{% endif %}" style="width: 100%; background: transparent; border: 1px solid var(--border, #ccc); color: inherit; padding: 4px; font-family: monospace;">
         </div>
     </div>
+    </form>
     {% else %}
     <p class="card-body">
         This hosted deployment manages the OAuth application for {{ provider.display_name }}. Client credentials stay deployment-managed and are not shown in the dashboard.
@@ -104,7 +103,9 @@
 {% endblock %}
 
 {% block actions %}
-<button class="btn btn-primary btn-block" type="button" disabled title="Not yet wired">Save changes</button>
+{% if show_provider_client_details %}
+<button form="credentials-form" class="btn btn-primary btn-block" type="submit">Save changes</button>
+{% endif %}
 <form method="post" action="/ui/apps/{{ provider.name }}/connect" hx-post="/ui/apps/{{ provider.name }}/connect" hx-swap="none">
     <input type="hidden" name="connection" value="{{ connection.connection_name }}">
     <input type="hidden" name="force" value="true">

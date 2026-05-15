@@ -23,6 +23,16 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+def is_admin(identity: str | None) -> bool:
+    """Return whether the given identity is an admin."""
+    import os
+
+    if not identity:
+        return False
+    admins = os.environ.get("AUTHSOME_ADMIN_HANDLES", "").split(",")
+    return identity in [a.strip() for a in admins if a.strip()]
+
+
 def to_rfc3339(dt: datetime) -> str:
     """Format a datetime as RFC 3339 / ISO 8601 in UTC."""
     if dt.tzinfo is None:
