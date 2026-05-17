@@ -1,1 +1,5 @@
 Authsome new version is out, reveiw @docs/internal/manual-testing.md guide and current reference to test it end to end.
+
+---
+
+Compare with documentation. Search online for better cli design and create a report of what should be correct cli interface.
