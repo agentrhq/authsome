@@ -3,3 +3,7 @@ Authsome new version is out, reveiw @docs/internal/manual-testing.md guide and c
 ---
 
 Compare with documentation. Search online for better cli design and create a report of what should be correct cli interface.
+
+---
+
+Create a proper pr
