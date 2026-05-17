@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "e28262984429",
+  "session_id": "feb964b7-b9f3-4c60-8c7e-9fce43a7fb17",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-17T11:03:30.034752Z",
+  "branch": "bugfix/cli-three-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "ee1ebc170127",
+  "token_usage": {
+    "input_tokens": 77,
+    "cache_creation_tokens": 102470,
+    "cache_read_tokens": 4385365,
+    "output_tokens": 27779,
+    "api_call_count": 73
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 303,
+      "user_lines_removed": 105,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 51,
+        ".codex/agents/entire-search.toml": 23,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 1,
+        "skills-lock.json": 11,
+        "uv.lock": 105
+      },
+      "user_removed_per_file": {
+        "uv.lock": 105
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 162,
+      "user_lines_removed": 0,
+      "agent_lines_added": 143,
+      "agent_lines_removed": 105,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 53
+      }
+    }
+  ]
+}
