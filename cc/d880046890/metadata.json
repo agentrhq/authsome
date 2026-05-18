@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "ccd880046890",
+  "strategy": "manual-commit",
+  "branch": "docs/principal-owned-vault",
+  "checkpoints_count": 14,
+  "files_touched": [
+    "CONTEXT.md",
+    "docs/UBIQUITOUS_LANGUAGE.md",
+    "docs/adr/0003-principal-owned-vault.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cc/d880046890/0/metadata.json",
+      "transcript": "/cc/d880046890/0/full.jsonl",
+      "content_hash": "/cc/d880046890/0/content_hash.txt",
+      "prompt": "/cc/d880046890/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 149,
+    "cache_creation_tokens": 61586,
+    "cache_read_tokens": 2825585,
+    "output_tokens": 26167,
+    "api_call_count": 52
+  }
+}

@@ -1,0 +1,61 @@
+/grill-with-docs
+
+---
+
+/grill-with-docs I want to introduce concept of user, a user is going to be the owner of the agents as well as own the vault. The current implementation is profile is owned by agent, with no concept of agent owner or human. Improve the flow, so that multiple agents can share credentials. The audit log says which agent on behalf of what user. Also, keep in mind that local version should have default user, in hosted version we can create user and auth flow to show all the agents.
+
+---
+
+Lets keep user as logical partition, call it principal with no cryptographic key of its own and owns vault namespace. He is there to authorize with tools using oauth.
+
+---
+
+It should be principal, call it breaking change.
+
+---
+
+Makes sense. But principal can have email, so that its more readable and another id doesn't makes great sense. In local it can be default principal
+
+---
+
+email as key isn't great. We can have an id for that principal, a human handle like manoj for manoj@ruzo.ai , a table can manage users somewhere. Its not needed in local version as it will be default only. In hosted version, we can keep a map for username and id
+
+---
+
+I would like to have reverse lookup as well, all the identities held by principal to show in ui. But yes, just a principal owner in identity registration is fine.
+
+---
+
+Audit event should always have principal, identity. One question we have a principal handle and an email, where is that captured during registration?
+
+---
+
+can we do identity registration to always have principal (default in local). Also, rather than creating ensure_initilized implicity generating key id pair, we move everything to explicit calling init --principal manoj --email manoj@agentr.dev and so on. This will create agent identity, do registration. In local, we don't need that as it is always going to be default. Open to suggestions
+
+---
+
+I don't want to involve human. We can do this authsome init --principal manoj --email manoj@agentrq.dev will try to add in principal manoj, but it status (registered) can be converted to state, where we can say its not accepted.  The human can see in UI, which agent is accepted or not. Call it claim flow, the principal claims if its his agent or not
+
+---
+
+vault is completely gated.
+
+---
+
+yes. Keep the trigger same, we can later add it directly in UI as well as it is owned by agent
+
+---
+
+profile is the principals handle. The name profile was easier to read than principal, in our technical terminology it makes sense to call principal.
+
+---
+
+go with recommended
+
+---
+
+Break it in 0.4 its fine.
+
+---
+
+Yes. Its for all principals, assume this as on behalf of flow. All agent calls are on behalf of its principal. We can tackle this in policies later on
