@@ -1,0 +1,5 @@
+Help me brainstorm the ROADMAP.md file as well, a lot of the things are done.
+
+---
+
+yes. Write better ROADMAP.mdx file, also, remove local ROADMAP.md put the link to raodmap to docs which is authsome.ai/docs
