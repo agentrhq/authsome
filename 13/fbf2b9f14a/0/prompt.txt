@@ -1,0 +1,5 @@
+Read this: https://infisical.com/blog/agent-vault-the-open-source-credential-proxy-and-vault-for-agents#agent-vault and talk about features
+
+---
+
+Add following in roadmap, multi user, poilicy layer, firewall rules is also shipped
