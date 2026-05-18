@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "cd99c854018c",
+  "strategy": "manual-commit",
+  "branch": "docs/readme-roadmap-contributing-links",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/site/roadmap.mdx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cd/99c854018c/0/metadata.json",
+      "transcript": "/cd/99c854018c/0/full.jsonl",
+      "content_hash": "/cd/99c854018c/0/content_hash.txt",
+      "prompt": "/cd/99c854018c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5,
+    "cache_creation_tokens": 4334,
+    "cache_read_tokens": 153403,
+    "output_tokens": 2500,
+    "api_call_count": 3
+  }
+}
