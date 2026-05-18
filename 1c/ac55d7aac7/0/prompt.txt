@@ -1,0 +1,1 @@
+Update README, work in a branch. Add a section for ROADMAP, refer to ROADMAP.md, add a small section for CONTRIBUTING (Found a bug? Open an issue Have an idea? Start a discussion Want to contribute? CONTRIBUTING.md ) add a section of Links ( website on authsome.ai , docs on authsome.ai/docs )

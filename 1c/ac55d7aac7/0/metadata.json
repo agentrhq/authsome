@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "1cac55d7aac7",
+  "session_id": "2ba0913a-52a0-43eb-b2b0-9a3cf259a4cc",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-18T08:13:32.754691Z",
+  "branch": "docs/readme-roadmap-contributing-links",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "README.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "c55d8adbf394",
+  "token_usage": {
+    "input_tokens": 9,
+    "cache_creation_tokens": 27405,
+    "cache_read_tokens": 154026,
+    "output_tokens": 1218,
+    "api_call_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-18T08:13:32.752477Z",
+    "agent_lines": 14,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 14,
+    "total_lines_changed": 15,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 222,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 59,
+        ".codex/agents/entire-search.toml": 23,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 1,
+        "ROADMAP.md": 16,
+        "skills-lock.json": 11
+      }
+    }
+  ]
+}
