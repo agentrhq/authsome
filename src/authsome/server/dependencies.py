@@ -118,10 +118,9 @@ async def list_registered_identity_handles(home: Path | None = None) -> list[str
 async def create_vault(app_store: AppStore) -> Vault:
     """Create the daemon vault from an initialized application store."""
     resolved_home = app_store.home
-    config = load_server_config(resolved_home)
     return Vault(
         app_store=app_store,
-        crypto_mode=config.encryption.mode,
+        crypto_mode=get_deployment_mode(),
         master_key_path=get_server_home(resolved_home) / "master.key",
     )
 

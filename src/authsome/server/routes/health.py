@@ -92,13 +92,13 @@ async def whoami(
     auth: AuthService = Depends(get_protected_auth_service),
     server_base_url: str = Depends(get_server_base_url),
 ) -> dict[str, str]:
-    enc_mode = request.app.state.server_config.encryption.mode
-    if enc_mode == "local_key":
-        enc_desc = f"Local Key ({auth.vault.home / 'server' / 'master.key'})"
-    elif enc_mode == "keyring":
+    crypto_cls = auth.vault.crypto.__class__.__name__
+    if crypto_cls == "KeyringCrypto":
         enc_desc = "OS Keyring"
+    elif crypto_cls == "LocalFileCrypto":
+        enc_desc = f"Local Key ({auth.vault.home / 'server' / 'master.key'})"
     else:
-        enc_desc = enc_mode
+        enc_desc = crypto_cls
     return {
         "version": __version__,
         "home": str(auth.vault.home),

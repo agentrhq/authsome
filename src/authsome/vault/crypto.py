@@ -138,16 +138,37 @@ class KeyringCrypto(_AesGcmCrypto):
         except Exception as exc:
             raise EncryptionUnavailableError(
                 f"Failed to store master key in OS keyring: {exc}. "
-                "Use encryption mode 'local_key' for headless environments."
+                "Use AUTHSOME_DEPLOYMENT_MODE='hosted' for headless environments."
             ) from exc
-        logger.info("Generated and stored new master key in OS keyring")
+        logger.info(
+            "Generated and stored new master key in OS keyring. "
+            "WARNING: Do NOT click 'Always Allow' when prompted by the OS to ensure security against local agents."
+        )
         return master_key
 
 
-def create_crypto(key_file: Path | None, mode: str = "local_key") -> VaultCrypto:
-    """Factory: return the appropriate VaultCrypto backend for the given mode."""
-    if mode == "keyring":
+class EnvCrypto(_AesGcmCrypto):
+    # This class is intentionally left blank since it was removed as per user request.
+    # The user requested to only use the local master.key file in hosted mode.
+    pass
+
+def create_crypto(key_file: Path | None, mode: str = "local") -> VaultCrypto:
+    """Factory: return the appropriate VaultCrypto backend for the given deployment mode.
+    
+    If mode == "hosted", uses local file.
+    If mode == "local", uses OS keyring (with user prompting recommended).
+    """
+    if mode == "hosted":
+        if key_file is None:
+            raise ValueError("key_file is required for filesystem fallback in hosted mode")
+        return LocalFileCrypto(key_file)
+    
+    if mode == "local" or mode == "keyring":
         return KeyringCrypto()
-    if key_file is None:
-        raise ValueError("key_file is required for 'local_key' mode")
-    return LocalFileCrypto(key_file)
+        
+    if mode == "local_key":
+        if key_file is None:
+            raise ValueError("key_file is required for 'local_key' mode")
+        return LocalFileCrypto(key_file)
+        
+    raise ValueError(f"Unknown vault crypto mode: {mode}")
