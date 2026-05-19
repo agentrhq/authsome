@@ -152,9 +152,10 @@ class EnvCrypto(_AesGcmCrypto):
     # The user requested to only use the local master.key file in hosted mode.
     pass
 
+
 def create_crypto(key_file: Path | None, mode: str = "local") -> VaultCrypto:
     """Factory: return the appropriate VaultCrypto backend for the given deployment mode.
-    
+
     If mode == "hosted", uses local file.
     If mode == "local", uses OS keyring (with user prompting recommended).
     """
@@ -162,13 +163,13 @@ def create_crypto(key_file: Path | None, mode: str = "local") -> VaultCrypto:
         if key_file is None:
             raise ValueError("key_file is required for filesystem fallback in hosted mode")
         return LocalFileCrypto(key_file)
-    
+
     if mode == "local" or mode == "keyring":
         return KeyringCrypto()
-        
+
     if mode == "local_key":
         if key_file is None:
             raise ValueError("key_file is required for 'local_key' mode")
         return LocalFileCrypto(key_file)
-        
+
     raise ValueError(f"Unknown vault crypto mode: {mode}")
