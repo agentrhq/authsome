@@ -43,3 +43,7 @@ Modify the adr-003 directly, its not implemented yet.
 ---
 
 Show all adrs now?
+
+---
+
+Perfect. Commit and push
