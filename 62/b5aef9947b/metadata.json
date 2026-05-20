@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "62b5aef9947b",
+  "strategy": "manual-commit",
+  "branch": "refactor/v4-improvements",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "docs/UBIQUITOUS_LANGUAGE.md",
+    "docs/adr/0003-proxy-unmatched-pass-through.md",
+    "docs/agents/domain.md",
+    "docs/agents/issue-tracker.md",
+    "docs/agents/triage-labels.md",
+    "docs/refactor.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/62/b5aef9947b/0/metadata.json",
+      "transcript": "/62/b5aef9947b/0/full.jsonl",
+      "content_hash": "/62/b5aef9947b/0/content_hash.txt",
+      "prompt": "/62/b5aef9947b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 39583,
+    "cache_read_tokens": 562614,
+    "output_tokens": 17722,
+    "api_call_count": 13
+  }
+}
