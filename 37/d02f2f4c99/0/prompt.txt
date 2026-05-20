@@ -1,0 +1,13 @@
+Refer to @docs/internal/manual-testing.md and perform the test on current local authsome. user current venv
+
+---
+
+Ignore custome provider registration too for now
+
+---
+
+Fix the two known bugs
+
+---
+
+continue

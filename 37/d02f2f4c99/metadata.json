@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "37d02f2f4c99",
+  "strategy": "manual-commit",
+  "branch": "refactor/v4-improvements",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/internal/manual-testing.md",
+    "src/authsome/cli/daemon_control.py",
+    "src/authsome/server/app.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/37/d02f2f4c99/0/metadata.json",
+      "transcript": "/37/d02f2f4c99/0/full.jsonl",
+      "content_hash": "/37/d02f2f4c99/0/content_hash.txt",
+      "prompt": "/37/d02f2f4c99/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 93,
+    "cache_creation_tokens": 68801,
+    "cache_read_tokens": 4190841,
+    "output_tokens": 24326,
+    "api_call_count": 81
+  }
+}
