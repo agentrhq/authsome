@@ -1,0 +1,1 @@
+/goal Read the context and TODOS.md and clean the entire repo. Make sure to follow the best principles in @CONTRIBUTING.md and complete the task. Ensure the test cases also pass by the end.
