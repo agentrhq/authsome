@@ -77,7 +77,7 @@ authsome whoami
 authsome doctor
 ```
 
-`whoami` prints the home directory, registered identity handle, DID, and active encryption mode. `doctor` walks the home directory, verifies encryption is available, and parses every bundled provider definition. A healthy install reports `OK` for each check and exits with code `0`.
+`whoami` prints the home directory, registered identity handle, DID, and both the configured encryption mode and effective master-key source. `doctor` walks the home directory, verifies encryption is available, and parses every bundled provider definition. A healthy install reports `OK` for each check and exits with code `0`.
 
 If `doctor` reports failures, see [Diagnose with doctor](/troubleshooting/doctor).
 
@@ -98,7 +98,15 @@ On `authsome init`, authsome initializes its home directory at `~/.authsome/`, c
     daemon/
 ```
 
-The daemon-owned master key is generated locally with 256 bits of entropy. Override the home location with `AUTHSOME_HOME` for ephemeral or per-project setups:
+On a fresh `init`, authsome resolves the master key source in this order:
+
+1. `AUTHSOME_MASTER_KEY` from the environment, when set. The value must be a base64-encoded 32-byte key.
+2. An existing OS keyring entry.
+3. An existing `~/.authsome/server/master.key`.
+4. A newly created OS keyring entry, when the keyring is available.
+5. A newly created local `~/.authsome/server/master.key` as the final fallback.
+
+Override the home location with `AUTHSOME_HOME` for ephemeral or per-project setups:
 
 ```bash
 export AUTHSOME_HOME=/var/lib/authsome
@@ -109,7 +117,7 @@ See [Filesystem layout](/reference/file-layout) for the full directory model.
 
 ## Choose the encryption backend
 
-By default, the master key sits in `~/.authsome/server/master.key` with mode `0600`. To use the OS keychain instead (macOS Keychain, GNOME Keyring, Windows Credential Manager), edit the Authsome config:
+By default, authsome uses `encryption.mode = "auto"` and applies the precedence above. To pin the daemon to the local file or OS keychain instead, edit the Authsome config:
 
 ```json
 {

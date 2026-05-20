@@ -1,10 +1,13 @@
 """Tests for the vault crypto layer."""
 
+import base64
+import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
-from authsome.vault.crypto import KeyringCrypto, LocalFileCrypto, _decode, _encode
+from authsome.vault.crypto import EnvVarCrypto, KeyringCrypto, LocalFileCrypto, _decode, _encode, create_crypto
 
 
 class TestLocalFileCrypto:
@@ -128,8 +131,6 @@ class TestKeyringCrypto:
         assert "." in result
 
     def test_import_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import sys
-
         monkeypatch.setitem(sys.modules, "keyring", None)
         from authsome.errors import EncryptionUnavailableError
 
@@ -177,6 +178,98 @@ class TestKeyringCrypto:
 
         with pytest.raises(EncryptionUnavailableError, match="Failed to store master key"):
             KeyringCrypto()
+
+
+class TestCreateCryptoAutoMode:
+    """Auto-mode master-key source resolution tests."""
+
+    @staticmethod
+    def _key_b64(fill_byte: int) -> str:
+        return base64.b64encode(bytes([fill_byte]) * 32).decode("ascii")
+
+    @staticmethod
+    def _stub_keyring(
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        existing_key: str | None = None,
+        set_password_side_effect: Exception | None = None,
+    ) -> dict[str, list[str]]:
+        state: dict[str, list[str]] = {"set_calls": []}
+        module = ModuleType("keyring")
+
+        def get_password(service: str, username: str) -> str | None:
+            _ = (service, username)
+            return existing_key
+
+        def set_password(service: str, username: str, value: str) -> None:
+            _ = (service, username)
+            if set_password_side_effect is not None:
+                raise set_password_side_effect
+            state["set_calls"].append(value)
+
+        module.get_password = get_password  # type: ignore[attr-defined]
+        module.set_password = set_password  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "keyring", module)
+        return state
+
+    def test_auto_prefers_env_var(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AUTHSOME_MASTER_KEY", self._key_b64(1))
+        self._stub_keyring(monkeypatch, existing_key=self._key_b64(2))
+
+        crypto = create_crypto(tmp_path / "master.key", "auto")
+
+        assert isinstance(crypto, EnvVarCrypto)
+        assert crypto.source_id == "env"
+        assert not (tmp_path / "master.key").exists()
+
+    def test_auto_prefers_existing_keyring_key(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        local = LocalFileCrypto(tmp_path / "master.key")
+        local_ciphertext = local.encrypt("from-local-file")
+        self._stub_keyring(monkeypatch, existing_key=self._key_b64(3))
+
+        crypto = create_crypto(tmp_path / "master.key", "auto")
+
+        assert isinstance(crypto, KeyringCrypto)
+        assert crypto.source_id == "keyring"
+        from authsome.errors import EncryptionUnavailableError
+
+        with pytest.raises(EncryptionUnavailableError, match="Decryption failed"):
+            crypto.decrypt(local_ciphertext)
+
+    def test_auto_preserves_existing_local_file_before_creating_keyring(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        local = LocalFileCrypto(tmp_path / "master.key")
+        ciphertext = local.encrypt("keep-using-local-file")
+        keyring_state = self._stub_keyring(monkeypatch, existing_key=None)
+
+        crypto = create_crypto(tmp_path / "master.key", "auto")
+
+        assert isinstance(crypto, LocalFileCrypto)
+        assert crypto.source_id == "local_key"
+        assert crypto.decrypt(ciphertext) == "keep-using-local-file"
+        assert keyring_state["set_calls"] == []
+
+    def test_auto_creates_keyring_key_for_fresh_install(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        keyring_state = self._stub_keyring(monkeypatch, existing_key=None)
+
+        crypto = create_crypto(tmp_path / "master.key", "auto")
+
+        assert isinstance(crypto, KeyringCrypto)
+        assert crypto.source_id == "keyring"
+        assert len(keyring_state["set_calls"]) == 1
+        assert not (tmp_path / "master.key").exists()
+
+    def test_auto_falls_back_to_local_file_when_keyring_unavailable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setitem(sys.modules, "keyring", None)
+
+        crypto = create_crypto(tmp_path / "master.key", "auto")
+
+        assert isinstance(crypto, LocalFileCrypto)
+        assert crypto.source_id == "local_key"
+        assert (tmp_path / "master.key").exists()
 
 
 class TestVaultCryptoHelpers:

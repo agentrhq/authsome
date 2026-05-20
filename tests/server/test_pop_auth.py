@@ -1,3 +1,4 @@
+import base64
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -39,6 +40,7 @@ def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
 
 def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x01" * 32).decode("ascii"))
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
@@ -52,6 +54,19 @@ def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Pat
     assert response.status_code == 200
     assert response.json()["identity"] == "steady-wisely-boldly-0042"
     assert response.json()["did"].startswith("did:key:z6Mk")
+    assert response.json()["configured_encryption_mode"] == "auto"
+    assert response.json()["effective_encryption_source"] == "env"
+    assert "AUTHSOME_MASTER_KEY" in response.json()["encryption_backend"]
+
+
+def test_health_reports_configured_encryption_mode(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+
+    with TestClient(create_app()) as client:
+        response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["configured_encryption_mode"] == "auto"
 
 
 def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:

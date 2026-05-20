@@ -27,7 +27,10 @@ def generate_html(data: dict) -> str:
     skill_name = data.get("skill_name", "authsome")
     timestamp = data.get("timestamp", "")
 
-    parts = [f"""<!DOCTYPE html>
+    font_url = "https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap"
+
+    parts = [
+        f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -35,7 +38,7 @@ def generate_html(data: dict) -> str:
   <title>{html.escape(skill_name)} — Eval Report</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <link href="{font_url}" rel="stylesheet">
   <style>
     :root {{
       --bg: #faf9f5;
@@ -129,9 +132,21 @@ def generate_html(data: dict) -> str:
     .pass {{ color: var(--green); }}
     .fail {{ color: var(--red); }}
     .skip {{ color: var(--text-muted); }}
-    .card-body {{ padding: 0.75rem 1rem; font-size: 0.875rem; display: flex; flex-direction: column; gap: 0.5rem; }}
+    .card-body {{
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }}
     .field-row {{ display: flex; gap: 0.75rem; }}
-    .field-label {{ color: var(--text-muted); font-size: 0.75rem; min-width: 6rem; padding-top: 0.1rem; flex-shrink: 0; }}
+    .field-label {{
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      min-width: 6rem;
+      padding-top: 0.1rem;
+      flex-shrink: 0;
+    }}
     .field-value {{ flex: 1; line-height: 1.5; }}
     .evidence {{ font-style: italic; color: #555; }}
     details summary {{ cursor: pointer; color: var(--text-muted); font-size: 0.8rem; list-style: none; }}
@@ -147,13 +162,14 @@ def generate_html(data: dict) -> str:
   </div>
   <div class="summary-bar">
     <span>Results:</span>
-    <span class="chip chip-pass">✓ {summary['passed']} passed</span>
-    <span class="chip chip-fail">✗ {summary['failed']} failed</span>
-    <span class="chip chip-skip">— {summary['skipped']} skipped</span>
-    <span style="color:var(--text-muted)">of {summary['total']} total</span>
+    <span class="chip chip-pass">✓ {summary["passed"]} passed</span>
+    <span class="chip chip-fail">✗ {summary["failed"]} failed</span>
+    <span class="chip chip-skip">— {summary["skipped"]} skipped</span>
+    <span style="color:var(--text-muted)">of {summary["total"]} total</span>
   </div>
   <div class="main">
-"""]
+"""
+    ]
 
     for r in results:
         outcome = r.get("outcome", {})
@@ -171,7 +187,13 @@ def generate_html(data: dict) -> str:
         agent_text = html.escape(r.get("agent", "claude"))
 
         if is_skipped:
-            body_rows = "<div class='field-row'><span class='field-label'>skipped</span><span class='field-value evidence'>Rate limit hit — switch model and retry</span></div>"
+            body_rows = (
+                "<div class='field-row'>"
+                "<span class='field-label'>skipped</span>"
+                "<span class='field-value evidence'>"
+                "Rate limit hit — switch model and retry"
+                "</span></div>"
+            )
         else:
             o_evidence = html.escape(outcome.get("evidence", ""))
             t_evidence = html.escape(traj.get("evidence", ""))
@@ -186,7 +208,7 @@ def generate_html(data: dict) -> str:
 
         parts.append(f"""    <div class="card">
       <div class="card-header">
-        <span class="eval-id">#{r['id']}</span>
+        <span class="eval-id">#{r["id"]}</span>
         <span class="eval-name">{name_text}</span>
         <span class="agent-badge">{agent_text}</span>
         {human_badge}
@@ -234,7 +256,12 @@ def generate_html(data: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate HTML report from grading.json")
     parser.add_argument("grading_json", help="Path to grading.json")
-    parser.add_argument("-o", "--output", default=None, help="Output HTML path (default: report.html next to grading.json)")
+    parser.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        help="Output HTML path (default: report.html next to grading.json)",
+    )
     args = parser.parse_args()
 
     grading_path = Path(args.grading_json)

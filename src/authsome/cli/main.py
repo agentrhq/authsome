@@ -54,6 +54,15 @@ def cli(ctx: click.Context, verbose: bool, log_file: str) -> None:
     setup_logging(verbose=verbose, log_file=resolved)
 
 
+def _render_encryption_backend(data: dict[str, Any]) -> str:
+    """Render configured mode plus effective master-key source for human output."""
+    backend = data["encryption_backend"]
+    configured_mode = data.get("configured_encryption_mode")
+    if configured_mode:
+        return f"{backend} (mode: {configured_mode})"
+    return backend
+
+
 @cli.command(name="list")
 @auth_command
 async def list_cmd(ctx_obj: ContextObj) -> None:
@@ -844,6 +853,7 @@ async def init(ctx_obj: ContextObj) -> None:
     if not identity.registered:
         await actx.runtime_client.register_identity(identity.handle, identity.did)
         identity = mark_registered(home, identity.handle)
+    whoami_data = await actx.runtime_client.whoami()
 
     data = {
         "status": "initialized",
@@ -851,6 +861,9 @@ async def init(ctx_obj: ContextObj) -> None:
         "profile": identity.handle,
         "did": identity.did,
         "registration_status": "registered",
+        "configured_encryption_mode": whoami_data.get("configured_encryption_mode"),
+        "effective_encryption_source": whoami_data.get("effective_encryption_source"),
+        "encryption_backend": whoami_data.get("encryption_backend"),
     }
     if ctx_obj.json_output:
         ctx_obj.print_json(data)
@@ -858,6 +871,7 @@ async def init(ctx_obj: ContextObj) -> None:
         ctx_obj.echo(f"Initialized authsome at {home}", color="green")
         ctx_obj.echo(f"Profile: {identity.handle}")
         ctx_obj.echo(f"DID: {identity.did}")
+        ctx_obj.echo(f"Master Key Source: {_render_encryption_backend(whoami_data)}")
 
 
 @cli.group(name="profile")
@@ -948,6 +962,8 @@ async def whoami(ctx_obj: ContextObj) -> None:
         "did": whoami_data.get("did"),
         "registration_status": whoami_data.get("registration_status"),
         "daemon_url": whoami_data.get("daemon_url", actx.runtime_client.base_url),
+        "configured_encryption_mode": whoami_data.get("configured_encryption_mode"),
+        "effective_encryption_source": whoami_data.get("effective_encryption_source"),
         "encryption_backend": whoami_data["encryption_backend"],
         "vault_status": vault_status,
         "connected_providers_count": len(connected_providers),
@@ -966,7 +982,7 @@ async def whoami(ctx_obj: ContextObj) -> None:
             ctx_obj.echo(f"Registration:      {data['registration_status']}")
         ctx_obj.echo(f"Daemon URL:        {data['daemon_url']}")
         status_color = "green" if vault_status == "OK" else "red"
-        ctx_obj.echo(f"Encryption:        {data['encryption_backend']} [", nl=False)
+        ctx_obj.echo(f"Encryption:        {_render_encryption_backend(data)} [", nl=False)
         ctx_obj.echo(vault_status, color=status_color, nl=False)
         ctx_obj.echo("]")
 

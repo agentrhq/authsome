@@ -15,11 +15,24 @@ from authsome.server.schemas import HealthResponse, ReadyResponse
 router = APIRouter()
 
 
+def _describe_vault_encryption(auth: AuthService) -> tuple[str | None, str | None]:
+    """Best-effort effective encryption details for health-style responses."""
+    try:
+        return auth.vault.crypto_source, auth.vault.crypto_source_description
+    except Exception as exc:
+        return None, f"Unavailable ({exc})"
+
+
 @router.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
+def health(request: Request) -> HealthResponse:
     mode = get_deployment_mode()
     response_mode = cast(Literal["local", "hosted"], mode if mode == "hosted" else "local")
-    return HealthResponse(status="ok", version=__version__, mode=response_mode)
+    return HealthResponse(
+        status="ok",
+        version=__version__,
+        mode=response_mode,
+        configured_encryption_mode=request.app.state.server_config.encryption.mode,
+    )
 
 
 @router.get("/ready", response_model=ReadyResponse)
@@ -27,6 +40,7 @@ async def ready(auth: AuthService = Depends(get_auth_service)) -> ReadyResponse:
     checks: dict[str, str] = {}
     issues: list[str] = []
     warnings: list[str] = []
+    configured_mode = auth.vault.crypto_mode
 
     checks["spec_version"] = "ok"
 
@@ -83,7 +97,16 @@ async def ready(auth: AuthService = Depends(get_auth_service)) -> ReadyResponse:
     # (Previous implementation alerted users if file was world-readable)
 
     status = "ready" if not issues else "not_ready"
-    return ReadyResponse(status=status, checks=checks, issues=issues, warnings=warnings)
+    effective_source, backend_description = _describe_vault_encryption(auth)
+    return ReadyResponse(
+        status=status,
+        checks=checks,
+        issues=issues,
+        warnings=warnings,
+        configured_encryption_mode=configured_mode,
+        effective_encryption_source=effective_source,
+        encryption_backend=backend_description,
+    )
 
 
 @router.get("/whoami")
@@ -92,13 +115,7 @@ async def whoami(
     auth: AuthService = Depends(get_protected_auth_service),
     server_base_url: str = Depends(get_server_base_url),
 ) -> dict[str, str]:
-    enc_mode = request.app.state.server_config.encryption.mode
-    if enc_mode == "local_key":
-        enc_desc = f"Local Key ({auth.vault.home / 'server' / 'master.key'})"
-    elif enc_mode == "keyring":
-        enc_desc = "OS Keyring"
-    else:
-        enc_desc = enc_mode
+    effective_source, backend_description = _describe_vault_encryption(auth)
     return {
         "version": __version__,
         "home": str(auth.vault.home),
@@ -107,5 +124,7 @@ async def whoami(
         "did": getattr(request.state, "did", ""),
         "registration_status": getattr(request.state, "registration_status", "registered"),
         "daemon_url": server_base_url,
-        "encryption_backend": enc_desc,
+        "configured_encryption_mode": request.app.state.server_config.encryption.mode,
+        "effective_encryption_source": effective_source or "unavailable",
+        "encryption_backend": backend_description or "Unavailable",
     }

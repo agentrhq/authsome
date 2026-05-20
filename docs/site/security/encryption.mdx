@@ -47,7 +47,7 @@ A sample record looks like:
 8Tn9Cw7yL2pQ4Vx0.4FzM3KDGbR1X...UC7qE9wA
 ```
 
-This is produced by `LocalFileCrypto.encrypt` and `KeyringCrypto.encrypt` in `src/authsome/vault/crypto.py`.
+This is produced by the vault crypto backends in `src/authsome/vault/crypto.py`.
 
 <Note>
   A future portable spec will define a richer JSON envelope (`{enc, alg, kid, nonce, ciphertext, tag}`) as the cross-language interop target. The Python implementation uses the compact format above; a future release may migrate to the JSON envelope when a second-language port lands.
@@ -55,9 +55,25 @@ This is produced by `LocalFileCrypto.encrypt` and `KeyringCrypto.encrypt` in `sr
 
 ## Master key backends
 
-The 256-bit master key is held by one of two backends, selected by `config.encryption.mode` in `~/.authsome/config.json`.
+The 256-bit master key is resolved according to `config.encryption.mode` in `~/.authsome/config.json`.
 
-### `local_key` (default)
+### `auto` (default)
+
+Authsome prefers stronger and more external key sources first:
+
+1. `AUTHSOME_MASTER_KEY` from the environment. The value must be a base64-encoded 32-byte key.
+2. An existing OS keyring entry.
+3. An existing `~/.authsome/server/master.key`.
+4. A newly created OS keyring entry, when the keyring is available.
+5. A newly created local `~/.authsome/server/master.key` as the final fallback.
+
+```json
+{ "encryption": { "mode": "auto" } }
+```
+
+**Use when.** Most installs. It preserves old local-file setups, but prefers stronger sources on fresh machines and in managed environments.
+
+### `local_key`
 
 The master key is stored as base64-encoded JSON in `~/.authsome/server/master.key` with mode `0600`. Filesystem permissions are the only protection at rest.
 
@@ -99,7 +115,7 @@ The master key is stored in the OS keychain via the [`keyring`](https://github.c
 | Sharable across users | No |
 | Recovery if lost | Same as `local_key`. Lost key, lost records. |
 
-`authsome doctor` verifies the configured backend is reachable.
+`authsome doctor` verifies the configured backend is reachable, and `authsome whoami` shows both the configured mode and the effective source chosen at runtime.
 
 ## Switching backends
 
