@@ -12,6 +12,7 @@ from authsome.auth import AuthService
 from authsome.auth.input_provider import InputField
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.sessions import AuthSession, AuthSessionStatus, AuthSessionStore
+from authsome.server.analytics import get_posthog
 from authsome.server.routes._deps import (
     get_auth_service_for_identity,
     get_auth_sessions,
@@ -107,6 +108,17 @@ async def start_session(
         _update_device_code_expiry(sessions, session)
         background_tasks.add_task(auth.background_resume, session)
     await sessions.index_oauth_state(session)
+    ph = get_posthog()
+    if ph is not None:
+        from posthog import identify_context, new_context
+
+        with new_context():
+            identify_context(session.identity)
+            ph.capture(
+                "auth session started",
+                distinct_id=session.identity,
+                properties={"provider": session.provider, "flow_type": session.flow_type},
+            )
     return _session_response(session, server_base_url)
 
 
@@ -141,11 +153,33 @@ async def resume_session(
         else:
             session.state = AuthSessionStatus.COMPLETED
             session.status_message = "Login successful"
+            ph = get_posthog()
+            if ph is not None:
+                from posthog import identify_context, new_context
+
+                with new_context():
+                    identify_context(session.identity)
+                    ph.capture(
+                        "auth session completed",
+                        distinct_id=session.identity,
+                        properties={"provider": session.provider, "flow_type": session.flow_type},
+                    )
         await sessions.save(session)
     except Exception as exc:
         session.state = AuthSessionStatus.FAILED
         session.error_message = str(exc)
         await sessions.save(session)
+        ph = get_posthog()
+        if ph is not None:
+            from posthog import identify_context, new_context
+
+            with new_context():
+                identify_context(session.identity)
+                ph.capture(
+                    "auth session failed",
+                    distinct_id=session.identity,
+                    properties={"provider": session.provider, "flow_type": session.flow_type},
+                )
         raise
     return _session_response(session, server_base_url)
 
@@ -177,10 +211,32 @@ async def oauth_callback(
         session.state = AuthSessionStatus.COMPLETED
         session.status_message = "Login successful"
         await sessions.save(session)
+        ph = get_posthog()
+        if ph is not None:
+            from posthog import identify_context, new_context
+
+            with new_context():
+                identify_context(session.identity)
+                ph.capture(
+                    "auth session completed",
+                    distinct_id=session.identity,
+                    properties={"provider": session.provider, "flow_type": session.flow_type},
+                )
     except Exception as exc:
         session.state = AuthSessionStatus.FAILED
         session.error_message = str(exc)
         await sessions.save(session)
+        ph = get_posthog()
+        if ph is not None:
+            from posthog import identify_context, new_context
+
+            with new_context():
+                identify_context(session.identity)
+                ph.capture(
+                    "auth session failed",
+                    distinct_id=session.identity,
+                    properties={"provider": session.provider, "flow_type": session.flow_type},
+                )
         return HTMLResponse(pages.message_page("Authentication failed", str(exc)), status_code=400)
     if return_url := session.payload.get("return_url"):
         return RedirectResponse(str(return_url), status_code=303)
@@ -289,6 +345,17 @@ async def submit_input(
         session.state = AuthSessionStatus.COMPLETED
         session.status_message = "Login successful"
         await sessions.save(session)
+        ph = get_posthog()
+        if ph is not None:
+            from posthog import identify_context, new_context
+
+            with new_context():
+                identify_context(session.identity)
+                ph.capture(
+                    "auth session completed",
+                    distinct_id=session.identity,
+                    properties={"provider": session.provider, "flow_type": session.flow_type},
+                )
         if return_url := session.payload.get("return_url"):
             return RedirectResponse(str(return_url), status_code=303)
         return HTMLResponse(pages.message_page("Authentication successful", "You can close this window."))

@@ -38,6 +38,7 @@ dependencies = [
     "py-key-value-aio[disk]",
     "pyjwt>=2.12.1",
     "base58>=2.1.1",
+    "posthog>=3.0",
 ]
 
 [project.optional-dependencies]

@@ -44,13 +44,19 @@ class TestDaemonStartStopCommand:
     """Tests for `authsome daemon start` and `authsome daemon stop`."""
 
     def test_daemon_start_calls_start_daemon(self, runner: CliRunner, mock_client: MagicMock) -> None:
-        with patch("authsome.cli.main.start_daemon") as mock_start:
+        with (
+            patch("authsome.cli.main.start_daemon") as mock_start,
+            patch("authsome.cli.main.wait_for_daemon_ready"),
+            patch("authsome.cli.main.is_daemon_responsive", return_value=False),
+            patch("authsome.cli.main.is_port_occupied", return_value=False),
+        ):
             result = runner.invoke(cli, ["--log-file", "", "daemon", "start"])
         assert result.exit_code == 0
         mock_start.assert_called_once()
 
     def test_daemon_stop_calls_stop_daemon(self, runner: CliRunner, mock_client: MagicMock) -> None:
         with patch("authsome.cli.main.stop_daemon") as mock_stop:
+            mock_stop.return_value = (True, "Daemon stopped successfully.")
             result = runner.invoke(cli, ["--log-file", "", "daemon", "stop"])
         assert result.exit_code == 0
         mock_stop.assert_called_once()
@@ -59,7 +65,11 @@ class TestDaemonStartStopCommand:
         with (
             patch("authsome.cli.main.stop_daemon") as mock_stop,
             patch("authsome.cli.main.start_daemon") as mock_start,
+            patch("authsome.cli.main.wait_for_daemon_ready"),
+            patch("authsome.cli.main.is_daemon_responsive", return_value=False),
+            patch("authsome.cli.main.is_port_occupied", return_value=False),
         ):
+            mock_stop.return_value = (True, "Daemon stopped successfully.")
             result = runner.invoke(cli, ["--log-file", "", "daemon", "restart"])
         assert result.exit_code == 0
         mock_stop.assert_called_once()

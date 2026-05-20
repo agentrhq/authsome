@@ -16,9 +16,14 @@ from authsome.auth.models.enums import AuthType, ExportFormat
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.cli.context import ContextObj, common_options
 from authsome.cli.daemon_control import (
+    DaemonAlreadyRunningError,
+    DaemonUnavailableError,
     daemon_status,
+    is_daemon_responsive,
+    is_port_occupied,
     start_daemon,
     stop_daemon,
+    wait_for_daemon_ready,
 )
 from authsome.cli.helpers import (
     _api_key_env_var,
@@ -1062,25 +1067,69 @@ def daemon_serve(host: str, port: int, reload: bool) -> None:
 @auth_command
 async def daemon_start(ctx_obj: ContextObj) -> None:
     """Start the local daemon in the background."""
-    start_daemon()
-    ctx_obj.echo("Daemon start requested.", color="green")
+    if await is_daemon_responsive():
+        ctx_obj.echo("Daemon is already running.", color="yellow")
+        return
+
+    if is_port_occupied(7998):
+        ctx_obj.echo("Port 7998 is occupied by an unrelated process. We did not start a new process.", color="yellow")
+        return
+
+    try:
+        start_daemon()
+        await wait_for_daemon_ready(timeout=5)
+        ctx_obj.echo("Daemon started successfully.", color="green")
+    except DaemonAlreadyRunningError as exc:
+        pid_str = f" (PID: {exc.pid})" if exc.pid else ""
+        ctx_obj.echo(f"Daemon is already running{pid_str}.", color="yellow")
+    except DaemonUnavailableError as exc:
+        ctx_obj.echo(str(exc), err=True, color="red")
+        sys.exit(1)
 
 
 @daemon.command(name="stop")
 @auth_command
 async def daemon_stop(ctx_obj: ContextObj) -> None:
     """Stop the local daemon."""
-    await stop_daemon()
-    ctx_obj.echo("Daemon stopped.", color="green")
+
+    stopped, message = await stop_daemon()
+    if stopped:
+        ctx_obj.echo(message, color="green")
+    else:
+        ctx_obj.echo(message, err=True, color="yellow")
 
 
 @daemon.command(name="restart")
 @auth_command
 async def daemon_restart(ctx_obj: ContextObj) -> None:
     """Restart the local daemon."""
-    await stop_daemon()
-    start_daemon()
-    ctx_obj.echo("Daemon restart requested.", color="green")
+    stopped, message = await stop_daemon()
+    if stopped:
+        ctx_obj.echo(message, color="green")
+    else:
+        ctx_obj.echo(message, color="yellow")
+
+    if await is_daemon_responsive():
+        ctx_obj.echo("Daemon is already running on port 7998. We did not start a new process.", color="yellow")
+        return
+
+    if is_port_occupied(7998):
+        ctx_obj.echo("Port 7998 is occupied by an unrelated process. We did not start a new process.", color="yellow")
+        return
+
+    try:
+        start_daemon()
+        await wait_for_daemon_ready(timeout=5)
+        if stopped:
+            ctx_obj.echo("Daemon restarted successfully.", color="green")
+        else:
+            ctx_obj.echo("New daemon started.", color="green")
+    except DaemonAlreadyRunningError as exc:
+        pid_str = f" (PID: {exc.pid})" if exc.pid else ""
+        ctx_obj.echo(f"Daemon is already running{pid_str}.", color="yellow")
+    except DaemonUnavailableError as exc:
+        ctx_obj.echo(str(exc), err=True, color="red")
+        sys.exit(1)
 
 
 @daemon.command(name="status")

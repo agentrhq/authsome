@@ -2,7 +2,7 @@
 name: authsome
 version: 0.2.0
 description: |
-  Use this to access external services/APIs: Github/Gmail/Stripe etc. or when running any bash command, script, or curl/wget that makes outbound HTTP calls. Make HTTP requests directly and the gateway injects credentials automatically.
+  Use this to access external services/CLIs/APIs: Gmail/gh/Github/Stripe etc. or when running any bash command, script, or curl/wget that makes outbound HTTP calls. Make HTTP requests directly and the gateway injects credentials automatically.
 ---
 
 # Authsome

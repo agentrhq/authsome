@@ -16,6 +16,7 @@ from authsome.errors import AuthsomeError
 from authsome.identity.proof import ReplayCache
 from authsome.identity.registry import IdentityRegistrationError, IdentityRegistry
 from authsome.paths import get_server_log_path
+from authsome.server.analytics import init_posthog, shutdown_posthog
 from authsome.server.dependencies import (
     create_app_store,
     create_vault,
@@ -52,7 +53,9 @@ async def lifespan(app: FastAPI):
     app.state.proof_replay_cache = ReplayCache()
     app.state.identity_registry = IdentityRegistry(get_identity_registry_path(app.state.store.home))
     app.state.server_base_url = get_server_base_url()
+    init_posthog()
     yield
+    shutdown_posthog()
     audit.clear()
     await app.state.store.close()
 

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 
 from authsome.auth import AuthService
 from authsome.auth.models.enums import ExportFormat
+from authsome.server.analytics import get_posthog
 from authsome.server.routes._deps import get_protected_auth_service
 
 router = APIRouter(tags=["connections"])
@@ -31,12 +32,26 @@ async def get_connection(provider: str, connection: str, auth: AuthService = Dep
 @router.post("/connections/{provider}/{connection}/logout")
 async def logout(provider: str, connection: str, auth: AuthService = Depends(get_protected_auth_service)):
     await auth.logout(provider, connection)
+    ph = get_posthog()
+    if ph is not None:
+        ph.capture(
+            "connection logout",
+            distinct_id=auth.identity,
+            properties={"provider": provider, "connection": connection},
+        )
     return {"status": "ok"}
 
 
 @router.post("/connections/{provider}/revoke")
 async def revoke(provider: str, auth: AuthService = Depends(get_protected_auth_service)):
     await auth.revoke(provider)
+    ph = get_posthog()
+    if ph is not None:
+        ph.capture(
+            "connection revoked",
+            distinct_id=auth.identity,
+            properties={"provider": provider},
+        )
     return {"status": "ok"}
 
 
@@ -55,4 +70,12 @@ async def export_credentials(body: dict, auth: AuthService = Depends(get_protect
     provider = body.get("provider")
     connection = body.get("connection", "default")
     export_format = ExportFormat(body.get("format", "env"))
-    return {"output": await auth.export(provider, connection, format=export_format)}
+    result = await auth.export(provider, connection, format=export_format)
+    ph = get_posthog()
+    if ph is not None:
+        ph.capture(
+            "credentials exported",
+            distinct_id=auth.identity,
+            properties={"provider": provider, "format": export_format.value},
+        )
+    return {"output": result}

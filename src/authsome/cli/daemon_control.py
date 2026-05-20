@@ -31,6 +31,33 @@ class DaemonUnavailableError(RuntimeError):
     """Raised when the local daemon cannot be started or reached."""
 
 
+async def is_daemon_responsive() -> bool:
+    """Return whether the daemon is currently responsive on the default loopback port."""
+    client = AuthsomeApiClient(DEFAULT_DAEMON_URL)
+    return await _is_ready(client)
+
+
+def is_port_occupied(port: int = 7998) -> bool:
+    """Return whether the port is currently occupied by any listening process."""
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.2)
+        try:
+            s.connect(("127.0.0.1", port))
+            return True
+        except Exception:
+            return False
+
+
+class DaemonAlreadyRunningError(RuntimeError):
+    """Raised when the daemon is already running."""
+
+    def __init__(self, pid: int | None = None) -> None:
+        super().__init__("Daemon is already running.")
+        self.pid = pid
+
+
 async def ensure_daemon() -> AuthsomeApiClient:
     """Return a ready daemon client, starting/restarting the daemon if needed."""
     client = AuthsomeApiClient(DEFAULT_DAEMON_URL)
@@ -38,11 +65,21 @@ async def ensure_daemon() -> AuthsomeApiClient:
         return client
     await stop_daemon()
     start_daemon()
+    await wait_for_daemon_ready()
+    return client
 
-    deadline = time.monotonic() + 10
+
+async def wait_for_daemon_ready(timeout: int = 10) -> None:
+    """Wait for the daemon to become ready, raising an error if it fails."""
+    client = AuthsomeApiClient(DEFAULT_DAEMON_URL)
+    deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if await _is_ready(client):
-            return client
+            return
+        # If the process died, fail fast instead of waiting for timeout
+        pid = _read_pid()
+        if pid is not None and not _process_alive(pid):
+            break
         await asyncio.sleep(0.2)
     raise DaemonUnavailableError(_startup_error())
 
@@ -56,9 +93,8 @@ async def resolve_runtime_client() -> AuthsomeApiClient:
 
 
 def start_daemon() -> None:
-    # 1. If our tracked lockfile currently points to a running process, do not disrupt it.
     if _pid_file_process_alive():
-        return
+        raise DaemonAlreadyRunningError(_read_pid())
 
     DAEMON_DIR.mkdir(parents=True, exist_ok=True)
     log = LOG_FILE.open("ab")
@@ -75,30 +111,42 @@ def start_daemon() -> None:
     )
 
 
-async def stop_daemon() -> None:
+async def stop_daemon() -> tuple[bool, str]:
+    """Stop the daemon process cleanly.
+
+    Returns:
+        (stopped, message)
+    """
     pid = _read_pid()
     if pid is None:
-        # We do not have a local management record for a daemon.
-        # Refuse to blind-kill arbitrary OS processes.
-        return
+        return False, "No managed daemon record was found, so no process was stopped."
+
+    if not _process_alive(pid):
+        _clear_daemon_files()
+        return False, f"No running daemon process (PID: {pid}) was found to stop."
 
     try:
         os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
         _clear_daemon_files()
-        return
+        return True, "Daemon process was already stopping."
 
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
         if not _process_alive(pid):
             _clear_daemon_files()
-            return
+            return True, "Daemon stopped successfully."
         await asyncio.sleep(0.2)
+
     try:
         os.kill(pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
+
     _clear_daemon_files()
+    if _process_alive(pid):
+        return False, f"Failed to stop the daemon (PID: {pid}). The process is still lingering."
+    return True, "Daemon stopped successfully (forcefully)."
 
 
 async def daemon_status() -> dict[str, Any]:

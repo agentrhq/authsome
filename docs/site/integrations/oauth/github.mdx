@@ -32,22 +32,47 @@ GitHub is a bundled OAuth2 provider in authsome. The default flow is browser-bas
 GitHub does not support Dynamic Client Registration, so you need to register an OAuth app once. This is a one-time setup per app, not per developer.
 
 <Steps>
-  <Step title="Create a new OAuth app">
-    Visit [github.com/settings/developers](https://github.com/settings/developers) and click **New OAuth App**.
+  <Step title="Open GitHub developer settings">
+    Visit [github.com/settings/developers](https://github.com/settings/developers).
   </Step>
-  <Step title="Set the callback URL">
-    Set **Authorization callback URL** to:
 
-    ```text
-    http://127.0.0.1:7998/auth/callback/oauth
-    ```
-
-    This is the only callback URL authsome's PKCE flow listens on.
+  <Step title="Click 'New OAuth App'">
+    The button sits at the top right of the OAuth Apps list.
   </Step>
-  <Step title="Save the client ID and secret">
-    Copy the **Client ID** and **Client Secret**. Authsome will prompt for them on first login through a secure local browser form. You will not paste them into a terminal.
+
+  <Step title="Fill the registration form">
+    | Field | Value |
+    |---|---|
+    | Application name | Anything memorable, e.g. `authsome (local)` |
+    | Homepage URL | `http://localhost:3000` (any URL works; GitHub doesn't validate it for OAuth functionality) |
+    | Application description | Optional |
+    | Authorization callback URL | `http://127.0.0.1:7998/auth/callback/oauth` |
+    | Enable Device Flow | ☑ check it on |
+
+    <Warning>
+      The **Authorization callback URL** must be exactly `http://127.0.0.1:7998/auth/callback/oauth`. Authsome's PKCE flow listens only on this address; any other value will fail with `redirect_uri_mismatch` at login time.
+    </Warning>
+
+    Click **Register application**.
+  </Step>
+
+  <Step title="Copy the Client ID and generate a Client Secret">
+    GitHub now shows your new app's settings.
+
+    1. Copy the **Client ID**.
+    2. Click **Generate a new client secret** and copy the secret immediately.
+
+    <Warning>
+      Save the **Client Secret** somewhere safe (a password manager) before navigating away. GitHub shows the secret only once. If you lose it, you'll need to generate another one and update your authsome connection.
+    </Warning>
+
+    Authsome will prompt for both values on first login through a secure local browser form. You will not paste them into a terminal.
   </Step>
 </Steps>
+
+<Frame caption="Authsome's local bridge form, where you paste the Client ID and Client Secret on first login">
+  <img src="/images/login-github-authsome.png" alt="Authsome local browser form prompting for GitHub Client ID and Client Secret" />
+</Frame>
 
 ## Log in
 
