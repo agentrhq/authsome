@@ -1,0 +1,69 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "c7b941617a23",
+  "session_id": "d9d03a43-7fac-439f-9591-42a69b4c3a13",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-20T14:15:40.214986Z",
+  "branch": "docs/update-architecture-language",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/adr/0003-proxy-unmatched-pass-through.md",
+    "docs/agents/domain.md",
+    "docs/agents/issue-tracker.md",
+    "docs/agents/triage-labels.md",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "docs/UBIQUITOUS_LANGUAGE.md",
+    "docs/refactor.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "88f623081164",
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 72850,
+    "cache_read_tokens": 1633834,
+    "output_tokens": 31850,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-20T14:15:40.20695Z",
+    "agent_lines": 711,
+    "agent_removed": 71,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 711,
+    "total_lines_changed": 782,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 3224,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 60,
+        ".claude/skills/integration-fastapi/SKILL.md": 64,
+        ".claude/skills/integration-fastapi/references/EXAMPLE.md": 1583,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.0-begin.md": 46,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.1-edit.md": 37,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.2-revise.md": 22,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.3-conclude.md": 38,
+        ".claude/skills/integration-fastapi/references/identify-users.md": 271,
+        ".claude/skills/integration-fastapi/references/python.md": 869,
+        ".codex/agents/entire-search.toml": 23,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 1,
+        ".posthog-events.json": 52,
+        "posthog-setup-report.md": 35,
+        "skills-lock.json": 11
+      }
+    }
+  ]
+}

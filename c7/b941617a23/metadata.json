@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "c7b941617a23",
+  "strategy": "manual-commit",
+  "branch": "docs/update-architecture-language",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "docs/UBIQUITOUS_LANGUAGE.md",
+    "docs/adr/0003-proxy-unmatched-pass-through.md",
+    "docs/agents/domain.md",
+    "docs/agents/issue-tracker.md",
+    "docs/agents/triage-labels.md",
+    "docs/refactor.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c7/b941617a23/0/metadata.json",
+      "transcript": "/c7/b941617a23/0/full.jsonl",
+      "content_hash": "/c7/b941617a23/0/content_hash.txt",
+      "prompt": "/c7/b941617a23/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 72850,
+    "cache_read_tokens": 1633834,
+    "output_tokens": 31850,
+    "api_call_count": 30
+  }
+}

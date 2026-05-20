@@ -1,0 +1,1 @@
+Merge the pr: refactor/design-improvements Review the changes, the 003-proxy adr is correct and already solved. Move current 003 to 004. The refactor plan is old alongwith AGENTS, CONTRIBUTING and UBIQUITOUS LANGUAGE, so discuss with me and reolve it.
