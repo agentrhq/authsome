@@ -1,0 +1,105 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "8c525303b5f3",
+  "session_id": "6770a151-51cb-43d0-9ca8-7dcbcaa9f118",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-20T15:36:30.783064Z",
+  "branch": "refactor/v4-improvements",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/authsome/auth/utils.py"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "6d416cdb796d",
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 104071,
+    "cache_read_tokens": 4160143,
+    "output_tokens": 26813,
+    "api_call_count": 53
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-20T15:36:30.772439Z",
+    "agent_lines": 2,
+    "agent_removed": 10,
+    "human_added": 243,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 245,
+    "total_lines_changed": 529,
+    "agent_percentage": 2.2684310018903595,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 3224,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 60,
+        ".claude/skills/integration-fastapi/SKILL.md": 64,
+        ".claude/skills/integration-fastapi/references/EXAMPLE.md": 1583,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.0-begin.md": 46,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.1-edit.md": 37,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.2-revise.md": 22,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.3-conclude.md": 38,
+        ".claude/skills/integration-fastapi/references/identify-users.md": 271,
+        ".claude/skills/integration-fastapi/references/python.md": 869,
+        ".codex/agents/entire-search.toml": 23,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 1,
+        ".posthog-events.json": 52,
+        "posthog-setup-report.md": 35,
+        "skills-lock.json": 11
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 3099,
+      "user_lines_removed": 0,
+      "agent_lines_added": 127,
+      "agent_lines_removed": 10,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 60,
+        ".claude/skills/integration-fastapi/SKILL.md": 64,
+        ".claude/skills/integration-fastapi/references/EXAMPLE.md": 1583,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.0-begin.md": 46,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.1-edit.md": 37,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.2-revise.md": 22,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.3-conclude.md": 38,
+        ".claude/skills/integration-fastapi/references/identify-users.md": 271,
+        ".claude/skills/integration-fastapi/references/python.md": 869
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 3099,
+      "user_lines_removed": 0,
+      "agent_lines_added": 127,
+      "agent_lines_removed": 10,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 60,
+        ".claude/skills/integration-fastapi/SKILL.md": 64,
+        ".claude/skills/integration-fastapi/references/EXAMPLE.md": 1583,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.0-begin.md": 46,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.1-edit.md": 37,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.2-revise.md": 22,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.3-conclude.md": 38,
+        ".claude/skills/integration-fastapi/references/identify-users.md": 271,
+        ".claude/skills/integration-fastapi/references/python.md": 869
+      }
+    }
+  ]
+}

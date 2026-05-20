@@ -1,0 +1,9 @@
+/improve-codebase-architecture
+
+---
+
+Lets fix candidate 1
+
+---
+
+No. Just review @src/authsome/server/ implementation for improvements.
