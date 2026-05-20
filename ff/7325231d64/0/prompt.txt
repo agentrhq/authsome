@@ -1,0 +1,1 @@
+Why can't auth be leaf as well. It should just own the flows like OAUTH or Device Flow
