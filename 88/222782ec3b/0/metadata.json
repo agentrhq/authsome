@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "88222782ec3b",
+  "session_id": "b8ab932d-1e10-4ff7-ba84-fef696db46e4",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-20T13:57:17.565859Z",
+  "branch": "feature/principal-vault-identity-design",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/authsome/cli/client.py",
+    "src/authsome/cli/main.py",
+    "src/authsome/identity/__init__.py",
+    "src/authsome/identity/local.py",
+    "src/authsome/identity/principal.py",
+    "src/authsome/identity/proof.py",
+    "src/authsome/identity/registry.py",
+    "src/authsome/server/app.py",
+    "src/authsome/server/routes/identities.py",
+    "tests/auth/test_models.py",
+    "tests/auth/test_service_provider_clients.py",
+    "tests/cli/test_client_signing.py",
+    "tests/cli/test_identity.py",
+    "tests/cli/test_init.py",
+    "tests/identity/test_identity.py",
+    "tests/identity/test_proof.py",
+    "tests/identity/test_registry.py",
+    "tests/server/test_auth_sessions.py",
+    "tests/server/test_provider_operation_policy.py",
+    "tests/server/test_ui_sessions.py",
+    "uv.lock"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "b8d1bd75d277",
+  "token_usage": {
+    "input_tokens": 142,
+    "cache_creation_tokens": 161531,
+    "cache_read_tokens": 11265339,
+    "output_tokens": 58983,
+    "api_call_count": 120
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-20T13:57:17.552212Z",
+    "agent_lines": 891,
+    "agent_removed": 27,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 891,
+    "total_lines_changed": 1710,
+    "agent_percentage": 53.68421052631579,
+    "metric_version": 2
+  }
+}
