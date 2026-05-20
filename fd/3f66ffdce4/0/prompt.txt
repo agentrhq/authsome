@@ -1,0 +1,45 @@
+/grill-with-docs Continue with the last adr for adding principal. Help me improve the vault design, in case we later add on multiple users that share a vault, or an org/user keeps multiple vaults like prod, dev, etc how do we support that The goal is to keep the design capable and future-proof . We can keep record of vaults, principals and identities. There could be a many to many relationship between all. The language is principal is owner can be (individual or organization, YAGNI and don't introcue concepts of admin, owner etc etc), identities are non human identities or cryptographic identities ( they act on behalf of a principal) , vaults are credential stores. A principal can ideally have multiple vaults if needed. In local version, we will have deault principal who will create a default vault, but in managed hosted we want to have multiple principals each with its own vault. Each principal can have multiple identities
+
+---
+
+So, a human readble name exists for NHI , principal as well as vault. Keep it consistent across all. for NHI there is a handle generated, the principal also introduces concept of handle, and the vault should also have a human redable name. We can keep id and readable name everywhere.
+
+---
+
+b is fine.
+
+---
+
+lets keep it simple for now. Only one principal owns the vault, other can be users. The recommendation makes sense. go with a
+
+---
+
+a makes sense, principal can have multiple identities. each identity can have multiple owners
+
+---
+
+sorry, each identity will have just one owner. Typo above.
+
+---
+
+a for now
+
+---
+
+lets have 3 files, identities.json ( stores all identities) vaults.json and principals.json
+
+---
+
+b is better. And also a YAGNI for now, but consider that in design. For now one vault per principle is good
+
+---
+
+a makes more sense
+
+---
+
+Modify the adr-003 directly, its not implemented yet.
+
+---
+
+Show all adrs now?
