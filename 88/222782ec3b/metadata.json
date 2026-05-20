@@ -3,7 +3,7 @@
   "checkpoint_id": "88222782ec3b",
   "strategy": "manual-commit",
   "branch": "feature/principal-vault-identity-design",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "src/authsome/cli/client.py",
     "src/authsome/cli/main.py",
@@ -33,13 +33,19 @@
       "transcript": "/88/222782ec3b/0/full.jsonl",
       "content_hash": "/88/222782ec3b/0/content_hash.txt",
       "prompt": "/88/222782ec3b/0/prompt.txt"
+    },
+    {
+      "metadata": "/88/222782ec3b/1/metadata.json",
+      "transcript": "/88/222782ec3b/1/full.jsonl",
+      "content_hash": "/88/222782ec3b/1/content_hash.txt",
+      "prompt": "/88/222782ec3b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 142,
-    "cache_creation_tokens": 161531,
-    "cache_read_tokens": 11265339,
-    "output_tokens": 58983,
-    "api_call_count": 120
+    "input_tokens": 244,
+    "cache_creation_tokens": 372651,
+    "cache_read_tokens": 18127415,
+    "output_tokens": 98253,
+    "api_call_count": 217
   }
 }
