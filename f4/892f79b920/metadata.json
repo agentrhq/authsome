@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "f4892f79b920",
+  "strategy": "manual-commit",
+  "branch": "feature/principal-vault-identity-design",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/authsome/server/routes/health.py",
+    "tests/server/test_pop_auth.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/892f79b920/0/metadata.json",
+      "transcript": "/f4/892f79b920/0/full.jsonl",
+      "content_hash": "/f4/892f79b920/0/content_hash.txt",
+      "prompt": "/f4/892f79b920/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 49506,
+    "cache_read_tokens": 904356,
+    "output_tokens": 6396,
+    "api_call_count": 26
+  }
+}
