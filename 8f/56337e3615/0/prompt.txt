@@ -1,0 +1,37 @@
+Fix the failing test cases.
+
+---
+
+Git commit and push.
+
+---
+
+/grill-with-docs Check the last adr about principal and compare with current implementation.
+
+---
+
+This is correct, vault should be vault_id
+
+---
+
+Update the adr
+
+---
+
+That fallback is bad, do not do fallbacks like that. Remove the fallback
+
+---
+
+Any other deviations with adr?
+
+---
+
+We need claim status, there is a field called registered in identity, check that
+
+---
+
+yes, This matches. The server should use the same enum.
+
+---
+
+I don't like the the folder being actors, it should be part of identity only. Move it there. Identity should contain sub parts if needed.

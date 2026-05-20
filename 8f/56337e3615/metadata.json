@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "8f56337e3615",
+  "strategy": "manual-commit",
+  "branch": "feature/principal-vault-identity-design",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "docs/UBIQUITOUS_LANGUAGE.md",
+    "docs/adr/0003-principal-owned-vault.md",
+    "src/authsome/auth/service.py",
+    "src/authsome/server/dependencies.py",
+    "src/authsome/server/identity_bootstrap.py",
+    "src/authsome/server/ownership.py",
+    "src/authsome/server/routes/_deps.py",
+    "src/authsome/server/routes/health.py",
+    "tests/auth/test_service.py",
+    "tests/proxy/test_proxy.py",
+    "tests/server/test_identity_bootstrap.py",
+    "tests/server/test_ownership.py",
+    "tests/server/test_pop_auth.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8f/56337e3615/0/metadata.json",
+      "transcript": "/8f/56337e3615/0/full.jsonl",
+      "content_hash": "/8f/56337e3615/0/content_hash.txt",
+      "prompt": "/8f/56337e3615/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 140,
+    "cache_creation_tokens": 160591,
+    "cache_read_tokens": 10943513,
+    "output_tokens": 58417,
+    "api_call_count": 118
+  }
+}
