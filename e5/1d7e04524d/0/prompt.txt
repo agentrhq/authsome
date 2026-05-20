@@ -1,0 +1,5 @@
+Now update the guide to test login but manually as this needs human. In login github, do actual login from human using the client id, secret, in secure bridge. Similarly for resend add actual api. The add manual test for testing proxy as well
+
+---
+
+Just do simple whoami calls via github
