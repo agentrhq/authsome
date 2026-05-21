@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib.resources
 import json
+import re
 from datetime import timedelta
 from typing import Any
 from urllib.parse import urlparse
@@ -52,6 +53,8 @@ from authsome.paths import get_server_home
 from authsome.utils import build_store_key, format_duration, is_filesystem_safe, parse_store_key, utc_now
 from authsome.vault import Vault
 
+_EXTRA_HEADER_TMPL = re.compile(r"\$\{([\w-]+)\}")
+
 _VALID_FLOWS: dict[AuthType, set[FlowType]] = {
     AuthType.OAUTH2: {FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE},
     AuthType.API_KEY: {FlowType.API_KEY},
@@ -78,12 +81,9 @@ def _render_extra_headers(
     Literal values (no ${...}) pass through unchanged.
     Missing credential keys produce empty strings.
     """
-    import re as _re
-
-    _TMPL = _re.compile(r"\$\{([\w-]+)\}")
     result: dict[str, str] = {}
     for name, template in extra_headers.items():
-        result[name] = _TMPL.sub(lambda m: credentials.get(m.group(1), ""), template)
+        result[name] = _EXTRA_HEADER_TMPL.sub(lambda m: credentials.get(m.group(1), ""), template)
     return result
 
 
@@ -96,10 +96,10 @@ async def _validate_browser_sso_credentials(
     if cfg is None or cfg.validate_url is None:
         return
 
-    cookie_value = (record.credentials or {}).get("cookie", "")
-    headers: dict[str, str] = {}
-    if cookie_value:
-        headers["Cookie"] = cookie_value
+    headers = _render_extra_headers(
+        definition.browser_sso.extra_headers,
+        record.credentials or {},
+    )
 
     try:
         async with httpx.AsyncClient(follow_redirects=False, timeout=8.0) as client:
