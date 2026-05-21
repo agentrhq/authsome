@@ -64,16 +64,16 @@ class ExtractRule(BaseModel):
     match: str  # "*" = all cookies joined as "k=v; k=v"; exact name = single value
     json_path: str | None = Field(default=None, alias="jsonPath")
 
-    model_config = {"populate_by_name": True}
+    model_config = {"populate_by_name": True, "extra": "allow"}
 
 
 class BrowserSSOConfig(BaseModel):
     """Browser SSO provider configuration."""
 
     entry_url: str
-    domains: list[str]
+    domains: list[str] = Field(min_length=1)
     validate_url: str | None = None
-    extract: list[ExtractRule]
+    extract: list[ExtractRule] = Field(min_length=1)
     extra_headers: dict[str, str] = Field(default_factory=dict)
     network_proxy: str | None = None
     ttl: str | None = None
