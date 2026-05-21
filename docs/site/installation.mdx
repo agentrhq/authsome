@@ -113,6 +113,15 @@ export AUTHSOME_HOME=/var/lib/authsome
 authsome init
 ```
 
+For ephemeral agents or fresh CI runners, you can also supply the acting identity from the environment instead of relying on local identity files:
+
+```bash
+export AUTHSOME_IDENTITY=steady-wisely-boldly-0042
+export AUTHSOME_IDENTITY_PRIVATE_KEY=<32-byte-ed25519-private-key-as-hex>
+```
+
+When `AUTHSOME_IDENTITY_PRIVATE_KEY` is set, authsome derives the `did:key` from that private key and uses the environment-backed identity before falling back to `~/.authsome/client/identities/`.
+
 See [Filesystem layout](/reference/file-layout) for the full directory model.
 
 ## Choose the encryption backend

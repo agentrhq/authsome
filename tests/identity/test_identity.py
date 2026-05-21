@@ -9,6 +9,7 @@ from authsome.identity.local import (
     create_identity,
     ensure_local_identity,
     identity_key_path,
+    load_private_key,
     mark_claimed,
     mark_registered,
     public_key_from_did_key,
@@ -83,3 +84,37 @@ async def test_current_from_home_uses_client_side_active_identity(tmp_path: Path
     identity = await current_from_home(tmp_path)
 
     assert identity.handle == first.handle
+
+
+def test_ensure_local_identity_prefers_environment_identity(monkeypatch, tmp_path: Path) -> None:
+    create_identity(tmp_path, "steady-wisely-boldly-0042")
+    monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
+    monkeypatch.setenv(
+        "AUTHSOME_IDENTITY_PRIVATE_KEY",
+        "02" * 32,
+    )
+
+    identity = ensure_local_identity(tmp_path)
+
+    assert identity.handle == "rapid-brightly-firmly-0007"
+    assert identity.did.startswith("did:key:z6Mk")
+    assert identity.identity_status == IdentityStatus.UNREGISTERED
+
+
+def test_load_private_key_prefers_environment_identity_key(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
+    monkeypatch.setenv(
+        "AUTHSOME_IDENTITY_PRIVATE_KEY",
+        "03" * 32,
+    )
+
+    private_key = load_private_key(tmp_path, "rapid-brightly-firmly-0007")
+
+    assert public_key_to_did_key(private_key.public_key()).startswith("did:key:z6Mk")
+
+
+def test_environment_identity_key_requires_handle(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", "04" * 32)
+
+    with pytest.raises(ValueError, match="AUTHSOME_IDENTITY"):
+        ensure_local_identity(tmp_path)

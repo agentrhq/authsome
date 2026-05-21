@@ -6,6 +6,7 @@ import json
 import os
 import random
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -20,6 +21,8 @@ from authsome.paths import get_client_home
 _ED25519_MULTICODEC_PREFIX = b"\xed\x01"
 _DID_KEY_PREFIX = "did:key:z"
 _HANDLE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
+_IDENTITY_HANDLE_ENV_VAR = "AUTHSOME_IDENTITY"
+_IDENTITY_PRIVATE_KEY_ENV_VAR = "AUTHSOME_IDENTITY_PRIVATE_KEY"
 
 _ADJECTIVES = (
     "brisk",
@@ -151,15 +154,69 @@ def private_key_from_hex(value: str) -> Ed25519PrivateKey:
     return Ed25519PrivateKey.from_private_bytes(raw)
 
 
+def _env_values(env: Mapping[str, str] | None = None) -> Mapping[str, str]:
+    return env if env is not None else os.environ
+
+
+def _env_identity_handle(env: Mapping[str, str] | None = None) -> str | None:
+    raw_handle = _env_values(env).get(_IDENTITY_HANDLE_ENV_VAR)
+    if raw_handle is None:
+        return None
+    handle = raw_handle.strip()
+    if not handle:
+        raise ValueError(f"{_IDENTITY_HANDLE_ENV_VAR} is set but empty.")
+    return validate_handle(handle)
+
+
+def _env_identity_private_key(env: Mapping[str, str] | None = None) -> Ed25519PrivateKey | None:
+    raw_key = _env_values(env).get(_IDENTITY_PRIVATE_KEY_ENV_VAR)
+    if raw_key is None:
+        return None
+    if not raw_key.strip():
+        raise ValueError(f"{_IDENTITY_PRIVATE_KEY_ENV_VAR} is set but empty.")
+    return private_key_from_hex(raw_key)
+
+
+def _load_env_identity(env: Mapping[str, str] | None = None) -> IdentityMetadata | None:
+    handle = _env_identity_handle(env)
+    private_key = _env_identity_private_key(env)
+    if private_key is None:
+        return None
+    if handle is None:
+        raise ValueError(f"{_IDENTITY_PRIVATE_KEY_ENV_VAR} requires {_IDENTITY_HANDLE_ENV_VAR} to also be set.")
+
+    now = datetime.now(UTC)
+    return IdentityMetadata(
+        handle=handle,
+        did=public_key_to_did_key(private_key.public_key()),
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def _env_identity_matches(handle: str, env: Mapping[str, str] | None = None) -> bool:
+    env_identity = _load_env_identity(env)
+    return env_identity is not None and env_identity.handle == handle
+
+
 def load_private_key(home: Path, handle: str) -> Ed25519PrivateKey:
+    env_key = _env_identity_private_key()
+    env_handle = _env_identity_handle()
+    if env_key is not None and env_handle == handle:
+        return env_key
     return private_key_from_hex(identity_key_path(home, handle).read_text(encoding="utf-8"))
 
 
 def load_identity(home: Path, handle: str) -> IdentityMetadata:
+    env_identity = _load_env_identity()
+    if env_identity is not None and env_identity.handle == handle:
+        return env_identity
     return IdentityMetadata.model_validate_json(identity_metadata_path(home, handle).read_text(encoding="utf-8"))
 
 
 def identity_exists(home: Path, handle: str) -> bool:
+    if _env_identity_matches(handle):
+        return True
     return identity_metadata_path(home, handle).exists() and identity_key_path(home, handle).exists()
 
 
@@ -236,6 +293,8 @@ def mark_registered(home: Path, handle: str) -> IdentityMetadata:
     updated = metadata.model_copy(
         update={"identity_status": IdentityStatus.REGISTERED, "updated_at": datetime.now(UTC)}
     )
+    if _env_identity_matches(handle):
+        return updated
     identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
     return updated
 
@@ -244,6 +303,8 @@ def mark_claimed(home: Path, handle: str) -> IdentityMetadata:
     """Persist a claimed state for a local identity after ownership resolution."""
     metadata = load_identity(home, handle)
     updated = metadata.model_copy(update={"identity_status": IdentityStatus.CLAIMED, "updated_at": datetime.now(UTC)})
+    if _env_identity_matches(handle):
+        return updated
     identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
     return updated
 
@@ -251,6 +312,14 @@ def mark_claimed(home: Path, handle: str) -> IdentityMetadata:
 def ensure_local_identity(home: Path, active_handle: str | None = None) -> IdentityMetadata:
     """Return the active local identity, creating one if none exists."""
     remove_legacy_default_identity(home)
+    env_identity = _load_env_identity()
+    if env_identity is not None:
+        if active_handle is not None and active_handle != env_identity.handle:
+            raise FileNotFoundError(
+                f"Configured identity '{active_handle}' does not match environment identity "
+                f"'{env_identity.handle}' from {_IDENTITY_HANDLE_ENV_VAR}."
+            )
+        return env_identity
     if active_handle is None:
         active_handle = _read_active_identity_handle(home)
     if active_handle:

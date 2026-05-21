@@ -174,6 +174,39 @@ async def test_identity_env_override_wins_over_active_identity(monkeypatch, tmp_
 
 
 @pytest.mark.asyncio
+async def test_env_backed_identity_is_cached_after_claim(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
+    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", "05" * 32)
+    calls: list[tuple[str, str]] = []
+
+    def fake_request(method, url, data=None, headers=None, timeout=None):
+        calls.append((method, url))
+        response = Mock()
+        response.raise_for_status.return_value = None
+        if url.endswith("/identities/register"):
+            response.json.return_value = {
+                "identity": "rapid-brightly-firmly-0007",
+                "registration_status": "claimed",
+            }
+        else:
+            response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
+        return response
+
+    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+
+    client = AuthsomeApiClient("http://127.0.0.1:7998")
+    await client.list_connections()
+    await client.list_connections()
+
+    assert calls == [
+        ("POST", "http://127.0.0.1:7998/identities/register"),
+        ("GET", "http://127.0.0.1:7998/connections"),
+        ("GET", "http://127.0.0.1:7998/connections"),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_start_login_bootstraps_identity_readiness(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     client = AuthsomeApiClient("http://127.0.0.1:7998")

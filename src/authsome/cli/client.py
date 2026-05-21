@@ -94,6 +94,7 @@ class AuthsomeApiClient:
     def __init__(self, base_url: str | None = None) -> None:
         self._base_url = (base_url or resolve_daemon_url()).rstrip("/")
         self._home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+        self._identity_cache: IdentityMetadata | None = None
 
     @property
     def base_url(self) -> str:
@@ -141,12 +142,21 @@ class AuthsomeApiClient:
 
     async def ensure_identity_ready(self) -> IdentityMetadata:
         """Ensure the acting identity is registered and, in hosted mode, claimed."""
-        identity = ensure_local_identity(self._home, active_handle=_selected_identity_handle(self._home))
+        selected_handle = _selected_identity_handle(self._home)
+        if self._identity_cache is not None and (
+            selected_handle is None or self._identity_cache.handle == selected_handle
+        ):
+            if self._identity_cache.claimed:
+                return self._identity_cache
+
+        identity = ensure_local_identity(self._home, active_handle=selected_handle)
+        self._identity_cache = identity
 
         status: dict[str, Any] | None = None
         if not identity.registered:
             status = await self.register_identity(identity.handle, identity.did)
             identity = mark_registered(self._home, identity.handle)
+            self._identity_cache = identity
         elif identity.claimed:
             return identity
         else:
@@ -167,11 +177,16 @@ class AuthsomeApiClient:
                 except Exception:
                     pass
             await self._poll_claim_completion(identity.handle)
-            return mark_claimed(self._home, identity.handle)
+            identity = mark_claimed(self._home, identity.handle)
+            self._identity_cache = identity
+            return identity
 
         if registration_status in {"claimed", "registered"}:
-            return mark_claimed(self._home, identity.handle)
+            identity = mark_claimed(self._home, identity.handle)
+            self._identity_cache = identity
+            return identity
 
+        self._identity_cache = identity
         return identity
 
     async def _poll_claim_completion(self, handle: str, *, timeout_seconds: int = 300) -> dict[str, Any]:
