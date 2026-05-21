@@ -1,6 +1,6 @@
+from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
 from authsome.auth.models.provider import BrowserSSOConfig, ExtractRule, ProviderDefinition
-from authsome.auth.models.connection import ConnectionRecord
 
 
 def test_auth_type_has_browser_sso():

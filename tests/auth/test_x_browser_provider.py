@@ -1,8 +1,8 @@
-import pytest
-import json
 import importlib.resources
-from authsome.auth.models.provider import ProviderDefinition
+import json
+
 from authsome.auth.models.enums import AuthType, FlowType
+from authsome.auth.models.provider import ProviderDefinition
 
 
 def test_x_browser_json_loads_as_valid_provider():
@@ -25,8 +25,10 @@ def test_x_browser_json_loads_as_valid_provider():
 
 def test_x_browser_loads_via_auth_service_bundled():
     """x-browser appears in the bundled providers loaded by AuthService."""
-    from authsome.auth.service import AuthService
     from unittest.mock import MagicMock
+
+    from authsome.auth.service import AuthService
+
     from authsome.vault import Vault
 
     vault = MagicMock(spec=Vault)

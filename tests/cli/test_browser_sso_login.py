@@ -1,6 +1,6 @@
 from authsome.cli.browser_login import (
-    extract_cookies_from_context,
     CLOAKBROWSER_INSTALL_HINT,
+    extract_cookies_from_context,
 )
 
 

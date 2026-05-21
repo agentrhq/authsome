@@ -14,7 +14,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-
 from loguru import logger
 
 from authsome import audit

@@ -1,9 +1,10 @@
+
 import pytest
-from datetime import datetime, timezone
+
 from authsome.auth.flows.browser_sso import BrowserSSOFlow, _parse_ttl_duration
 from authsome.auth.models.connection import ConnectionRecord
-from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
-from authsome.auth.models.provider import BrowserSSOConfig, ExtractRule, ProviderDefinition
+from authsome.auth.models.enums import AuthType, ConnectionStatus
+from authsome.auth.models.provider import ProviderDefinition
 from authsome.auth.sessions import AuthSession
 
 
@@ -128,6 +129,7 @@ async def test_resume_sets_expires_at_from_ttl():
     result = await flow.resume(provider, "test-agent", "default", session, callback_data)
     assert result.connection.expires_at is not None
     from datetime import timedelta
+
     from authsome.utils import utc_now
     expected_delta = timedelta(days=30)
     diff = result.connection.expires_at - utc_now()

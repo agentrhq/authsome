@@ -1,6 +1,5 @@
-import pytest
-from authsome.server.schemas import BrowserSSOAction, NextAction
 from authsome.auth.sessions import AuthSession
+from authsome.server.schemas import BrowserSSOAction, NextAction
 
 
 def test_browser_sso_action_schema():
@@ -50,8 +49,8 @@ def test_session_response_returns_browser_sso_action():
 
 def test_session_response_no_browser_sso_when_completed():
     """Completed browser_sso sessions return NoneAction, not BrowserSSOAction."""
-    from authsome.server.routes.auth import _session_response
     from authsome.auth.sessions import AuthSessionStatus
+    from authsome.server.routes.auth import _session_response
 
     session = AuthSession(
         session_id="sess_done",

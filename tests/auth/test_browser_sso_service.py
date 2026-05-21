@@ -5,13 +5,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from authsome.auth.service import _render_extra_headers, _validate_browser_sso_credentials
 
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
-from authsome.auth.models.provider import BrowserSSOConfig, ExtractRule, ProviderDefinition
-from authsome.auth.service import _render_extra_headers, _validate_browser_sso_credentials
+from authsome.auth.models.provider import ProviderDefinition
 from authsome.errors import TokenExpiredError
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -174,12 +173,14 @@ async def test_validate_browser_sso_credentials_no_validate_url_returns_immediat
 @pytest.mark.asyncio
 async def test_get_auth_headers_from_record_browser_sso():
     """BROWSER_SSO branch must run BEFORE _get_access_token_from_record, not dead code."""
-    from authsome.auth.service import AuthService, _render_extra_headers
-    from authsome.vault import Vault
-    from authsome.auth.models.enums import AuthType, ConnectionStatus
+    from unittest.mock import MagicMock
+
+    from authsome.auth.service import AuthService
+
     from authsome.auth.models.connection import ConnectionRecord
+    from authsome.auth.models.enums import AuthType, ConnectionStatus
     from authsome.auth.models.provider import ProviderDefinition
-    from unittest.mock import AsyncMock, MagicMock, patch
+    from authsome.vault import Vault
 
     record = ConnectionRecord(
         provider="x-browser",
