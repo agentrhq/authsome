@@ -376,15 +376,7 @@ async def login(
                     pass
 
             elif action_type == "browser_sso":
-                try:
-                    from authsome.cli.browser_login import run_browser_login, CLOAKBROWSER_INSTALL_HINT  # noqa: F401
-                except ImportError:
-                    ctx_obj.echo(
-                        "Browser SSO requires the browser extra.\n"
-                        "Install with: pip install 'authsome[browser]'",
-                        color="red",
-                    )
-                    raise SystemExit(1)
+                from authsome.cli.browser_login import run_browser_login
 
                 if not ctx_obj.json_output and not ctx_obj.quiet:
                     ctx_obj.echo(
