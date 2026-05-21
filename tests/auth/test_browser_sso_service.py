@@ -101,7 +101,7 @@ async def test_validate_browser_sso_credentials_200_does_not_raise():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=mock_response)
 
-    with patch("authsome.auth.service.httpx.AsyncClient", return_value=mock_client):
+    with patch("authsome.server.credential_service.httpx.AsyncClient", return_value=mock_client):
         await _validate_browser_sso_credentials(record, definition)
 
 
@@ -118,7 +118,7 @@ async def test_validate_browser_sso_credentials_401_raises_token_expired():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=mock_response)
 
-    with patch("authsome.auth.service.httpx.AsyncClient", return_value=mock_client):
+    with patch("authsome.server.credential_service.httpx.AsyncClient", return_value=mock_client):
         with pytest.raises(TokenExpiredError):
             await _validate_browser_sso_credentials(record, definition)
 
@@ -136,7 +136,7 @@ async def test_validate_browser_sso_credentials_403_raises_token_expired():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=mock_response)
 
-    with patch("authsome.auth.service.httpx.AsyncClient", return_value=mock_client):
+    with patch("authsome.server.credential_service.httpx.AsyncClient", return_value=mock_client):
         with pytest.raises(TokenExpiredError):
             await _validate_browser_sso_credentials(record, definition)
 
@@ -151,7 +151,7 @@ async def test_validate_browser_sso_credentials_network_error_tolerated():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(side_effect=OSError("Connection refused"))
 
-    with patch("authsome.auth.service.httpx.AsyncClient", return_value=mock_client):
+    with patch("authsome.server.credential_service.httpx.AsyncClient", return_value=mock_client):
         # Should not raise — network errors are tolerated
         await _validate_browser_sso_credentials(record, definition)
 
@@ -162,7 +162,7 @@ async def test_validate_browser_sso_credentials_no_validate_url_returns_immediat
     definition = _make_browser_provider(validate_url=None)
 
     # httpx should never be called
-    with patch("authsome.auth.service.httpx.AsyncClient") as mock_cls:
+    with patch("authsome.server.credential_service.httpx.AsyncClient") as mock_cls:
         await _validate_browser_sso_credentials(record, definition)
         mock_cls.assert_not_called()
 
