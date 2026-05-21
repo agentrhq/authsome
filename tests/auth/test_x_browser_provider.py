@@ -27,7 +27,7 @@ def test_x_browser_loads_via_auth_service_bundled():
     """x-browser appears in the bundled providers loaded by AuthService."""
     from unittest.mock import MagicMock
 
-    from authsome.auth.service import AuthService
+    from authsome.server.credential_service import AuthService
 
     from authsome.vault import Vault
 

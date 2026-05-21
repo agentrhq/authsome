@@ -137,6 +137,7 @@ async def test_resume_sets_expires_at_from_ttl():
     provider = _make_provider(ttl="30d")
     callback_data = {"credentials": {"cookie": "abc=123", "ct0": "xyz"}}
     result = await flow.resume(provider, "test-agent", "default", session, callback_data)
+    assert result is not None
     assert result.connection.expires_at is not None
     from datetime import timedelta
 
@@ -154,6 +155,7 @@ async def test_resume_no_ttl_means_no_expires_at():
     provider = _make_provider(ttl=None)
     callback_data = {"credentials": {"cookie": "abc=123", "ct0": "xyz"}}
     result = await flow.resume(provider, "test-agent", "default", session, callback_data)
+    assert result is not None
     assert result.connection.expires_at is None
 
 

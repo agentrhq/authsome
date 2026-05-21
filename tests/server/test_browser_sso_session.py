@@ -42,6 +42,7 @@ def test_session_response_returns_browser_sso_action():
     session.payload["extra_headers"] = {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"}
 
     response = _session_response(session, "http://localhost:7998")
+    assert isinstance(response.next_action, BrowserSSOAction)
     assert response.next_action.type == "browser_sso"
     assert response.next_action.entry_url == "https://x.com/"
     assert response.next_action.extra_headers == {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"}

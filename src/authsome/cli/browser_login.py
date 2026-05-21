@@ -112,7 +112,7 @@ def run_browser_login(
         RuntimeError: if login times out or credentials never validate.
     """
     try:
-        from cloakbrowser import launch_persistent_context
+        from cloakbrowser import launch_persistent_context  # ty: ignore[unresolved-import]
     except ImportError as exc:
         raise ImportError(CLOAKBROWSER_INSTALL_HINT) from exc
 

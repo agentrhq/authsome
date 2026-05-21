@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from authsome.auth.service import _render_extra_headers, _validate_browser_sso_credentials
+from authsome.server.credential_service import _render_extra_headers, _validate_browser_sso_credentials
 
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
@@ -175,7 +175,7 @@ async def test_get_auth_headers_from_record_browser_sso():
     """BROWSER_SSO branch must run BEFORE _get_access_token_from_record, not dead code."""
     from unittest.mock import MagicMock
 
-    from authsome.auth.service import AuthService
+    from authsome.server.credential_service import AuthService
 
     from authsome.auth.models.connection import ConnectionRecord
     from authsome.auth.models.enums import AuthType, ConnectionStatus

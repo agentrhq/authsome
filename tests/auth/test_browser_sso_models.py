@@ -36,7 +36,7 @@ def test_browser_sso_config_minimal():
     config = BrowserSSOConfig(
         entry_url="https://x.com/",
         domains=["x.com"],
-        extract=[ExtractRule(from_="cookies", as_="cookie", match="*")],
+        extract=[ExtractRule.model_validate({"from": "cookies", "as": "cookie", "match": "*"})],
     )
     assert config.entry_url == "https://x.com/"
     assert config.validate_url is None
@@ -52,8 +52,8 @@ def test_browser_sso_config_full():
         domains=["x.com", "twitter.com"],
         validate_url="https://x.com/i/api/2/notifications/all.json?count=1",
         extract=[
-            ExtractRule(from_="cookies", as_="cookie", match="*"),
-            ExtractRule(from_="cookies", as_="ct0", match="ct0"),
+            ExtractRule.model_validate({"from": "cookies", "as": "cookie", "match": "*"}),
+            ExtractRule.model_validate({"from": "cookies", "as": "ct0", "match": "ct0"}),
         ],
         extra_headers={"Cookie": "${cookie}", "x-csrf-token": "${ct0}"},
         ttl="30d",

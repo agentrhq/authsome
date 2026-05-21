@@ -94,7 +94,7 @@ async def _validate_browser_sso_credentials(
         return
 
     headers = _render_extra_headers(
-        definition.browser_sso.extra_headers,
+        cfg.extra_headers,
         record.credentials or {},
     )
 
