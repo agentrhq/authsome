@@ -207,7 +207,7 @@ def _load_env_identity(env: Mapping[str, str] | None = None) -> IdentityMetadata
     _validate_env_identity_configuration(env)
     handle = _env_identity_handle(env)
     private_key = _env_identity_private_key(env)
-    if private_key is None:
+    if private_key is None or handle is None:
         return None
 
     now = datetime.now(UTC)

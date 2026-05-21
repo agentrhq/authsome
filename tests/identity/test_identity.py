@@ -102,9 +102,7 @@ def test_ensure_local_identity_prefers_environment_identity(monkeypatch, tmp_pat
     assert identity.identity_status == IdentityStatus.UNREGISTERED
 
 
-def test_ensure_local_identity_preserves_local_status_for_matching_env_identity(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_ensure_local_identity_preserves_local_status_for_matching_env_identity(monkeypatch, tmp_path: Path) -> None:
     identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
     mark_registered(tmp_path, identity.handle)
     mark_claimed(tmp_path, identity.handle)
