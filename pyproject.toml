@@ -39,6 +39,7 @@ dependencies = [
     "pyjwt>=2.12.1",
     "base58>=2.1.1",
     "posthog>=3.0",
+    "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]
@@ -81,4 +82,8 @@ ignore = []
 max-complexity = 20
 
 [dependency-groups]
-dev = []
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.1.0",
+]

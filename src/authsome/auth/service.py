@@ -12,11 +12,14 @@ from datetime import timedelta
 from typing import Any
 from urllib.parse import urlparse
 
+import httpx
+
 from loguru import logger
 
 from authsome import audit
 from authsome.auth.flows.api_key import ApiKeyFlow
 from authsome.auth.flows.base import AuthFlow
+from authsome.auth.flows.browser_sso import BrowserSSOFlow
 from authsome.auth.flows.dcr_pkce import DcrPkceFlow
 from authsome.auth.flows.device_code import DeviceCodeFlow
 from authsome.auth.flows.pkce import PkceFlow
@@ -52,6 +55,7 @@ from authsome.vault import Vault
 _VALID_FLOWS: dict[AuthType, set[FlowType]] = {
     AuthType.OAUTH2: {FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE},
     AuthType.API_KEY: {FlowType.API_KEY},
+    AuthType.BROWSER_SSO: {FlowType.BROWSER_SSO},
 }
 
 _NEAR_EXPIRY_SECONDS = 300
@@ -61,7 +65,60 @@ _FLOW_HANDLERS: dict[FlowType, type[AuthFlow]] = {
     FlowType.DEVICE_CODE: DeviceCodeFlow,
     FlowType.DCR_PKCE: DcrPkceFlow,
     FlowType.API_KEY: ApiKeyFlow,
+    FlowType.BROWSER_SSO: BrowserSSOFlow,
 }
+
+
+def _render_extra_headers(
+    extra_headers: dict[str, str],
+    credentials: dict[str, str],
+) -> dict[str, str]:
+    """Render extra_headers by substituting ${key} placeholders with credential values.
+
+    Literal values (no ${...}) pass through unchanged.
+    Missing credential keys produce empty strings.
+    """
+    import re as _re
+
+    _TMPL = _re.compile(r"\$\{([\w-]+)\}")
+    result: dict[str, str] = {}
+    for name, template in extra_headers.items():
+        result[name] = _TMPL.sub(lambda m: credentials.get(m.group(1), ""), template)
+    return result
+
+
+async def _validate_browser_sso_credentials(
+    record: ConnectionRecord,
+    definition: ProviderDefinition,
+) -> None:
+    """GET validate_url with stored Cookie. 4xx = expired; network errors tolerated."""
+    cfg = definition.browser_sso
+    if cfg is None or cfg.validate_url is None:
+        return
+
+    cookie_value = (record.credentials or {}).get("cookie", "")
+    headers: dict[str, str] = {}
+    if cookie_value:
+        headers["Cookie"] = cookie_value
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=False, timeout=8.0) as client:
+            resp = await client.get(cfg.validate_url, headers=headers)
+        if resp.status_code in (401, 403):
+            logger.info(
+                "Browser SSO credentials expired: provider={} status={}",
+                definition.name,
+                resp.status_code,
+            )
+            raise TokenExpiredError(provider=definition.name)
+    except TokenExpiredError:
+        raise
+    except Exception as exc:
+        logger.warning(
+            "Browser SSO validate_url check failed (tolerated): provider={} error={}",
+            definition.name,
+            exc,
+        )
 
 
 class AuthService:
@@ -804,6 +861,10 @@ class AuthService:
             if record.api_key:
                 env_name = export_map.get("api_key", f"{export_name_part(provider)}_API_KEY")
                 values[env_name] = record.api_key
+        elif record.auth_type == AuthType.BROWSER_SSO:
+            for cred_key, cred_value in (record.credentials or {}).items():
+                env_name = export_map.get(cred_key, f"{export_name_part(provider)}_{cred_key.upper()}")
+                values[env_name] = cred_value
 
         if definition.export and definition.export.model_extra:
             token = record.access_token if record.auth_type == AuthType.OAUTH2 else record.api_key
@@ -1072,6 +1133,18 @@ class AuthService:
                     return {header_name: f"{prefix} {token}"}
                 return {header_name: token}
             return {"Authorization": f"Bearer {token}"}
+
+        if record.auth_type == AuthType.BROWSER_SSO:
+            await _validate_browser_sso_credentials(record, definition)
+            if not record.credentials:
+                raise CredentialMissingError(
+                    "No browser SSO credentials stored", provider=record.provider
+                )
+            if definition.browser_sso is None:
+                raise CredentialMissingError(
+                    "Provider missing browser_sso config", provider=record.provider
+                )
+            return _render_extra_headers(definition.browser_sso.extra_headers, record.credentials)
 
         raise CredentialMissingError(
             f"Cannot build headers for auth type: {record.auth_type}", provider=record.provider
