@@ -34,7 +34,20 @@ class NoneAction(BaseModel):
     type: Literal["none"] = "none"
 
 
-NextAction = Annotated[OpenUrlAction | NoneAction, Field(discriminator="type")]
+class BrowserSSOAction(BaseModel):
+    type: Literal["browser_sso"] = "browser_sso"
+    entry_url: str
+    domains: list[str]
+    validate_url: str | None = None
+    extract: list[dict[str, Any]]
+    network_proxy: str | None = None
+    login_mode: str = "auto"
+
+
+NextAction = Annotated[
+    OpenUrlAction | BrowserSSOAction | NoneAction,
+    Field(discriminator="type"),
+]
 
 
 class AuthSessionResponse(BaseModel):
