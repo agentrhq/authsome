@@ -30,12 +30,23 @@ async def ready(request: Request, auth: AuthService = Depends(get_auth_service))
     checks: dict[str, str] = {}
     issues: list[str] = []
     warnings: list[str] = []
+    active_auth: AuthService | None = None
 
     checks["spec_version"] = "ok"
 
-    # 1. Active Identity Check
+    # 1. Active Identity and Ownership Check
     try:
-        await auth.get_identity(auth.identity)
+        active_identity = await current_from_home(auth.vault.home)
+        ownership_resolver: OwnershipResolver = request.app.state.ownership_resolver
+        resolved = await ownership_resolver.resolve(identity=active_identity.handle)
+        active_auth = AuthService(
+            vault=auth.vault,
+            identity=active_identity.handle,
+            principal_id=resolved.principal_id,
+            vault_id=resolved.vault_id,
+            deployment_mode=get_deployment_mode(),
+        )
+        await active_auth.get_identity(active_identity.handle)
         checks["identity"] = "ok"
     except Exception as exc:
         checks["identity"] = "failed"
@@ -51,17 +62,9 @@ async def ready(request: Request, auth: AuthService = Depends(get_auth_service))
 
     # 3. Connected Providers Check
     try:
-        active_identity = await current_from_home(auth.vault.home)
-        ownership_resolver: OwnershipResolver = request.app.state.ownership_resolver
-        resolved = await ownership_resolver.resolve(identity=active_identity.handle)
-        identity_auth = AuthService(
-            vault=auth.vault,
-            identity=active_identity.handle,
-            principal_id=resolved.principal_id,
-            vault_id=resolved.vault_id,
-            deployment_mode=get_deployment_mode(),
-        )
-        conn_list = await identity_auth.list_connections()
+        if active_auth is None:
+            raise ValueError("Active identity ownership context is unavailable")
+        conn_list = await active_auth.list_connections()
         checks["connections"] = "ok"
         connected_count = sum(1 for p in conn_list for c in p.get("connections", []) if connection_is_active(c))
         if connected_count == 0:
@@ -72,9 +75,12 @@ async def ready(request: Request, auth: AuthService = Depends(get_auth_service))
 
     # 4. Vault Roundtrip & Store Integrity Check
     try:
-        await auth.vault.put("__ready_test__", "ok", collection=f"vault:{auth.identity}")
-        value = await auth.vault.get("__ready_test__", collection=f"vault:{auth.identity}")
-        await auth.vault.delete("__ready_test__", collection=f"vault:{auth.identity}")
+        if active_auth is None:
+            raise ValueError("Active identity ownership context is unavailable")
+        collection = f"vault:{active_auth.vault_id}"
+        await auth.vault.put("__ready_test__", "ok", collection=collection)
+        value = await auth.vault.get("__ready_test__", collection=collection)
+        await auth.vault.delete("__ready_test__", collection=collection)
         checks["vault"] = "ok" if value == "ok" else "failed"
         if value != "ok":
             issues.append("vault: readiness roundtrip failed")
@@ -82,7 +88,7 @@ async def ready(request: Request, auth: AuthService = Depends(get_auth_service))
         else:
             checks["vault"] = "ok"
 
-        if not await auth.vault.check_integrity(identity=auth.identity):
+        if not await auth.vault.check_integrity(identity=active_auth.identity):
             issues.append("vault: store failed integrity check")
             checks["integrity"] = "failed"
         else:
