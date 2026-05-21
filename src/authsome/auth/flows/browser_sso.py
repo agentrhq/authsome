@@ -92,7 +92,8 @@ class BrowserSSOFlow(AuthFlow):
         ttl_delta = _parse_ttl_duration(
             provider.browser_sso.ttl if provider.browser_sso else None
         )
-        expires_at = utc_now() + ttl_delta if ttl_delta else None
+        now = utc_now()
+        expires_at = now + ttl_delta if ttl_delta is not None else None
 
         return FlowResult(
             connection=ConnectionRecord(
@@ -104,7 +105,7 @@ class BrowserSSOFlow(AuthFlow):
                 status=ConnectionStatus.CONNECTED,
                 credentials=credentials,
                 expires_at=expires_at,
-                obtained_at=utc_now(),
+                obtained_at=now,
                 account=AccountInfo(),
             )
         )

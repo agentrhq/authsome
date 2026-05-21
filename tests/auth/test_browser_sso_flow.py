@@ -96,14 +96,8 @@ async def test_begin_requires_browser_sso_config():
         "display_name": "X",
         "auth_type": "browser_sso",
         "flow": "browser_sso",
-        "browser_sso": {
-            "entry_url": "https://x.com/",
-            "domains": ["x.com"],
-            "extract": [{"from": "cookies", "as": "cookie", "match": "*"}],
-        },
     })
-    # Override browser_sso to None after creation
-    object.__setattr__(bad_provider, "browser_sso", None)
+    # browser_sso defaults to None — no object.__setattr__ needed
     with pytest.raises(AuthenticationFailedError, match="browser_sso"):
         await flow.begin(bad_provider, "test-agent", "default", session)
 
@@ -158,3 +152,29 @@ async def test_resume_missing_credentials_raises():
     provider = _make_provider()
     with pytest.raises(AuthenticationFailedError, match="credentials"):
         await flow.resume(provider, "test-agent", "default", session, {})
+
+
+@pytest.mark.asyncio
+async def test_resume_empty_credentials_raises():
+    from authsome.errors import AuthenticationFailedError
+    flow = BrowserSSOFlow()
+    session = _make_session()
+    provider = _make_provider()
+    with pytest.raises(AuthenticationFailedError, match="credentials"):
+        await flow.resume(provider, "test-agent", "default", session, {"credentials": {}})
+
+
+def test_refresh_raises_refresh_failed_error():
+    from authsome.errors import RefreshFailedError
+    flow = BrowserSSOFlow()
+    provider = _make_provider()
+    record = ConnectionRecord(
+        provider="x-browser",
+        identity="agent",
+        connection_name="default",
+        auth_type=AuthType.BROWSER_SSO,
+        status=ConnectionStatus.CONNECTED,
+        credentials={"cookie": "abc"},
+    )
+    with pytest.raises(RefreshFailedError):
+        flow.refresh(provider, record)
