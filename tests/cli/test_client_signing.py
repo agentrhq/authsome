@@ -6,7 +6,8 @@ import pytest
 
 from authsome.cli.client import AuthsomeApiClient
 from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
-from authsome.identity import create_identity, mark_claimed, mark_registered
+from authsome.identity import create_identity, load_private_key, mark_claimed, mark_registered
+from authsome.identity.local import private_key_to_hex
 
 
 @pytest.mark.asyncio
@@ -160,11 +161,15 @@ async def test_bootstrapped_identity_is_saved_as_active_profile(monkeypatch, tmp
 @pytest.mark.asyncio
 async def test_identity_env_override_wins_over_active_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
     create_identity(tmp_path, "steady-wisely-boldly-0042")
     override_identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
     mark_registered(tmp_path, override_identity.handle)
     mark_claimed(tmp_path, override_identity.handle)
+    monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
+    monkeypatch.setenv(
+        "AUTHSOME_IDENTITY_PRIVATE_KEY",
+        private_key_to_hex(load_private_key(tmp_path, override_identity.handle)),
+    )
     save_client_config(tmp_path, ClientConfig(active_identity="steady-wisely-boldly-0042"))
 
     client = AuthsomeApiClient("http://127.0.0.1:7998")

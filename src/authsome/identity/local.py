@@ -168,6 +168,10 @@ def _env_identity_handle(env: Mapping[str, str] | None = None) -> str | None:
     return validate_handle(handle)
 
 
+def _has_env_identity_handle(env: Mapping[str, str] | None = None) -> bool:
+    return _env_values(env).get(_IDENTITY_HANDLE_ENV_VAR) is not None
+
+
 def _env_identity_private_key(env: Mapping[str, str] | None = None) -> Ed25519PrivateKey | None:
     raw_key = _env_values(env).get(_IDENTITY_PRIVATE_KEY_ENV_VAR)
     if raw_key is None:
@@ -177,13 +181,34 @@ def _env_identity_private_key(env: Mapping[str, str] | None = None) -> Ed25519Pr
     return private_key_from_hex(raw_key)
 
 
+def _has_env_identity_private_key(env: Mapping[str, str] | None = None) -> bool:
+    return _env_values(env).get(_IDENTITY_PRIVATE_KEY_ENV_VAR) is not None
+
+
+def _validate_env_identity_configuration(env: Mapping[str, str] | None = None) -> None:
+    has_handle = _has_env_identity_handle(env)
+    has_private_key = _has_env_identity_private_key(env)
+    if has_handle and not has_private_key:
+        handle = _env_identity_handle(env)
+        raise ValueError(
+            f"{_IDENTITY_HANDLE_ENV_VAR} is set to '{handle}' but {_IDENTITY_PRIVATE_KEY_ENV_VAR} is not set. "
+            f"Unset {_IDENTITY_HANDLE_ENV_VAR} to use local identity files, or set both environment variables "
+            "to use an environment-backed identity."
+        )
+    if has_private_key and not has_handle:
+        raise ValueError(
+            f"{_IDENTITY_PRIVATE_KEY_ENV_VAR} is set but {_IDENTITY_HANDLE_ENV_VAR} is not set. "
+            f"Unset {_IDENTITY_PRIVATE_KEY_ENV_VAR} to use local identity files, or set both environment variables "
+            "to use an environment-backed identity."
+        )
+
+
 def _load_env_identity(env: Mapping[str, str] | None = None) -> IdentityMetadata | None:
+    _validate_env_identity_configuration(env)
     handle = _env_identity_handle(env)
     private_key = _env_identity_private_key(env)
     if private_key is None:
         return None
-    if handle is None:
-        raise ValueError(f"{_IDENTITY_PRIVATE_KEY_ENV_VAR} requires {_IDENTITY_HANDLE_ENV_VAR} to also be set.")
 
     now = datetime.now(UTC)
     return IdentityMetadata(
@@ -197,11 +222,6 @@ def _load_env_identity(env: Mapping[str, str] | None = None) -> IdentityMetadata
 def _env_identity_matches(handle: str, env: Mapping[str, str] | None = None) -> bool:
     env_identity = _load_env_identity(env)
     return env_identity is not None and env_identity.handle == handle
-
-
-def _has_env_identity_handle_without_private_key(env: Mapping[str, str] | None = None) -> bool:
-    handle = _env_identity_handle(env)
-    return handle is not None and _env_values(env).get(_IDENTITY_PRIVATE_KEY_ENV_VAR) is None
 
 
 def load_private_key(home: Path, handle: str) -> Ed25519PrivateKey:
@@ -329,13 +349,6 @@ def ensure_local_identity(home: Path, active_handle: str | None = None) -> Ident
         active_handle = _read_active_identity_handle(home)
     if active_handle:
         if not identity_exists(home, active_handle):
-            if active_handle == _env_identity_handle() and _has_env_identity_handle_without_private_key():
-                raise FileNotFoundError(
-                    f"{_IDENTITY_HANDLE_ENV_VAR} is set to '{active_handle}' but "
-                    f"{_IDENTITY_PRIVATE_KEY_ENV_VAR} is not set, and no local identity files were found at "
-                    f"{identities_dir(home)}. Export {_IDENTITY_PRIVATE_KEY_ENV_VAR} to use the environment-backed "
-                    "identity, or run 'authsome init' to create and register a new local identity."
-                )
             raise FileNotFoundError(
                 f"Configured identity '{active_handle}' not found at {identities_dir(home)}. "
                 "Run 'authsome init' to create and register a new identity."
