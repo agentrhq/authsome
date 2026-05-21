@@ -395,6 +395,7 @@ async def login(
 
                 try:
                     import asyncio
+
                     credentials = await asyncio.to_thread(
                         run_browser_login,
                         provider,

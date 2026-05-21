@@ -1,4 +1,3 @@
-
 import pytest
 
 from authsome.auth.flows.browser_sso import BrowserSSOFlow, _parse_ttl_duration
@@ -9,24 +8,26 @@ from authsome.auth.sessions import AuthSession
 
 
 def _make_provider(ttl: str | None = None) -> ProviderDefinition:
-    return ProviderDefinition.model_validate({
-        "schema_version": 1,
-        "name": "x-browser",
-        "display_name": "X Browser SSO",
-        "auth_type": "browser_sso",
-        "flow": "browser_sso",
-        "browser_sso": {
-            "entry_url": "https://x.com/",
-            "domains": ["x.com", "twitter.com"],
-            "validate_url": "https://x.com/i/api/2/notifications/all.json?count=1",
-            "extract": [
-                {"from": "cookies", "as": "cookie", "match": "*"},
-                {"from": "cookies", "as": "ct0", "match": "ct0"},
-            ],
-            "extra_headers": {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"},
-            **({"ttl": ttl} if ttl else {}),
-        },
-    })
+    return ProviderDefinition.model_validate(
+        {
+            "schema_version": 1,
+            "name": "x-browser",
+            "display_name": "X Browser SSO",
+            "auth_type": "browser_sso",
+            "flow": "browser_sso",
+            "browser_sso": {
+                "entry_url": "https://x.com/",
+                "domains": ["x.com", "twitter.com"],
+                "validate_url": "https://x.com/i/api/2/notifications/all.json?count=1",
+                "extract": [
+                    {"from": "cookies", "as": "cookie", "match": "*"},
+                    {"from": "cookies", "as": "ct0", "match": "ct0"},
+                ],
+                "extra_headers": {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"},
+                **({"ttl": ttl} if ttl else {}),
+            },
+        }
+    )
 
 
 def _make_session() -> AuthSession:
@@ -41,18 +42,22 @@ def _make_session() -> AuthSession:
 
 # --- _parse_ttl_duration ---
 
+
 def test_parse_ttl_duration_days():
     from datetime import timedelta
+
     assert _parse_ttl_duration("30d") == timedelta(days=30)
 
 
 def test_parse_ttl_duration_hours():
     from datetime import timedelta
+
     assert _parse_ttl_duration("24h") == timedelta(hours=24)
 
 
 def test_parse_ttl_duration_minutes():
     from datetime import timedelta
+
     assert _parse_ttl_duration("90m") == timedelta(minutes=90)
 
 
@@ -65,6 +70,7 @@ def test_parse_ttl_duration_invalid_returns_none():
 
 
 # --- BrowserSSOFlow.begin() ---
+
 
 @pytest.mark.asyncio
 async def test_begin_sets_waiting_for_user():
@@ -89,21 +95,25 @@ async def test_begin_stores_entry_url_in_payload():
 @pytest.mark.asyncio
 async def test_begin_requires_browser_sso_config():
     from authsome.errors import AuthenticationFailedError
+
     flow = BrowserSSOFlow()
     session = _make_session()
-    bad_provider = ProviderDefinition.model_validate({
-        "schema_version": 1,
-        "name": "x-browser",
-        "display_name": "X",
-        "auth_type": "browser_sso",
-        "flow": "browser_sso",
-    })
+    bad_provider = ProviderDefinition.model_validate(
+        {
+            "schema_version": 1,
+            "name": "x-browser",
+            "display_name": "X",
+            "auth_type": "browser_sso",
+            "flow": "browser_sso",
+        }
+    )
     # browser_sso defaults to None — no object.__setattr__ needed
     with pytest.raises(AuthenticationFailedError, match="browser_sso"):
         await flow.begin(bad_provider, "test-agent", "default", session)
 
 
 # --- BrowserSSOFlow.resume() ---
+
 
 @pytest.mark.asyncio
 async def test_resume_builds_connected_record():
@@ -131,6 +141,7 @@ async def test_resume_sets_expires_at_from_ttl():
     from datetime import timedelta
 
     from authsome.utils import utc_now
+
     expected_delta = timedelta(days=30)
     diff = result.connection.expires_at - utc_now()
     assert abs((diff - expected_delta).total_seconds()) < 5
@@ -149,6 +160,7 @@ async def test_resume_no_ttl_means_no_expires_at():
 @pytest.mark.asyncio
 async def test_resume_missing_credentials_raises():
     from authsome.errors import AuthenticationFailedError
+
     flow = BrowserSSOFlow()
     session = _make_session()
     provider = _make_provider()
@@ -159,6 +171,7 @@ async def test_resume_missing_credentials_raises():
 @pytest.mark.asyncio
 async def test_resume_empty_credentials_raises():
     from authsome.errors import AuthenticationFailedError
+
     flow = BrowserSSOFlow()
     session = _make_session()
     provider = _make_provider()
@@ -168,6 +181,7 @@ async def test_resume_empty_credentials_raises():
 
 def test_refresh_raises_refresh_failed_error():
     from authsome.errors import RefreshFailedError
+
     flow = BrowserSSOFlow()
     provider = _make_provider()
     record = ConnectionRecord(

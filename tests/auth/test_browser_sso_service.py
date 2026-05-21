@@ -190,20 +190,22 @@ async def test_get_auth_headers_from_record_browser_sso():
         status=ConnectionStatus.CONNECTED,
         credentials={"cookie": "auth_token=abc; ct0=xyz", "ct0": "xyz"},
     )
-    provider = ProviderDefinition.model_validate({
-        "schema_version": 1,
-        "name": "x-browser",
-        "display_name": "X",
-        "auth_type": "browser_sso",
-        "flow": "browser_sso",
-        "browser_sso": {
-            "entry_url": "https://x.com/",
-            "domains": ["x.com"],
-            "validate_url": None,   # skip network call
-            "extract": [{"from": "cookies", "as": "cookie", "match": "*"}],
-            "extra_headers": {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"},
-        },
-    })
+    provider = ProviderDefinition.model_validate(
+        {
+            "schema_version": 1,
+            "name": "x-browser",
+            "display_name": "X",
+            "auth_type": "browser_sso",
+            "flow": "browser_sso",
+            "browser_sso": {
+                "entry_url": "https://x.com/",
+                "domains": ["x.com"],
+                "validate_url": None,  # skip network call
+                "extract": [{"from": "cookies", "as": "cookie", "match": "*"}],
+                "extra_headers": {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"},
+            },
+        }
+    )
 
     vault = MagicMock(spec=Vault)
     svc = AuthService(vault=vault, identity="agent", principal_id="default", vault_id="default")

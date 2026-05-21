@@ -20,12 +20,14 @@ def test_extract_rule_field_aliases():
 
 
 def test_extract_rule_localstorage():
-    rule = ExtractRule.model_validate({
-        "from": "localStorage",
-        "as": "token",
-        "match": "localConfig_v2",
-        "jsonPath": "teams.T123.token",
-    })
+    rule = ExtractRule.model_validate(
+        {
+            "from": "localStorage",
+            "as": "token",
+            "match": "localConfig_v2",
+            "jsonPath": "teams.T123.token",
+        }
+    )
     assert rule.from_ == "localStorage"
     assert rule.json_path == "teams.T123.token"
 
@@ -63,18 +65,20 @@ def test_browser_sso_config_full():
 
 
 def test_provider_definition_browser_sso_field():
-    defn = ProviderDefinition.model_validate({
-        "schema_version": 1,
-        "name": "x-browser",
-        "display_name": "X Browser SSO",
-        "auth_type": "browser_sso",
-        "flow": "browser_sso",
-        "browser_sso": {
-            "entry_url": "https://x.com/",
-            "domains": ["x.com"],
-            "extract": [{"from": "cookies", "as": "cookie", "match": "*"}],
-        },
-    })
+    defn = ProviderDefinition.model_validate(
+        {
+            "schema_version": 1,
+            "name": "x-browser",
+            "display_name": "X Browser SSO",
+            "auth_type": "browser_sso",
+            "flow": "browser_sso",
+            "browser_sso": {
+                "entry_url": "https://x.com/",
+                "domains": ["x.com"],
+                "extract": [{"from": "cookies", "as": "cookie", "match": "*"}],
+            },
+        }
+    )
     assert defn.auth_type == AuthType.BROWSER_SSO
     assert defn.flow == FlowType.BROWSER_SSO
     assert defn.browser_sso is not None

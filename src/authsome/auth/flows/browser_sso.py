@@ -65,9 +65,7 @@ class BrowserSSOFlow(AuthFlow):
         runtime_session.payload["entry_url"] = cfg.entry_url
         runtime_session.payload["domains"] = cfg.domains
         runtime_session.payload["validate_url"] = cfg.validate_url
-        runtime_session.payload["extract"] = [
-            rule.model_dump(by_alias=True) for rule in cfg.extract
-        ]
+        runtime_session.payload["extract"] = [rule.model_dump(by_alias=True) for rule in cfg.extract]
         runtime_session.payload["extra_headers"] = cfg.extra_headers
         runtime_session.payload["network_proxy"] = cfg.network_proxy
         runtime_session.payload["login_mode"] = cfg.login_mode
@@ -89,9 +87,7 @@ class BrowserSSOFlow(AuthFlow):
                 provider=provider.name,
             )
 
-        ttl_delta = _parse_ttl_duration(
-            provider.browser_sso.ttl if provider.browser_sso else None
-        )
+        ttl_delta = _parse_ttl_duration(provider.browser_sso.ttl if provider.browser_sso else None)
         now = utc_now()
         expires_at = now + ttl_delta if ttl_delta is not None else None
 
@@ -119,7 +115,6 @@ class BrowserSSOFlow(AuthFlow):
     ) -> ConnectionRecord:
         """Browser SSO has no token refresh — re-login is always required."""
         raise RefreshFailedError(
-            "Browser SSO credentials cannot be refreshed automatically. "
-            "Run: authsome login " + record.provider,
+            "Browser SSO credentials cannot be refreshed automatically. Run: authsome login " + record.provider,
             provider=provider.name,
         )

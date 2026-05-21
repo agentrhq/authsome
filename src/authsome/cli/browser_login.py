@@ -90,10 +90,10 @@ def _validate_credentials_sync(
 def _render_headers_sync(extra_headers: dict[str, str], credentials: dict[str, str]) -> dict[str, str]:
     """Render ${key} placeholder headers on the CLI side (mirrors service._render_extra_headers)."""
     import re
+
     _tmpl = re.compile(r"\$\{([\w-]+)\}")
     return {
-        name: _tmpl.sub(lambda m: credentials.get(m.group(1), ""), template)
-        for name, template in extra_headers.items()
+        name: _tmpl.sub(lambda m: credentials.get(m.group(1), ""), template) for name, template in extra_headers.items()
     }
 
 
@@ -142,6 +142,7 @@ def run_browser_login(
         page.goto(entry_url)
 
         import time
+
         deadline = time.monotonic() + timeout_s
 
         while time.monotonic() < deadline:
