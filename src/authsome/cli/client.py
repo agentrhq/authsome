@@ -208,6 +208,10 @@ class AuthsomeApiClient:
     async def resume_login_session(self, session_id: str, **kwargs: Any) -> dict[str, Any]:
         return await self._post(f"/auth/sessions/{session_id}/resume", {"data": kwargs})
 
+    async def resume_session(self, session_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        """POST callback data to an existing auth session to complete the flow."""
+        return await self._post(f"/auth/sessions/{session_id}/resume", {"data": data})
+
     async def list_connections(self) -> dict[str, Any]:
         return await self._get("/connections")
 

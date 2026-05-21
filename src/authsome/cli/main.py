@@ -375,7 +375,47 @@ async def login(
                 except Exception:
                     pass
 
-            if not ctx_obj.json_output and not ctx_obj.quiet:
+            elif action_type == "browser_sso":
+                try:
+                    from authsome.cli.browser_login import run_browser_login, CLOAKBROWSER_INSTALL_HINT  # noqa: F401
+                except ImportError:
+                    ctx_obj.echo(
+                        "Browser SSO requires the browser extra.\n"
+                        "Install with: pip install 'authsome[browser]'",
+                        color="red",
+                    )
+                    raise SystemExit(1)
+
+                if not ctx_obj.json_output and not ctx_obj.quiet:
+                    ctx_obj.echo(
+                        f"Opening browser for {provider}. Log in and the window will close automatically.",
+                        color="cyan",
+                    )
+
+                try:
+                    import asyncio
+                    credentials = await asyncio.to_thread(
+                        run_browser_login,
+                        provider,
+                        next_action,
+                    )
+                except ImportError as exc:
+                    ctx_obj.echo(str(exc), color="red")
+                    raise SystemExit(1)
+                except RuntimeError as exc:
+                    ctx_obj.echo(f"Login failed: {exc}", color="red")
+                    raise SystemExit(1)
+
+                resume_resp = await actx.runtime_client.resume_session(
+                    session_id=session_id,
+                    data={"credentials": credentials},
+                )
+                if resume_resp.get("status") == "completed":
+                    login_result["status"] = "success"
+                else:
+                    login_result["status"] = "started"
+
+            if not ctx_obj.json_output and not ctx_obj.quiet and action_type != "browser_sso":
                 ctx_obj.echo(
                     "\nLogin process started. The connection will be updated automatically once complete.",
                     color="yellow",
