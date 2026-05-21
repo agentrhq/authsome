@@ -118,3 +118,10 @@ def test_environment_identity_key_requires_handle(monkeypatch, tmp_path: Path) -
 
     with pytest.raises(ValueError, match="AUTHSOME_IDENTITY"):
         ensure_local_identity(tmp_path)
+
+
+def test_environment_identity_handle_without_private_key_has_clear_error(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_IDENTITY", "calm-clearly-quickly-1216")
+
+    with pytest.raises(FileNotFoundError, match="AUTHSOME_IDENTITY_PRIVATE_KEY"):
+        ensure_local_identity(tmp_path, active_handle="calm-clearly-quickly-1216")

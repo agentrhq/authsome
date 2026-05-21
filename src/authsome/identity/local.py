@@ -199,6 +199,11 @@ def _env_identity_matches(handle: str, env: Mapping[str, str] | None = None) -> 
     return env_identity is not None and env_identity.handle == handle
 
 
+def _has_env_identity_handle_without_private_key(env: Mapping[str, str] | None = None) -> bool:
+    handle = _env_identity_handle(env)
+    return handle is not None and _env_values(env).get(_IDENTITY_PRIVATE_KEY_ENV_VAR) is None
+
+
 def load_private_key(home: Path, handle: str) -> Ed25519PrivateKey:
     env_key = _env_identity_private_key()
     env_handle = _env_identity_handle()
@@ -324,6 +329,13 @@ def ensure_local_identity(home: Path, active_handle: str | None = None) -> Ident
         active_handle = _read_active_identity_handle(home)
     if active_handle:
         if not identity_exists(home, active_handle):
+            if active_handle == _env_identity_handle() and _has_env_identity_handle_without_private_key():
+                raise FileNotFoundError(
+                    f"{_IDENTITY_HANDLE_ENV_VAR} is set to '{active_handle}' but "
+                    f"{_IDENTITY_PRIVATE_KEY_ENV_VAR} is not set, and no local identity files were found at "
+                    f"{identities_dir(home)}. Export {_IDENTITY_PRIVATE_KEY_ENV_VAR} to use the environment-backed "
+                    "identity, or run 'authsome init' to create and register a new local identity."
+                )
             raise FileNotFoundError(
                 f"Configured identity '{active_handle}' not found at {identities_dir(home)}. "
                 "Run 'authsome init' to create and register a new identity."
