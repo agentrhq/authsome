@@ -115,6 +115,8 @@ class AuthService:
 
     @property
     def vault_id(self) -> str:
+        if self._vault_id is None:
+            raise ValueError("AuthService.vault_id is required for vault-scoped operations but was not set")
         return self._vault_id
 
     # ── Provider operations ───────────────────────────────────────────────
@@ -1047,7 +1049,7 @@ class AuthService:
     async def _iter_registered_vault_ids(self) -> list[str]:
         registry = VaultRegistry(get_server_home(self._vault.home) / "vault_registry.json")
         vaults = await registry.list_all()
-        return [vault.vault_id for vault in vaults] or [self._vault_id]
+        return [vault.vault_id for vault in vaults] or [self.vault_id]
 
     async def _get_access_token_from_record(self, record: ConnectionRecord) -> str:
         if record.auth_type == AuthType.API_KEY:
