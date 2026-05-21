@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import random
 import re
@@ -162,10 +163,29 @@ def identity_exists(home: Path, handle: str) -> bool:
     return identity_metadata_path(home, handle).exists() and identity_key_path(home, handle).exists()
 
 
+def _read_active_identity_handle(home: Path) -> str | None:
+    """Read the active identity handle from client config without importing cli/."""
+    config_path = get_client_home(home) / "config.json"
+    try:
+        return json.loads(config_path.read_text(encoding="utf-8")).get("active_identity")
+    except Exception:
+        return None
+
+
+def _write_active_identity_handle(home: Path, handle: str) -> None:
+    """Persist the active identity handle to client config without importing cli/."""
+    config_path = get_client_home(home) / "config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        data: dict = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    data["active_identity"] = handle
+    config_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
 def create_identity(home: Path, handle: str | None = None) -> IdentityMetadata:
     """Create a local identity and private key, returning existing metadata if present."""
-    from authsome.cli.client_config import load_client_config, save_client_config
-
     resolved_handle = validate_handle(handle or _unique_handle(home))
     if identity_exists(home, resolved_handle):
         return load_identity(home, resolved_handle)
@@ -195,8 +215,7 @@ def create_identity(home: Path, handle: str | None = None) -> IdentityMetadata:
     except OSError:
         pass
     metadata_path.write_text(metadata.model_dump_json(indent=2), encoding="utf-8")
-    config = load_client_config(home)
-    save_client_config(home, config.model_copy(update={"active_identity": metadata.handle}))
+    _write_active_identity_handle(home, metadata.handle)
     return metadata
 
 
@@ -231,11 +250,9 @@ def mark_claimed(home: Path, handle: str) -> IdentityMetadata:
 
 def ensure_local_identity(home: Path, active_handle: str | None = None) -> IdentityMetadata:
     """Return the active local identity, creating one if none exists."""
-    from authsome.cli.client_config import load_client_config
-
     remove_legacy_default_identity(home)
     if active_handle is None:
-        active_handle = load_client_config(home).active_identity
+        active_handle = _read_active_identity_handle(home)
     if active_handle:
         if not identity_exists(home, active_handle):
             raise FileNotFoundError(

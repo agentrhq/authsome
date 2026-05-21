@@ -1,4 +1,5 @@
 import asyncio
+import base64
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -44,6 +45,7 @@ def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
 
 def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x01" * 32).decode("ascii"))
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
@@ -59,6 +61,60 @@ def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Pat
     assert response.json()["principal_id"].startswith("principal_")
     assert response.json()["vault_id"].startswith("vault_")
     assert response.json()["did"].startswith("did:key:z6Mk")
+    assert response.json()["configured_encryption_mode"] == "auto"
+    assert response.json()["effective_encryption_source"] == "env"
+    assert "AUTHSOME_MASTER_KEY" in response.json()["encryption_backend"]
+
+
+def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x02" * 32).decode("ascii"))
+    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+
+    with TestClient(create_app()) as client:
+        client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
+        health_response = client.get("/health")
+        ready_response = client.get("/ready", headers=_auth_header(tmp_path, "GET", "/ready"))
+
+    assert health_response.status_code == 200
+    assert health_response.json()["configured_encryption_mode"] == "auto"
+    assert health_response.json()["effective_encryption_source"] == "env"
+    assert "AUTHSOME_MASTER_KEY" in health_response.json()["encryption_backend"]
+    assert ready_response.status_code == 200
+    assert ready_response.json()["configured_encryption_mode"] == "auto"
+    assert ready_response.json()["effective_encryption_source"] == "env"
+    assert "AUTHSOME_MASTER_KEY" in ready_response.json()["encryption_backend"]
+
+
+def test_rekey_rotates_local_vault(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+
+    with TestClient(create_app()) as client:
+        client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
+        resolved = asyncio.run(client.app.state.ownership_resolver.resolve(identity=identity.handle))
+        asyncio.run(client.app.state.vault.put("key1", "secret-value-1", collection=f"vault:{resolved.vault_id}"))
+
+        response = client.post("/rekey", json={}, headers=_auth_header(tmp_path, "POST", "/rekey", b"{}"))
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+        assert (
+            asyncio.run(client.app.state.vault.get("key1", collection=f"vault:{resolved.vault_id}")) == "secret-value-1"
+        )
+
+
+def test_rekey_rejects_env_master_key(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x03" * 32).decode("ascii"))
+    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+
+    with TestClient(create_app()) as client:
+        client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
+        response = client.post("/rekey", json={}, headers=_auth_header(tmp_path, "POST", "/rekey", b"{}"))
+
+    assert response.status_code == 400
+    assert "AUTHSOME_MASTER_KEY" in response.json()["detail"]
 
 
 def test_hosted_registration_requires_claim(monkeypatch, tmp_path: Path) -> None:
@@ -150,6 +206,7 @@ def test_ready_uses_active_identity_connections_for_warning_check(monkeypatch, t
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
+        client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
         resolved = asyncio.run(client.app.state.ownership_resolver.resolve(identity=identity.handle))
         key = build_store_key(
             vault=resolved.vault_id,
@@ -167,7 +224,7 @@ def test_ready_uses_active_identity_connections_for_warning_check(monkeypatch, t
         )
         asyncio.run(client.app.state.vault.put(key, record.model_dump_json(), collection=f"vault:{resolved.vault_id}"))
 
-        response = client.get("/ready")
+        response = client.get("/ready", headers=_auth_header(tmp_path, "GET", "/ready"))
 
     assert response.status_code == 200
     assert response.json()["checks"]["connections"] == "ok"

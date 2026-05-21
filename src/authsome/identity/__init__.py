@@ -1,4 +1,8 @@
-"""Identity-domain exports."""
+"""Identity-domain exports.
+
+Contains cryptographic primitives and domain models.
+Filesystem-backed registry implementations live in server/registries.py.
+"""
 
 from authsome.identity.local import (
     IdentityMetadata,
@@ -22,13 +26,9 @@ from authsome.identity.local import (
 from authsome.identity.principal import (
     ClaimStatus,
     IdentityClaimRecord,
-    IdentityClaimRegistry,
     PrincipalRecord,
-    PrincipalRegistry,
     PrincipalVaultBindingRecord,
-    PrincipalVaultBindingRegistry,
     VaultRecord,
-    VaultRegistry,
 )
 from authsome.identity.proof import (
     POP_AUTH_SCHEME,
@@ -38,31 +38,21 @@ from authsome.identity.proof import (
     create_proof_jwt,
     validate_proof_jwt,
 )
-from authsome.identity.registry import (
-    IdentityRegistration,
-    IdentityRegistrationError,
-    IdentityRegistry,
-)
+from authsome.identity.registry import IdentityRegistration
 
 __all__ = [
     "ClaimStatus",
     "IdentityClaimRecord",
-    "IdentityClaimRegistry",
     "IdentityMetadata",
     "IdentityStatus",
     "IdentityRegistration",
-    "IdentityRegistrationError",
-    "IdentityRegistry",
     "PrincipalRecord",
-    "PrincipalRegistry",
     "PrincipalVaultBindingRecord",
-    "PrincipalVaultBindingRegistry",
     "POP_AUTH_SCHEME",
     "ProofClaims",
     "ProofValidationError",
     "ReplayCache",
     "VaultRecord",
-    "VaultRegistry",
     "current_from_home",
     "create_identity",
     "create_proof_jwt",

@@ -59,6 +59,15 @@ def cli(ctx: click.Context, verbose: bool, log_file: str) -> None:
     setup_logging(verbose=verbose, log_file=resolved)
 
 
+def _render_encryption_backend(data: dict[str, Any]) -> str:
+    """Render configured mode plus effective master-key source for human output."""
+    backend = data["encryption_backend"]
+    configured_mode = data.get("configured_encryption_mode")
+    if configured_mode:
+        return f"{backend} (mode: {configured_mode})"
+    return backend
+
+
 @cli.command(name="list")
 @auth_command
 async def list_cmd(ctx_obj: ContextObj) -> None:
@@ -879,6 +888,7 @@ async def init(ctx_obj: ContextObj) -> None:
 
     actx = await ctx_obj.initialize()
     identity = await actx.runtime_client.ensure_identity_ready()
+    whoami_data = await actx.runtime_client.whoami()
 
     data = {
         "status": "initialized",
@@ -886,6 +896,9 @@ async def init(ctx_obj: ContextObj) -> None:
         "profile": identity.handle,
         "did": identity.did,
         "registration_status": "registered",
+        "configured_encryption_mode": whoami_data.get("configured_encryption_mode"),
+        "effective_encryption_source": whoami_data.get("effective_encryption_source"),
+        "encryption_backend": whoami_data.get("encryption_backend"),
     }
     if ctx_obj.json_output:
         ctx_obj.print_json(data)
@@ -893,6 +906,7 @@ async def init(ctx_obj: ContextObj) -> None:
         ctx_obj.echo(f"Initialized authsome at {home}", color="green")
         ctx_obj.echo(f"Profile: {identity.handle}")
         ctx_obj.echo(f"DID: {identity.did}")
+        ctx_obj.echo(f"Master Key Source: {_render_encryption_backend(whoami_data)}")
 
 
 @cli.group(name="profile")
@@ -959,22 +973,27 @@ async def whoami(ctx_obj: ContextObj) -> None:
     # Get info from daemon
     whoami_data = await actx.runtime_client.whoami()
     doctor_results = await actx.doctor()
+    issues = list(doctor_results.get("issues", []))
 
-    vault_status = "OK" if doctor_results.get("checks", {}).get("vault") == "ok" else "ERROR"
+    vault_status = "OK" if doctor_results.get("status") == "ready" else "ERROR"
 
     # Connected providers with counts
     connected_providers = []
-    connections_data = await actx.runtime_client.list_connections()
-    for provider_group in connections_data["connections"]:
-        active_conns = [c["connection_name"] for c in provider_group["connections"] if connection_is_active(c)]
-        if active_conns:
-            connected_providers.append(
-                {
-                    "name": provider_group["name"],
-                    "count": len(active_conns),
-                    "connections": active_conns,
-                }
-            )
+    try:
+        connections_data = await actx.runtime_client.list_connections()
+        for provider_group in connections_data["connections"]:
+            active_conns = [c["connection_name"] for c in provider_group["connections"] if connection_is_active(c)]
+            if active_conns:
+                connected_providers.append(
+                    {
+                        "name": provider_group["name"],
+                        "count": len(active_conns),
+                        "connections": active_conns,
+                    }
+                )
+    except Exception as exc:
+        issues.append(f"connections: {exc}")
+        vault_status = "ERROR"
 
     data = {
         "authsome_version": whoami_data["version"],
@@ -985,10 +1004,13 @@ async def whoami(ctx_obj: ContextObj) -> None:
         "did": whoami_data.get("did"),
         "registration_status": whoami_data.get("registration_status"),
         "daemon_url": whoami_data.get("daemon_url", actx.runtime_client.base_url),
+        "configured_encryption_mode": whoami_data.get("configured_encryption_mode"),
+        "effective_encryption_source": whoami_data.get("effective_encryption_source"),
         "encryption_backend": whoami_data["encryption_backend"],
         "vault_status": vault_status,
         "connected_providers_count": len(connected_providers),
         "connected_providers": connected_providers,
+        "issues": issues,
     }
 
     if ctx_obj.json_output:
@@ -1007,9 +1029,14 @@ async def whoami(ctx_obj: ContextObj) -> None:
             ctx_obj.echo(f"Registration:      {data['registration_status']}")
         ctx_obj.echo(f"Daemon URL:        {data['daemon_url']}")
         status_color = "green" if vault_status == "OK" else "red"
-        ctx_obj.echo(f"Encryption:        {data['encryption_backend']} [", nl=False)
+        ctx_obj.echo(f"Encryption:        {_render_encryption_backend(data)} [", nl=False)
         ctx_obj.echo(vault_status, color=status_color, nl=False)
         ctx_obj.echo("]")
+
+        if issues:
+            ctx_obj.echo("\nIssues:", color="red")
+            for issue in issues:
+                ctx_obj.echo(f"  - {issue}", color="red")
 
         ctx_obj.echo(f"\nConnected Providers: {data['connected_providers_count']}")
         if connected_providers:
@@ -1047,6 +1074,28 @@ async def doctor(ctx_obj: ContextObj) -> None:
 
         if not all_ok:
             sys.exit(1)
+
+
+@cli.command(name="rekey")
+@auth_command
+async def rekey(ctx_obj: ContextObj) -> None:
+    """Generate a new master key and re-encrypt all stored credentials in place."""
+    actx = await ctx_obj.initialize()
+    if not ctx_obj.json_output and not ctx_obj.quiet:
+        ctx_obj.echo("Generating a new master key and re-encrypting the vault...", color="cyan")
+
+    try:
+        await actx.runtime_client.rekey()
+
+        if ctx_obj.json_output:
+            ctx_obj.print_json({"status": "success", "message": "Master key successfully rotated"})
+        else:
+            ctx_obj.echo("Master key successfully rotated and credentials re-encrypted.", color="green")
+
+        logger.info("client_event event=rekey status=success")
+    except Exception:
+        logger.warning("client_event event=rekey status=failure")
+        raise
 
 
 @cli.command()

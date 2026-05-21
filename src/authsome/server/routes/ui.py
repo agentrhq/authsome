@@ -16,11 +16,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from authsome import __version__
-from authsome.auth import AuthService
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.auth.sessions import AuthSession, AuthSessionStore
 from authsome.errors import ConnectionNotFoundError
+from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import get_deployment_mode
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,

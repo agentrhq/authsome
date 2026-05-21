@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from authsome.identity.principal import (
-    ClaimStatus,
+from authsome.identity.principal import ClaimStatus
+from authsome.server.registries import (
     IdentityClaimRegistry,
     PrincipalRegistry,
     PrincipalVaultBindingRegistry,

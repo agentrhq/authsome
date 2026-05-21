@@ -3,12 +3,11 @@ from pathlib import Path
 import pytest
 
 from authsome.identity import create_identity
-from authsome.identity.principal import IdentityClaimRegistry
-from authsome.identity.registry import IdentityRegistry
 from authsome.server.identity_bootstrap import (
     HostedIdentityBootstrapService,
     LocalIdentityBootstrapService,
 )
+from authsome.server.registries import IdentityClaimRegistry, IdentityRegistry
 from authsome.server.ui_sessions import UiSessionStore
 
 

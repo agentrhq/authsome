@@ -10,17 +10,17 @@ from authsome.auth.flows.base import FlowResult
 from authsome.auth.models.connection import ConnectionRecord, ProviderClientRecord, ProviderMetadataRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
 from authsome.auth.models.provider import OAuthConfig, ProviderDefinition
-from authsome.auth.service import AuthService
 from authsome.auth.sessions import AuthSession
 from authsome.errors import OperationNotAllowedError
 from authsome.identity import create_identity
-from authsome.identity.registry import IdentityRegistry
+from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import (
     create_app_store,
     create_vault,
     create_vault_registry,
     get_identity_registry_path,
 )
+from authsome.server.registries import IdentityRegistry
 from authsome.utils import build_store_key
 
 
@@ -138,7 +138,8 @@ async def test_begin_login_flow_reuses_server_scopes() -> None:
     session = _make_session(flow_type=FlowType.PKCE)
     handler = mock.AsyncMock()
 
-    with mock.patch("authsome.auth.service._FLOW_HANDLERS", {FlowType.PKCE: mock.Mock(return_value=handler)}):
+    handlers = {FlowType.PKCE: mock.Mock(return_value=handler)}
+    with mock.patch("authsome.server.credential_service._FLOW_HANDLERS", handlers):
         with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())):
             await service.begin_login_flow(session)
 
@@ -173,7 +174,8 @@ async def test_resume_login_flow_saves_dcr_client_record_to_server_scope() -> No
         ),
     )
 
-    with mock.patch("authsome.auth.service._FLOW_HANDLERS", {FlowType.DCR_PKCE: mock.Mock(return_value=handler)}):
+    dcr_handlers = {FlowType.DCR_PKCE: mock.Mock(return_value=handler)}
+    with mock.patch("authsome.server.credential_service._FLOW_HANDLERS", dcr_handlers):
         provider = _make_provider(flow=FlowType.DCR_PKCE)
         with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=provider)):
             with mock.patch.object(service, "_save_connection", new=mock.AsyncMock()):
@@ -244,7 +246,8 @@ async def test_hosted_resume_login_flow_rejects_dcr_client_persistence() -> None
         ),
     )
 
-    with mock.patch("authsome.auth.service._FLOW_HANDLERS", {FlowType.DCR_PKCE: mock.Mock(return_value=handler)}):
+    dcr_handlers = {FlowType.DCR_PKCE: mock.Mock(return_value=handler)}
+    with mock.patch("authsome.server.credential_service._FLOW_HANDLERS", dcr_handlers):
         provider = _make_provider(flow=FlowType.DCR_PKCE)
         with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=provider)):
             with pytest.raises(OperationNotAllowedError):
@@ -340,7 +343,7 @@ async def test_revoke_local_deletes_shared_client_and_all_identity_connections(t
             collection=f"vault:{secondary_vault.vault_id}",
         )
 
-        await service.revoke("github")
+        await service.revoke("github", vault_ids=[primary_vault.vault_id, secondary_vault.vault_id])
 
         assert (
             await vault.get(

@@ -197,7 +197,7 @@ class AuthsomeApiClient:
         return await self._get("/health", protected=False)
 
     async def ready(self) -> dict[str, Any]:
-        return await self._get("/ready", protected=False)
+        return await self._get("/ready")
 
     async def start_login(self, **kwargs: Any) -> dict[str, Any]:
         return await self._post("/auth/sessions", kwargs)
@@ -267,6 +267,9 @@ class AuthsomeApiClient:
 
     async def whoami(self) -> dict[str, Any]:
         return await self._get("/whoami")
+
+    async def rekey(self) -> dict[str, Any]:
+        return await self._post("/rekey", {})
 
     async def doctor(self) -> dict[str, Any]:
         return await self.ready()

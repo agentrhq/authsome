@@ -10,11 +10,9 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from authsome import audit
-from authsome.auth import AuthService
 from authsome.auth.sessions import AuthSessionStore
 from authsome.errors import AuthsomeError
 from authsome.identity.proof import ReplayCache
-from authsome.identity.registry import IdentityRegistrationError, IdentityRegistry
 from authsome.paths import get_server_log_path
 from authsome.server.analytics import init_posthog, shutdown_posthog
 from authsome.server.dependencies import (
@@ -23,12 +21,13 @@ from authsome.server.dependencies import (
     create_identity_claim_registry,
     create_ownership_resolver,
     create_vault,
-    get_deployment_mode,
+    create_vault_registry,
     get_identity_registry_path,
     get_server_base_url,
     load_server_config,
     load_ui_session_signing_secret,
 )
+from authsome.server.registries import IdentityRegistrationError, IdentityRegistry
 from authsome.server.routes.auth import router as auth_router
 from authsome.server.routes.connections import router as connections_router
 from authsome.server.routes.health import router as health_router
@@ -46,15 +45,11 @@ async def lifespan(app: FastAPI):
     app.state.server_config = load_server_config(app.state.store.home)
     audit.setup(get_server_log_path(app.state.store.home))
     app.state.vault = await create_vault(app.state.store)
-    app.state.auth_service = AuthService(
-        vault=app.state.vault,
-        identity="server",
-        deployment_mode=get_deployment_mode(),
-    )
     app.state.auth_sessions = AuthSessionStore()
-    app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.vault.home))
+    app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.store.home))
     app.state.proof_replay_cache = ReplayCache()
     app.state.identity_registry = IdentityRegistry(get_identity_registry_path(app.state.store.home))
+    app.state.vault_registry = create_vault_registry(app.state.store.home)
     app.state.identity_claim_registry = create_identity_claim_registry(app.state.store.home)
     app.state.server_base_url = get_server_base_url()
     init_posthog()
@@ -89,7 +84,7 @@ def create_app() -> FastAPI:
             status_code=status_code,
             content={
                 "error": exc_name,
-                "message": str(exc),
+                "message": Exception.__str__(exc),
                 "provider": exc.provider,
                 "operation": exc.operation,
             },

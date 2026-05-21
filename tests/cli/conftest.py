@@ -35,7 +35,9 @@ def mock_client() -> AsyncMock:
         "identity": "steady-wisely-boldly-0042",
         "did": "did:key:z6MkTest",
         "registration_status": "registered",
-        "encryption_backend": "local_key",
+        "configured_encryption_mode": "auto",
+        "effective_encryption_source": "local_key",
+        "encryption_backend": "Local File (/home/test/.authsome/server/master.key)",
     }
 
     # Default doctor/ready response

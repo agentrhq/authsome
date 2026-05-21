@@ -5,8 +5,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from authsome.identity.principal import (
-    ClaimStatus,
+from authsome.identity.principal import ClaimStatus
+from authsome.server.registries import (
     IdentityClaimRegistry,
     PrincipalRegistry,
     PrincipalVaultBindingRegistry,

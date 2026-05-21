@@ -10,8 +10,8 @@ import pytest
 from authsome import audit
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
-from authsome.auth.service import AuthService
 from authsome.errors import RefreshFailedError
+from authsome.server.credential_service import AuthService
 from authsome.utils import utc_now
 
 

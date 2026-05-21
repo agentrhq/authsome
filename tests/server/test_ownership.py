@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from authsome.identity.principal import (
-    IdentityClaimRegistry,
-    PrincipalRegistry,
-    PrincipalVaultBindingRegistry,
-    VaultRegistry,
-)
 from authsome.server.ownership import (
     LOCAL_PRINCIPAL_EMAIL,
     HostedOwnershipResolver,
     LocalOwnershipResolver,
+)
+from authsome.server.registries import (
+    IdentityClaimRegistry,
+    PrincipalRegistry,
+    PrincipalVaultBindingRegistry,
+    VaultRegistry,
 )
 
 

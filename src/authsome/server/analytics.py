@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from posthog import Posthog
 
@@ -12,6 +13,18 @@ _client: Posthog | None = None
 def get_posthog() -> Posthog | None:
     """Return the shared PostHog client, or None if not initialised."""
     return _client
+
+
+def capture_event(identity: str, event: str, properties: dict[str, Any]) -> None:
+    """Capture a PostHog event. No-op when PostHog is not initialised."""
+    ph = _client
+    if ph is None:
+        return
+    from posthog import identify_context, new_context
+
+    with new_context():
+        identify_context(identity)
+        ph.capture(event, distinct_id=identity, properties=properties)
 
 
 def init_posthog() -> Posthog | None:

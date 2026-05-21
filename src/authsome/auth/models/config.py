@@ -25,7 +25,7 @@ def current_spec_version() -> int:
 class EncryptionConfig(BaseModel):
     """Vault encryption backend settings for the daemon."""
 
-    mode: str = "local_key"
+    mode: str = "auto"
 
 
 class ServerConfig(BaseModel):

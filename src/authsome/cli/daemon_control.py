@@ -153,8 +153,7 @@ async def daemon_status() -> dict[str, Any]:
     client = AuthsomeApiClient(DEFAULT_DAEMON_URL)
     try:
         health = await client.health()
-        ready = await client.ready()
-        return {"running": True, "health": health, "ready": ready, "pid_file": str(PID_FILE), "log_file": str(LOG_FILE)}
+        return {"running": True, "health": health, "pid_file": str(PID_FILE), "log_file": str(LOG_FILE)}
     except Exception as exc:
         return {"running": False, "error": str(exc), "pid_file": str(PID_FILE), "log_file": str(LOG_FILE)}
 
@@ -167,10 +166,7 @@ async def _is_ready(client: AuthsomeApiClient) -> bool:
         if health.get("version") != __version__:
             return False
 
-        if health.get("status") != "ok":
-            return False
-        await client.ready()
-        return True
+        return health.get("status") == "ok"
     except Exception:
         return False
 

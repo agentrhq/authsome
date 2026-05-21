@@ -1,7 +1,7 @@
 """AuthService — authentication and credential lifecycle service.
 
 Owns OAuth flows, token refresh, login/logout/revoke.
-Receives only a Vault.  All persistence goes through the Vault.
+Lives in server/ because it coordinates auth/ flows with vault/ storage and audit/ logging.
 """
 
 from __future__ import annotations
@@ -48,8 +48,6 @@ from authsome.errors import (
     TokenExpiredError,
     UnsupportedFlowError,
 )
-from authsome.identity.principal import VaultRegistry
-from authsome.paths import get_server_home
 from authsome.utils import build_store_key, format_duration, is_filesystem_safe, parse_store_key, utc_now
 from authsome.vault import Vault
 
@@ -171,7 +169,7 @@ class AuthService:
         return self._principal_id
 
     @property
-    def vault_id(self) -> str:
+    def vault_id(self) -> str | None:
         return self._vault_id
 
     # ── Provider operations ───────────────────────────────────────────────
@@ -224,67 +222,6 @@ class AuthService:
         """Check if a provider is a custom/local provider."""
         val = await self._vault.get(provider, collection="providers")
         return val is not None
-
-    async def proxy_routes(self, scope: str = "connected") -> dict[str, Any]:
-        """Build the list of routes for proxy routing.
-
-        The *scope* argument is supplied by the caller-local proxy addon
-        (which owns the configured `ClientConfig.proxy_mode`). The daemon
-        does not persist any proxy mode of its own.
-        """
-        if scope not in {"connected", "configured"}:
-            logger.warning("Unknown proxy scope {!r}, falling back to 'connected'", scope)
-            scope = "connected"
-
-        routes = []
-        if scope == "connected":
-            for provider_group in await self.list_connections():
-                provider_name = provider_group["name"]
-                selected_connections = provider_group["connections"]
-
-                try:
-                    definition = await self.get_provider(provider_name)
-                except Exception:
-                    continue
-                if not definition.api_url:
-                    continue
-
-                # Find the default connection
-                default_conn = next((c for c in selected_connections if c.get("is_default")), None)
-                if not default_conn:
-                    continue
-
-                routes.append(self._build_route_entry(definition, default_conn.get("connection_name", "default")))
-        else:  # configured
-            for definition in await self.list_providers():
-                if not definition.api_url:
-                    continue
-                connection = await self.resolve_connection_name(definition.name)
-                routes.append(self._build_route_entry(definition, connection))
-
-        routes.sort(key=lambda r: (r["api_url"].startswith("regex:"), r["provider"]))
-        return {"routes": routes}
-
-    def _build_route_entry(self, definition: ProviderDefinition, connection_name: str) -> dict[str, Any]:
-        paths: set[str] = set()
-        if definition.oauth:
-            for raw_url in [
-                definition.oauth.authorization_url,
-                definition.oauth.token_url,
-                definition.oauth.revocation_url,
-                definition.oauth.device_authorization_url,
-                (definition.registration.registration_endpoint if definition.registration else None),
-            ]:
-                if not raw_url:
-                    continue
-                parsed = urlparse(raw_url)
-                paths.add(parsed.path or "/")
-        return {
-            "provider": definition.name,
-            "connection": connection_name,
-            "api_url": definition.api_url,
-            "auth_endpoint_paths": sorted(list(paths)),
-        }
 
     async def resolve_credentials(self, **kwargs: Any) -> dict[str, Any]:
         """Resolve credentials for a provider/connection pair."""
@@ -781,10 +718,16 @@ class AuthService:
         await self._vault.delete(key, collection=self._coll)
         await self._remove_from_provider_metadata(provider, connection)
 
-    async def revoke(self, provider: str) -> None:
+    async def revoke(self, provider: str, vault_ids: list[str] | None = None) -> None:
+        """Revoke all tokens for a provider across the given vault IDs.
+
+        The server layer resolves the full list of vault IDs and passes them in.
+        When vault_ids is None, only this service's own vault_id is used.
+        """
         self._ensure_local_provider_admin_operation_allowed("revoke", provider)
         await self.get_provider(provider)
-        for vault_id in await self._iter_registered_vault_ids():
+        ids_to_revoke = vault_ids if vault_ids is not None else ([self._vault_id] if self._vault_id else [])
+        for vault_id in ids_to_revoke:
             vault_service = AuthService(
                 vault=self._vault,
                 identity=self._identity,
@@ -1104,11 +1047,6 @@ class AuthService:
         state.vault_id = self._vault_id
         key = build_store_key(vault=self._vault_id, provider=state.provider, record_type="state")
         await self._vault.put(key, state.model_dump_json(), collection=self._coll)
-
-    async def _iter_registered_vault_ids(self) -> list[str]:
-        registry = VaultRegistry(get_server_home(self._vault.home) / "vault_registry.json")
-        vaults = await registry.list_all()
-        return [vault.vault_id for vault in vaults] or [self._vault_id]
 
     async def _get_access_token_from_record(self, record: ConnectionRecord) -> str:
         if record.auth_type == AuthType.API_KEY:

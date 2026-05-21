@@ -4,18 +4,15 @@ from __future__ import annotations
 
 from fastapi import HTTPException, Request
 
-from authsome.auth import AuthService
 from authsome.auth.sessions import AuthSessionStore
 from authsome.identity import current_from_home
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
+from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import get_deployment_mode
+from authsome.server.registries import VaultRegistry
 from authsome.server.ui_sessions import UiSessionStore
 
 UI_SESSION_COOKIE_NAME = "authsome_ui_session"
-
-
-def get_auth_service(request: Request) -> AuthService:
-    return request.app.state.auth_service
 
 
 async def get_auth_service_for_identity(request: Request, identity: str) -> AuthService:
@@ -79,6 +76,10 @@ async def get_protected_auth_service(request: Request) -> AuthService:
     return await get_auth_service_for_identity(request, claims.subject)
 
 
+def get_vault_registry(request: Request) -> VaultRegistry:
+    return request.app.state.vault_registry
+
+
 def get_auth_sessions(request: Request) -> AuthSessionStore:
     return request.app.state.auth_sessions
 
@@ -94,7 +95,7 @@ def get_ui_sessions(request: Request) -> UiSessionStore:
 async def resolve_ui_request_identity(request: Request) -> str | None:
     """Resolve the identity bound to a browser UI request."""
     if get_deployment_mode() != "hosted":
-        identity = await current_from_home(request.app.state.vault.home)
+        identity = await current_from_home(request.app.state.store.home)
         request.state.ui_identity = identity.handle
         try:
             resolved = await request.app.state.ownership_resolver.resolve(identity=identity.handle)

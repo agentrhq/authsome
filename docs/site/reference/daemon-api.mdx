@@ -22,6 +22,15 @@ Liveness probe. Returns when the daemon process is up and responding, regardless
 <ResponseField name="version" type="string" required>
   The installed `authsome` package version.
 </ResponseField>
+<ResponseField name="configured_encryption_mode" type="string">
+  The configured master-key resolution mode, for example `auto`, `local_key`, or `keyring`.
+</ResponseField>
+<ResponseField name="effective_encryption_source" type="string">
+  The effective master-key source chosen at runtime, for example `env`, `keyring`, or `local_key`.
+</ResponseField>
+<ResponseField name="encryption_backend" type="string">
+  Human-readable description of the effective master-key source.
+</ResponseField>
 
 ### `GET /ready`
 
@@ -54,6 +63,15 @@ Readiness probe. Verifies vault, schema version, and provider parsing.
 <ResponseField name="issues" type="string[]">
   Fatal problems. When non-empty, `status` is `"unhealthy"`. Each entry is a human-readable string suitable for surfacing in a monitoring alert.
 </ResponseField>
+<ResponseField name="configured_encryption_mode" type="string">
+  The configured master-key resolution mode.
+</ResponseField>
+<ResponseField name="effective_encryption_source" type="string">
+  The effective master-key source chosen at runtime, for example `env`, `keyring`, or `local_key`.
+</ResponseField>
+<ResponseField name="encryption_backend" type="string">
+  Human-readable description of the effective master-key source.
+</ResponseField>
 
 ### `GET /whoami`
 
@@ -62,8 +80,14 @@ Returns the same payload as `authsome whoami`.
 <ResponseField name="home" type="string" required>
   Absolute path to the authsome home directory.
 </ResponseField>
-<ResponseField name="encryption" type="object" required>
-  Encryption mode (`local_key` or `keyring`) and backend status.
+<ResponseField name="configured_encryption_mode" type="string" required>
+  The configured master-key resolution mode.
+</ResponseField>
+<ResponseField name="effective_encryption_source" type="string" required>
+  The effective master-key source chosen at runtime.
+</ResponseField>
+<ResponseField name="encryption_backend" type="string" required>
+  Human-readable description of the effective master-key source.
 </ResponseField>
 <ResponseField name="profile" type="string" required>
   Registered identity handle.

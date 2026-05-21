@@ -47,7 +47,7 @@ Global settings. JSON, one object.
 {
   "spec_version": 1,
   "encryption": {
-    "mode": "local_key"
+    "mode": "auto"
   }
 }
 ```
@@ -55,7 +55,7 @@ Global settings. JSON, one object.
 | Field | Type | Notes |
 |-------|------|-------|
 | `spec_version` | int | Always `1`. |
-| `encryption.mode` | `"local_key"` or `"keyring"` | Where the master key lives. See [Encryption at rest](/security/encryption). |
+| `encryption.mode` | `"auto"`, `"local_key"`, or `"keyring"` | How the daemon resolves the master key source. See [Encryption at rest](/security/encryption). |
 
 Identity selection is no longer stored as `default_profile`. Protected daemon requests are scoped by the registered identity handle in the PoP token, and the daemon validates that handle against `server/identity_registry.json`.
 
@@ -73,7 +73,7 @@ Daemon-owned authoritative registry mapping identity handles to DIDs. Protected 
 
 ### `server/master.key`
 
-256-bit master key, base64-encoded JSON, mode `0600`. Present when `encryption.mode = "local_key"`. Absent when `encryption.mode = "keyring"` (the key lives in the OS keychain instead).
+256-bit master key, base64-encoded JSON, mode `0600`. Present when `encryption.mode = "local_key"` or when `auto` falls back to the filesystem. Absent when `encryption.mode = "keyring"` or when `auto` resolves to the environment or OS keychain.
 
 <Warning>
   Lose this file in `local_key` mode and every encrypted credential in the vault is unrecoverable. Back it up with the same care you'd give the credentials themselves.

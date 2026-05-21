@@ -14,7 +14,6 @@ Usage:
 
 from loguru import logger as _logger
 
-from authsome.auth import AuthLayer, AuthService
 from authsome.auth.models.connection import ConnectionRecord, Sensitive
 from authsome.auth.models.enums import AuthType, ConnectionStatus, ExportFormat, FlowType
 from authsome.auth.models.provider import ProviderDefinition
@@ -49,8 +48,6 @@ except _PkgNotFoundError:
 
 __all__ = [
     # Core
-    "AuthLayer",
-    "AuthService",
     "Vault",
     # Models
     "AuthType",

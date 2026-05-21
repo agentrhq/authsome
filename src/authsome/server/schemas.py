@@ -16,6 +16,9 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
     version: str
     mode: Literal["local", "hosted"] = "local"
+    configured_encryption_mode: str | None = None
+    effective_encryption_source: str | None = None
+    encryption_backend: str | None = None
 
 
 class ReadyResponse(BaseModel):
@@ -23,6 +26,9 @@ class ReadyResponse(BaseModel):
     checks: dict[str, str] = Field(default_factory=dict)
     issues: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    configured_encryption_mode: str | None = None
+    effective_encryption_source: str | None = None
+    encryption_backend: str | None = None
 
 
 class OpenUrlAction(BaseModel):

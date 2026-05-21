@@ -8,11 +8,11 @@ from unittest.mock import patch
 
 import pytest
 
-from authsome.auth import AuthService as AuthLayer
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.proxy.router import RouteMatch, RouteResolution
 from authsome.proxy.server import AuthProxyAddon, ProxyRouter, _build_proxy_options, _route
+from authsome.server.credential_service import AuthService as AuthLayer
 from authsome.server.dependencies import create_auth_service
 from authsome.server.urls import DEFAULT_SERVER_BASE_URL
 

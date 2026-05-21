@@ -9,12 +9,8 @@ from base64 import urlsafe_b64encode
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
-from authsome.server.urls import DEFAULT_SERVER_BASE_URL, build_callback_url
-
 if TYPE_CHECKING:
     from authsome.auth.sessions import AuthSession
-
-_DEFAULT_CALLBACK_URL = build_callback_url(DEFAULT_SERVER_BASE_URL)
 
 
 def generate_pkce() -> tuple[str, str]:
@@ -26,12 +22,8 @@ def generate_pkce() -> tuple[str, str]:
 
 
 def resolve_callback_url(runtime_session: AuthSession) -> str:
-    """Resolve the callback URL."""
-    callback_override = runtime_session.payload.get("callback_url_override")
-    if callback_override:
-        return str(callback_override)
-
-    return _DEFAULT_CALLBACK_URL
+    """Return the callback URL injected into the session by the server."""
+    return str(runtime_session.payload.get("callback_url_override", ""))
 
 
 def normalize_scopes(scopes: list[str] | None) -> set[str]:
