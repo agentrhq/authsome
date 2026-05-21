@@ -9,6 +9,7 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 from authsome.cli.client import (
@@ -29,6 +30,20 @@ STATE_FILE = DAEMON_DIR / "daemon.json"
 
 class DaemonUnavailableError(RuntimeError):
     """Raised when the local daemon cannot be started or reached."""
+
+
+class DaemonHomeMismatchError(RuntimeError):
+    """Raised when a different managed daemon is already bound to the local port."""
+
+    def __init__(self, daemon_url: str, daemon_home: Path, current_home: Path) -> None:
+        super().__init__(
+            f"Authsome daemon at {daemon_url} is already running with home '{daemon_home}', "
+            f"but current AUTHSOME_HOME is '{current_home}'. Stop the existing daemon or unset/change "
+            "AUTHSOME_HOME before retrying."
+        )
+        self.daemon_url = daemon_url
+        self.daemon_home = daemon_home
+        self.current_home = current_home
 
 
 async def is_daemon_responsive() -> bool:
@@ -88,6 +103,7 @@ async def resolve_runtime_client() -> AuthsomeApiClient:
     """Return the configured runtime client, auto-starting only for local mode."""
     client = AuthsomeApiClient(resolve_daemon_url())
     if is_managed_local_daemon_url(client.base_url):
+        await _assert_managed_daemon_home_matches(client, get_authsome_home())
         return await ensure_daemon()
     return client
 
@@ -169,6 +185,21 @@ async def _is_ready(client: AuthsomeApiClient) -> bool:
         return health.get("status") == "ok"
     except Exception:
         return False
+
+
+async def _assert_managed_daemon_home_matches(client: AuthsomeApiClient, current_home: Path) -> None:
+    """Fail fast when a different managed daemon already owns the local port."""
+    try:
+        health = await client.health()
+    except Exception:
+        return
+
+    daemon_home = health.get("home")
+    if not isinstance(daemon_home, str) or not daemon_home.strip():
+        return
+
+    if Path(daemon_home) != current_home:
+        raise DaemonHomeMismatchError(client.base_url, Path(daemon_home), current_home)
 
 
 def _read_pid() -> int | None:

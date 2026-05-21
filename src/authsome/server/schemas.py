@@ -16,6 +16,7 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
     version: str
     mode: Literal["local", "hosted"] = "local"
+    home: str | None = None
     configured_encryption_mode: str | None = None
     effective_encryption_source: str | None = None
     encryption_backend: str | None = None

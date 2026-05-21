@@ -35,6 +35,7 @@ def health(request: Request) -> HealthResponse:
         status="ok",
         version=__version__,
         mode=response_mode,
+        home=str(request.app.state.store.home),
         configured_encryption_mode=request.app.state.server_config.encryption.mode,
         effective_encryption_source=effective_source,
         encryption_backend=backend_description,
