@@ -18,7 +18,7 @@
         "name": "Agentr",
         "url": "https://github.com/agentrhq"
       },
-      "homepage": "https://authsome.agentr.dev",
+      "homepage": "https://authsome.ai",
       "license": "MIT",
       "keywords": ["auth", "oauth2", "credentials", "agent-identity", "broker"],
       "category": "auth"

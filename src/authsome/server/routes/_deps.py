@@ -18,10 +18,18 @@ def get_auth_service(request: Request) -> AuthService:
     return request.app.state.auth_service
 
 
-def get_auth_service_for_identity(request: Request, identity: str) -> AuthService:
+async def get_auth_service_for_identity(request: Request, identity: str) -> AuthService:
+    resolved = request.app.state.ownership_cache.get(identity)
+    if resolved is None:
+        resolved = await request.app.state.ownership_resolver.resolve(identity=identity)
+        request.app.state.ownership_cache[identity] = resolved
+    if resolved is None:
+        raise HTTPException(status_code=500, detail="Ownership context not resolved")
     return AuthService(
         vault=request.app.state.vault,
         identity=identity,
+        principal_id=resolved.principal_id,
+        vault_id=resolved.vault_id,
         deployment_mode=get_deployment_mode(),
     )
 
@@ -57,10 +65,18 @@ async def get_protected_auth_service(request: Request) -> AuthService:
     if registration.did != claims.issuer:
         raise HTTPException(status_code=401, detail="Identity issuer does not match registered DID")
 
+    try:
+        resolved = await request.app.state.ownership_resolver.resolve(identity=claims.subject)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
     request.state.identity = claims.subject
     request.state.did = claims.issuer
+    request.state.principal_id = resolved.principal_id
+    request.state.vault_id = resolved.vault_id
     request.state.registration_status = "registered"
-    return get_auth_service_for_identity(request, claims.subject)
+    request.app.state.ownership_cache[claims.subject] = resolved
+    return await get_auth_service_for_identity(request, claims.subject)
 
 
 def get_auth_sessions(request: Request) -> AuthSessionStore:
@@ -80,6 +96,11 @@ async def resolve_ui_request_identity(request: Request) -> str | None:
     if get_deployment_mode() != "hosted":
         identity = await current_from_home(request.app.state.vault.home)
         request.state.ui_identity = identity.handle
+        try:
+            resolved = await request.app.state.ownership_resolver.resolve(identity=identity.handle)
+            request.state.ui_principal_id = resolved.principal_id
+        except ValueError:
+            request.state.ui_principal_id = None
         return identity.handle
 
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
@@ -92,5 +113,6 @@ async def resolve_ui_request_identity(request: Request) -> str | None:
         return None
 
     request.state.ui_identity = session.identity
+    request.state.ui_principal_id = session.principal_id
     request.state.ui_session_id = session.session_id
     return session.identity

@@ -38,6 +38,7 @@ async def register_provider(body: dict, auth: AuthService = Depends(get_protecte
             properties={
                 "provider": definition.name,
                 "auth_type": definition.auth_type.value if definition.auth_type else None,
+                "principal_id": auth.principal_id,
             },
         )
     return {"status": "ok", "provider": definition.name}
@@ -51,6 +52,6 @@ async def delete_provider(provider: str, auth: AuthService = Depends(get_protect
         ph.capture(
             "provider deleted",
             distinct_id=auth.identity,
-            properties={"provider": provider},
+            properties={"provider": provider, "principal_id": auth.principal_id},
         )
     return {"status": "ok", "provider": provider}

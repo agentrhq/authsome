@@ -19,6 +19,9 @@ from authsome.paths import get_server_log_path
 from authsome.server.analytics import init_posthog, shutdown_posthog
 from authsome.server.dependencies import (
     create_app_store,
+    create_identity_bootstrap_service,
+    create_identity_claim_registry,
+    create_ownership_resolver,
     create_vault,
     get_deployment_mode,
     get_identity_registry_path,
@@ -52,8 +55,17 @@ async def lifespan(app: FastAPI):
     app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.vault.home))
     app.state.proof_replay_cache = ReplayCache()
     app.state.identity_registry = IdentityRegistry(get_identity_registry_path(app.state.store.home))
+    app.state.identity_claim_registry = create_identity_claim_registry(app.state.store.home)
     app.state.server_base_url = get_server_base_url()
     init_posthog()
+    app.state.identity_bootstrap = create_identity_bootstrap_service(
+        app.state.identity_registry,
+        app.state.ui_sessions,
+        home=app.state.store.home,
+        server_base_url=app.state.server_base_url,
+    )
+    app.state.ownership_resolver = create_ownership_resolver(app.state.store.home)
+    app.state.ownership_cache = {}
     yield
     shutdown_posthog()
     audit.clear()

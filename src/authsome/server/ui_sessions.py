@@ -16,7 +16,23 @@ DEFAULT_UI_SESSION_TTL_SECONDS = 3600
 
 
 class UiBootstrapToken(BaseModel):
-    """Single-use browser bootstrap token bound to one identity."""
+    """Single-use browser bootstrap token bound to a principal session."""
+
+    token: str
+    identity: str
+    principal_id: str
+    created_at: datetime = Field(default_factory=utc_now)
+    expires_at: datetime = Field(
+        default_factory=lambda: utc_now() + timedelta(seconds=DEFAULT_UI_BOOTSTRAP_TTL_SECONDS)
+    )
+
+    @property
+    def is_expired(self) -> bool:
+        return utc_now() >= self.expires_at
+
+
+class UiClaimBootstrapToken(BaseModel):
+    """Single-use browser bootstrap token for claim completion."""
 
     token: str
     identity: str
@@ -35,6 +51,7 @@ class UiBrowserSession(BaseModel):
 
     session_id: str
     identity: str
+    principal_id: str
     created_at: datetime = Field(default_factory=utc_now)
     expires_at: datetime = Field(default_factory=lambda: utc_now() + timedelta(seconds=DEFAULT_UI_SESSION_TTL_SECONDS))
 
@@ -49,21 +66,46 @@ class UiSessionStore:
     def __init__(self, signing_secret: str | bytes) -> None:
         self._secret = signing_secret.encode("utf-8") if isinstance(signing_secret, str) else signing_secret
         self._bootstraps: dict[str, UiBootstrapToken] = {}
+        self._claim_bootstraps: dict[str, UiClaimBootstrapToken] = {}
         self._sessions: dict[str, UiBrowserSession] = {}
 
     def create_bootstrap(
         self,
         *,
         identity: str,
+        principal_id: str,
         ttl_seconds: int = DEFAULT_UI_BOOTSTRAP_TTL_SECONDS,
     ) -> UiBootstrapToken:
         self.cleanup_expired()
         bootstrap = UiBootstrapToken(
             token=f"boot_{secrets.token_urlsafe(24)}",
             identity=identity,
+            principal_id=principal_id,
             expires_at=utc_now() + timedelta(seconds=ttl_seconds),
         )
         self._bootstraps[bootstrap.token] = bootstrap
+        return bootstrap
+
+    def create_claim_bootstrap(
+        self,
+        *,
+        identity: str,
+        ttl_seconds: int = DEFAULT_UI_BOOTSTRAP_TTL_SECONDS,
+    ) -> UiClaimBootstrapToken:
+        self.cleanup_expired()
+        bootstrap = UiClaimBootstrapToken(
+            token=f"claim_{secrets.token_urlsafe(24)}",
+            identity=identity,
+            expires_at=utc_now() + timedelta(seconds=ttl_seconds),
+        )
+        self._claim_bootstraps[bootstrap.token] = bootstrap
+        return bootstrap
+
+    def consume_claim_bootstrap(self, token: str) -> UiClaimBootstrapToken:
+        self.cleanup_expired()
+        bootstrap = self._claim_bootstraps.pop(token, None)
+        if bootstrap is None or bootstrap.is_expired:
+            raise KeyError(f"UI claim bootstrap token not found: {token}")
         return bootstrap
 
     def consume_bootstrap(
@@ -76,18 +118,24 @@ class UiSessionStore:
         bootstrap = self._bootstraps.pop(token, None)
         if bootstrap is None or bootstrap.is_expired:
             raise KeyError(f"UI bootstrap token not found: {token}")
-        return self.create_session(identity=bootstrap.identity, ttl_seconds=session_ttl_seconds)
+        return self.create_session(
+            identity=bootstrap.identity,
+            principal_id=bootstrap.principal_id,
+            ttl_seconds=session_ttl_seconds,
+        )
 
     def create_session(
         self,
         *,
         identity: str,
+        principal_id: str,
         ttl_seconds: int = DEFAULT_UI_SESSION_TTL_SECONDS,
     ) -> UiBrowserSession:
         self.cleanup_expired()
         session = UiBrowserSession(
             session_id=f"uis_{secrets.token_urlsafe(18)}",
             identity=identity,
+            principal_id=principal_id,
             expires_at=utc_now() + timedelta(seconds=ttl_seconds),
         )
         self._sessions[session.session_id] = session
@@ -113,6 +161,12 @@ class UiSessionStore:
         expired_bootstraps = [token for token, bootstrap in self._bootstraps.items() if bootstrap.is_expired]
         for token in expired_bootstraps:
             self._bootstraps.pop(token, None)
+
+        expired_claim_bootstraps = [
+            token for token, bootstrap in self._claim_bootstraps.items() if bootstrap.is_expired
+        ]
+        for token in expired_claim_bootstraps:
+            self._claim_bootstraps.pop(token, None)
 
         expired_sessions = [session_id for session_id, session in self._sessions.items() if session.is_expired]
         for session_id in expired_sessions:

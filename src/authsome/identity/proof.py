@@ -11,7 +11,7 @@ from typing import Any
 import jwt
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from authsome.identity.keys import public_key_from_did_key
+from authsome.identity.local import public_key_from_did_key
 
 POP_AUTH_SCHEME = "PoP"
 DEFAULT_AUDIENCE = "authsome-daemon"

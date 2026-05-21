@@ -37,7 +37,7 @@ async def logout(provider: str, connection: str, auth: AuthService = Depends(get
         ph.capture(
             "connection logout",
             distinct_id=auth.identity,
-            properties={"provider": provider, "connection": connection},
+            properties={"provider": provider, "connection": connection, "principal_id": auth.principal_id},
         )
     return {"status": "ok"}
 
@@ -50,7 +50,7 @@ async def revoke(provider: str, auth: AuthService = Depends(get_protected_auth_s
         ph.capture(
             "connection revoked",
             distinct_id=auth.identity,
-            properties={"provider": provider},
+            properties={"provider": provider, "principal_id": auth.principal_id},
         )
     return {"status": "ok"}
 
@@ -76,6 +76,10 @@ async def export_credentials(body: dict, auth: AuthService = Depends(get_protect
         ph.capture(
             "credentials exported",
             distinct_id=auth.identity,
-            properties={"provider": provider, "format": export_format.value},
+            properties={
+                "provider": provider,
+                "format": export_format.value,
+                "principal_id": auth.principal_id,
+            },
         )
     return {"output": result}

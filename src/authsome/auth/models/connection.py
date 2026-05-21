@@ -31,13 +31,15 @@ class ConnectionRecord(BaseModel):
     """
     Credential record for a named connection (schema v2).
 
-    Stored at key: identity:<identity>:<provider>:connection:<name>
+    Stored at key: vault:<vault_id>:<provider>:connection:<name>
     All sensitive fields are plaintext — encryption is at vault level.
     """
 
     schema_version: int = 2
     provider: str
     identity: str
+    principal_id: str | None = None
+    vault_id: str | None = None
     connection_name: str
     auth_type: AuthType
     status: ConnectionStatus
@@ -68,11 +70,13 @@ class ProviderMetadataRecord(BaseModel):
     """
     Non-secret metadata about a provider within an identity.
 
-    Stored at key: identity:<identity>:<provider>:metadata
+    Stored at key: vault:<vault_id>:<provider>:metadata
     """
 
     schema_version: int = 2
     identity: str
+    principal_id: str | None = None
+    vault_id: str | None = None
     provider: str
     default_connection: str = "default"
     connection_names: list[str] = Field(default_factory=list)
@@ -86,12 +90,14 @@ class ProviderStateRecord(BaseModel):
     """
     Transient, non-secret provider state within an identity.
 
-    Stored at key: identity:<identity>:<provider>:state
+    Stored at key: vault:<vault_id>:<provider>:state
     """
 
     schema_version: int = 2
     provider: str
     identity: str
+    principal_id: str | None = None
+    vault_id: str | None = None
     last_refresh_at: datetime | None = None
     last_refresh_error: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)

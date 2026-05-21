@@ -12,8 +12,7 @@ from click.testing import CliRunner
 from authsome import __version__
 from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
 from authsome.cli.main import cli
-from authsome.identity import mark_registered
-from authsome.identity.keys import create_identity
+from authsome.identity import create_identity, mark_registered
 from authsome.store.local import LocalAppStore
 
 
@@ -29,6 +28,10 @@ def test_init_removes_legacy_default_state_and_registers_identity(
 
     asyncio.run(LocalAppStore(tmp_path).ensure_initialized())
 
+    created = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    mark_registered(tmp_path, created.handle)
+    mock_client.ensure_identity_ready.return_value = created
+
     result = runner.invoke(cli, ["--log-file", "", "init", "--json"])
 
     assert result.exit_code == 0, result.output
@@ -39,7 +42,7 @@ def test_init_removes_legacy_default_state_and_registers_identity(
     assert data["encryption_backend"] == "Local File (/home/test/.authsome/server/master.key)"
     assert not (identities / "default.json").exists()
     assert not (identities / "default.key").exists()
-    mock_client.register_identity.assert_called_once_with(data["profile"], data["did"])
+    mock_client.ensure_identity_ready.assert_called_once()
     mock_client.whoami.assert_called_once()
 
     config_data = load_client_config(tmp_path)
@@ -62,5 +65,6 @@ def test_init_skips_registration_for_registered_active_profile(
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert data["profile"] == identity.handle
-    mock_client.register_identity.assert_not_called()
     assert data["configured_encryption_mode"] == "auto"
+    mock_client.ensure_identity_ready.assert_called_once()
+    mock_client.whoami.assert_called_once()

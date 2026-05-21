@@ -849,15 +849,13 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
 @auth_command
 async def init(ctx_obj: ContextObj) -> None:
     """Initialize local storage and register a fresh profile."""
-    from authsome.identity import ensure_local_identity, mark_registered
+    from authsome.identity import ensure_local_identity
 
     home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
     identity = ensure_local_identity(home)
 
     actx = await ctx_obj.initialize()
-    if not identity.registered:
-        await actx.runtime_client.register_identity(identity.handle, identity.did)
-        identity = mark_registered(home, identity.handle)
+    identity = await actx.runtime_client.ensure_identity_ready()
     whoami_data = await actx.runtime_client.whoami()
 
     data = {
@@ -889,7 +887,7 @@ def profile() -> None:
 @auth_command
 async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
     """Create a local profile keypair."""
-    from authsome.identity.keys import create_identity
+    from authsome.identity import create_identity
 
     home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
     identity_meta = create_identity(home, handle)
@@ -916,7 +914,7 @@ async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
 async def profile_use(ctx_obj: ContextObj, handle: str) -> None:
     """Select the active local profile."""
     from authsome.cli.client_config import load_client_config, save_client_config
-    from authsome.identity.keys import load_identity
+    from authsome.identity import load_identity
 
     home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
     identity_meta = load_identity(home, handle)
@@ -964,6 +962,8 @@ async def whoami(ctx_obj: ContextObj) -> None:
         "authsome_version": whoami_data["version"],
         "home_directory": whoami_data["home"],
         "profile": whoami_data.get("identity", whoami_data.get("active_identity")),
+        "principal_id": whoami_data.get("principal_id"),
+        "vault_id": whoami_data.get("vault_id"),
         "did": whoami_data.get("did"),
         "registration_status": whoami_data.get("registration_status"),
         "daemon_url": whoami_data.get("daemon_url", actx.runtime_client.base_url),
@@ -981,6 +981,10 @@ async def whoami(ctx_obj: ContextObj) -> None:
         ctx_obj.echo(f"Authsome Version:  {data['authsome_version']}")
         ctx_obj.echo(f"Home Directory:    {data['home_directory']}")
         ctx_obj.echo(f"Profile:           {data['profile']}")
+        if data["principal_id"]:
+            ctx_obj.echo(f"Principal:         {data['principal_id']}")
+        if data["vault_id"]:
+            ctx_obj.echo(f"Vault:             {data['vault_id']}")
         if data["did"]:
             ctx_obj.echo(f"DID:               {data['did']}")
         if data["registration_status"]:

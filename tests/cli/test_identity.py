@@ -10,7 +10,7 @@ from click.testing import CliRunner
 
 from authsome.cli.client_config import load_client_config
 from authsome.cli.main import cli
-from authsome.identity.keys import load_identity
+from authsome.identity import load_identity
 
 
 class TestProfileCommands:

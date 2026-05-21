@@ -19,7 +19,7 @@ from authsome.server.urls import DEFAULT_SERVER_BASE_URL
 
 async def _make_auth(tmp_path: Path) -> AuthLayer:
     home = tmp_path / ".authsome"
-    return await create_auth_service(home, identity="steady-wisely-boldly-0042")
+    return await create_auth_service(home, identity="steady-wisely-boldly-0042", vault_id="steady-wisely-boldly-0042")
 
 
 async def _save_connection_record(

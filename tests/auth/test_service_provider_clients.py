@@ -13,9 +13,14 @@ from authsome.auth.models.provider import OAuthConfig, ProviderDefinition
 from authsome.auth.service import AuthService
 from authsome.auth.sessions import AuthSession
 from authsome.errors import OperationNotAllowedError
-from authsome.identity.keys import create_identity
+from authsome.identity import create_identity
 from authsome.identity.registry import IdentityRegistry
-from authsome.server.dependencies import create_app_store, create_vault, get_identity_registry_path
+from authsome.server.dependencies import (
+    create_app_store,
+    create_vault,
+    create_vault_registry,
+    get_identity_registry_path,
+)
 from authsome.utils import build_store_key
 
 
@@ -249,27 +254,38 @@ async def test_hosted_resume_login_flow_rejects_dcr_client_persistence() -> None
 @pytest.mark.asyncio
 async def test_revoke_local_deletes_shared_client_and_all_identity_connections(tmp_path) -> None:
     first_identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    second_identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
     store = await create_app_store(tmp_path)
     registry = IdentityRegistry(get_identity_registry_path(tmp_path))
     await registry.register(handle=first_identity.handle, did=first_identity.did)
-    await registry.register(handle=second_identity.handle, did=second_identity.did)
+    vault_registry = create_vault_registry(tmp_path)
+    primary_vault = await vault_registry.create_default()
+    secondary_vault = await vault_registry.create_default()
 
     vault = await create_vault(store)
     try:
-        service = AuthService(vault, identity="steady-wisely-boldly-0042", deployment_mode="local")
+        service = AuthService(
+            vault,
+            identity="steady-wisely-boldly-0042",
+            principal_id="principal_1",
+            vault_id=primary_vault.vault_id,
+            deployment_mode="local",
+        )
 
-        first_connection = ConnectionRecord(
+        primary_connection = ConnectionRecord(
             provider="github",
             identity="steady-wisely-boldly-0042",
+            principal_id="principal_1",
+            vault_id=primary_vault.vault_id,
             connection_name="default",
             auth_type=AuthType.OAUTH2,
             status=ConnectionStatus.CONNECTED,
         )
-        second_connection = ConnectionRecord(
+        secondary_connection = ConnectionRecord(
             provider="github",
             identity="rapid-brightly-firmly-0007",
-            connection_name="default",
+            principal_id="principal_2",
+            vault_id=secondary_vault.vault_id,
+            connection_name="work",
             auth_type=AuthType.OAUTH2,
             status=ConnectionStatus.CONNECTED,
         )
@@ -280,44 +296,48 @@ async def test_revoke_local_deletes_shared_client_and_all_identity_connections(t
             collection="server",
         )
         await vault.put(
-            build_store_key(identity=first_connection.identity, provider="github", record_type="metadata"),
+            build_store_key(vault=primary_vault.vault_id, provider="github", record_type="metadata"),
             ProviderMetadataRecord(
-                identity=first_connection.identity,
+                identity=primary_connection.identity,
+                principal_id="principal_1",
+                vault_id=primary_vault.vault_id,
                 provider="github",
                 connection_names=["default"],
                 last_used_connection="default",
             ).model_dump_json(),
-            collection=f"vault:{first_connection.identity}",
+            collection=f"vault:{primary_vault.vault_id}",
         )
         await vault.put(
             build_store_key(
-                identity=first_connection.identity,
+                vault=primary_vault.vault_id,
                 provider="github",
                 record_type="connection",
-                connection=first_connection.connection_name,
+                connection=primary_connection.connection_name,
             ),
-            first_connection.model_dump_json(),
-            collection=f"vault:{first_connection.identity}",
+            primary_connection.model_dump_json(),
+            collection=f"vault:{primary_vault.vault_id}",
         )
         await vault.put(
-            build_store_key(identity=second_connection.identity, provider="github", record_type="metadata"),
+            build_store_key(vault=secondary_vault.vault_id, provider="github", record_type="metadata"),
             ProviderMetadataRecord(
-                identity=second_connection.identity,
+                identity=secondary_connection.identity,
+                principal_id="principal_2",
+                vault_id=secondary_vault.vault_id,
                 provider="github",
-                connection_names=["default"],
-                last_used_connection="default",
+                connection_names=["work"],
+                last_used_connection="work",
             ).model_dump_json(),
-            collection=f"vault:{second_connection.identity}",
+            collection=f"vault:{secondary_vault.vault_id}",
         )
         await vault.put(
             build_store_key(
-                identity=second_connection.identity,
+                vault=secondary_vault.vault_id,
                 provider="github",
                 record_type="connection",
-                connection=second_connection.connection_name,
+                connection=secondary_connection.connection_name,
             ),
-            second_connection.model_dump_json(),
-            collection=f"vault:{second_connection.identity}",
+            secondary_connection.model_dump_json(),
+            collection=f"vault:{secondary_vault.vault_id}",
         )
 
         await service.revoke("github")
@@ -331,39 +351,39 @@ async def test_revoke_local_deletes_shared_client_and_all_identity_connections(t
         )
         assert (
             await vault.get(
-                build_store_key(identity=first_connection.identity, provider="github", record_type="metadata"),
-                collection=f"vault:{first_connection.identity}",
+                build_store_key(vault=primary_vault.vault_id, provider="github", record_type="metadata"),
+                collection=f"vault:{primary_vault.vault_id}",
             )
             is None
         )
         assert (
             await vault.get(
                 build_store_key(
-                    identity=first_connection.identity,
+                    vault=primary_vault.vault_id,
                     provider="github",
                     record_type="connection",
-                    connection=first_connection.connection_name,
+                    connection=primary_connection.connection_name,
                 ),
-                collection=f"vault:{first_connection.identity}",
+                collection=f"vault:{primary_vault.vault_id}",
             )
             is None
         )
         assert (
             await vault.get(
-                build_store_key(identity=second_connection.identity, provider="github", record_type="metadata"),
-                collection=f"vault:{second_connection.identity}",
+                build_store_key(vault=secondary_vault.vault_id, provider="github", record_type="metadata"),
+                collection=f"vault:{secondary_vault.vault_id}",
             )
             is None
         )
         assert (
             await vault.get(
                 build_store_key(
-                    identity=second_connection.identity,
+                    vault=secondary_vault.vault_id,
                     provider="github",
                     record_type="connection",
-                    connection=second_connection.connection_name,
+                    connection=secondary_connection.connection_name,
                 ),
-                collection=f"vault:{second_connection.identity}",
+                collection=f"vault:{secondary_vault.vault_id}",
             )
             is None
         )

@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.3.2](https://github.com/agentrhq/authsome/compare/authsome-v0.3.1...authsome-v0.3.2) (2026-05-20)
+
+
+### Features
+
+* Add posthog telemetry events ([575a464](https://github.com/agentrhq/authsome/commit/575a4648fbfa8c4de7b46c50311c2b426587977c))
+* Add posthog telemetry events ([8797a94](https://github.com/agentrhq/authsome/commit/8797a94b406fe109b0a2216d693b74dd17446892))
+* **evals:** /run-evals command + profile/run-dir flags ([bdeae58](https://github.com/agentrhq/authsome/commit/bdeae583a2d5bd9b4a28e1b717c74240469c890a))
+* **evals:** add expected_interrupt and next_turn_instruction eval fields ([c4b2a93](https://github.com/agentrhq/authsome/commit/c4b2a9304ab53773c4b76cd4245b5663e744e4fc))
+* **evals:** capture real claude transcripts via stream-json subprocess ([1b28f5a](https://github.com/agentrhq/authsome/commit/1b28f5ab4f9cd702e2ccf8b2bf805b0a58418158))
+* **evals:** move new evals schema to evals/evals.json, restore skills copy ([5bb73ba](https://github.com/agentrhq/authsome/commit/5bb73ba509dc3a1b5d55c1356210f724d7c4b130))
+* **evals:** profile isolation + authsome state check per eval ([73d3e70](https://github.com/agentrhq/authsome/commit/73d3e70b18387ec5510714e3ef4254f8fb33c49e))
+* **proxy:** configurable intercept scope and unmatched policy ([987e312](https://github.com/agentrhq/authsome/commit/987e312aeeb680a4910697a18abb6eadb62d2b95))
+* update health check to validate connections based on active identity and add test coverage ([9290169](https://github.com/agentrhq/authsome/commit/929016909595a68c4452c2291564241277df5ec6))
+* update health check to validate connections based on active identity and add test coverage ([3fa9f97](https://github.com/agentrhq/authsome/commit/3fa9f97c8b3236b57649ae8b8a8e5ec538da8ca2))
+
+
+### Bug Fixes
+
+* copy full skill folder in evals and fix login flow links in authsome skill ([e8918a9](https://github.com/agentrhq/authsome/commit/e8918a97369f483f12b66e34d2eac5156ebc51f2))
+* **evals:** use claude --system-prompt for judge, grade on rate limit ([b790c63](https://github.com/agentrhq/authsome/commit/b790c6329890cc0ccc824b51ca8b428ad6bca1c6))
+* **evals:** use hermes as LLM judge instead of claude -p ([1157837](https://github.com/agentrhq/authsome/commit/1157837e4bda094d3f8f804886ecc4820fa62a5c))
+* **marketplace:** point plugin homepage to authsome.ai ([11ffd80](https://github.com/agentrhq/authsome/commit/11ffd80da7e0c05c998236bfa3a7a9c59fb17de1))
+* **marketplace:** point plugin homepage to authsome.ai ([a767cbc](https://github.com/agentrhq/authsome/commit/a767cbcea2464ed8fc7469219d33df3c5df9d794))
+* **proxy:** address PR review feedback on mode validation and route defaults ([83ab469](https://github.com/agentrhq/authsome/commit/83ab4691e63ff62c8db9168af4e2cbbfdba55401))
+
+
+### Documentation
+
+* add GitHub OAuth app setup walkthrough to quickstart ([f45d9c9](https://github.com/agentrhq/authsome/commit/f45d9c9ece6bb7ba017b6ad6c1041b3bac53a4f7))
+* add Roadmap, Contributing, and Links sections to README ([07534a4](https://github.com/agentrhq/authsome/commit/07534a4cdcec7f05f552b49f5d8d5a032232a630))
+* add Roadmap, Contributing, and Links sections; rewrite roadmap.mdx ([03990b2](https://github.com/agentrhq/authsome/commit/03990b28db0460ea18c5c16eea7848ab262d235d))
+* correct roadmap against changelog as source of truth ([eec08e3](https://github.com/agentrhq/authsome/commit/eec08e3b1605ac542153481b6faf49ab0a904676))
+* **evals:** add hermes smoke test to pre-session setup ([bc4ef39](https://github.com/agentrhq/authsome/commit/bc4ef3917d74747fbeddec3c0f540f28b9f895d7))
+* **evals:** add skip handling and per-eval max_turns config ([68ae0ed](https://github.com/agentrhq/authsome/commit/68ae0ed68b49df4d45083a911d8482dece1ae7a3))
+* **evals:** merge setup.md into run-evals command, delete setup.md ([072836f](https://github.com/agentrhq/authsome/commit/072836f2d8a95822023f6f6f428d00bc21430875))
+* **evals:** remove profile creation from run-evals command ([33ab525](https://github.com/agentrhq/authsome/commit/33ab5258b8b7144c02d12c5d3b71fa0aba4fa707))
+* **evals:** update design spec and plan to reflect as-built state ([2558f5c](https://github.com/agentrhq/authsome/commit/2558f5c0de134bc26fee4d59a2c1120b736563c9))
+* mark policy layer and firewall rules as shipped, add multi-user to coming next ([b1487e8](https://github.com/agentrhq/authsome/commit/b1487e87bcf5c99912181331296441190c4c2f05))
+* **quickstart:** add provider tabs and a runnable agent example ([7c577ab](https://github.com/agentrhq/authsome/commit/7c577abe64fb9b4db34fa8b0bbc43f72289dd8da))
+* **quickstart:** GitHub OAuth setup walkthrough and provider tabs ([63ffdec](https://github.com/agentrhq/authsome/commit/63ffdec8abe91c90966bfb61b8b547903b945bcf))
+* reframe roadmap as end-user capabilities, not implementation work ([0740764](https://github.com/agentrhq/authsome/commit/07407646f6c88c8c1b72d8a43f947f80e24492dd))
+* rewrite profile storage model to match current architecture ([457d1b2](https://github.com/agentrhq/authsome/commit/457d1b2ee7d54ce03ea697beb4913a5ce01ce0c7))
+* rewrite profile storage model to match current architecture ([773323a](https://github.com/agentrhq/authsome/commit/773323ab73bd8a05e251f5ef121b2b072dc3259a))
+* rewrite roadmap.mdx, remove ROADMAP.md, link README to docs ([a165d37](https://github.com/agentrhq/authsome/commit/a165d372fc5b44d7ee34066e40d6ade24b9ed575))
+* simplify hosted daemon mode description in roadmap ([5458bf6](https://github.com/agentrhq/authsome/commit/5458bf62a5ededf7cfa2030d104bcf94b41178e6))
+* **site:** adopt skill-driven CLI conventions across the docs ([8ba6967](https://github.com/agentrhq/authsome/commit/8ba6967f490502ab55bd401de25e8328bf476067))
+* **site:** adopt skill-driven CLI conventions across the docs ([71b89fd](https://github.com/agentrhq/authsome/commit/71b89fd036dac67c7cfc761295b39889bf3ec9f2))
+
 ## [0.3.1](https://github.com/agentrhq/authsome/compare/authsome-v0.3.0...authsome-v0.3.1) (2026-05-17)
 
 

@@ -1,4 +1,4 @@
-"""Local identity files and did:key helpers."""
+"""Actor identity files and did:key helpers."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import os
 import random
 import re
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 
 import base58
@@ -51,14 +52,30 @@ _ADVERBS = (
 )
 
 
+class IdentityStatus(StrEnum):
+    """Progressive local lifecycle state for an identity."""
+
+    UNREGISTERED = "unregistered"
+    REGISTERED = "registered"
+    CLAIMED = "claimed"
+
+
 class IdentityMetadata(BaseModel):
     """Local identity metadata stored beside the caller private key."""
 
     handle: str
     did: str
-    registered: bool = False
+    identity_status: IdentityStatus = IdentityStatus.UNREGISTERED
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    @property
+    def registered(self) -> bool:
+        return self.identity_status in {IdentityStatus.REGISTERED, IdentityStatus.CLAIMED}
+
+    @property
+    def claimed(self) -> bool:
+        return self.identity_status == IdentityStatus.CLAIMED
 
 
 def identities_dir(home: Path) -> Path:
@@ -193,25 +210,27 @@ def remove_legacy_default_identity(home: Path) -> None:
 
 
 def mark_registered(home: Path, handle: str) -> IdentityMetadata:
-    """Persist registered=True for a local identity after daemon registration."""
+    """Persist a registered state for a local identity after daemon registration."""
     metadata = load_identity(home, handle)
-    updated = metadata.model_copy(update={"registered": True, "updated_at": datetime.now(UTC)})
+    if metadata.identity_status == IdentityStatus.CLAIMED:
+        return metadata
+    updated = metadata.model_copy(
+        update={"identity_status": IdentityStatus.REGISTERED, "updated_at": datetime.now(UTC)}
+    )
+    identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
+    return updated
+
+
+def mark_claimed(home: Path, handle: str) -> IdentityMetadata:
+    """Persist a claimed state for a local identity after ownership resolution."""
+    metadata = load_identity(home, handle)
+    updated = metadata.model_copy(update={"identity_status": IdentityStatus.CLAIMED, "updated_at": datetime.now(UTC)})
     identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
     return updated
 
 
 def ensure_local_identity(home: Path, active_handle: str | None = None) -> IdentityMetadata:
-    """Return the active local identity, creating one if none exists.
-
-    If *active_handle* is not provided, the caller-local config is consulted.
-    If the resolved active handle exists, it is loaded. Otherwise a new
-    identity is created.
-
-    If *active_handle* is provided explicitly, it must
-    exist on disk — a missing key file is a hard error rather than a silent
-    re-creation, because the old profile's credentials would become inaccessible
-    with no explanation.
-    """
+    """Return the active local identity, creating one if none exists."""
     from authsome.cli.client_config import load_client_config
 
     remove_legacy_default_identity(home)
@@ -225,6 +244,11 @@ def ensure_local_identity(home: Path, active_handle: str | None = None) -> Ident
             )
         return load_identity(home, active_handle)
     return create_identity(home)
+
+
+async def current_from_home(home: Path) -> IdentityMetadata:
+    """Return the configured local identity, bootstrapping it if needed."""
+    return ensure_local_identity(home)
 
 
 def _unique_handle(home: Path) -> str:

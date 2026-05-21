@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import webbrowser
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -15,13 +16,15 @@ import requests
 from authsome.identity import (
     ensure_local_identity,
     load_private_key,
+    mark_claimed,
     mark_registered,
 )
-from authsome.identity.keys import IdentityMetadata
+from authsome.identity.local import IdentityMetadata
 from authsome.identity.proof import POP_AUTH_SCHEME, create_proof_jwt
 from authsome.server.urls import DEFAULT_SERVER_BASE_URL
 
 DEFAULT_DAEMON_URL = DEFAULT_SERVER_BASE_URL
+IDENTITY_OVERRIDE_ENV = "AUTHSOME_IDENTITY"
 
 
 def resolve_daemon_url(env: Mapping[str, str] | None = None) -> str:
@@ -74,6 +77,17 @@ def raise_for_error(response: requests.Response) -> None:
         raise exc
 
 
+def _selected_identity_handle(home: Path, env: Mapping[str, str] | None = None) -> str | None:
+    """Return the acting identity override, falling back to client config."""
+    from authsome.cli.client_config import load_client_config
+
+    values = env if env is not None else os.environ
+    override = values.get(IDENTITY_OVERRIDE_ENV, "").strip()
+    if override:
+        return override
+    return load_client_config(home).active_identity
+
+
 class AuthsomeApiClient:
     """Small typed wrapper around the daemon API."""
 
@@ -113,7 +127,7 @@ class AuthsomeApiClient:
         return response.json()
 
     async def _proof_headers(self, method: str, path: str, body: bytes) -> dict[str, str | bytes]:
-        identity = await self.ensure_identity_registered()
+        identity = await self.ensure_identity_ready()
         private_key = load_private_key(self._home, identity.handle)
         token = create_proof_jwt(
             private_key=private_key,
@@ -125,17 +139,50 @@ class AuthsomeApiClient:
         )
         return {"Authorization": f"{POP_AUTH_SCHEME} {token}"}
 
-    async def ensure_identity_registered(self) -> IdentityMetadata:
-        """Bootstrap a local identity and register it with the daemon."""
-        identity = ensure_local_identity(self._home)
+    async def ensure_identity_ready(self) -> IdentityMetadata:
+        """Ensure the acting identity is registered and, in hosted mode, claimed."""
+        identity = ensure_local_identity(self._home, active_handle=_selected_identity_handle(self._home))
+
+        status: dict[str, Any] | None = None
         if not identity.registered:
-            await self._post(
-                "/identities/register",
-                {"handle": identity.handle, "did": identity.did},
-                protected=False,
-            )
+            status = await self.register_identity(identity.handle, identity.did)
             identity = mark_registered(self._home, identity.handle)
+        elif identity.claimed:
+            return identity
+        else:
+            try:
+                status = await self.get_identity_status(identity.handle)
+            except Exception:
+                status = await self.register_identity(identity.handle, identity.did)
+
+        registration_status = status.get("registration_status", "registered") if status else "registered"
+        if registration_status == "claim_required":
+            claim_url = status.get("claim_url")
+            if not claim_url:
+                status = await self.register_identity(identity.handle, identity.did)
+                claim_url = status.get("claim_url")
+            if claim_url:
+                try:
+                    webbrowser.open(claim_url)
+                except Exception:
+                    pass
+            await self._poll_claim_completion(identity.handle)
+            return mark_claimed(self._home, identity.handle)
+
+        if registration_status in {"claimed", "registered"}:
+            return mark_claimed(self._home, identity.handle)
+
         return identity
+
+    async def _poll_claim_completion(self, handle: str, *, timeout_seconds: int = 300) -> dict[str, Any]:
+        deadline = asyncio.get_running_loop().time() + timeout_seconds
+        while True:
+            status = await self.get_identity_status(handle)
+            if status.get("registration_status") in {"claimed", "registered"}:
+                return status
+            if asyncio.get_running_loop().time() >= deadline:
+                raise TimeoutError(f"Timed out waiting for identity '{handle}' to be claimed")
+            await asyncio.sleep(1)
 
     async def _get(self, path: str, *, protected: bool = True) -> dict[str, Any]:
         return await self._request("GET", path, timeout=10, protected=protected)
@@ -184,6 +231,9 @@ class AuthsomeApiClient:
 
     async def register_identity(self, handle: str, did: str) -> dict[str, Any]:
         return await self._post("/identities/register", {"handle": handle, "did": did}, protected=False)
+
+    async def get_identity_status(self, handle: str) -> dict[str, Any]:
+        return await self._get(f"/identities/{handle}", protected=False)
 
     async def remove(self, provider: str) -> None:
         await self._delete(f"/providers/{provider}")

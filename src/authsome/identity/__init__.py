@@ -1,12 +1,10 @@
-"""Local identity helpers."""
+"""Identity-domain exports."""
 
-from __future__ import annotations
-
-from pathlib import Path
-
-from authsome.identity.keys import (
+from authsome.identity.local import (
     IdentityMetadata,
+    IdentityStatus,
     create_identity,
+    current_from_home,
     ensure_local_identity,
     identities_dir,
     identity_exists,
@@ -14,22 +12,60 @@ from authsome.identity.keys import (
     identity_metadata_path,
     load_identity,
     load_private_key,
+    mark_claimed,
     mark_registered,
     public_key_from_did_key,
     public_key_to_did_key,
     remove_legacy_default_identity,
+    validate_handle,
+)
+from authsome.identity.principal import (
+    ClaimStatus,
+    IdentityClaimRecord,
+    IdentityClaimRegistry,
+    PrincipalRecord,
+    PrincipalRegistry,
+    PrincipalVaultBindingRecord,
+    PrincipalVaultBindingRegistry,
+    VaultRecord,
+    VaultRegistry,
+)
+from authsome.identity.proof import (
+    POP_AUTH_SCHEME,
+    ProofClaims,
+    ProofValidationError,
+    ReplayCache,
+    create_proof_jwt,
+    validate_proof_jwt,
+)
+from authsome.identity.registry import (
+    IdentityRegistration,
+    IdentityRegistrationError,
+    IdentityRegistry,
 )
 
-
-async def current_from_home(home: Path) -> IdentityMetadata:
-    """Return the configured local identity, bootstrapping it if needed."""
-    return ensure_local_identity(home)
-
-
 __all__ = [
+    "ClaimStatus",
+    "IdentityClaimRecord",
+    "IdentityClaimRegistry",
     "IdentityMetadata",
-    "create_identity",
+    "IdentityStatus",
+    "IdentityRegistration",
+    "IdentityRegistrationError",
+    "IdentityRegistry",
+    "PrincipalRecord",
+    "PrincipalRegistry",
+    "PrincipalVaultBindingRecord",
+    "PrincipalVaultBindingRegistry",
+    "POP_AUTH_SCHEME",
+    "ProofClaims",
+    "ProofValidationError",
+    "ReplayCache",
+    "VaultRecord",
+    "VaultRegistry",
     "current_from_home",
+    "create_identity",
+    "create_proof_jwt",
     "ensure_local_identity",
     "identities_dir",
     "identity_exists",
@@ -37,8 +73,11 @@ __all__ = [
     "identity_metadata_path",
     "load_identity",
     "load_private_key",
+    "mark_claimed",
     "mark_registered",
     "public_key_from_did_key",
     "public_key_to_did_key",
     "remove_legacy_default_identity",
+    "validate_proof_jwt",
+    "validate_handle",
 ]

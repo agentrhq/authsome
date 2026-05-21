@@ -34,6 +34,7 @@ class AuthSession(BaseModel):
     session_id: str
     provider: str
     identity: str
+    principal_id: str | None = None
     connection_name: str
     flow_type: str
     state: str = AuthSessionStatus.PENDING
@@ -61,6 +62,7 @@ class AuthSessionStore:
         *,
         provider: str,
         identity: str,
+        principal_id: str | None,
         connection_name: str,
         flow_type: str,
         ttl_seconds: int = DEFAULT_SESSION_TTL_SECONDS,
@@ -70,6 +72,7 @@ class AuthSessionStore:
             session_id=f"sess_{uuid.uuid4().hex[:12]}",
             provider=provider,
             identity=identity,
+            principal_id=principal_id,
             connection_name=connection_name,
             flow_type=flow_type,
             expires_at=utc_now() + timedelta(seconds=ttl_seconds),

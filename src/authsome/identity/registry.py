@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from authsome.identity.keys import public_key_from_did_key, validate_handle
+from authsome.identity.local import public_key_from_did_key, validate_handle
 
 
 class IdentityRegistration(BaseModel):

@@ -9,6 +9,7 @@ seam between the CLI and the daemon API.
 """
 
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -51,6 +52,11 @@ def mock_client() -> AsyncMock:
         "connections": [],
         "by_source": {"bundled": [], "custom": []},
     }
+    client.ensure_identity_ready.return_value = SimpleNamespace(
+        handle="steady-wisely-boldly-0042",
+        did="did:key:z6MkTest",
+        registered=True,
+    )
 
     return client
 

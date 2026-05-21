@@ -1,9 +1,10 @@
 import json
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi.testclient import TestClient
 
-from authsome.identity.keys import create_identity
+from authsome.identity import create_identity
 from authsome.server.app import create_app
 from tests.server.test_pop_auth import _auth_header
 
@@ -12,6 +13,12 @@ def _register_identity(client: TestClient, tmp_path: Path, handle: str) -> None:
     identity = create_identity(tmp_path, handle)
     response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == 200
+    claim_url = response.json().get("claim_url")
+    if claim_url:
+        claim_path = urlparse(claim_url).path
+        assert client.get(claim_path).status_code == 200
+        claimed = client.post(claim_path, data={"email": "dev@example.com"}, follow_redirects=False)
+        assert claimed.status_code == 303
 
 
 def test_hosted_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:

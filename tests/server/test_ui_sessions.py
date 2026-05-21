@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from fastapi.testclient import TestClient
 
 from authsome.auth.models.connection import ProviderClientRecord
-from authsome.identity.keys import create_identity, load_private_key
+from authsome.identity import create_identity, load_private_key
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
 from authsome.utils import build_store_key
@@ -28,6 +28,13 @@ def _register_identity(client: TestClient, tmp_path: Path, handle: str) -> None:
     identity = create_identity(tmp_path, handle)
     response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == 200
+    claim_url = response.json().get("claim_url")
+    if claim_url:
+        claim_path = urlparse(claim_url).path
+        claim_page = client.get(claim_path)
+        assert claim_page.status_code == 200
+        claimed = client.post(claim_path, data={"email": "dev@example.com"}, follow_redirects=False)
+        assert claimed.status_code == 303
 
 
 def test_hosted_ui_requires_browser_session(monkeypatch, tmp_path: Path) -> None:
@@ -101,6 +108,7 @@ def test_hosted_ui_auth_input_requires_matching_browser_session(monkeypatch, tmp
             client.app.state.auth_sessions.create(
                 provider="github",
                 identity="steady-wisely-boldly-0042",
+                principal_id="principal_test",
                 connection_name="default",
                 flow_type="pkce",
             )

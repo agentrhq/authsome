@@ -12,6 +12,7 @@ from authsome.errors import AuthsomeError
 class StoreKeyParts(NamedTuple):
     """Parsed components of a credential store key."""
 
+    vault: str | None = None
     identity: str | None = None
     provider: str | None = None
     record_type: str | None = None
@@ -71,6 +72,7 @@ def is_filesystem_safe(name: str) -> bool:
 
 def build_store_key(
     *,
+    vault: str | None = None,
     identity: str | None = None,
     provider: str | None = None,
     record_type: str | None = None,
@@ -82,6 +84,10 @@ def build_store_key(
     Spec §10.1 key namespace:
       provider:<provider_name>:definition
       server:provider:<provider_name>:client
+      vault:<vault_id>:<provider_name>:metadata
+      vault:<vault_id>:<provider_name>:state
+      vault:<vault_id>:<provider_name>:connection:<connection_name>
+      vault:<vault_id>:<provider_name>:client
       identity:<identity_name>:<provider_name>:metadata
       identity:<identity_name>:<provider_name>:state
       identity:<identity_name>:<provider_name>:connection:<connection_name>
@@ -91,6 +97,16 @@ def build_store_key(
         return f"provider:{provider}:definition"
     if record_type == "server" and provider:
         return f"server:provider:{provider}:client"
+
+    if vault and provider:
+        if record_type == "metadata":
+            return f"vault:{vault}:{provider}:metadata"
+        elif record_type == "state":
+            return f"vault:{vault}:{provider}:state"
+        elif record_type == "connection" and connection:
+            return f"vault:{vault}:{provider}:connection:{connection}"
+        elif record_type == "client":
+            return f"vault:{vault}:{provider}:client"
 
     if identity and provider:
         if record_type == "metadata":
@@ -103,7 +119,7 @@ def build_store_key(
             return f"identity:{identity}:{provider}:client"
 
     raise ValueError(
-        f"Cannot build store key with identity={identity}, provider={provider}, "
+        f"Cannot build store key with vault={vault}, identity={identity}, provider={provider}, "
         f"record_type={record_type}, connection={connection}"
     )
 
@@ -121,6 +137,29 @@ def parse_store_key(key: str) -> StoreKeyParts:
     if key.startswith("server:provider:") and key.endswith(":client"):
         provider = key[len("server:provider:") : -len(":client")]
         return StoreKeyParts(provider=provider, record_type="server")
+
+    if key.startswith("vault:"):
+        parts = key.split(":", 2)
+        if len(parts) < 3:
+            return StoreKeyParts()
+        vault = parts[1]
+        remainder = parts[2]
+
+        if remainder.endswith(":metadata"):
+            return StoreKeyParts(vault=vault, provider=remainder[:-9], record_type="metadata")
+        if remainder.endswith(":state"):
+            return StoreKeyParts(vault=vault, provider=remainder[:-6], record_type="state")
+        if remainder.endswith(":client"):
+            return StoreKeyParts(vault=vault, provider=remainder[:-7], record_type="client")
+
+        if ":connection:" in remainder:
+            provider, _, connection = remainder.partition(":connection:")
+            return StoreKeyParts(
+                vault=vault,
+                provider=provider,
+                record_type="connection",
+                connection=connection,
+            )
 
     if key.startswith("identity:"):
         # Format: identity:<identity_name>:<remainder>

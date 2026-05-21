@@ -17,6 +17,8 @@ def _make_whoami(version: str = "1.2.3") -> dict:
         "version": version,
         "home": "/home/test/.authsome",
         "identity": "steady-wisely-boldly-0042",
+        "principal_id": "principal_1",
+        "vault_id": "vault_default",
         "did": "did:key:z6MkTest",
         "registration_status": "registered",
         "configured_encryption_mode": "auto",
@@ -46,6 +48,8 @@ class TestWhoamiCommand:
         data = json.loads(result.output)
         assert data["authsome_version"] == "1.2.3"
         assert data["profile"] == "steady-wisely-boldly-0042"
+        assert data["principal_id"] == "principal_1"
+        assert data["vault_id"] == "vault_default"
         assert data["vault_status"] == "OK"
         assert data["configured_encryption_mode"] == "auto"
         assert data["effective_encryption_source"] == "keyring"

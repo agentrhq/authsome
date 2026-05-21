@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from authsome.auth.models.enums import FlowType
-from authsome.identity.keys import create_identity
+from authsome.identity import create_identity
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
 
@@ -18,7 +18,7 @@ def _auth_header(
     *,
     handle: str,
 ) -> dict[str, str]:
-    from authsome.identity.keys import load_private_key
+    from authsome.identity import load_private_key
 
     identity = create_identity(tmp_path, handle)
     token = create_proof_jwt(
@@ -50,6 +50,7 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
             client.app.state.auth_sessions.create(
                 provider="github",
                 identity=owner.handle,
+                principal_id="principal_1",
                 connection_name="default",
                 flow_type=FlowType.PKCE.value,
             )
@@ -87,6 +88,7 @@ def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> N
             client.app.state.auth_sessions.create(
                 provider="github",
                 identity=owner.handle,
+                principal_id="principal_1",
                 connection_name="default",
                 flow_type=FlowType.PKCE.value,
             )
@@ -119,6 +121,7 @@ def test_sessions_do_not_survive_app_recreation(monkeypatch, tmp_path: Path) -> 
             first_client.app.state.auth_sessions.create(
                 provider="github",
                 identity=owner.handle,
+                principal_id="principal_1",
                 connection_name="default",
                 flow_type=FlowType.PKCE.value,
             )

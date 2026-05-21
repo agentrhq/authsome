@@ -10,21 +10,31 @@
 | **RuntimeClient** | The CLI's internal async HTTP client for daemon requests. Attaches PoP JWT headers to protected requests and manages identity bootstrapping. | Daemon client, HTTP client |
 | **Sensitive** | A field annotation (`Annotated[str, Sensitive()]`) marking fields that contain secret values and must be redacted before display or logging. The `redact()` utility in `utils.py` inspects this annotation to replace values with `"***REDACTED***"`. | Secret field, encrypted field |
 
+## Principals & Ownership
+
+| Term | Definition | Aliases to avoid |
+| --- | --- | --- |
+| **Principal** | A logical partition representing a human or team that owns a Vault namespace and performs OAuth authorization flows to acquire credentials. Identified by a **PrincipalHandle**; the sentinel `default` is used in local mode. Has no cryptographic key. | User, account, owner, Profile |
+| **PrincipalHandle** | The human-readable username for a Principal (e.g., `manoj`), used as the vault namespace key (`principal:<handle>:...`). Always `default` in local mode. | principal_id, username |
+| **PrincipalRegistry** | Daemon-owned mapping from PrincipalHandle → email plus a cached `identity_handles` list for UI queries. Only exists in hosted mode; local mode has no registry entry — `default` is implicit. | User table, account store |
+| **Claim** | An Identity's assertion of membership in a Principal, recorded as an `IdentityRegistration` with a `ClaimStatus`. Local mode auto-accepts all claims. Hosted mode requires explicit Principal approval. | Registration request, join request |
+| **ClaimStatus** | Lifecycle state of a Claim: `pending` (awaiting review), `accepted` (vault access granted), `rejected` (vault access denied). | Registration status |
+
 ## Identity & Authentication
 
 | Term | Definition | Aliases to avoid |
 | --- | --- | --- |
-| **Identity** | The cryptographic agent — an Ed25519 key pair, a `did:key` DID derived from the public key, and a human-readable Handle. Created locally by `authsome init`; the Handle/DID pair is registered with the daemon before any protected request. | User, account, actor |
-| **Handle** | The human-readable name for an Identity (e.g., `brisk-boldly-clearly-1234`). Assigned at `init` time, registered with the daemon's Identity Registry, and used as the `sub` claim in every PoP JWT. Also serves as the Profile name for credential scoping. | Username, alias, profile name |
+| **Identity** | The cryptographic agent — an Ed25519 key pair, a `did:key` DID derived from the public key, and a human-readable Handle. Owned by a Principal. Created by `authsome init`; the Handle/DID pair is registered with the daemon before any protected request. | User, account, actor |
+| **Handle** | The human-readable name for an Identity (e.g., `brisk-boldly-clearly-1234`). Assigned at `init` time, registered with the Identity Registry, and used as the `sub` claim in every PoP JWT. | Username, alias, profile name |
 | **DID** | A `did:key` Ed25519 identifier derived deterministically from the Identity's public key. Encoded as `did:key:z<base58(0xed01 + raw_pubkey)>`. Appears as `iss` in PoP JWTs; the daemon verifies the signature against the public key embedded in the DID. SPIFFE URI support may be added in a future release. | Key ID, public key identifier |
 | **PoP JWT** | A short-lived (60 s) Proof-of-Possession JWT signed with the Identity's Ed25519 private key. Bound to a specific HTTP request via `htm` (method), `htu` (path+query), and `body_sha256`. Claims: `iss` = DID, `sub` = Handle, `jti` for replay prevention. Sent as `Authorization: PoP <token>`. | Auth token, bearer token, signed request |
-| **Identity Registry** | The daemon-owned authoritative mapping from Handle → DID, persisted at `~/.authsome/server/identity_registry.json`. A protected request is accepted only when the PoP JWT's `sub` is a registered Handle and the registry maps that Handle to the same DID as `iss`. | Identity store, key registry |
+| **Identity Registry** | The daemon-owned authoritative mapping from Handle → DID + `principal_handle` + `claim_status`, persisted at `~/.authsome/server/identity_registry.json`. A protected request is accepted only when the PoP JWT's `sub` is a registered Handle with an `accepted` Claim and the registry maps that Handle to the same DID as `iss`. | Identity store, key registry |
 | **Provider** | An external service (GitHub, Google, OpenAI, etc.) identified by a unique name and described by a `ProviderDefinition` | Service, integration, app |
 | **AuthType** | The authentication mechanism a provider uses — either `oauth2` or `api_key` | Auth method, auth strategy |
 | **Flow** | The specific protocol executed to obtain credentials for a provider (PKCE, Device Code, DCR+PKCE, API Key) | Auth flow, login flow, grant type |
-| **Connection** | A named, authenticated session binding a Profile to a Provider; holds credentials | Credential, token, session, auth |
+| **Connection** | A named, authenticated session binding a Principal to a Provider; holds credentials. All accepted agents under a Principal share its Connections. | Credential, token, session, auth |
 | **ConnectionStatus** | The lifecycle state of a Connection: `connected`, `expired`, `revoked`, `invalid`, `not_connected` | Status, state |
-| **Profile** | The credential namespace scoped by a Handle within the Vault. Store keys use the prefix `profile:<handle>:`. One Identity has exactly one Profile; they share the same name string (the Handle). | Environment, workspace, account |
+| ~~**Profile**~~ | *Retired in v0.4.* Profile was the credential namespace scoped to an Identity Handle. That role is now owned by **Principal**. Vault keys moved from `profile:<handle>:...` / `identity:<handle>:...` to `principal:<handle>:...`. | — |
 | **Scope** | An OAuth2 permission requested from a Provider during a Flow | Permission, role |
 
 ## Provider Configuration
@@ -73,31 +83,36 @@
 
 ## Relationships
 
-- An **Identity** has exactly one **Profile**; both share the same name string (the **Handle**).
-- A **Profile** contains zero or more **Connections**, each scoped to one **Provider**.
+- A **Principal** owns one or more **Identities** and is bound to one or more **Vaults** via a **PrincipalVaultBinding**. The credential namespace is keyed by the opaque **VaultId** (`vault:<vault_id>:...`), not by PrincipalHandle.
+- An **Identity** is owned by exactly one **Principal**; the ownership is recorded in **IdentityRegistration** as `principal_handle`.
+- Every Identity action is implicitly "on behalf of" its Principal — all accepted agents under a Principal share its **Connections**.
+- A **Principal** contains zero or more **Connections**, each scoped to one **Provider**.
 - A **Connection** is created by exactly one **Flow**; the FlowType is determined by the **ProviderDefinition**.
-- A **ConnectionRecord** belongs to exactly one **Connection** and one **Profile**. Tokens are plaintext on the record; the **Vault** handles encryption transparently at write time.
+- A **ConnectionRecord** belongs to exactly one **Connection** and one **Principal**. Tokens are plaintext on the record; the **Vault** handles encryption transparently at write time.
 - A **ProviderRegistry** resolves a provider name by checking local `~/.authsome/providers/` overrides before **BundledProviders**.
 - The **Vault** encrypts full **ConnectionRecord** blobs using the master key it manages (file-based or OS keyring). The **AuthLayer** reads and writes records through the Vault without knowing the encryption details.
-- An **AuthProxy** draws credentials from **Connections** in the active **Profile** via the **AuthLayer** and injects them as request headers.
+- An **AuthProxy** draws credentials from **Connections** owned by the active Principal via the **AuthLayer** and injects them as request headers.
 - **CliRuntime** wires **RuntimeClient** and **ProxyRunner** together; the CLI creates one runtime per invocation via `ContextObj.initialize()`.
-- **ClientCredentials** are server-scoped, not profile-scoped. A single `ProviderClientRecord` per Provider is shared by all Profiles on a server instance. `ConnectionRecord` tokens are always profile-scoped.
-- A **PoP JWT** is issued by the CLI for each protected daemon request. The daemon validates the signature against the **DID** embedded in `iss`, then checks the **Identity Registry** to confirm `sub` (the Handle) maps to that same DID.
+- **ClientCredentials** are server-scoped. A single `ProviderClientRecord` per Provider is shared by all Principals on a server instance. `ConnectionRecord` tokens are always principal-scoped.
+- A **PoP JWT** is issued by the CLI for each protected daemon request. The daemon validates the signature against the **DID** embedded in `iss`, checks the **Identity Registry** to confirm `sub` (the Handle) maps to that DID with `claim_status = accepted`, resolves the **Principal** via `IdentityClaimRecord.principal_id`, then looks up the default **VaultId** via **PrincipalVaultBindingRegistry** to construct **AuthService** with the correct credential namespace.
 
 ## Example dialogue
 
-> **Dev:** "If I call `authsome login github`, does it create a new **Profile**?"
+> **Dev:** "If I call `authsome login github`, does it create a new **Principal**?"
 >
-> **Domain expert:** "No — `login` adds a **Connection** to the currently active **Profile**. A **Profile** is created automatically if it doesn't exist. The `login` command runs the **Flow** specified in the GitHub **ProviderDefinition** and stores the result as a **ConnectionRecord** via the **Vault**."
+> **Domain expert:** "No — `login` adds a **Connection** to the calling agent's **Principal**. The agent's `IdentityRegistration` carries a `principal_handle`; the daemon resolves that and writes the token to `principal:<handle>:github:connection:default`. Any other accepted agent under that Principal can use it immediately."
 >
 > **Dev:** "So the **Connection** is what I query later to get the access token?"
 >
-> **Domain expert:** "Exactly. When you call `get_access_token`, the **AuthLayer** looks up the **ConnectionRecord** for that **Provider** + **Profile** combination through the **Vault** (which decrypts transparently) and returns the plaintext token."
+> **Domain expert:** "Exactly. `get_access_token` looks up the **ConnectionRecord** for that **Provider** + **Principal** combination through the **Vault** (which decrypts transparently) and returns the plaintext token."
 >
 > **Dev:** "And if the token is expired, does it auto-refresh?"
 >
 > **Domain expert:** "Yes — the **ConnectionStatus** will show `expired`, and the **ConnectionRecord** holds the `refresh_token` so the **AuthLayer** can exchange it without re-running the **Flow**. The outcome is a new **ConnectionRecord** with updated tokens and `status = connected`."
 >
+> **Dev:** "What if I need two GitHub accounts under the same Principal?"
+>
+> **Domain expert:** "Create two named **Connections** — `authsome login github --connection work` and `authsome login github --connection personal`. Both live under `principal:<handle>:github:connection:work` and `principal:<handle>:github:connection:personal`. All agents under that Principal can access either."
 > **Dev:** "What if I need to connect to two GitHub accounts?"
 >
 > **Domain expert:** "Use two **Profiles** — one per identity context. Each **Profile** has its own scoped keys in the **Vault**, so the two **Connections** to the `github` **Provider** are completely isolated."

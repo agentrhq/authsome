@@ -29,7 +29,7 @@ class TestAuthServiceRefreshLogs:
     @pytest.fixture
     def service(self) -> AuthService:
         mock_vault = mock.AsyncMock()
-        return AuthService(mock_vault, identity="test-profile")
+        return AuthService(mock_vault, identity="test-profile", vault_id="test-vault")
 
     async def test_refresh_failure_fallback_available(self, audit_log: Path, service: AuthService):
         """Verify behavior when refresh fails but current token is valid (close to expiry)."""
@@ -116,3 +116,14 @@ def test_auth_service_requires_explicit_identity() -> None:
     mock_vault = mock.AsyncMock()
     with pytest.raises(ValueError, match="explicit identity"):
         AuthService(mock_vault, identity="")
+
+
+def test_auth_service_scopes_collection_by_vault_id() -> None:
+    mock_vault = mock.AsyncMock()
+    service = AuthService(
+        mock_vault,
+        identity="agent-a",
+        principal_id="principal_1",
+        vault_id="vault_default",
+    )
+    assert service._coll == "vault:vault_default"

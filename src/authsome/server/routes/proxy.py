@@ -36,6 +36,10 @@ async def resolve_credentials(
         ph.capture(
             "credentials resolved",
             distinct_id=auth.identity,
-            properties={"provider": body.provider, "connection": body.connection},
+            properties={
+                "provider": body.provider,
+                "connection": body.connection,
+                "principal_id": auth.principal_id,
+            },
         )
     return CredentialResolutionResponse.model_validate(data)

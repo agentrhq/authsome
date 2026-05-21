@@ -87,7 +87,7 @@ async def _resolve_ui_auth(request: Request) -> AuthService | None:
     identity = await resolve_ui_request_identity(request)
     if not identity:
         return None
-    return get_auth_service_for_identity(request, identity)
+    return await get_auth_service_for_identity(request, identity)
 
 
 def _ui_session_expired_response(status_code: int = 401) -> HTMLResponse:
@@ -390,6 +390,7 @@ async def connect_app(
     session = await sessions.create(
         provider=provider_name,
         identity=auth.identity,
+        principal_id=auth.principal_id,
         connection_name=connection_name,
         flow_type=flow.value,
     )
@@ -442,7 +443,7 @@ async def start_ui_session(
     if not _is_hosted_ui():
         return UiBootstrapResponse(url=f"{server_base_url.rstrip('/')}/ui/")
 
-    bootstrap = ui_sessions.create_bootstrap(identity=auth.identity)
+    bootstrap = ui_sessions.create_bootstrap(identity=auth.identity, principal_id=auth.principal_id or "")
     return UiBootstrapResponse(url=f"{server_base_url.rstrip('/')}/ui/bootstrap/{bootstrap.token}")
 
 
@@ -482,4 +483,58 @@ async def logout_ui_session(
         if session is not None:
             ui_sessions.delete_session(session.session_id)
     _clear_ui_session_cookie(response)
+    return response
+
+
+@router.get("/claim/{token}", include_in_schema=False, response_class=HTMLResponse)
+async def claim_identity_page(token: str, ui_sessions: UiSessionStore = Depends(get_ui_sessions)) -> HTMLResponse:
+    try:
+        bootstrap = ui_sessions._claim_bootstraps[token]
+    except KeyError:
+        return _ui_session_expired_response(status_code=404)
+    claim_form = (
+        f'<form method="post" action="/ui/claim/{token}">'
+        '<label for="email">Email</label>'
+        '<input id="email" type="email" name="email" required '
+        'style="display:block;margin:12px 0;padding:8px;width:100%;max-width:360px;">'
+        '<button type="submit">Claim identity</button>'
+        "</form></main>"
+    )
+    return HTMLResponse(
+        pages.message_page(
+            "Claim Identity",
+            (
+                f"Complete the claim for identity '{bootstrap.identity}' by submitting your email "
+                "to the claim form at this URL."
+            ),
+        ).replace("</main>", claim_form)
+    )
+
+
+@router.post("/claim/{token}", include_in_schema=False)
+async def claim_identity_submit(
+    token: str,
+    request: Request,
+    ui_sessions: UiSessionStore = Depends(get_ui_sessions),
+    server_base_url: str = Depends(get_server_base_url),
+) -> Response:
+    try:
+        bootstrap = ui_sessions.consume_claim_bootstrap(token)
+    except KeyError:
+        return _ui_session_expired_response(status_code=404)
+
+    form = await request.form()
+    email = str(form.get("email", "")).strip()
+    if not email:
+        return HTMLResponse(pages.message_page("Claim failed", "Email is required."), status_code=400)
+
+    resolved = await request.app.state.ownership_resolver.ensure_claimed_identity(
+        identity=bootstrap.identity, email=email
+    )
+    session = ui_sessions.create_session(
+        identity=bootstrap.identity,
+        principal_id=resolved.principal_id,
+    )
+    response = RedirectResponse(url="/ui/", status_code=303)
+    _set_ui_session_cookie(response, session.session_id, ui_sessions, server_base_url)
     return response
