@@ -43,6 +43,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+browser = ["cloakbrowser>=0.3"]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=1.3.0",
