@@ -104,7 +104,7 @@ async def _validate_browser_sso_credentials(
     try:
         async with httpx.AsyncClient(follow_redirects=False, timeout=8.0) as client:
             resp = await client.get(cfg.validate_url, headers=headers)
-        if resp.status_code in (401, 403):
+        if resp.status_code in (401, 403) or (300 <= resp.status_code < 400):
             logger.info(
                 "Browser SSO credentials expired: provider={} status={}",
                 definition.name,

@@ -40,10 +40,12 @@ def test_session_response_returns_browser_sso_action():
     session.payload["domains"] = ["x.com"]
     session.payload["validate_url"] = "https://x.com/i/api/2/notifications/all.json"
     session.payload["extract"] = [{"from": "cookies", "as": "cookie", "match": "*"}]
+    session.payload["extra_headers"] = {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"}
 
     response = _session_response(session, "http://localhost:7998")
     assert response.next_action.type == "browser_sso"
     assert response.next_action.entry_url == "https://x.com/"
+    assert response.next_action.extra_headers == {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"}
 
 
 def test_session_response_no_browser_sso_when_completed():

@@ -40,6 +40,7 @@ class BrowserSSOAction(BaseModel):
     domains: list[str]
     validate_url: str | None = None
     extract: list[dict[str, Any]]
+    extra_headers: dict[str, str] = Field(default_factory=dict)
     network_proxy: str | None = None
     login_mode: str = "auto"
 

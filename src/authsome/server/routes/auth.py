@@ -432,6 +432,7 @@ def _session_response(session: AuthSession, server_base_url: str) -> AuthSession
             domains=session.payload.get("domains", []),
             validate_url=session.payload.get("validate_url"),
             extract=session.payload.get("extract", []),
+            extra_headers=session.payload.get("extra_headers", {}),
             network_proxy=session.payload.get("network_proxy"),
             login_mode=session.payload.get("login_mode", "auto"),
         )
