@@ -166,3 +166,47 @@ async def test_validate_browser_sso_credentials_no_validate_url_returns_immediat
     with patch("authsome.auth.service.httpx.AsyncClient") as mock_cls:
         await _validate_browser_sso_credentials(record, definition)
         mock_cls.assert_not_called()
+
+
+# ── _get_auth_headers_from_record (BROWSER_SSO) ───────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_auth_headers_from_record_browser_sso():
+    """BROWSER_SSO branch must run BEFORE _get_access_token_from_record, not dead code."""
+    from authsome.auth.service import AuthService, _render_extra_headers
+    from authsome.vault import Vault
+    from authsome.auth.models.enums import AuthType, ConnectionStatus
+    from authsome.auth.models.connection import ConnectionRecord
+    from authsome.auth.models.provider import ProviderDefinition
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    record = ConnectionRecord(
+        provider="x-browser",
+        identity="agent",
+        connection_name="default",
+        auth_type=AuthType.BROWSER_SSO,
+        status=ConnectionStatus.CONNECTED,
+        credentials={"cookie": "auth_token=abc; ct0=xyz", "ct0": "xyz"},
+    )
+    provider = ProviderDefinition.model_validate({
+        "schema_version": 1,
+        "name": "x-browser",
+        "display_name": "X",
+        "auth_type": "browser_sso",
+        "flow": "browser_sso",
+        "browser_sso": {
+            "entry_url": "https://x.com/",
+            "domains": ["x.com"],
+            "validate_url": None,   # skip network call
+            "extract": [{"from": "cookies", "as": "cookie", "match": "*"}],
+            "extra_headers": {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"},
+        },
+    })
+
+    vault = MagicMock(spec=Vault)
+    svc = AuthService(vault=vault, identity="agent", principal_id="default", vault_id="default")
+
+    headers = await svc._get_auth_headers_from_record(record, provider)
+    assert headers["Cookie"] == "auth_token=abc; ct0=xyz"
+    assert headers["x-csrf-token"] == "xyz"

@@ -1120,6 +1120,18 @@ class AuthService:
     async def _get_auth_headers_from_record(
         self, record: ConnectionRecord, definition: ProviderDefinition
     ) -> dict[str, str]:
+        if record.auth_type == AuthType.BROWSER_SSO:
+            await _validate_browser_sso_credentials(record, definition)
+            if not record.credentials:
+                raise CredentialMissingError(
+                    "No browser SSO credentials stored", provider=record.provider
+                )
+            if definition.browser_sso is None:
+                raise CredentialMissingError(
+                    "Provider missing browser_sso config", provider=record.provider
+                )
+            return _render_extra_headers(definition.browser_sso.extra_headers, record.credentials)
+
         token = await self._get_access_token_from_record(record)
 
         if record.auth_type == AuthType.OAUTH2:
@@ -1133,18 +1145,6 @@ class AuthService:
                     return {header_name: f"{prefix} {token}"}
                 return {header_name: token}
             return {"Authorization": f"Bearer {token}"}
-
-        if record.auth_type == AuthType.BROWSER_SSO:
-            await _validate_browser_sso_credentials(record, definition)
-            if not record.credentials:
-                raise CredentialMissingError(
-                    "No browser SSO credentials stored", provider=record.provider
-                )
-            if definition.browser_sso is None:
-                raise CredentialMissingError(
-                    "Provider missing browser_sso config", provider=record.provider
-                )
-            return _render_extra_headers(definition.browser_sso.extra_headers, record.credentials)
 
         raise CredentialMissingError(
             f"Cannot build headers for auth type: {record.auth_type}", provider=record.provider
