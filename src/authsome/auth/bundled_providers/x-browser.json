@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "name": "x-browser",
+  "display_name": "X (Twitter) — Browser SSO",
+  "auth_type": "browser_sso",
+  "flow": "browser_sso",
+  "api_url": "regex:^(api\\.twitter\\.com|api\\.x\\.com|x\\.com|twitter\\.com)",
+  "browser_sso": {
+    "entry_url": "https://x.com/",
+    "domains": ["x.com", "twitter.com"],
+    "validate_url": "https://x.com/i/api/2/notifications/all.json?count=1",
+    "extract": [
+      { "from": "cookies", "as": "cookie",      "match": "*"          },
+      { "from": "cookies", "as": "ct0",         "match": "ct0"        },
+      { "from": "cookies", "as": "auth_token",  "match": "auth_token" }
+    ],
+    "extra_headers": {
+      "Cookie":        "${cookie}",
+      "x-csrf-token":  "${ct0}",
+      "Authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
+    },
+    "ttl": "30d"
+  },
+  "export": {
+    "env": {
+      "cookie":     "X_COOKIE",
+      "ct0":        "X_CT0",
+      "auth_token": "X_AUTH_TOKEN"
+    }
+  }
+}
