@@ -57,6 +57,9 @@ class ConnectionRecord(BaseModel):
     # API key field
     api_key: Annotated[str | None, Sensitive()] = None
 
+    # Browser SSO extracted credential blobs (cookie string, ct0, etc.)
+    credentials: Annotated[dict[str, str] | None, Sensitive()] = None
+
     # Account info
     account: AccountInfo | None = Field(default_factory=AccountInfo)
 

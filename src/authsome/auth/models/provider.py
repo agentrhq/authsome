@@ -56,6 +56,32 @@ class ExportConfig(BaseModel):
     model_config = {"extra": "allow"}
 
 
+class ExtractRule(BaseModel):
+    """One extraction rule: pull a named value out of cookies or localStorage."""
+
+    from_: Literal["cookies", "localStorage"] = Field(alias="from")
+    as_: str = Field(alias="as")
+    match: str  # "*" = all cookies joined as "k=v; k=v"; exact name = single value
+    json_path: str | None = Field(default=None, alias="jsonPath")
+
+    model_config = {"populate_by_name": True}
+
+
+class BrowserSSOConfig(BaseModel):
+    """Browser SSO provider configuration."""
+
+    entry_url: str
+    domains: list[str]
+    validate_url: str | None = None
+    extract: list[ExtractRule]
+    extra_headers: dict[str, str] = Field(default_factory=dict)
+    network_proxy: str | None = None
+    ttl: str | None = None
+    login_mode: Literal["auto", "visible", "headless"] = "auto"
+
+    model_config = {"extra": "allow"}
+
+
 class ProviderDefinition(BaseModel):
     """
     Complete provider definition.
@@ -72,6 +98,7 @@ class ProviderDefinition(BaseModel):
     oauth: OAuthConfig | None = None
     registration: ClientRegistrationConfig | None = None
     api_key: ApiKeyConfig | None = None
+    browser_sso: BrowserSSOConfig | None = None
     export: ExportConfig | None = None
     docs_url: str | None = None
     api_url: str | None = None
