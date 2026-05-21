@@ -28,7 +28,6 @@ def test_x_browser_loads_via_auth_service_bundled():
     from unittest.mock import MagicMock
 
     from authsome.server.credential_service import AuthService
-
     from authsome.vault import Vault
 
     vault = MagicMock(spec=Vault)
