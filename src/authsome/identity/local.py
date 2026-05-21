@@ -224,6 +224,30 @@ def _env_identity_matches(handle: str, env: Mapping[str, str] | None = None) -> 
     return env_identity is not None and env_identity.handle == handle
 
 
+def _load_local_identity_metadata(home: Path, handle: str) -> IdentityMetadata | None:
+    path = identity_metadata_path(home, handle)
+    if not path.exists():
+        return None
+    return IdentityMetadata.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def _resolve_env_backed_identity(home: Path, handle: str) -> IdentityMetadata | None:
+    env_identity = _load_env_identity()
+    if env_identity is None or env_identity.handle != handle:
+        return None
+
+    stored_metadata = _load_local_identity_metadata(home, handle)
+    if stored_metadata is None:
+        return env_identity
+
+    return stored_metadata.model_copy(
+        update={
+            "did": env_identity.did,
+            "updated_at": stored_metadata.updated_at,
+        }
+    )
+
+
 def load_private_key(home: Path, handle: str) -> Ed25519PrivateKey:
     env_key = _env_identity_private_key()
     env_handle = _env_identity_handle()
@@ -233,9 +257,9 @@ def load_private_key(home: Path, handle: str) -> Ed25519PrivateKey:
 
 
 def load_identity(home: Path, handle: str) -> IdentityMetadata:
-    env_identity = _load_env_identity()
-    if env_identity is not None and env_identity.handle == handle:
-        return env_identity
+    resolved_env_identity = _resolve_env_backed_identity(home, handle)
+    if resolved_env_identity is not None:
+        return resolved_env_identity
     return IdentityMetadata.model_validate_json(identity_metadata_path(home, handle).read_text(encoding="utf-8"))
 
 
@@ -344,7 +368,7 @@ def ensure_local_identity(home: Path, active_handle: str | None = None) -> Ident
                 f"Configured identity '{active_handle}' does not match environment identity "
                 f"'{env_identity.handle}' from {_IDENTITY_HANDLE_ENV_VAR}."
             )
-        return env_identity
+        return _resolve_env_backed_identity(home, env_identity.handle) or env_identity
     if active_handle is None:
         active_handle = _read_active_identity_handle(home)
     if active_handle:

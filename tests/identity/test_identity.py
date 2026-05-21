@@ -12,6 +12,7 @@ from authsome.identity.local import (
     load_private_key,
     mark_claimed,
     mark_registered,
+    private_key_to_hex,
     public_key_from_did_key,
     public_key_to_did_key,
 )
@@ -99,6 +100,25 @@ def test_ensure_local_identity_prefers_environment_identity(monkeypatch, tmp_pat
     assert identity.handle == "rapid-brightly-firmly-0007"
     assert identity.did.startswith("did:key:z6Mk")
     assert identity.identity_status == IdentityStatus.UNREGISTERED
+
+
+def test_ensure_local_identity_preserves_local_status_for_matching_env_identity(
+    monkeypatch, tmp_path: Path
+) -> None:
+    identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
+    mark_registered(tmp_path, identity.handle)
+    mark_claimed(tmp_path, identity.handle)
+    monkeypatch.setenv("AUTHSOME_IDENTITY", identity.handle)
+    monkeypatch.setenv(
+        "AUTHSOME_IDENTITY_PRIVATE_KEY",
+        private_key_to_hex(load_private_key(tmp_path, identity.handle)),
+    )
+
+    resolved = ensure_local_identity(tmp_path)
+
+    assert resolved.handle == identity.handle
+    assert resolved.claimed is True
+    assert resolved.registered is True
 
 
 def test_load_private_key_prefers_environment_identity_key(monkeypatch, tmp_path: Path) -> None:
