@@ -77,7 +77,13 @@ class BrowserSSOConfig(BaseModel):
     extra_headers: dict[str, str] = Field(default_factory=dict)
     network_proxy: str | None = None
     ttl: str | None = None
+    ttl_from_cookie: str | None = None  # cookie name whose expires timestamp overrides ttl
     login_mode: Literal["auto", "visible", "headless"] = "auto"
+    # Override the Chrome/Chromium executable path (null = auto-detect).
+    browser_exec: str | None = None
+    # Override the browser profile directory (null = try real Chrome profile first,
+    # then fall back to ~/.authsome/browser-data/).
+    browser_data_dir: str | None = None
 
     model_config = {"extra": "allow"}
 

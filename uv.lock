@@ -133,6 +133,7 @@ dependencies = [
     { name = "keyring" },
     { name = "loguru" },
     { name = "mitmproxy" },
+    { name = "playwright" },
     { name = "posthog" },
     { name = "py-key-value-aio", extra = ["disk"] },
     { name = "pydantic" },
@@ -143,9 +144,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-browser = [
-    { name = "cloakbrowser" },
-]
 dev = [
     { name = "httpx" },
     { name = "pytest" },
@@ -166,7 +164,6 @@ dev = [
 requires-dist = [
     { name = "base58", specifier = ">=2.1.1" },
     { name = "click", specifier = ">=8.0" },
-    { name = "cloakbrowser", marker = "extra == 'browser'", specifier = ">=0.3" },
     { name = "cryptography", specifier = ">=41.0" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -175,6 +172,7 @@ requires-dist = [
     { name = "keyring", specifier = ">=24.0" },
     { name = "loguru", specifier = ">=0.7" },
     { name = "mitmproxy", specifier = ">=11.0" },
+    { name = "playwright", specifier = ">=1.40" },
     { name = "posthog", specifier = ">=3.0" },
     { name = "py-key-value-aio", extras = ["disk"] },
     { name = "pydantic", specifier = ">=2.0" },
@@ -448,19 +446,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/23/e4/796662cd90cf80e3a363c99db2b88e0e394b988a575f60a17e16440cd011/click-8.4.0.tar.gz", hash = "sha256:638f1338fe1235c8f4e008e4a8a254fb5c5fbdcbb40ece3c9142ebb78e792973", size = 350843, upload-time = "2026-05-17T00:47:58.425Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ee/ae/8e92f8058baf87f6c7d86ee7e457668690195cc77efedb8d3797a06e3940/click-8.4.0-py3-none-any.whl", hash = "sha256:40c50b7c6c6adac2823d411041ec84f3f103f1b280d5e9ce0d7f998995832f81", size = 116147, upload-time = "2026-05-17T00:47:56.842Z" },
-]
-
-[[package]]
-name = "cloakbrowser"
-version = "0.3.30"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "httpx" },
-    { name = "playwright" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/35/62/12c3b32e4992c850636a6a0be8e0a990592f230791800168eb4978b00c87/cloakbrowser-0.3.30.tar.gz", hash = "sha256:a8d0ea2d8f12d8667290dfcdbbc68bb140f3ccb36c2c9d2cc3c594d02e29c3d0", size = 5362623, upload-time = "2026-05-21T03:17:49.132Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/89/daa636a6c5c6750fb6834a0eaa78081ebe6e07f30303263c52f0a56ba011/cloakbrowser-0.3.30-py3-none-any.whl", hash = "sha256:9c666e2594943538c543b1bbfbc78f090e3771c7331643664004a7e56594af34", size = 74867, upload-time = "2026-05-21T03:17:47.02Z" },
 ]
 
 [[package]]

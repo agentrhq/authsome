@@ -399,6 +399,9 @@ def _session_response(session: AuthSession, server_base_url: str) -> AuthSession
             extra_headers=session.payload.get("extra_headers", {}),
             network_proxy=session.payload.get("network_proxy"),
             login_mode=session.payload.get("login_mode", "auto"),
+            ttl_from_cookie=session.payload.get("ttl_from_cookie"),
+            browser_exec=session.payload.get("browser_exec"),
+            browser_data_dir=session.payload.get("browser_data_dir"),
         )
     elif input_fields and session.state != AuthSessionStatus.COMPLETED:
         action = OpenUrlAction(type="open_url", url=build_auth_input_url(server_base_url, session.session_id))

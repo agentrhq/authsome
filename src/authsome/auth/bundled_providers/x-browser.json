@@ -19,7 +19,7 @@
       "x-csrf-token":  "${ct0}",
       "Authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
     },
-    "ttl": "30d"
+    "ttl_from_cookie": "auth_token"
   },
   "export": {
     "env": {

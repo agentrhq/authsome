@@ -49,6 +49,9 @@ class BrowserSSOAction(BaseModel):
     extra_headers: dict[str, str] = Field(default_factory=dict)
     network_proxy: str | None = None
     login_mode: str = "auto"
+    ttl_from_cookie: str | None = None
+    browser_exec: str | None = None
+    browser_data_dir: str | None = None
 
 
 NextAction = Annotated[

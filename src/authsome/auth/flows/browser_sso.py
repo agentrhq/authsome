@@ -7,7 +7,7 @@ resume() — stores extracted credentials returned by the CLI into a ConnectionR
 from __future__ import annotations
 
 import re
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from authsome.auth.flows.base import AuthFlow, FlowResult
@@ -69,6 +69,9 @@ class BrowserSSOFlow(AuthFlow):
         runtime_session.payload["extra_headers"] = cfg.extra_headers
         runtime_session.payload["network_proxy"] = cfg.network_proxy
         runtime_session.payload["login_mode"] = cfg.login_mode
+        runtime_session.payload["ttl_from_cookie"] = cfg.ttl_from_cookie
+        runtime_session.payload["browser_exec"] = cfg.browser_exec
+        runtime_session.payload["browser_data_dir"] = cfg.browser_data_dir
 
     async def resume(
         self,
@@ -87,9 +90,21 @@ class BrowserSSOFlow(AuthFlow):
                 provider=provider.name,
             )
 
-        ttl_delta = _parse_ttl_duration(provider.browser_sso.ttl if provider.browser_sso else None)
         now = utc_now()
-        expires_at = now + ttl_delta if ttl_delta is not None else None
+
+        # Prefer the real server-set cookie expiry over the guessed ttl.
+        # The CLI embeds it as a Unix timestamp string under "__cookie_expires_at__".
+        expires_at = None
+        raw_cookie_expiry = credentials.pop("__cookie_expires_at__", None)
+        if raw_cookie_expiry:
+            try:
+                expires_at = datetime.fromtimestamp(int(raw_cookie_expiry), tz=UTC)
+            except (ValueError, OSError):
+                pass
+
+        if expires_at is None:
+            ttl_delta = _parse_ttl_duration(provider.browser_sso.ttl if provider.browser_sso else None)
+            expires_at = now + ttl_delta if ttl_delta is not None else None
 
         return FlowResult(
             connection=ConnectionRecord(

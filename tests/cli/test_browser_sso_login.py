@@ -1,11 +1,12 @@
 from authsome.cli.browser_login import (
-    CLOAKBROWSER_INSTALL_HINT,
+    PLAYWRIGHT_INSTALL_HINT,
+    _credentials_ready_for_validation,
     extract_cookies_from_context,
 )
 
 
 def _make_mock_context(cookies: list[dict]):
-    """Build a minimal mock that looks like a CloakBrowser persistent context."""
+    """Build a minimal mock that looks like a Playwright persistent context."""
     from unittest.mock import MagicMock
 
     ctx = MagicMock()
@@ -75,6 +76,39 @@ def test_extract_cookies_domain_subdomain_match():
     assert "auth_token=tok" in result.get("cookie", "")
 
 
-def test_cloakbrowser_install_hint_mentions_install():
-    assert "install" in CLOAKBROWSER_INSTALL_HINT.lower()
-    assert "cloakbrowser" in CLOAKBROWSER_INSTALL_HINT.lower()
+def test_playwright_install_hint_mentions_install():
+    assert "install" in PLAYWRIGHT_INSTALL_HINT.lower()
+    assert "playwright" in PLAYWRIGHT_INSTALL_HINT.lower()
+
+
+def test_credentials_ready_requires_named_cookies_not_guest_only():
+    """Guest cookies alone must not trigger validation (X auth_token + ct0 required)."""
+    rules = [
+        {"from": "cookies", "as": "cookie", "match": "*"},
+        {"from": "cookies", "as": "ct0", "match": "ct0"},
+        {"from": "cookies", "as": "auth_token", "match": "auth_token"},
+    ]
+    guest_only = {"cookie": "guest_id=abc"}
+    assert _credentials_ready_for_validation(guest_only, rules) is False
+
+    logged_in = {"cookie": "auth_token=t; ct0=c", "ct0": "c", "auth_token": "t"}
+    assert _credentials_ready_for_validation(logged_in, rules) is True
+
+
+def test_validate_uses_context_request_not_new_page():
+    """Validation must not open/close tabs on the login window."""
+    from unittest.mock import MagicMock
+
+    from authsome.cli.browser_login import _validate_credentials_sync
+
+    ctx = MagicMock()
+    ctx.request.get.return_value = MagicMock(status=200)
+
+    assert _validate_credentials_sync(
+        ctx,
+        {"ct0": "x"},
+        "https://x.com/i/api/2/notifications/all.json",
+        {"x-csrf-token": "x"},
+    )
+    ctx.request.get.assert_called_once()
+    ctx.new_page.assert_not_called()
