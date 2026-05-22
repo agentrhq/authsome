@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
+from loguru import logger
 from posthog import Posthog
 
 _client: Posthog | None = None
+_DISABLE_FLAGS: tuple[tuple[str, str], ...] = (
+    ("DO_NOT_TRACK", "1"),
+    ("POSTHOG_DISABLED", "1"),
+    ("AUTHSOME_ANALYTICS", "0"),
+)
 
 
 def get_posthog() -> Posthog | None:
@@ -27,12 +34,19 @@ def capture_event(identity: str, event: str, properties: dict[str, Any]) -> None
 
 
 def init_posthog() -> Posthog | None:
-    """Initialise the PostHog client from environment variables.
+    """Initialise the shared PostHog client unless telemetry is disabled.
 
-    Returns the client if credentials are present, otherwise None so the
-    daemon can run without PostHog configured.
+    Returns the client when analytics is enabled, otherwise None so the daemon
+    can run without emitting telemetry.
     """
     global _client
+
+    for env_var_name, disabled_value in _DISABLE_FLAGS:
+        if os.getenv(env_var_name) == disabled_value:
+            _client = None
+            logger.debug("Analytics disabled via {}", env_var_name)
+            return None
+
     api_key = "phc_6HXMDi8CjfIW0l04l34L7IDkpCDeOVz9cOz1KLAHXh8"
     host = "https://us.i.posthog.com"
     if not api_key or not host:
