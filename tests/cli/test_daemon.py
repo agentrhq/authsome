@@ -1,4 +1,4 @@
-"""Tests for the `authsome daemon` subgroup.
+"""Tests for the `authsome advanced daemon` subgroup.
 
 Covers: daemon status JSON output, start/stop calls, and logs command
 when no log file exists.
@@ -13,7 +13,7 @@ from authsome.cli.main import cli
 
 
 class TestDaemonStatusCommand:
-    """Tests for `authsome daemon status`."""
+    """Tests for `authsome advanced daemon status`."""
 
     def test_status_json_output(self, runner: CliRunner, mock_client: MagicMock) -> None:
         with patch("authsome.cli.advanced.daemon_status") as mock_status:
@@ -22,7 +22,7 @@ class TestDaemonStatusCommand:
                 "pid_file": "/tmp/daemon.pid",
                 "log_file": "/tmp/daemon.log",
             }
-            result = runner.invoke(cli, ["--log-file", "", "daemon", "status", "--json"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "daemon", "status", "--json"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["running"] is True
@@ -35,13 +35,13 @@ class TestDaemonStatusCommand:
                 "pid_file": "/tmp/daemon.pid",
                 "log_file": "/tmp/daemon.log",
             }
-            result = runner.invoke(cli, ["--log-file", "", "daemon", "status"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "daemon", "status"])
         assert result.exit_code == 0
         assert "running" in result.output.lower() or "Connection refused" in result.output
 
 
 class TestDaemonStartStopCommand:
-    """Tests for `authsome daemon start` and `authsome daemon stop`."""
+    """Tests for `authsome advanced daemon start` and `authsome advanced daemon stop`."""
 
     def test_daemon_start_calls_start_daemon(self, runner: CliRunner, mock_client: MagicMock) -> None:
         with (
@@ -50,14 +50,14 @@ class TestDaemonStartStopCommand:
             patch("authsome.cli.advanced.is_daemon_responsive", return_value=False),
             patch("authsome.cli.advanced.is_port_occupied", return_value=False),
         ):
-            result = runner.invoke(cli, ["--log-file", "", "daemon", "start"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "daemon", "start"])
         assert result.exit_code == 0
         mock_start.assert_called_once()
 
     def test_daemon_stop_calls_stop_daemon(self, runner: CliRunner, mock_client: MagicMock) -> None:
         with patch("authsome.cli.advanced.stop_daemon") as mock_stop:
             mock_stop.return_value = (True, "Daemon stopped successfully.")
-            result = runner.invoke(cli, ["--log-file", "", "daemon", "stop"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "daemon", "stop"])
         assert result.exit_code == 0
         mock_stop.assert_called_once()
 
@@ -70,18 +70,18 @@ class TestDaemonStartStopCommand:
             patch("authsome.cli.advanced.is_port_occupied", return_value=False),
         ):
             mock_stop.return_value = (True, "Daemon stopped successfully.")
-            result = runner.invoke(cli, ["--log-file", "", "daemon", "restart"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "daemon", "restart"])
         assert result.exit_code == 0
         mock_stop.assert_called_once()
         mock_start.assert_called_once()
 
 
 class TestDaemonLogsCommand:
-    """Tests for `authsome daemon logs`."""
+    """Tests for `authsome advanced daemon logs`."""
 
     def test_logs_no_file_prints_message(self, runner: CliRunner, mock_client: MagicMock, tmp_path) -> None:
         with patch("authsome.cli.daemon_control.LOG_FILE", tmp_path / "nonexistent.log"):
-            result = runner.invoke(cli, ["--log-file", "", "daemon", "logs"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "daemon", "logs"])
         assert result.exit_code == 0
         assert "No daemon log" in result.output
 
@@ -91,7 +91,7 @@ class TestDaemonLogsCommand:
         log_file.write_text("".join(lines), encoding="utf-8")
 
         with patch("authsome.cli.daemon_control.LOG_FILE", log_file):
-            result = runner.invoke(cli, ["--log-file", "", "daemon", "logs", "-n", "5"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "daemon", "logs", "-n", "5"])
         assert result.exit_code == 0
         # Should show last 5 lines
         assert "line 100" in result.output

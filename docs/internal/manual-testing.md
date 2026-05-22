@@ -31,13 +31,13 @@ uv run authsome whoami --json
 **Expected:** Same data as structured JSON. Key fields: `home_directory`, `profile`, `principal_id`, `vault_id`, `did`, `registration_status`, `daemon_url`, `encryption_backend`, `connected_providers_count`.
 
 ```bash
-uv run authsome doctor
+uv run authsome advanced doctor
 ```
 
 **Expected:** Exit code `0`; `OK` printed for `spec_version`, `identity`, `providers`, `connections`, `vault`, `integrity`. A `Warnings:` block may appear (e.g. "no active provider connections found") — that is normal on a fresh install.
 
 ```bash
-uv run authsome doctor --json
+uv run authsome advanced doctor --json
 ```
 
 **Expected:** `{"status": "ready", "checks": {"spec_version": "ok", ...}, "issues": [], "warnings": [...]}`. The `warnings` array is non-empty on a fresh install with no connections.
@@ -227,25 +227,25 @@ uv run authsome run --quiet curl -s https://api.github.com/user
 ## 10. Log
 
 ```bash
-uv run authsome log
+uv run authsome advanced log
 ```
 
 **Expected:** Human-readable table of recent audit entries with columns `Timestamp`, `Event`, `Provider`, `Status`. Shows "No audit entries found." if empty.
 
 ```bash
-uv run authsome log -n 5
+uv run authsome advanced log -n 5
 ```
 
 **Expected:** Last 5 entries only (same table format).
 
 ```bash
-uv run authsome log -n 5 --json
+uv run authsome advanced log -n 5 --json
 ```
 
 **Expected:** JSON object with `v`, `log_file` path, and `entries` array of parsed audit event objects, each with `timestamp`, `event`, `provider`, `status`.
 
 ```bash
-uv run authsome log --raw -n 10
+uv run authsome advanced log --raw -n 10
 ```
 
 **Expected:** Last 10 lines of the raw client debug log (loguru format).
@@ -277,7 +277,7 @@ cat > /tmp/test-provider.json << 'EOF'
 }
 EOF
 
-uv run authsome register /tmp/test-provider.json
+uv run authsome advanced register /tmp/test-provider.json
 ```
 
 **Expected:** Confirmation prompt → provider registered. No `api_url` means no reachability check.
@@ -296,13 +296,13 @@ uv run authsome list | grep test-custom
 
 ```bash
 # Register again to test --force (overwrites without prompting)
-uv run authsome register /tmp/test-provider.json --force
+uv run authsome advanced register /tmp/test-provider.json --force
 ```
 
 **Expected:** Registers immediately, no confirmation prompt, no error.
 
 ```bash
-uv run authsome remove test-custom
+uv run authsome advanced remove test-custom
 ```
 
 **Expected:** `Removed provider test-custom.`
@@ -335,14 +335,14 @@ uv run authsome list  # github → not_connected
 ## 14. Daemon
 
 ```bash
-uv run authsome daemon status
+uv run authsome advanced daemon status
 ```
 
 **Expected:** JSON showing `running: true`, health checks all `ok`, PID, and log file path. The `health` block includes `version`, `mode`, `encryption_backend`.
 
 ```bash
-uv run authsome daemon stop
-uv run authsome daemon status
+uv run authsome advanced daemon stop
+uv run authsome advanced daemon status
 ```
 
 **Expected:** "Daemon stopped successfully"; `running: false` after stop.
@@ -350,8 +350,8 @@ uv run authsome daemon status
 > **Note:** If no PID record exists (e.g. after `rm -rf ~/.authsome`), `daemon stop` falls back to finding the process by port and kills it.
 
 ```bash
-uv run authsome daemon start
-uv run authsome daemon status
+uv run authsome advanced daemon start
+uv run authsome advanced daemon status
 ```
 
 **Expected:** "Daemon started successfully"; `running: true` after start.
@@ -424,6 +424,6 @@ uv run authsome get resend 2>&1; echo "exit: $?"
 ## Cleanup
 
 ```bash
-uv run authsome daemon stop
+uv run authsome advanced daemon stop
 rm -rf ~/.authsome
 ```

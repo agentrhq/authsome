@@ -329,7 +329,7 @@ authsome/
 # no explicit init required
 authsome login <provider>  # OAuth acquisition (PKCE / Device Code / DCR+PKCE / API Key)
 authsome run -- <command>  # start sidecar + agent, wire HTTP_PROXY automatically
-authsome doctor            # vault/provider/profile health checks
+authsome advanced doctor            # vault/provider/profile health checks
 authsome whoami            # show local authsome context
 authsome status            # planned: sidecar state, registered identities, vault health
 authsome audit             # planned: tail the audit log

@@ -92,7 +92,10 @@ async def _resolve_ui_auth(request: Request) -> AuthService | None:
 
 def _ui_session_expired_response(status_code: int = 401) -> HTMLResponse:
     return HTMLResponse(
-        pages.message_page("Dashboard session expired", "Run 'authsome ui' to reopen the hosted dashboard."),
+        pages.message_page(
+            "Dashboard session expired",
+            "Run 'authsome advanced ui' to reopen the hosted dashboard.",
+        ),
         status_code=status_code,
     )
 

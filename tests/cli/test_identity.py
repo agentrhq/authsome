@@ -1,4 +1,4 @@
-"""Tests for `authsome profile` commands."""
+"""Tests for `authsome advanced profile` commands."""
 
 from __future__ import annotations
 
@@ -21,7 +21,16 @@ class TestProfileCommands:
     ) -> None:
         result = runner.invoke(
             cli,
-            ["--log-file", "", "profile", "create", "--handle", "steady-wisely-boldly-0042", "--json"],
+            [
+                "--log-file",
+                "",
+                "advanced",
+                "profile",
+                "create",
+                "--handle",
+                "steady-wisely-boldly-0042",
+                "--json",
+            ],
         )
 
         assert result.exit_code == 0, result.output
@@ -36,10 +45,22 @@ class TestProfileCommands:
     def test_profile_create_switches_active_profile(
         self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path
     ) -> None:
-        runner.invoke(cli, ["--log-file", "", "profile", "create", "--handle", "steady-wisely-boldly-0042"])
+        runner.invoke(
+            cli,
+            ["--log-file", "", "advanced", "profile", "create", "--handle", "steady-wisely-boldly-0042"],
+        )
         result = runner.invoke(
             cli,
-            ["--log-file", "", "profile", "create", "--handle", "rapid-brightly-firmly-0007", "--json"],
+            [
+                "--log-file",
+                "",
+                "advanced",
+                "profile",
+                "create",
+                "--handle",
+                "rapid-brightly-firmly-0007",
+                "--json",
+            ],
         )
 
         data = json.loads(result.output)
@@ -50,11 +71,20 @@ class TestProfileCommands:
         assert load_client_config(tmp_path).active_identity == "rapid-brightly-firmly-0007"
 
     def test_profile_use_sets_active_identity(self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path) -> None:
-        runner.invoke(cli, ["--log-file", "", "profile", "create", "--handle", "steady-wisely-boldly-0042"])
-        runner.invoke(cli, ["--log-file", "", "profile", "create", "--handle", "rapid-brightly-firmly-0007"])
+        runner.invoke(
+            cli,
+            ["--log-file", "", "advanced", "profile", "create", "--handle", "steady-wisely-boldly-0042"],
+        )
+        runner.invoke(
+            cli,
+            ["--log-file", "", "advanced", "profile", "create", "--handle", "rapid-brightly-firmly-0007"],
+        )
         stored = load_identity(tmp_path, "steady-wisely-boldly-0042")
 
-        result = runner.invoke(cli, ["--log-file", "", "profile", "use", "steady-wisely-boldly-0042", "--json"])
+        result = runner.invoke(
+            cli,
+            ["--log-file", "", "advanced", "profile", "use", "steady-wisely-boldly-0042", "--json"],
+        )
 
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)

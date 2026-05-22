@@ -31,7 +31,7 @@ If it's something else, free the port or run a per-user daemon at a different ho
 
 ```bash
 export AUTHSOME_HOME=/path/to/another/home
-authsome doctor
+authsome advanced doctor
 ```
 
 A second `AUTHSOME_HOME` starts a separate daemon on a separate ephemeral port and uses that. The two daemons do not interfere.
@@ -50,7 +50,7 @@ Common root causes:
 - The current user doesn't have write permission to `AUTHSOME_HOME`.
 - `master.key` has the wrong mode and the daemon refuses to start in `local_key` mode.
 
-`authsome doctor` reports each of these specifically.
+`authsome advanced doctor` reports each of these specifically.
 
 ## CLI can't find the daemon
 
@@ -108,7 +108,7 @@ A healthy daemon returns a JSON status with vault and provider-registry readines
 The same information is available through:
 
 ```bash
-authsome doctor --json
+authsome advanced doctor --json
 ```
 
 which is the right call from monitoring scripts.

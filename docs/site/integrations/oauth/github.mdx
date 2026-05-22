@@ -206,7 +206,7 @@ The schema is documented in [Provider schema](/reference/provider-schema).
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | `redirect_uri_mismatch` at github.com | OAuth app callback URL is wrong | Set it to `http://127.0.0.1:7998/auth/callback/oauth` exactly. |
-| Browser opens but the form is blank | Daemon not running or port held | `authsome doctor` and check that port 7998 is free. |
+| Browser opens but the form is blank | Daemon not running or port held | `authsome advanced doctor` and check that port 7998 is free. |
 | `Bad credentials` after a successful login | Token revoked at GitHub | `authsome login github --force` to re-authenticate. |
 | Refresh fails after long idle | GitHub access tokens do not expire by default; refresh is rarely needed | If the connection shows `expired`, run `authsome login github --force`. |
 

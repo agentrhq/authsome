@@ -74,7 +74,7 @@ Authsome runs on Python 3.13 or newer. It ships as a single PyPI package with no
 
 ```bash
 authsome whoami
-authsome doctor
+authsome advanced doctor
 ```
 
 `whoami` prints the home directory, registered identity handle, DID, and both the configured encryption mode and effective master-key source. `doctor` walks the home directory, verifies encryption is available, and parses every bundled provider definition. A healthy install reports `OK` for each check and exits with code `0`.
@@ -128,7 +128,7 @@ By default, authsome uses `encryption.mode = "auto"` and applies the precedence 
 }
 ```
 
-Re-run `authsome doctor` to confirm the backend is reachable. The trade-offs are covered in [Encryption at rest](/security/encryption).
+Re-run `authsome advanced doctor` to confirm the backend is reachable. The trade-offs are covered in [Encryption at rest](/security/encryption).
 
 Older installs that used the implicit `default` profile must run `authsome init` again. This release does not migrate credentials under old `profile:default:*` keys.
 

@@ -26,8 +26,8 @@ def test_advanced_help_lists_hidden_commands(runner: CliRunner, mock_client) -> 
     assert "\n  profile" in result.output
 
 
-def test_hidden_top_level_aliases_still_work(runner: CliRunner, mock_client) -> None:
+def test_top_level_advanced_aliases_do_not_work(runner: CliRunner, mock_client) -> None:
     result = runner.invoke(cli, ["--log-file", "", "rekey", "--help"])
 
-    assert result.exit_code == 0, result.output
-    assert "Generate a new master key" in result.output
+    assert result.exit_code != 0
+    assert "No such command 'rekey'" in result.output

@@ -180,7 +180,7 @@ definition = ProviderDefinition.model_validate_json(open("acmecrm.json").read())
 auth.register_provider(definition, force=False)
 ```
 
-Equivalent to `authsome register ./acmecrm.json`. The schema is documented in [Provider schema](/reference/provider-schema).
+Equivalent to `authsome advanced register ./acmecrm.json`. The schema is documented in [Provider schema](/reference/provider-schema).
 
 ## AuthLayer
 

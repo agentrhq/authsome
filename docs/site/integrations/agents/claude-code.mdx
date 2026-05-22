@@ -24,7 +24,7 @@ Install the authsome skill into Claude Code and log me into GitHub.
 2. Then run `authsome login github` and walk me through approving the OAuth flow.
 3. After the login completes, run `authsome list` and report which providers are now connected.
 
-If anything fails, show me the exact error and `authsome doctor` output.
+If anything fails, show me the exact error and `authsome advanced doctor` output.
 </Prompt>
 
 ## What the integration gives you
@@ -91,7 +91,7 @@ Concrete requests Claude understands. Each one maps to a specific authsome comma
 | "Switch the active GitHub connection to my work account." | `authsome login github --connection work` |
 | "Show me which providers are connected." | `authsome list` |
 | "Revoke my OpenAI key." | `authsome revoke openai` |
-| "Add a custom provider for Acme CRM." | `authsome register ./acmecrm.json` |
+| "Add a custom provider for Acme CRM." | `authsome advanced register ./acmecrm.json` |
 
 ## Why this is the safe pattern
 
@@ -165,7 +165,7 @@ For the underlying model, see [Profiles vs connections](/concepts/profiles-vs-co
 
 If a Claude-driven login hangs:
 
-- Run `authsome doctor` directly from the terminal to surface initialization errors.
+- Run `authsome advanced doctor` directly from the terminal to surface initialization errors.
 - Run `authsome --verbose login <provider>` to see the full flow including the daemon round-trips.
 - Check `~/.authsome/audit.log` for the most recent action and outcome.
 

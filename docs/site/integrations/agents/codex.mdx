@@ -89,7 +89,7 @@ This pattern is cleaner than passing keys through prompts or hardcoding them int
 |---------|-----|
 | Codex starts but every API call fails with TLS errors | The mitmproxy CA isn't trusted. See [Proxy networking](/troubleshooting/proxy-networking). |
 | Codex doesn't see the env var even though `authsome run` set it | Verify with `authsome run -- env \| grep OPENAI`. |
-| Authsome login hangs | `authsome doctor` and check port 7998 availability. |
+| Authsome login hangs | `authsome advanced doctor` and check port 7998 availability. |
 
 ## What's next
 

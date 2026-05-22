@@ -84,7 +84,7 @@ authsome login brevo --connection team
 ```bash
 authsome login brevo --force          # rotate
 authsome logout brevo                  # remove local credential
-authsome remove brevo                  # remove all local state for the provider
+authsome advanced remove brevo                  # remove all local state for the provider
 ```
 
 API-key providers have no revocation endpoint, so `revoke` and `remove` are equivalent for Brevo.

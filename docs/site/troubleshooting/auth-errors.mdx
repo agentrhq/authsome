@@ -3,7 +3,7 @@ title: "Authentication errors"
 sidebarTitle: "Auth errors (401, 403)"
 description: "Decision tree for 401, 403, and stored client credential errors when calling a provider through authsome."
 icon: "shield-exclamation"
-keywords: ["authsome 401", "authsome 403", "authsome token expired", "authsome scopes", "authsome revoke", "authsome remove", "authsome auth error"]
+keywords: ["authsome 401", "authsome 403", "authsome token expired", "authsome scopes", "authsome revoke", "authsome advanced remove", "authsome auth error"]
 ---
 
 A request through the proxy or via an exported token came back with an auth error. Walk this decision tree to recover.
@@ -55,7 +55,7 @@ The list of valid scopes is service-specific. See the provider's developer docs 
 If login itself fails immediately with a credential mismatch error and you suspect the wrong OAuth app credentials were stored, remove the provider state and re-log in. The browser bridge will collect fresh `client_id` and `client_secret` values.
 
 ```bash
-authsome remove <provider>
+authsome advanced remove <provider>
 authsome login <provider>
 ```
 

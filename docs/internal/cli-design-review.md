@@ -75,7 +75,7 @@ Docs say default: `~/.authsome/logs/authsome.log`.
 
 ### 1e. `profile` command exists but is not documented
 
-`authsome profile` with subcommands `create` and `use` appears in the CLI but is absent from `docs/site/reference/cli.mdx`.
+`authsome advanced profile` with subcommands `create` and `use` appears in the CLI but is absent from `docs/site/reference/cli.mdx`.
 
 ---
 
@@ -88,7 +88,7 @@ The CLI reference documents only `env` and `json`.
 
 ### 1g. `daemon logs` subcommand — docs show `-n 100`, actual flag is different
 
-Docs say `authsome daemon logs [-n 100]`. Actual `authsome log` (client log command) uses `-n / --lines COUNT`.  
+Docs say `authsome advanced daemon logs [-n 100]`. Actual `authsome advanced log` (client log command) uses `-n / --lines COUNT`.  
 These are two different commands (`daemon logs` tails the daemon log; `log` tails the client audit log) — the distinction and both flags need clear documentation.
 
 ---
@@ -115,7 +115,7 @@ The CLI checks `val == "ok"` for every key, so `"3" != "ok"` always renders `FAI
 
 **Location:** `src/authsome/cli/main.py:698–733`
 
-The confirmation prompt checks only `yes` flag, not `force`. Running `authsome register --force` still prompts interactively; piping no input causes a generic failure (exit 1, no useful message).
+The confirmation prompt checks only `yes` flag, not `force`. Running `authsome advanced register --force` still prompts interactively; piping no input causes a generic failure (exit 1, no useful message).
 
 The `--force` flag is forwarded only to the server for the duplicate-override check. The client prompt is never bypassed.
 
@@ -138,7 +138,7 @@ The `--force` flag is forwarded only to the server for the duplicate-override ch
 
 ### 2d. `daemon stop` reports stopped but daemon immediately restarts
 
-`authsome daemon stop` outputs "Daemon stopped." and exits 0, but a subsequent `authsome daemon status` shows `running: true` within milliseconds. The guide test for `running: false` after stop cannot pass.
+`authsome advanced daemon stop` outputs "Daemon stopped." and exits 0, but a subsequent `authsome advanced daemon status` shows `running: true` within milliseconds. The guide test for `running: false` after stop cannot pass.
 
 Whether this is supervision auto-restart or a race in the status check is not confirmed, but the CLI output creates a misleading state. Either the daemon should indicate it will restart, or the stop command should wait for the process to actually stop before returning.
 
@@ -208,10 +208,10 @@ The current scheme uses codes 1–9. `sysexits.h` reserves 64–78 for applicati
 
 ### 3f. `remove` help text doesn't mention bundled providers
 
-`authsome remove --help` says "Permanently uninstall the specified custom PROVIDER definition."  
+`authsome advanced remove --help` says "Permanently uninstall the specified custom PROVIDER definition."  
 The CLI reference says `remove` also "resets to bundled" when used on a bundled provider.
 
-If the behavior differs for bundled vs. custom providers, the `--help` text should say so. Users who accidentally run `authsome remove github` should know whether they're deleting something permanently or just resetting to defaults.
+If the behavior differs for bundled vs. custom providers, the `--help` text should say so. Users who accidentally run `authsome advanced remove github` should know whether they're deleting something permanently or just resetting to defaults.
 
 ---
 

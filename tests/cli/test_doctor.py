@@ -1,4 +1,4 @@
-"""Tests for the `authsome doctor` command output and logic."""
+"""Tests for the `authsome advanced doctor` command output and logic."""
 
 import json
 from unittest.mock import patch
@@ -9,7 +9,7 @@ from authsome.cli.main import cli
 
 
 class TestDoctorCommand:
-    """Tests for the `authsome doctor` CLI command."""
+    """Tests for the `authsome advanced doctor` CLI command."""
 
     def test_doctor_success_rendering(self, runner: CliRunner) -> None:
         """Verifies OK state renders successfully."""
@@ -21,7 +21,7 @@ class TestDoctorCommand:
         }
 
         with patch("authsome.cli.context.CliRuntime.doctor", return_value=mock_results):
-            result = runner.invoke(cli, ["--log-file", "", "doctor"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "doctor"])
 
         assert result.exit_code == 0
         assert "config: OK" in result.output
@@ -38,7 +38,7 @@ class TestDoctorCommand:
         }
 
         with patch("authsome.cli.context.CliRuntime.doctor", return_value=mock_results):
-            result = runner.invoke(cli, ["--log-file", "", "doctor"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "doctor"])
 
         assert result.exit_code == 0
         assert "Warnings:" in result.output
@@ -57,7 +57,7 @@ class TestDoctorCommand:
         }
 
         with patch("authsome.cli.context.CliRuntime.doctor", return_value=mock_results):
-            result = runner.invoke(cli, ["--log-file", "", "doctor"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "doctor"])
 
         assert result.exit_code == 1
         assert "config: FAIL" in result.output
@@ -69,7 +69,7 @@ class TestDoctorCommand:
         mock_results = {"status": "ready", "checks": {"x": "ok"}, "issues": [], "warnings": ["caution"]}
 
         with patch("authsome.cli.context.CliRuntime.doctor", return_value=mock_results):
-            result = runner.invoke(cli, ["--log-file", "", "doctor", "--json"])
+            result = runner.invoke(cli, ["--log-file", "", "advanced", "doctor", "--json"])
 
         assert result.exit_code == 0
         data = json.loads(result.output)

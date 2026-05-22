@@ -6,7 +6,6 @@ import json as json_lib
 import os
 import pathlib
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
 import click
@@ -443,24 +442,3 @@ async def daemon_logs(ctx_obj: ContextObj, lines: int) -> None:
         return
     for line in LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:]:
         ctx_obj.echo(line)
-
-
-_ADVANCED_ALIASES: dict[str, click.Command] = {
-    "daemon": daemon,
-    "doctor": doctor,
-    "log": log_cmd,
-    "profile": profile,
-    "register": register,
-    "rekey": rekey,
-    "remove": remove,
-    "ui": ui,
-}
-
-
-def register_advanced_aliases(
-    cli: click.Group,
-    mark_advanced: Callable[[click.Command], click.Command],
-) -> None:
-    """Register backward-compatible hidden top-level aliases for advanced commands."""
-    for name, command in _ADVANCED_ALIASES.items():
-        cli.add_command(mark_advanced(command), name=name)

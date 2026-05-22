@@ -45,7 +45,7 @@ def test_hosted_ui_requires_browser_session(monkeypatch, tmp_path: Path) -> None
         response = client.get("/ui/")
 
     assert response.status_code == 401
-    assert "authsome ui" in response.text
+    assert "authsome advanced ui" in response.text
 
 
 def test_hosted_ui_bootstrap_sets_cookie_and_opens_dashboard(monkeypatch, tmp_path: Path) -> None:
@@ -120,4 +120,4 @@ def test_hosted_ui_auth_input_requires_matching_browser_session(monkeypatch, tmp
         response = client.get(f"/auth/sessions/{session.session_id}/input")
 
     assert response.status_code == 401
-    assert "authsome ui" in response.text
+    assert "authsome advanced ui" in response.text

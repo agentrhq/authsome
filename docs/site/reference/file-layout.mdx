@@ -86,9 +86,9 @@ Append-only newline-delimited log of significant actions: `login`, `logout`, `re
 Read recent entries:
 
 ```bash
-authsome log
-authsome log -n 200
-authsome log --json
+authsome advanced log
+authsome advanced log -n 200
+authsome advanced log --json
 ```
 
 The schema is intentionally readable. The file is not encrypted; it's meant to be auditable.
@@ -168,7 +168,7 @@ The vault is not large unless you accumulate hundreds of connections.
 | `~/.authsome/audit.log` | `0600` | Same justification. |
 | `~/.authsome/providers/*.json` | `0644` | Not sensitive on its own. |
 
-`authsome doctor` verifies the critical paths and their modes.
+`authsome advanced doctor` verifies the critical paths and their modes.
 
 ## Override the location
 

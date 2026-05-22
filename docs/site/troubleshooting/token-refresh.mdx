@@ -86,7 +86,7 @@ authsome get <provider> --field status
 The audit log records every login, refresh attempt, and failure reason:
 
 ```bash
-authsome log -n 50 --json | python3 -c "
+authsome advanced log -n 50 --json | python3 -c "
 import sys, json
 for line in sys.stdin:
     e = json.loads(line)

@@ -85,7 +85,7 @@ authsome login sendgrid --connection team
 ```bash
 authsome login sendgrid --force          # rotate
 authsome logout sendgrid                  # remove local credential
-authsome remove sendgrid                  # remove all local state for the provider
+authsome advanced remove sendgrid                  # remove all local state for the provider
 ```
 
 API-key providers have no revocation endpoint, so `revoke` and `remove` are equivalent for SendGrid.

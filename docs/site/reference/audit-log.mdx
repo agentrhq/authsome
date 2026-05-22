@@ -56,9 +56,9 @@ The set of events grows over time. Parse defensively: treat unknown `event` valu
 ## Read the log
 
 ```bash
-authsome log              # last 50 entries, pretty-printed
-authsome log -n 200       # last 200
-authsome log --json       # one JSON object per line, unmodified
+authsome advanced log              # last 50 entries, pretty-printed
+authsome advanced log -n 200       # last 200
+authsome advanced log --json       # one JSON object per line, unmodified
 ```
 
 For programmatic consumption, prefer `--json`. The default output is pretty-printed for terminals and not stable across versions.

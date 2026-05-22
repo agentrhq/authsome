@@ -90,7 +90,7 @@ The `--force` flag overwrites the existing connection. Pass `--connection <name>
 
 ```bash
 authsome logout openai             # remove local credential, leave provider untouched
-authsome remove openai             # delete all local state for the provider
+authsome advanced remove openai             # delete all local state for the provider
 ```
 
 For OAuth2 providers, `authsome revoke <provider>` also calls the provider's revocation endpoint. API-key providers have no revocation endpoint, so `revoke` and `remove` are equivalent for them.

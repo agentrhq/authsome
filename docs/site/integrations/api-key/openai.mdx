@@ -122,7 +122,7 @@ To invalidate the old key at OpenAI as well, delete it in the OpenAI dashboard b
 
 ```bash
 authsome logout openai             # remove local credential
-authsome remove openai             # remove local provider state entirely
+authsome advanced remove openai             # remove local provider state entirely
 ```
 
 API-key providers have no revocation endpoint, so `revoke` and `remove` are equivalent for OpenAI.

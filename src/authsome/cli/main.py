@@ -12,7 +12,7 @@ from loguru import logger
 from authsome import AuthenticationFailedError, FlowType, __version__
 from authsome.auth.models.enums import AuthType, ExportFormat
 from authsome.auth.models.provider import ProviderDefinition
-from authsome.cli.advanced import advanced, register_advanced_aliases
+from authsome.cli.advanced import advanced
 from authsome.cli.context import ContextObj, common_options
 from authsome.cli.helpers import (
     _api_key_env_var,
@@ -43,12 +43,6 @@ class AgentFirstGroup(click.Group):
                 formatter.write_dl(rows)
 
 
-def _mark_advanced(command: click.Command) -> click.Command:
-    """Mark a command as advanced so it stays callable but drops from top-level help."""
-    setattr(command, "agent_hidden", True)
-    return command
-
-
 @click.group(cls=AgentFirstGroup)
 @click.version_option(__version__, "-v", "--version")
 @click.option("--verbose", is_flag=True, default=False, help="Enable DEBUG logging to stderr.")
@@ -72,7 +66,6 @@ def cli(ctx: click.Context, verbose: bool, log_file: str) -> None:
 
 
 cli.add_command(advanced, name="advanced")
-register_advanced_aliases(cli, _mark_advanced)
 
 
 def _render_encryption_backend(data: dict[str, Any]) -> str:

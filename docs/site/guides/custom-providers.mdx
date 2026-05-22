@@ -25,7 +25,7 @@ Then write the JSON file following the schema at https://authsome.ai/docs/refere
 Output:
 
 - The full provider JSON, ready to save to `~/.authsome/providers/<name>.json`.
-- The exact `authsome register` command to install it.
+- The exact `authsome advanced register` command to install it.
 - A one-line note about anything unusual (multi-tenant `{base_url}`, non-standard header prefix, missing PKCE support, etc.).
 
 Do NOT invent endpoint URLs. If you cannot find them in the official docs, stop and tell me what you need to look up.
@@ -144,13 +144,13 @@ For the full schema with every supported field, see the [Provider schema referen
 ## Step 4: Register the provider
 
 ```bash
-authsome register ./acmecrm.json
+authsome advanced register ./acmecrm.json
 ```
 
 Authsome validates required fields, checks `auth_type`/`flow` compatibility, and copies the file into `~/.authsome/providers/`. Pass `--yes` to skip the confirmation prompt in scripts, and `--force` to overwrite an existing provider with the same name.
 
 ```bash
-authsome register ./acmecrm.json --force
+authsome advanced register ./acmecrm.json --force
 ```
 
 Confirm it's registered:

@@ -154,7 +154,7 @@ During `authsome login`, the user will be prompted for the base URL, defaulting 
 ## Step 5: Register the provider
 
 ```bash
-authsome register /path/to/provider.json
+authsome advanced register /path/to/provider.json
 ```
 
 Use `--yes` to skip the confirmation prompt in scripts, and `--force` to overwrite an existing provider with the same name.

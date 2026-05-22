@@ -1,4 +1,4 @@
-"""Tests for `authsome register`.
+"""Tests for `authsome advanced register`.
 
 Covers: --yes flag skips confirmation, file not found exits 1,
 invalid JSON exits 1, HTTP-only endpoint is rejected, and
@@ -42,21 +42,24 @@ _VALID_OAUTH_PROVIDER = {
 
 
 class TestRegisterCommand:
-    """Tests for `authsome register <path>`."""
+    """Tests for `authsome advanced register <path>`."""
 
     def test_file_not_found_exits_1(self, runner: CliRunner, mock_client: MagicMock) -> None:
-        result = runner.invoke(cli, ["--log-file", "", "register", "/no/such/file.json", "--yes"])
+        result = runner.invoke(cli, ["--log-file", "", "advanced", "register", "/no/such/file.json", "--yes"])
         assert result.exit_code == 1
         assert (
             "not found" in result.output.lower()
             or "not found"
-            in runner.invoke(cli, ["--log-file", "", "register", "/no/such/file.json", "--yes"]).output.lower()
+            in runner.invoke(
+                cli,
+                ["--log-file", "", "advanced", "register", "/no/such/file.json", "--yes"],
+            ).output.lower()
         )
 
     def test_invalid_json_exits_1(self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path) -> None:
         bad = tmp_path / "bad.json"
         bad.write_text("this is not json", encoding="utf-8")
-        result = runner.invoke(cli, ["--log-file", "", "register", str(bad), "--yes"])
+        result = runner.invoke(cli, ["--log-file", "", "advanced", "register", str(bad), "--yes"])
         assert result.exit_code == 1
 
     def test_yes_flag_skips_confirmation(
@@ -69,7 +72,7 @@ class TestRegisterCommand:
         # Patch requests.head to avoid real network call
         monkeypatch.setattr("authsome.cli.advanced.requests.head", lambda *a, **kw: MagicMock())
 
-        result = runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes"])
+        result = runner.invoke(cli, ["--log-file", "", "advanced", "register", str(path), "--yes"])
         assert result.exit_code == 0, result.output
         assert not confirm_called, "confirm() should not be called with --yes"
 
@@ -79,7 +82,7 @@ class TestRegisterCommand:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
         monkeypatch.setattr("authsome.cli.advanced.requests.head", lambda *a, **kw: MagicMock())
 
-        runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes"])
+        runner.invoke(cli, ["--log-file", "", "advanced", "register", str(path), "--yes"])
         mock_client.register_provider.assert_called_once()
         call_kwargs = mock_client.register_provider.call_args.kwargs
         assert call_kwargs["force"] is False
@@ -90,7 +93,7 @@ class TestRegisterCommand:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
         monkeypatch.setattr("authsome.cli.advanced.requests.head", lambda *a, **kw: MagicMock())
 
-        runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes", "--force"])
+        runner.invoke(cli, ["--log-file", "", "advanced", "register", str(path), "--yes", "--force"])
         call_kwargs = mock_client.register_provider.call_args.kwargs
         assert call_kwargs["force"] is True
 
@@ -104,7 +107,7 @@ class TestRegisterCommand:
             },
         }
         path = _write_provider(tmp_path, bad_provider)
-        result = runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes"])
+        result = runner.invoke(cli, ["--log-file", "", "advanced", "register", str(path), "--yes"])
         assert result.exit_code == 1
 
     def test_localhost_endpoint_rejected(self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path) -> None:
@@ -117,7 +120,7 @@ class TestRegisterCommand:
             },
         }
         path = _write_provider(tmp_path, bad_provider)
-        result = runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes"])
+        result = runner.invoke(cli, ["--log-file", "", "advanced", "register", str(path), "--yes"])
         assert result.exit_code == 1
 
     def test_json_output_on_success(
@@ -126,7 +129,7 @@ class TestRegisterCommand:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
         monkeypatch.setattr("authsome.cli.advanced.requests.head", lambda *a, **kw: MagicMock())
 
-        result = runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes", "--json"])
+        result = runner.invoke(cli, ["--log-file", "", "advanced", "register", str(path), "--yes", "--json"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["status"] == "registered"
