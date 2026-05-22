@@ -33,7 +33,7 @@ async def resolve_credentials(
 ) -> CredentialResolutionResponse:
     data = await auth.resolve_credentials(provider=body.provider, connection=body.connection)
     capture_event(
-        auth.identity,
+        auth.require_identity(),
         "credentials resolved",
         {
             "provider": body.provider,

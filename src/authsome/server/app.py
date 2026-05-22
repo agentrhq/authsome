@@ -17,9 +17,11 @@ from authsome.paths import get_server_log_path
 from authsome.server.analytics import init_posthog, shutdown_posthog
 from authsome.server.dependencies import (
     create_app_store,
+    create_hosted_account_service,
     create_identity_bootstrap_service,
     create_identity_claim_registry,
     create_ownership_resolver,
+    create_principal_vault_binding_registry,
     create_vault,
     create_vault_registry,
     get_identity_registry_path,
@@ -34,6 +36,7 @@ from authsome.server.routes.health import router as health_router
 from authsome.server.routes.identities import router as identities_router
 from authsome.server.routes.providers import router as providers_router
 from authsome.server.routes.proxy import router as proxy_router
+from authsome.server.routes.ui import UiAuthRequiredError
 from authsome.server.routes.ui import router as ui_router
 from authsome.server.ui_sessions import UiSessionStore
 
@@ -51,6 +54,8 @@ async def lifespan(app: FastAPI):
     app.state.identity_registry = IdentityRegistry(get_identity_registry_path(app.state.store.home))
     app.state.vault_registry = create_vault_registry(app.state.store.home)
     app.state.identity_claim_registry = create_identity_claim_registry(app.state.store.home)
+    app.state.principal_vault_binding_registry = create_principal_vault_binding_registry(app.state.store.home)
+    app.state.hosted_account_service = create_hosted_account_service(app.state.store.home)
     app.state.server_base_url = get_server_base_url()
     init_posthog()
     app.state.identity_bootstrap = create_identity_bootstrap_service(
@@ -93,6 +98,10 @@ def create_app() -> FastAPI:
     @app.exception_handler(IdentityRegistrationError)
     def identity_registration_error_handler(request: Request, exc: IdentityRegistrationError) -> JSONResponse:
         return JSONResponse(status_code=409, content={"error": "IdentityRegistrationError", "message": str(exc)})
+
+    @app.exception_handler(UiAuthRequiredError)
+    def ui_auth_required_handler(request: Request, exc: UiAuthRequiredError):
+        return exc.response
 
     app.include_router(health_router)
     app.include_router(identities_router)

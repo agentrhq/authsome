@@ -54,6 +54,16 @@ class VaultCrypto(ABC):
         """Decrypt a compact ciphertext string and return plaintext."""
         ...
 
+    @abstractmethod
+    def persist_rekeyed_key(self, new_key_bytes: bytes) -> None:
+        """Persist a newly rotated master key for this backend."""
+        ...
+
+    @abstractmethod
+    def assert_rekey_supported(self) -> None:
+        """Raise when this backend cannot perform an in-place rekey."""
+        ...
+
 
 def _encode(nonce: bytes, ct_with_tag: bytes) -> str:
     """Pack nonce + ciphertext+tag into a single dot-separated base64 string."""
@@ -131,6 +141,27 @@ class LocalFileCrypto(_AesGcmCrypto):
         logger.info("Generated new master key at {}", self._key_file)
         return master_key
 
+    def persist_rekeyed_key(self, new_key_bytes: bytes) -> None:
+        """Atomically replace the local master key file after a rekey."""
+        _validate_master_key_bytes(new_key_bytes)
+        temp_path = self._key_file.with_suffix(".tmp")
+        key_data = {
+            "version": 1,
+            "key": base64.b64encode(new_key_bytes).decode("ascii"),
+            "algorithm": "AES-256-GCM",
+            "note": "Local master key for authsome. Protect this file.",
+        }
+        temp_path.write_text(json.dumps(key_data, indent=2), encoding="utf-8")
+        try:
+            os.chmod(temp_path, 0o600)
+        except OSError:
+            pass
+        temp_path.replace(self._key_file)
+
+    def assert_rekey_supported(self) -> None:
+        """Local file storage supports in-place rekey."""
+        return None
+
 
 class KeyringCrypto(_AesGcmCrypto):
     """AES-256-GCM with master key stored in the OS keyring."""
@@ -151,6 +182,26 @@ class KeyringCrypto(_AesGcmCrypto):
         if master_key is None:
             raise EncryptionUnavailableError("OS keyring is unavailable and no master key could be created.")
         return master_key
+
+    def persist_rekeyed_key(self, new_key_bytes: bytes) -> None:
+        """Store a rotated master key in the OS keyring."""
+        _validate_master_key_bytes(new_key_bytes)
+        key_b64_str = base64.b64encode(new_key_bytes).decode("ascii")
+        try:
+            import keyring as kr
+        except ImportError as exc:
+            raise RuntimeError(
+                "The 'keyring' package is required for keyring mode. Install it with: pip install keyring"
+            ) from exc
+
+        try:
+            kr.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, key_b64_str)
+        except Exception as exc:
+            raise RuntimeError(f"Failed to store new master key in OS keyring: {exc}") from exc
+
+    def assert_rekey_supported(self) -> None:
+        """OS keyring storage supports in-place rekey."""
+        return None
 
 
 class EnvVarCrypto(_AesGcmCrypto):
@@ -175,10 +226,28 @@ class EnvVarCrypto(_AesGcmCrypto):
             raise EncryptionUnavailableError(f"{_MASTER_KEY_ENV_VAR} is set but empty.")
         return _decode_master_key(raw_value.strip(), _MASTER_KEY_ENV_VAR)
 
+    def persist_rekeyed_key(self, new_key_bytes: bytes) -> None:
+        """Reject in-place rekey for externally supplied master keys."""
+        _ = new_key_bytes
+        self.assert_rekey_supported()
+
+    def assert_rekey_supported(self) -> None:
+        """Reject rekey for externally managed master keys."""
+        raise ValueError(
+            "Vault rekey is unavailable while using AUTHSOME_MASTER_KEY. "
+            "Update the external master key and migrate data from a writable backend first."
+        )
+
 
 def _new_master_key() -> bytes:
     """Generate a new 256-bit master key."""
     return secrets.token_bytes(_KEY_SIZE_BYTES)
+
+
+def _validate_master_key_bytes(master_key: bytes) -> None:
+    """Validate already-decoded master key bytes."""
+    if len(master_key) != _KEY_SIZE_BYTES:
+        raise EncryptionUnavailableError(f"Master key must be {_KEY_SIZE_BYTES} bytes; got {len(master_key)} bytes.")
 
 
 def _decode_master_key(encoded_value: str, source: str) -> bytes:
@@ -258,6 +327,29 @@ def _create_auto_crypto(key_file: Path | None) -> VaultCrypto:
         return KeyringCrypto(created_keyring_key)
 
     return LocalFileCrypto(key_file)
+
+
+def create_rekey_crypto(new_key_bytes: bytes) -> VaultCrypto:
+    """Create an ephemeral in-memory backend for vault re-encryption."""
+
+    class _RekeyCrypto(_AesGcmCrypto):
+        @property
+        def source_id(self) -> str:
+            return "rekey"
+
+        @property
+        def source_description(self) -> str:
+            return "In-memory rekey backend"
+
+        def persist_rekeyed_key(self, new_key_bytes: bytes) -> None:
+            _ = new_key_bytes
+            raise RuntimeError("In-memory rekey backend cannot persist master keys")
+
+        def assert_rekey_supported(self) -> None:
+            """This helper backend is never used as a persisted store."""
+            raise RuntimeError("In-memory rekey backend cannot validate persisted rekey support")
+
+    return _RekeyCrypto(new_key_bytes)
 
 
 def create_crypto(key_file: Path | None, mode: str = "auto") -> VaultCrypto:

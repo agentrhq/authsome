@@ -32,9 +32,23 @@ class OwnershipResolver(ABC):
     async def resolve(self, *, identity: str) -> ResolvedOwnership:
         """Resolve the principal and vault for an identity."""
 
-    @abstractmethod
-    async def ensure_claimed_identity(self, *, identity: str, email: str) -> ResolvedOwnership:
-        """Claim an identity and resolve its principal and vault context."""
+    async def claim_identity_for_principal(self, *, identity: str, principal_id: str) -> ResolvedOwnership:
+        """Claim an identity for an authenticated principal."""
+        raise NotImplementedError
+
+
+async def ensure_principal_default_vault(
+    *,
+    principal_id: str,
+    vaults: VaultRegistry,
+    bindings: PrincipalVaultBindingRegistry,
+) -> str:
+    """Return the principal's default vault, creating it if needed."""
+    binding = await bindings.get_default_vault(principal_id)
+    if binding is None:
+        vault = await vaults.create_default()
+        binding = await bindings.bind_default(principal_id, vault.vault_id)
+    return binding.vault_id
 
 
 class LocalOwnershipResolver(OwnershipResolver):
@@ -52,14 +66,17 @@ class LocalOwnershipResolver(OwnershipResolver):
         self._bindings = bindings
 
     async def resolve(self, *, identity: str) -> ResolvedOwnership:
-        principal = await self._principals.get_or_create_by_email(LOCAL_PRINCIPAL_EMAIL)
-        binding = await self._bindings.get_default_vault(principal.principal_id)
-        if binding is None:
-            vault = await self._vaults.create_default()
-            binding = await self._bindings.bind_default(principal.principal_id, vault.vault_id)
-        return ResolvedOwnership(identity=identity, principal_id=principal.principal_id, vault_id=binding.vault_id)
+        principal = await self._principals.get_by_email(LOCAL_PRINCIPAL_EMAIL)
+        if principal is None:
+            principal = await self._principals.create_by_email(LOCAL_PRINCIPAL_EMAIL)
+        vault_id = await ensure_principal_default_vault(
+            principal_id=principal.principal_id,
+            vaults=self._vaults,
+            bindings=self._bindings,
+        )
+        return ResolvedOwnership(identity=identity, principal_id=principal.principal_id, vault_id=vault_id)
 
-    async def ensure_claimed_identity(self, *, identity: str, email: str) -> ResolvedOwnership:
+    async def claim_identity_for_principal(self, *, identity: str, principal_id: str) -> ResolvedOwnership:
         return await self.resolve(identity=identity)
 
 
@@ -88,12 +105,12 @@ class HostedOwnershipResolver(OwnershipResolver):
         binding = await self._bindings.require_default_vault(claim.principal_id)
         return ResolvedOwnership(identity=identity, principal_id=claim.principal_id, vault_id=binding.vault_id)
 
-    async def ensure_claimed_identity(self, *, identity: str, email: str) -> ResolvedOwnership:
-        principal = await self._principals.get_or_create_by_email(email)
-        binding = await self._bindings.get_default_vault(principal.principal_id)
-        if binding is None:
-            vault = await self._vaults.create_default()
-            binding = await self._bindings.bind_default(principal.principal_id, vault.vault_id)
-        await self._claims.claim_identity(identity, principal.principal_id)
+    async def claim_identity_for_principal(self, *, identity: str, principal_id: str) -> ResolvedOwnership:
+        vault_id = await ensure_principal_default_vault(
+            principal_id=principal_id,
+            vaults=self._vaults,
+            bindings=self._bindings,
+        )
+        await self._claims.claim_identity(identity, principal_id)
         await self._claims.accept_claim(identity)
-        return ResolvedOwnership(identity=identity, principal_id=principal.principal_id, vault_id=binding.vault_id)
+        return ResolvedOwnership(identity=identity, principal_id=principal_id, vault_id=vault_id)

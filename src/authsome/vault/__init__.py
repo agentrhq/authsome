@@ -5,9 +5,13 @@ from __future__ import annotations
 import builtins
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
+
+from key_value.aio._utils.compound import uncompound_key
+from loguru import logger
 
 from authsome.store.interfaces import AppStore
+from authsome.vault.crypto import VaultCrypto, create_crypto, create_rekey_crypto
 
 if TYPE_CHECKING:
     from authsome.vault.crypto import VaultCrypto
@@ -35,8 +39,6 @@ class Vault:
     @property
     def crypto(self) -> VaultCrypto:
         if self._crypto is None:
-            from authsome.vault.crypto import create_crypto
-
             self._crypto = create_crypto(self._master_key_path, self._crypto_mode)
         return self._crypto
 
@@ -107,6 +109,49 @@ class Vault:
         """Perform health check on underlying store."""
         _ = identity
         return await self._app_store.check_integrity()
+
+    async def rekey(self, new_key_bytes: bytes) -> None:
+        """Re-encrypt all encrypted keys in the underlying KV store using a new master key."""
+        old_crypto = self.crypto
+        old_crypto.assert_rekey_supported()
+
+        # 1. Create a new crypto instance using the new key
+        new_crypto = create_rekey_crypto(new_key_bytes)
+
+        # 2. Iterate over all entries in the underlying DiskStore cache
+        # DiskStore stores compound keys as collection::key
+        cache = cast(Any, self._app_store.kv)._cache
+        # Collect all keys first to avoid iterating while modifying
+        all_compound_keys = list(cache.iterkeys())
+
+        # Perform in-place re-encryption
+        reencrypted_count = 0
+        for comp_key in all_compound_keys:
+            try:
+                collection, key = uncompound_key(comp_key)
+            except Exception:
+                continue
+
+            if collection == "config" or key == "__index__":
+                continue
+
+            # Retrieve and decrypt the entry
+            val = await self._app_store.kv.get(key, collection=collection)
+            if val is not None and "data" in val:
+                ciphertext = val["data"]
+                # Decrypt with old crypto and re-encrypt with new crypto
+                plaintext = old_crypto.decrypt(ciphertext)
+                new_ciphertext = new_crypto.encrypt(plaintext)
+                # Store the re-encrypted value back
+                await self._app_store.kv.put(key, {"data": new_ciphertext}, collection=collection)
+                reencrypted_count += 1
+
+        # 3. Delegate persistence to the active backend
+        old_crypto.persist_rekeyed_key(new_key_bytes)
+
+        # 4. Clear the active crypto in memory so it reloads on next access
+        self._crypto = None
+        logger.info("Rekey completed successfully. Re-encrypted {} keys.", reencrypted_count)
 
     async def close(self) -> None:
         """Release resources."""

@@ -14,10 +14,10 @@ from authsome.auth.sessions import AuthSession, AuthSessionStatus, AuthSessionSt
 from authsome.server.analytics import capture_event
 from authsome.server.credential_service import AuthService
 from authsome.server.routes._deps import (
-    get_auth_service_for_identity,
     get_auth_sessions,
     get_protected_auth_service,
     get_server_base_url,
+    require_auth_service,
     resolve_ui_request_identity,
 )
 from authsome.server.schemas import (
@@ -51,6 +51,10 @@ async def _load_session_or_404(sessions: AuthSessionStore, session_id: str) -> A
         return await sessions.get(session_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Authentication session not found") from exc
+
+
+def _event_actor(session: AuthSession) -> str:
+    return session.identity or session.principal_id or "hosted-ui"
 
 
 @router.post("/sessions", response_model=AuthSessionResponse)
@@ -110,7 +114,7 @@ async def start_session(
         background_tasks.add_task(auth.background_resume, session)
     await sessions.index_oauth_state(session)
     capture_event(
-        session.identity,
+        _event_actor(session),
         "auth session started",
         {
             "provider": session.provider,
@@ -153,7 +157,7 @@ async def resume_session(
             session.state = AuthSessionStatus.COMPLETED
             session.status_message = "Login successful"
             capture_event(
-                session.identity,
+                _event_actor(session),
                 "auth session completed",
                 {
                     "provider": session.provider,
@@ -167,7 +171,7 @@ async def resume_session(
         session.error_message = str(exc)
         await sessions.save(session)
         capture_event(
-            session.identity,
+            _event_actor(session),
             "auth session failed",
             {
                 "provider": session.provider,
@@ -200,14 +204,19 @@ async def oauth_callback(
             status_code=401,
         )
     callback_data = dict(request.query_params)
-    auth = await get_auth_service_for_identity(request, session.identity)
+    auth = await require_auth_service(
+        request,
+        identity=session.identity,
+        principal_id=session.principal_id,
+        detail="Authentication session not found",
+    )
     try:
         await auth.resume_login_flow(session, callback_data)
         session.state = AuthSessionStatus.COMPLETED
         session.status_message = "Login successful"
         await sessions.save(session)
         capture_event(
-            session.identity,
+            _event_actor(session),
             "auth session completed",
             {
                 "provider": session.provider,
@@ -220,7 +229,7 @@ async def oauth_callback(
         session.error_message = str(exc)
         await sessions.save(session)
         capture_event(
-            session.identity,
+            _event_actor(session),
             "auth session failed",
             {
                 "provider": session.provider,
@@ -253,7 +262,12 @@ async def input_page(
             pages.message_page("Dashboard session expired", "Run 'authsome ui' to reopen the hosted dashboard."),
             status_code=401,
         )
-    auth = await get_auth_service_for_identity(request, session.identity)
+    auth = await require_auth_service(
+        request,
+        identity=session.identity,
+        principal_id=session.principal_id,
+        detail="Authentication session not found",
+    )
     definition = await auth.get_provider(session.provider)
     fields = session.payload.get("input_fields", [])
 
@@ -301,7 +315,12 @@ async def device_page(
         return HTMLResponse(
             pages.message_page("Invalid session", "This session does not have a device code."), status_code=400
         )
-    auth = await get_auth_service_for_identity(request, session.identity)
+    auth = await require_auth_service(
+        request,
+        identity=session.identity,
+        principal_id=session.principal_id,
+        detail="Authentication session not found",
+    )
     definition = await auth.get_provider(session.provider)
     return HTMLResponse(
         pages.device_code_page(definition.display_name, user_code, verification_uri, verification_uri_complete)
@@ -328,7 +347,12 @@ async def submit_input(
             pages.message_page("Dashboard session expired", "Run 'authsome ui' to reopen the hosted dashboard."),
             status_code=401,
         )
-    auth = await get_auth_service_for_identity(request, session.identity)
+    auth = await require_auth_service(
+        request,
+        identity=session.identity,
+        principal_id=session.principal_id,
+        detail="Authentication session not found",
+    )
     form = await request.form()
     inputs = {key: str(value) for key, value in form.items()}
 
@@ -352,7 +376,7 @@ async def submit_input(
         session.status_message = "Login successful"
         await sessions.save(session)
         capture_event(
-            session.identity,
+            _event_actor(session),
             "auth session completed",
             {
                 "provider": session.provider,

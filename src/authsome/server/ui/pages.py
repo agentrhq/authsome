@@ -27,6 +27,210 @@ def message_page(title: str, message: str) -> str:
 </html>"""
 
 
+def hosted_auth_page(
+    *,
+    next_url: str,
+    active_tab: str = "login",
+    identity: str | None = None,
+    error: str | None = None,
+) -> str:
+    """Generate the hosted sign-in/register page."""
+    title = "Claim identity" if identity else "Open dashboard"
+    subtitle = (
+        f"Sign in or create an account to claim <strong>{html.escape(identity)}</strong>."
+        if identity
+        else "Sign in or create an account to open your Authsome dashboard."
+    )
+    error_block = f'<p style="color:#ff7b72;margin:0 0 16px;">{html.escape(error)}</p>' if error else ""
+    register_hidden = "hidden" if active_tab == "login" else ""
+    login_hidden = "hidden" if active_tab == "register" else ""
+    login_active = "is-active" if active_tab == "login" else ""
+    register_active = "is-active" if active_tab == "register" else ""
+    auth_tabs = f"""
+        <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+          <button
+            class="auth-tab {login_active}"
+            type="button"
+            data-auth-tab="login"
+            role="tab"
+            aria-selected="{"true" if active_tab == "login" else "false"}"
+          >
+            Sign in
+          </button>
+          <button
+            class="auth-tab {register_active}"
+            type="button"
+            data-auth-tab="register"
+            role="tab"
+            aria-selected="{"true" if active_tab == "register" else "false"}"
+          >
+            Create account
+          </button>
+        </div>"""
+    register_panel = f"""
+        <div class="auth-panel" data-auth-panel="register" {register_hidden}>
+          <h2>Create account</h2>
+          {error_block if active_tab == "register" else ""}
+          <form method="post" action="/ui/auth/register">
+            <input type="hidden" name="next" value="{html.escape(next_url)}">
+            <label for="register-email">Email</label>
+            <input id="register-email" type="email" name="email" required>
+            <label for="register-password">Password</label>
+            <input id="register-password" type="password" name="password" required>
+            <button type="submit">Create account</button>
+          </form>
+        </div>"""
+    return f"""<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Authsome - {title}</title>
+    <style>{DARK_THEME_CSS}
+      :root {{ color-scheme: dark; }}
+      body {{
+        min-height: 100vh;
+        margin: 0;
+        background:
+          radial-gradient(circle at top, rgba(34, 197, 94, 0.18), transparent 34%),
+          linear-gradient(180deg, #031006 0%, #000 42%);
+      }}
+      main {{
+        max-width: 460px;
+        margin: 0 auto;
+        padding: 48px 20px;
+      }}
+      .auth-shell {{
+        border: 1px solid rgba(34, 197, 94, 0.25);
+        border-radius: 18px;
+        background: rgba(0, 0, 0, 0.92);
+        box-shadow: 0 28px 60px rgba(0, 0, 0, 0.55);
+        overflow: hidden;
+      }}
+      .auth-header {{
+        padding: 28px 28px 18px;
+        border-bottom: 1px solid rgba(34, 197, 94, 0.18);
+      }}
+      .auth-kicker {{
+        margin: 0 0 10px;
+        color: var(--accent);
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }}
+      .auth-header h1 {{ margin: 0 0 10px; }}
+      .auth-header p {{ margin: 0; color: var(--muted); }}
+      .auth-tabs {{
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding: 18px 28px 0;
+      }}
+      .auth-tab {{
+        appearance: none;
+        border: 1px solid rgba(34, 197, 94, 0.18);
+        border-radius: 999px;
+        background: rgba(8, 20, 10, 0.84);
+        color: var(--muted);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 600;
+        padding: 12px 16px;
+        transition: 140ms ease;
+      }}
+      .auth-tab:hover {{ border-color: rgba(34, 197, 94, 0.34); color: var(--text); }}
+      .auth-tab.is-active {{
+        background: linear-gradient(180deg, rgba(34, 197, 94, 0.18), rgba(10, 26, 12, 0.96));
+        border-color: rgba(34, 197, 94, 0.58);
+        color: #d3f9dd;
+        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.18);
+      }}
+      .auth-panel {{
+        padding: 24px 28px 28px;
+      }}
+      .auth-panel h2 {{ margin: 0 0 16px; font-size: 15px; font-weight: 600; }}
+      .auth-panel[hidden] {{ display: none; }}
+      .auth-panel button[type="submit"] {{ margin-top: 18px; width: 100%; }}
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="auth-shell">
+        <header class="auth-header">
+          <p class="auth-kicker">Authsome Hosted</p>
+          <h1>{title}</h1>
+          <p>{subtitle}</p>
+        </header>
+        {auth_tabs}
+        <div class="auth-panel" data-auth-panel="login" {login_hidden}>
+          <h2>Welcome back</h2>
+          {error_block if active_tab == "login" else ""}
+          <form method="post" action="/ui/auth/login">
+            <input type="hidden" name="next" value="{html.escape(next_url)}">
+            <label for="login-email">Email</label>
+            <input id="login-email" type="email" name="email" required>
+            <label for="login-password">Password</label>
+            <input id="login-password" type="password" name="password" required>
+            <button type="submit">Sign in</button>
+          </form>
+        </div>
+        {register_panel}
+      </section>
+    </main>
+    <script>
+      const tabs = document.querySelectorAll("[data-auth-tab]");
+      const panels = document.querySelectorAll("[data-auth-panel]");
+      function setTab(name) {{
+        tabs.forEach((tab) => {{
+          const active = tab.dataset.authTab === name;
+          tab.classList.toggle("is-active", active);
+          tab.setAttribute("aria-selected", active ? "true" : "false");
+        }});
+        panels.forEach((panel) => {{
+          panel.hidden = panel.dataset.authPanel !== name;
+        }});
+      }}
+      tabs.forEach((tab) => {{
+        tab.addEventListener("click", () => setTab(tab.dataset.authTab));
+      }});
+      setTab("{"register" if active_tab == "register" else "login"}");
+    </script>
+  </body>
+</html>"""
+
+
+def hosted_claim_auth_page(*, token: str, identity: str, error: str | None = None, active_tab: str = "login") -> str:
+    """Generate the hosted sign-in/register page for an identity claim."""
+    return hosted_auth_page(
+        next_url=f"/ui/claim/{html.escape(token)}",
+        active_tab=active_tab,
+        identity=identity,
+        error=error,
+    )
+
+
+def hosted_claim_confirm_page(*, token: str, identity: str, email: str) -> str:
+    """Generate the hosted identity-claim confirmation page."""
+    return f"""<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Authsome - Claim identity</title>
+    <style>{DARK_THEME_CSS}</style>
+  </head>
+  <body>
+    <main>
+      <h1>Claim identity</h1>
+      <p>Confirm claiming <strong>{html.escape(identity)}</strong> to <strong>{html.escape(email)}</strong>.</p>
+      <form method="post" action="/ui/claim/{html.escape(token)}/confirm">
+        <button type="submit">Claim identity</button>
+      </form>
+    </main>
+  </body>
+</html>"""
+
+
 def input_page(
     session_id: str,
     display_name: str,

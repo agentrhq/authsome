@@ -113,15 +113,17 @@ class PrincipalRegistry(_JsonRegistry[PrincipalRecord]):
         normalized = email.strip().lower()
         return next((r for r in self._load_all() if r.email == normalized), None)
 
-    async def get_or_create_by_email(self, email: str) -> PrincipalRecord:
+    async def create_by_email(self, email: str, *, password_hash: str | None = None) -> PrincipalRecord:
         normalized = email.strip().lower()
-        existing = await self.get_by_email(normalized)
-        if existing is not None:
-            return existing
+        if await self.get_by_email(normalized) is not None:
+            if password_hash is None:
+                raise ValueError(f"Principal '{normalized}' already exists")
+            raise ValueError(f"Hosted account '{normalized}' is already registered")
         now = utc_now()
         record = PrincipalRecord(
             principal_id=f"principal_{uuid.uuid4().hex[:12]}",
             email=normalized,
+            password_hash=password_hash,
             created_at=now,
             updated_at=now,
         )
@@ -129,6 +131,16 @@ class PrincipalRegistry(_JsonRegistry[PrincipalRecord]):
         records.append(record)
         self._save_all(records)
         return record
+
+    async def update_password(self, principal_id: str, *, password_hash: str) -> PrincipalRecord:
+        records = self._load_all()
+        for index, existing in enumerate(records):
+            if existing.principal_id != principal_id:
+                continue
+            records[index] = existing.model_copy(update={"password_hash": password_hash, "updated_at": utc_now()})
+            self._save_all(records)
+            return records[index]
+        raise ValueError(f"Principal '{principal_id}' not found")
 
 
 class VaultRegistry(_JsonRegistry[VaultRecord]):
@@ -165,6 +177,12 @@ class IdentityClaimRegistry(_JsonRegistry[IdentityClaimRecord]):
 
     async def resolve(self, identity_handle: str) -> IdentityClaimRecord | None:
         return next((r for r in self._load_all() if r.identity_handle == identity_handle), None)
+
+    async def list_for_principal(self, principal_id: str) -> list[IdentityClaimRecord]:
+        return sorted(
+            [r for r in self._load_all() if r.principal_id == principal_id and r.claim_status == ClaimStatus.ACCEPTED],
+            key=lambda record: record.identity_handle,
+        )
 
     async def require_claim(self, identity_handle: str) -> IdentityClaimRecord:
         claim = await self.resolve(identity_handle)

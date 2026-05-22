@@ -7,9 +7,11 @@ and avoids a separate static server.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from importlib.resources import files
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -28,7 +30,7 @@ from authsome.server.dependencies import (
 )
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
-    get_auth_service_for_identity,
+    get_auth_service,
     get_auth_sessions,
     get_protected_auth_service,
     get_server_base_url,
@@ -87,11 +89,37 @@ def _ui_policy() -> dict[str, Any]:
     }
 
 
-async def _resolve_ui_auth(request: Request) -> AuthService | None:
+class UiAuthRequiredError(Exception):
+    """Raised when a UI route needs to return an auth-related response."""
+
+    def __init__(self, response: Response) -> None:
+        self.response = response
+
+
+async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> AuthService:
     identity = await resolve_ui_request_identity(request)
-    if not identity:
-        return None
-    return await get_auth_service_for_identity(request, identity)
+    auth = await get_auth_service(
+        request,
+        identity=identity,
+        principal_id=getattr(request.state, "ui_principal_id", None),
+    )
+    if auth is not None:
+        return auth
+
+    if _is_hosted_ui():
+        target = _hosted_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
+        if request.method == "GET" and request.url.path == "/ui/":
+            raise UiAuthRequiredError(_hosted_auth_page_response(request.app.state.ui_sessions, next_url=target))
+        raise UiAuthRequiredError(RedirectResponse(url=_hosted_auth_entry_url(target), status_code=303))
+
+    raise UiAuthRequiredError(_ui_session_expired_response())
+
+
+def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitable[AuthService]]:
+    async def dependency(request: Request) -> AuthService:
+        return await _resolve_ui_auth(request, next_url=next_url)
+
+    return dependency
 
 
 def _ui_session_expired_response(status_code: int = 401) -> HTMLResponse:
@@ -101,15 +129,19 @@ def _ui_session_expired_response(status_code: int = 401) -> HTMLResponse:
     )
 
 
+def _hosted_auth_entry_url(next_url: str = "/ui/") -> str:
+    return f"/ui/?{urlencode({'next': _hosted_auth_next_url(next_url)})}"
+
+
 def _set_ui_session_cookie(
     response: Response,
-    session_id: str,
+    token: str,
     ui_sessions: UiSessionStore,
     server_base_url: str,
 ) -> None:
     response.set_cookie(
         UI_SESSION_COOKIE_NAME,
-        ui_sessions.build_cookie_value(session_id),
+        ui_sessions.build_cookie_value(token),
         httponly=True,
         secure=_ui_cookie_secure(server_base_url),
         samesite="lax",
@@ -121,11 +153,47 @@ def _clear_ui_session_cookie(response: Response) -> None:
     response.delete_cookie(UI_SESSION_COOKIE_NAME, path="/")
 
 
+def _hosted_auth_next_url(value: Any) -> str:
+    next_url = str(value or "/ui/").strip() or "/ui/"
+    if not next_url.startswith("/ui/"):
+        return "/ui/"
+    return next_url
+
+
+def _pending_claim_for_next_url(ui_sessions: UiSessionStore, next_url: str):
+    if not next_url.startswith("/ui/claim/"):
+        raise KeyError("Hosted auth request is not tied to a pending claim")
+    token = next_url.rstrip("/").rsplit("/", 1)[-1]
+    return ui_sessions.get_pending_claim(token)
+
+
+def _hosted_auth_page_response(
+    ui_sessions: UiSessionStore,
+    *,
+    next_url: str,
+    error: str | None = None,
+    active_tab: str = "login",
+) -> HTMLResponse:
+    next_url = _hosted_auth_next_url(next_url)
+    if next_url.startswith("/ui/claim/"):
+        pending = _pending_claim_for_next_url(ui_sessions, next_url)
+        page = pages.hosted_claim_auth_page(
+            token=pending.token,
+            identity=pending.identity,
+            error=error,
+            active_tab=active_tab,
+        )
+    else:
+        page = pages.hosted_auth_page(next_url=next_url, error=error, active_tab=active_tab)
+    return HTMLResponse(page, status_code=400 if error else 200)
+
+
 def _page_context(request: Request, page: str, **kwargs: Any) -> dict[str, Any]:
     return {
         "page": page,
         "version": __version__,
         "ui_identity": getattr(request.state, "ui_identity", None),
+        "ui_email": getattr(request.state, "ui_email", None),
         **_ui_policy(),
         **kwargs,
     }
@@ -323,10 +391,10 @@ def _build_connection_rows(providers: list[dict[str, Any]]) -> list[dict[str, An
 
 
 @router.get("/", response_class=HTMLResponse)
-async def overview(request: Request) -> HTMLResponse:
-    auth = await _resolve_ui_auth(request)
-    if auth is None:
-        return _ui_session_expired_response()
+async def overview(
+    request: Request,
+    auth: AuthService = Depends(require_ui_auth()),
+) -> HTMLResponse:
     providers = await _all_provider_views(auth)
     connected = [p for p in providers if p["status"] != "available"]
     available_count = len(providers) - len(connected)
@@ -370,10 +438,10 @@ async def overview(request: Request) -> HTMLResponse:
 
 
 @router.get("/applications", response_class=HTMLResponse)
-async def applications(request: Request) -> HTMLResponse:
-    auth = await _resolve_ui_auth(request)
-    if auth is None:
-        return _ui_session_expired_response()
+async def applications(
+    request: Request,
+    auth: AuthService = Depends(require_ui_auth("/ui/applications")),
+) -> Response:
     providers = [
         {
             **provider,
@@ -391,10 +459,10 @@ async def applications(request: Request) -> HTMLResponse:
 
 
 @router.get("/connections", response_class=HTMLResponse)
-async def connections(request: Request) -> HTMLResponse:
-    auth = await _resolve_ui_auth(request)
-    if auth is None:
-        return _ui_session_expired_response()
+async def connections(
+    request: Request,
+    auth: AuthService = Depends(require_ui_auth("/ui/connections")),
+) -> Response:
     providers = await _all_provider_views(auth)
     rows = _build_connection_rows(providers)
     return templates.TemplateResponse(
@@ -410,17 +478,22 @@ async def connections(request: Request) -> HTMLResponse:
 
 
 @router.get("/identity", response_class=HTMLResponse)
-async def identity_page(request: Request) -> HTMLResponse:
-    auth = await _resolve_ui_auth(request)
-    if auth is None:
-        return _ui_session_expired_response()
+async def identity_page(
+    request: Request,
+    auth: AuthService = Depends(require_ui_auth("/ui/identity")),
+) -> Response:
+    if _is_hosted_ui():
+        claims = await request.app.state.identity_claim_registry.list_for_principal(request.state.ui_principal_id)
+        identities = [{"handle": claim.identity_handle, "is_active": False} for claim in claims]
+    else:
+        identities = [{"handle": auth.identity, "is_active": True}]
     return templates.TemplateResponse(
         request,
         "identity.html",
         _page_context(
             request,
             "identity",
-            identities=[{"handle": auth.identity, "is_active": True}],
+            identities=identities,
             principal_id=auth.principal_id,
         ),
     )
@@ -430,11 +503,9 @@ async def identity_page(request: Request) -> HTMLResponse:
 async def app_detail(
     provider_name: str,
     request: Request,
+    auth: AuthService = Depends(require_ui_auth()),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
-    auth = await _resolve_ui_auth(request)
-    if auth is None:
-        return _ui_session_expired_response()
     provider = await auth.get_provider(provider_name)
     redirect_uri = build_callback_url(server_base_url)
     api_url = provider.api_url or (provider.oauth.base_url if provider.oauth else None) or provider.name
@@ -453,7 +524,7 @@ async def app_detail(
     client_record = await auth.get_provider_client(provider_name)
     grouped_connections = await _provider_connection_groups(
         request,
-        identity=auth.identity,
+        identity=auth.require_identity(),
         principal_id=auth.principal_id,
         provider_name=provider_name,
     )
@@ -478,10 +549,8 @@ async def connection_detail(
     provider_name: str,
     connection_name: str,
     request: Request,
+    auth: AuthService = Depends(require_ui_auth()),
 ) -> Response:
-    auth = await _resolve_ui_auth(request)
-    if auth is None:
-        return _ui_session_expired_response()
     provider = await auth.get_provider(provider_name)
     connection_record = await auth.get_connection(provider_name, connection_name)
     api_url = provider.api_url or (provider.oauth.base_url if provider.oauth else None) or provider.name
@@ -516,11 +585,9 @@ async def disconnect_app(
     provider_name: str,
     connection_name: str,
     request: Request,
+    auth: AuthService = Depends(require_ui_auth("/ui/connections")),
 ) -> Response:
     """Disconnect a provider connection from the dashboard."""
-    auth = await _resolve_ui_auth(request)
-    if auth is None:
-        return _redirect(request, "/ui/")
     await auth.logout(provider_name, connection_name)
     return _redirect(request, "/ui/connections")
 
@@ -530,13 +597,11 @@ async def connect_app(
     provider_name: str,
     request: Request,
     background_tasks: BackgroundTasks,
+    auth: AuthService = Depends(require_ui_auth()),
     sessions: AuthSessionStore = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
     """Start a provider connection from the dashboard."""
-    auth = await _resolve_ui_auth(request)
-    if auth is None:
-        return _redirect(request, "/ui/")
     form = await request.form()
     connection_name = str(form.get("connection") or form.get("connection_name") or "default")
     force = str(form.get("force", "false")).lower() in {"1", "true", "on", "yes"}
@@ -593,13 +658,11 @@ async def connect_app(
 async def configure_provider(
     provider_name: str,
     request: Request,
+    auth: AuthService = Depends(require_ui_auth()),
     sessions: AuthSessionStore = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
     """Open the provider configuration flow for deployment-scoped credentials."""
-    auth = await _resolve_ui_auth(request)
-    if auth is None:
-        return _redirect(request, "/ui/")
     provider = await auth.get_provider(provider_name)
     if provider.auth_type != AuthType.OAUTH2 or _is_hosted_ui():
         return _redirect(request, f"/ui/apps/{provider_name}")
@@ -625,35 +688,11 @@ async def configure_provider(
 @router.post("/session", response_model=UiBootstrapResponse)
 async def start_ui_session(
     auth: AuthService = Depends(get_protected_auth_service),
-    ui_sessions: UiSessionStore = Depends(get_ui_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> UiBootstrapResponse:
-    """Return a browser URL for opening the dashboard as the authenticated identity."""
-    if not _is_hosted_ui():
-        return UiBootstrapResponse(url=f"{server_base_url.rstrip('/')}/ui/")
-
-    bootstrap = ui_sessions.create_bootstrap(identity=auth.identity, principal_id=auth.principal_id or "")
-    return UiBootstrapResponse(url=f"{server_base_url.rstrip('/')}/ui/bootstrap/{bootstrap.token}")
-
-
-@router.get("/bootstrap/{token}", include_in_schema=False)
-async def consume_bootstrap(
-    token: str,
-    ui_sessions: UiSessionStore = Depends(get_ui_sessions),
-    server_base_url: str = Depends(get_server_base_url),
-) -> Response:
-    """Consume a one-time UI bootstrap token and set the browser session cookie."""
-    if not _is_hosted_ui():
-        return RedirectResponse(url="/ui/", status_code=303)
-
-    try:
-        session = ui_sessions.consume_bootstrap(token)
-    except KeyError:
-        return _ui_session_expired_response(status_code=404)
-
-    response = RedirectResponse(url="/ui/", status_code=303)
-    _set_ui_session_cookie(response, session.session_id, ui_sessions, server_base_url)
-    return response
+    """Return a browser URL for opening the dashboard."""
+    _ = auth
+    return UiBootstrapResponse(url=f"{server_base_url.rstrip('/')}/ui/")
 
 
 @router.post("/logout")
@@ -666,64 +705,100 @@ async def logout_ui_session(
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
     if cookie_value:
         try:
-            session = ui_sessions.get_session(cookie_value)
+            ui_sessions.delete_browser_session(cookie_value)
         except KeyError:
-            session = None
-        if session is not None:
-            ui_sessions.delete_session(session.session_id)
+            pass
     _clear_ui_session_cookie(response)
     return response
 
 
 @router.get("/claim/{token}", include_in_schema=False, response_class=HTMLResponse)
-async def claim_identity_page(token: str, ui_sessions: UiSessionStore = Depends(get_ui_sessions)) -> HTMLResponse:
+async def claim_identity_page(
+    token: str,
+    request: Request,
+    ui_sessions: UiSessionStore = Depends(get_ui_sessions),
+) -> HTMLResponse:
     try:
-        bootstrap = ui_sessions._claim_bootstraps[token]
+        pending = ui_sessions.get_pending_claim(token)
     except KeyError:
         return _ui_session_expired_response(status_code=404)
-    claim_form = (
-        f'<form method="post" action="/ui/claim/{token}">'
-        '<label for="email">Email</label>'
-        '<input id="email" type="email" name="email" required '
-        'style="display:block;margin:12px 0;padding:8px;width:100%;max-width:360px;">'
-        '<button type="submit">Claim identity</button>'
-        "</form></main>"
-    )
-    return HTMLResponse(
-        pages.message_page(
-            "Claim Identity",
-            (
-                f"Complete the claim for identity '{bootstrap.identity}' by submitting your email "
-                "to the claim form at this URL."
-            ),
-        ).replace("</main>", claim_form)
-    )
+
+    await resolve_ui_request_identity(request)
+    if _is_hosted_ui() and getattr(request.state, "ui_principal_id", None) is None:
+        return HTMLResponse(pages.hosted_claim_auth_page(token=token, identity=pending.identity))
+
+    email = getattr(request.state, "ui_email", None) or "this account"
+    return HTMLResponse(pages.hosted_claim_confirm_page(token=token, identity=pending.identity, email=email))
 
 
-@router.post("/claim/{token}", include_in_schema=False)
-async def claim_identity_submit(
-    token: str,
+@router.post("/auth/register", include_in_schema=False)
+async def register_hosted_account(
     request: Request,
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
+    form = await request.form()
+    email = str(form.get("email", "")).strip()
+    password = str(form.get("password", ""))
+    next_url = _hosted_auth_next_url(form.get("next"))
+
     try:
-        bootstrap = ui_sessions.consume_claim_bootstrap(token)
+        session = await request.app.state.hosted_account_service.register_and_login(email=email, password=password)
+    except ValueError as exc:
+        try:
+            return _hosted_auth_page_response(ui_sessions, next_url=next_url, error=str(exc), active_tab="register")
+        except KeyError:
+            return _ui_session_expired_response(status_code=404)
+
+    response = RedirectResponse(url=next_url, status_code=303)
+    _set_ui_session_cookie(response, session.token, ui_sessions, server_base_url)
+    return response
+
+
+@router.post("/auth/login", include_in_schema=False)
+async def login_hosted_account(
+    request: Request,
+    ui_sessions: UiSessionStore = Depends(get_ui_sessions),
+    server_base_url: str = Depends(get_server_base_url),
+) -> Response:
+    form = await request.form()
+    email = str(form.get("email", "")).strip()
+    password = str(form.get("password", ""))
+    next_url = _hosted_auth_next_url(form.get("next"))
+
+    try:
+        session = await request.app.state.hosted_account_service.login(email=email, password=password)
+    except ValueError as exc:
+        try:
+            return _hosted_auth_page_response(ui_sessions, next_url=next_url, error=str(exc), active_tab="login")
+        except KeyError:
+            return _ui_session_expired_response(status_code=404)
+
+    response = RedirectResponse(url=next_url, status_code=303)
+    _set_ui_session_cookie(response, session.token, ui_sessions, server_base_url)
+    return response
+
+
+@router.post("/claim/{token}/confirm", include_in_schema=False)
+async def claim_identity_confirm(
+    token: str,
+    request: Request,
+    ui_sessions: UiSessionStore = Depends(get_ui_sessions),
+) -> Response:
+    try:
+        pending = ui_sessions.get_pending_claim(token)
     except KeyError:
         return _ui_session_expired_response(status_code=404)
 
-    form = await request.form()
-    email = str(form.get("email", "")).strip()
-    if not email:
-        return HTMLResponse(pages.message_page("Claim failed", "Email is required."), status_code=400)
+    await resolve_ui_request_identity(request)
+    principal_id = getattr(request.state, "ui_principal_id", None)
+    if not principal_id:
+        return _ui_session_expired_response(status_code=401)
 
-    resolved = await request.app.state.ownership_resolver.ensure_claimed_identity(
-        identity=bootstrap.identity, email=email
+    pending = ui_sessions.consume_pending_claim(token)
+    await request.app.state.ownership_resolver.claim_identity_for_principal(
+        identity=pending.identity,
+        principal_id=principal_id,
     )
-    session = ui_sessions.create_session(
-        identity=bootstrap.identity,
-        principal_id=resolved.principal_id,
-    )
-    response = RedirectResponse(url="/ui/", status_code=303)
-    _set_ui_session_cookie(response, session.session_id, ui_sessions, server_base_url)
-    return response
+    request.app.state.ownership_cache.pop(pending.identity, None)
+    return RedirectResponse(url="/ui/", status_code=303)

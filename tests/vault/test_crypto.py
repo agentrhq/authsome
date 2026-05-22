@@ -2,11 +2,13 @@
 
 import base64
 import sys
+import uuid
 from pathlib import Path
 from types import ModuleType
 
 import pytest
 
+import authsome.vault.crypto as vault_crypto
 from authsome.vault.crypto import EnvVarCrypto, KeyringCrypto, LocalFileCrypto, _decode, _encode, create_crypto
 
 
@@ -117,6 +119,12 @@ class TestKeyringCrypto:
     These tests attempt to use the real OS keyring. They may be skipped
     in headless CI environments where no keyring backend is available.
     """
+
+    @pytest.fixture(autouse=True)
+    def isolate_keyring_namespace(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        suffix = uuid.uuid4().hex
+        monkeypatch.setattr(vault_crypto, "_KEYRING_SERVICE", f"authsome-test-{suffix}")
+        monkeypatch.setattr(vault_crypto, "_KEYRING_USERNAME", f"master-key-{suffix}")
 
     @pytest.fixture
     def crypto(self) -> KeyringCrypto:

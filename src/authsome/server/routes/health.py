@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+import secrets
 from typing import Literal, cast
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from authsome import __version__
 from authsome.server.credential_service import AuthService
@@ -109,6 +111,24 @@ async def ready(
     )
 
 
+_rekey_lock = asyncio.Lock()
+
+
+@router.post("/rekey")
+async def rekey(
+    request: Request,
+    auth: AuthService = Depends(get_protected_auth_service),
+) -> dict[str, str]:
+    _ = request
+    async with _rekey_lock:
+        new_key_bytes = secrets.token_bytes(32)
+        try:
+            await auth.vault.rekey(new_key_bytes)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"status": "ok", "message": "Master key successfully rotated"}
+
+
 @router.get("/whoami")
 async def whoami(
     request: Request,
@@ -116,11 +136,12 @@ async def whoami(
     server_base_url: str = Depends(get_server_base_url),
 ) -> dict[str, str]:
     effective_source, backend_description = _describe_vault_encryption(auth.vault)
+    identity = auth.require_identity()
     return {
         "version": __version__,
         "home": str(request.app.state.store.home),
-        "identity": auth.identity,
-        "active_identity": auth.identity,
+        "identity": identity,
+        "active_identity": identity,
         "principal_id": getattr(request.state, "principal_id", ""),
         "vault_id": getattr(request.state, "vault_id", ""),
         "did": getattr(request.state, "did", ""),

@@ -69,7 +69,7 @@
             {% if show_hosted_identity %}
             <div class="topbar-meta">
                 <span class="pill pill-accent">Hosted</span>
-                <span class="meta">Signed in as {{ ui_identity }}</span>
+                <span class="meta">Signed in as {{ ui_email or ui_identity }}</span>
             </div>
             {% endif %}
             <div class="topbar-actions">

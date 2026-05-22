@@ -31,7 +31,7 @@ async def register_provider(body: dict, auth: AuthService = Depends(get_protecte
     definition = ProviderDefinition.model_validate(definition_payload)
     await auth.register_provider(definition, force=bool(body.get("force", False)))
     capture_event(
-        auth.identity,
+        auth.require_identity(),
         "provider registered",
         {
             "provider": definition.name,
@@ -46,7 +46,7 @@ async def register_provider(body: dict, auth: AuthService = Depends(get_protecte
 async def delete_provider(provider: str, auth: AuthService = Depends(get_protected_auth_service)):
     await auth.remove(provider)
     capture_event(
-        auth.identity,
+        auth.require_identity(),
         "provider deleted",
         {
             "provider": provider,

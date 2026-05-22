@@ -73,13 +73,11 @@ class AuthService:
     def __init__(
         self,
         vault: Vault,
-        identity: str,
+        identity: str | None = None,
         principal_id: str | None = None,
         vault_id: str | None = None,
         deployment_mode: str = "local",
     ) -> None:
-        if not identity:
-            raise ValueError("AuthService requires an explicit identity handle")
         self._vault = vault
         self._identity = identity
         self._principal_id = principal_id
@@ -104,7 +102,13 @@ class AuthService:
         return self._vault
 
     @property
-    def identity(self) -> str:
+    def identity(self) -> str | None:
+        return self._identity
+
+    def require_identity(self) -> str:
+        """Return the PoP-authenticated identity handle for identity-scoped routes."""
+        if self._identity is None:
+            raise ValueError("AuthService identity is required for this operation")
         return self._identity
 
     @property
@@ -308,7 +312,11 @@ class AuthService:
         key = build_store_key(vault=self._vault_id, provider=provider, record_type="connection", connection=connection)
         record_json = await self._vault.get(key, collection=self._coll)
         if not record_json:
-            raise ConnectionNotFoundError(provider=provider, connection=connection, identity=self._identity)
+            raise ConnectionNotFoundError(
+                provider=provider,
+                connection=connection,
+                identity=self._identity or self._principal_id or "hosted-ui",
+            )
         record = self._load_connection_record(record_json, key)
         if record is None:
             raise AuthsomeError(
@@ -857,7 +865,7 @@ class AuthService:
     async def get_identity(self, name: str) -> str:
         if name != self._identity:
             raise IdentityNotFoundError(name)
-        return self._identity
+        return self.require_identity()
 
     # ── Internal helpers ──────────────────────────────────────────────────
 

@@ -34,7 +34,7 @@ async def get_connection(provider: str, connection: str, auth: AuthService = Dep
 async def logout(provider: str, connection: str, auth: AuthService = Depends(get_protected_auth_service)):
     await auth.logout(provider, connection)
     capture_event(
-        auth.identity,
+        auth.require_identity(),
         "connection logout",
         {
             "provider": provider,
@@ -55,7 +55,7 @@ async def revoke(
     vault_ids: list[str] = [v.vault_id for v in all_vaults] or ([auth.vault_id] if auth.vault_id else [])
     await auth.revoke(provider, vault_ids=vault_ids)
     capture_event(
-        auth.identity,
+        auth.require_identity(),
         "connection revoked",
         {
             "provider": provider,
@@ -82,7 +82,7 @@ async def export_credentials(body: dict, auth: AuthService = Depends(get_protect
     export_format = ExportFormat(body.get("format", "env"))
     result = await auth.export(provider, connection, format=export_format)
     capture_event(
-        auth.identity,
+        auth.require_identity(),
         "credentials exported",
         {
             "provider": provider,

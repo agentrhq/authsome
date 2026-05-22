@@ -264,6 +264,9 @@ class AuthsomeApiClient:
     async def whoami(self) -> dict[str, Any]:
         return await self._get("/whoami")
 
+    async def rekey(self) -> dict[str, Any]:
+        return await self._post("/rekey", {})
+
     async def doctor(self) -> dict[str, Any]:
         return await self.ready()
 

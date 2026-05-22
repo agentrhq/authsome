@@ -87,12 +87,12 @@ class HostedIdentityBootstrapService(IdentityBootstrapService):
     async def _build_status(self, registration: IdentityRegistration) -> IdentityBootstrapStatus:
         claim = await self._claims.resolve(registration.handle)
         if claim is None:
-            bootstrap = self._ui_sessions.create_claim_bootstrap(identity=registration.handle)
+            pending = self._ui_sessions.create_pending_claim(identity=registration.handle)
             return IdentityBootstrapStatus(
                 identity=registration.handle,
                 did=registration.did,
                 registration_status="claim_required",
-                claim_url=f"{self._server_base_url}/ui/claim/{bootstrap.token}",
+                claim_url=f"{self._server_base_url}/ui/claim/{pending.token}",
             )
         if claim.claim_status == ClaimStatus.ACCEPTED:
             return IdentityBootstrapStatus(

@@ -1,6 +1,7 @@
 import asyncio
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi.testclient import TestClient
 
@@ -29,6 +30,13 @@ def _register_identity(client: TestClient, tmp_path: Path, handle: str) -> None:
     identity = create_identity(tmp_path, handle)
     response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == 200
+
+
+def _register_identity_for_claim(client: TestClient, tmp_path: Path, handle: str) -> str:
+    identity = create_identity(tmp_path, handle)
+    response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
+    assert response.status_code == 200
+    return urlparse(response.json()["claim_url"]).path
 
 
 def _seed_connection(
@@ -158,6 +166,43 @@ def test_identity_page_renders_informational_identity_view(monkeypatch, tmp_path
     assert response.status_code == 200
     assert "Identity" in response.text
     assert "steady-wisely-boldly-0042" in response.text
+
+
+def test_hosted_identity_page_lists_all_account_claims(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
+
+    with TestClient(create_app()) as client:
+        first_claim = _register_identity_for_claim(client, tmp_path, "steady-wisely-boldly-0042")
+        registered = client.post(
+            "/ui/auth/register",
+            data={"email": "dev@example.com", "password": "password-1", "next": first_claim},
+            follow_redirects=False,
+        )
+        assert registered.status_code == 303
+        assert client.post(f"{first_claim}/confirm", follow_redirects=False).status_code == 303
+
+        second_claim = _register_identity_for_claim(client, tmp_path, "brave-softly-surely-0043")
+        assert "dev@example.com" in client.get(second_claim).text
+        assert client.post(f"{second_claim}/confirm", follow_redirects=False).status_code == 303
+
+        response = client.get("/ui/identity")
+
+    assert response.status_code == 200
+    assert "Signed in as dev@example.com" in response.text
+    assert "steady-wisely-boldly-0042" in response.text
+    assert "brave-softly-surely-0043" in response.text
+
+
+def test_hosted_applications_redirects_to_ui_login_entry(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
+
+    with TestClient(create_app()) as client:
+        response = client.get("/ui/applications", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/ui/?next=%2Fui%2Fapplications"
 
 
 def test_provider_page_shows_provider_configuration_not_connection_tokens(monkeypatch, tmp_path: Path) -> None:
