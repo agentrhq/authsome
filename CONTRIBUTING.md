@@ -54,6 +54,9 @@ Use Google-style docstrings for all public interfaces. Inline comments should ex
 **Update docs alongside code.**
 If you change behavior, update the relevant docstring, `README.md`, or this file in the same commit. Documentation debt accumulates faster than technical debt and is harder to pay down later.
 
+**Keep the top-level CLI agent-first.**
+The default `authsome --help` surface should stay focused on the core agent workflow (`init`, `login`, `run`, discovery, and connection management). Operator-oriented, debugging, or browser-heavy commands should live under an advanced subgroup or an equally explicit opt-in surface rather than crowding the top level.
+
 ---
 
 ## AI-assisted development

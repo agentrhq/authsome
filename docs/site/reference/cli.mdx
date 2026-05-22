@@ -5,12 +5,13 @@ description: "Every authsome command, flag, and exit code."
 
 All commands support `--json` for machine-readable output, `--quiet` to suppress non-essential output, and `--no-color` to disable ANSI colors.
 
+The top-level CLI is agent-first: `authsome --help` shows the core commands an agent is expected to learn first. Operator-oriented and human-facing workflows live under `authsome advanced ...`. Hidden legacy aliases such as `authsome rekey` and `authsome daemon status` still work for backward compatibility.
+
 ## Commands at a glance
 
 | Command | Description |
 |---------|-------------|
 | `whoami` | Show local identity context and encryption mode. |
-| `doctor` | Run health checks on identity, providers, vault, and store integrity. |
 | `list` | List all providers (bundled and custom) and their connection states. |
 | `inspect <provider>` | Show the full provider definition and any connections. |
 | `login <provider>` | Authenticate with a provider using its configured flow. |
@@ -20,13 +21,8 @@ All commands support `--json` for machine-readable output, `--quiet` to suppress
 | `scan` | Discover provider API keys in env files and the current environment. |
 | `logout <provider>` | Log out of a connection and remove local state. |
 | `revoke <provider>` | Reset all connections and client secrets for the provider. |
-| `remove <provider>` | Uninstall a custom provider or reset a bundled one. |
-| `register <path>` | Register a custom provider from a JSON file. |
 | `set-default <provider> <connection>` | Set the default connection for a provider. |
-| `profile` | Manage local profiles backed by identity keys. |
-| `ui` | Open the dashboard in the browser. |
-| `log` | View structured audit entries. |
-| `daemon <subcommand>` | Manage the local daemon: `serve`, `start`, `stop`, `restart`, `status`, `logs`. |
+| `advanced <subcommand>` | Access `daemon`, `doctor`, `log`, `profile`, `register`, `rekey`, `remove`, and `ui`. |
 
 ## Global flags
 
@@ -41,24 +37,11 @@ All commands support `--json` for machine-readable output, `--quiet` to suppress
 
 ## Command details
 
-### `whoami` / `doctor`
+### `whoami`
 
 ```bash
 authsome whoami           # show identity context and encryption mode
-authsome doctor           # run health checks
-authsome doctor --json    # structured output for monitoring
 ```
-
-`doctor` runs six checks and exits `0` when all pass:
-
-| Check | What it verifies |
-|-------|-----------------|
-| `spec_version` | Server spec version is compatible |
-| `identity` | Active identity key is present and readable |
-| `providers` | Provider registry loads without error |
-| `connections` | Connection store is accessible |
-| `vault` | Vault roundtrip (put / get / delete) succeeds |
-| `integrity` | Store integrity check passes |
 
 ### `list` / `inspect`
 
@@ -194,34 +177,83 @@ Sets the default connection for a provider. The proxy and library calls use the 
 authsome set-default github work
 ```
 
-### `profile`
+### `advanced`
+
+Advanced and operator-oriented commands live under `authsome advanced ...`.
 
 ```bash
-authsome profile create   # create a new local profile keypair
-authsome profile use      # switch the active local profile
+authsome advanced doctor
+authsome advanced log --json
+authsome advanced rekey
+authsome advanced daemon status
+```
+
+The following advanced commands also remain available through hidden legacy top-level aliases:
+
+- `doctor`
+- `log`
+- `profile`
+- `register`
+- `rekey`
+- `remove`
+- `ui`
+- `daemon`
+
+#### `doctor`
+
+```bash
+authsome advanced doctor           # run health checks
+authsome advanced doctor --json    # structured output for monitoring
+```
+
+`doctor` runs six checks and exits `0` when all pass:
+
+| Check | What it verifies |
+|-------|-----------------|
+| `spec_version` | Server spec version is compatible |
+| `identity` | Active identity key is present and readable |
+| `providers` | Provider registry loads without error |
+| `connections` | Connection store is accessible |
+| `vault` | Vault roundtrip (put / get / delete) succeeds |
+| `integrity` | Store integrity check passes |
+
+#### `profile`
+
+```bash
+authsome advanced profile create   # create a new local profile keypair
+authsome advanced profile use      # switch the active local profile
 ```
 
 Profiles are backed by Ed25519 identity keys at `~/.authsome/identities/`. Each profile has its own credential namespace in the vault. See [Profiles vs Connections](/concepts/profiles-vs-connections) for the distinction.
 
-### `ui`
+#### `rekey`
 
 ```bash
-authsome ui [--no-browser]
+authsome advanced rekey
+authsome advanced rekey --json
+```
+
+Rotates the vault master key and re-encrypts all stored credentials in place.
+
+#### `ui`
+
+```bash
+authsome advanced ui [--no-browser]
 ```
 
 Opens the daemon dashboard in your default browser at `http://127.0.0.1:7998/ui/`. Pass `--no-browser` to just print the URL.
 
-### `daemon`
+#### `daemon`
 
 Daemon lifecycle management. The CLI normally auto-starts the daemon on first use; these subcommands let you control it explicitly (useful for systemd units, debugging, and CI).
 
 ```bash
-authsome daemon serve [--host 127.0.0.1] [--port 7998] [--reload]
-authsome daemon start
-authsome daemon stop
-authsome daemon restart
-authsome daemon status
-authsome daemon logs [-n 100]
+authsome advanced daemon serve [--host 127.0.0.1] [--port 7998] [--reload]
+authsome advanced daemon start
+authsome advanced daemon stop
+authsome advanced daemon restart
+authsome advanced daemon status
+authsome advanced daemon logs [-n 100]
 ```
 
 - `serve` runs the daemon in the foreground (blocks the terminal).
@@ -229,24 +261,32 @@ authsome daemon logs [-n 100]
 - `status` prints health, PID file path, and log file path as JSON.
 - `logs` tails the daemon log file.
 
-### `logout` / `revoke` / `remove`
+### `logout` / `revoke`
 
 | Command | Local state | Remote provider |
 |---------|-------------|-----------------|
 | `logout` | Removes the connection record | Not contacted |
 | `revoke` | Removes all connections + client credentials | Calls revocation endpoint where supported |
-| `remove` | Removes the provider entirely (custom) or resets to bundled default (bundled) | Not contacted |
 
 ```bash
 authsome logout github --connection work
 authsome revoke github
-authsome remove acmecrm
 ```
 
-### `register`
+#### `remove`
+
+| Command | Local state | Remote provider |
+|---------|-------------|-----------------|
+| `remove` | Removes the provider entirely (custom) or resets to bundled default (bundled) | Not contacted |
 
 ```bash
-authsome register <path/to/provider.json> [OPTIONS]
+authsome advanced remove acmecrm
+```
+
+#### `register`
+
+```bash
+authsome advanced register <path/to/provider.json> [OPTIONS]
 ```
 
 | Option | Description |
@@ -257,21 +297,21 @@ authsome register <path/to/provider.json> [OPTIONS]
 Validates the JSON, copies it into `~/.authsome/providers/`, and confirms the new provider appears in `authsome list`.
 
 ```bash
-authsome register ./acme.json             # prompt before registering
-authsome register ./acme.json --force     # overwrite existing, no prompt
-authsome register ./acme.json --yes       # skip prompt, fail if already exists
+authsome advanced register ./acme.json             # prompt before registering
+authsome advanced register ./acme.json --force     # overwrite existing, no prompt
+authsome advanced register ./acme.json --yes       # skip prompt, fail if already exists
 ```
 
 See [Custom providers](/guides/custom-providers) for full templates.
 
-### `log`
+#### `log`
 
 ```bash
-authsome log              # last 50 structured audit entries
-authsome log -n 200       # last 200 entries
-authsome log --json       # entries as a parsed JSON array
-authsome log --raw        # raw client debug log (loguru format)
-authsome log --raw -n 20  # last 20 lines of the client debug log
+authsome advanced log              # last 50 structured audit entries
+authsome advanced log -n 200       # last 200 entries
+authsome advanced log --json       # entries as a parsed JSON array
+authsome advanced log --raw        # raw client debug log (loguru format)
+authsome advanced log --raw -n 20  # last 20 lines of the client debug log
 ```
 
 Reads from `~/.authsome/server/logs/authsome.log` (the server-side structured audit log). Each entry records actions like `login`, `logout`, `revoke`, `export`, and `get --show-secret`, with fields: `timestamp`, `event`, `provider`, `connection`, `identity`, `status`.

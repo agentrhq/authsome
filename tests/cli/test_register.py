@@ -64,10 +64,10 @@ class TestRegisterCommand:
     ) -> None:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
         confirm_called = []
-        monkeypatch.setattr("authsome.cli.main.click.confirm", lambda *a, **kw: confirm_called.append(True))
+        monkeypatch.setattr("authsome.cli.advanced.click.confirm", lambda *a, **kw: confirm_called.append(True))
 
         # Patch requests.head to avoid real network call
-        monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
+        monkeypatch.setattr("authsome.cli.advanced.requests.head", lambda *a, **kw: MagicMock())
 
         result = runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes"])
         assert result.exit_code == 0, result.output
@@ -77,7 +77,7 @@ class TestRegisterCommand:
         self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
-        monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
+        monkeypatch.setattr("authsome.cli.advanced.requests.head", lambda *a, **kw: MagicMock())
 
         runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes"])
         mock_client.register_provider.assert_called_once()
@@ -88,7 +88,7 @@ class TestRegisterCommand:
         self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
-        monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
+        monkeypatch.setattr("authsome.cli.advanced.requests.head", lambda *a, **kw: MagicMock())
 
         runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes", "--force"])
         call_kwargs = mock_client.register_provider.call_args.kwargs
@@ -124,7 +124,7 @@ class TestRegisterCommand:
         self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
-        monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
+        monkeypatch.setattr("authsome.cli.advanced.requests.head", lambda *a, **kw: MagicMock())
 
         result = runner.invoke(cli, ["--log-file", "", "register", str(path), "--yes", "--json"])
         assert result.exit_code == 0
