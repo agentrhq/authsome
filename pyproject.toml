@@ -44,15 +44,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-browser = []
-dev = [
-    "pytest>=7.0",
-    "pytest-asyncio>=1.3.0",
-    "pytest-cov>=4.0",
-    "ruff>=0.9",
-    "ty",
-    "httpx>=0.28.1",
-]
+
+dev = []
 
 [project.scripts]
 authsome = "authsome.cli.main:cli"

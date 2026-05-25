@@ -24,7 +24,7 @@ from __future__ import annotations
 import platform
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from loguru import logger
 
@@ -141,6 +141,16 @@ def _build_launch_kwargs(
 def _is_login_url(url: str) -> bool:
     lower = url.lower()
     return any(p in lower for p in _LOGIN_URL_PATTERNS)
+
+
+class _BrowserPollKwargs(TypedDict):
+    extract_rules: list[dict[str, Any]]
+    domains: list[str]
+    ttl_from_cookie: str | None
+    validate_url: str | None
+    extra_headers: dict[str, str]
+    chrome_exec: str | None
+    network_proxy: str | None
 
 
 # ---------------------------------------------------------------------------
@@ -594,15 +604,15 @@ def run_browser_login(
     chrome_exec: str | None = action.get("browser_exec") or _find_chrome_exec()
     data_dir = _browser_data_dir(action.get("browser_data_dir"))
 
-    poll_kwargs = dict(
-        extract_rules=extract_rules,
-        domains=domains,
-        ttl_from_cookie=ttl_from_cookie,
-        validate_url=validate_url,
-        extra_headers=extra_headers,
-        chrome_exec=chrome_exec,
-        network_proxy=network_proxy,
-    )
+    poll_kwargs: _BrowserPollKwargs = {
+        "extract_rules": extract_rules,
+        "domains": domains,
+        "ttl_from_cookie": ttl_from_cookie,
+        "validate_url": validate_url,
+        "extra_headers": extra_headers,
+        "chrome_exec": chrome_exec,
+        "network_proxy": network_proxy,
+    }
 
     if login_mode == "visible":
         result = _try_visible_login(provider_name, entry_url, data_dir, **poll_kwargs, timeout_s=timeout_s)
