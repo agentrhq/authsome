@@ -37,7 +37,7 @@ class ConnectionRecord(BaseModel):
 
     schema_version: int = 2
     provider: str
-    identity: str
+    identity: str | None = None
     principal_id: str | None = None
     vault_id: str | None = None
     connection_name: str
@@ -77,7 +77,7 @@ class ProviderMetadataRecord(BaseModel):
     """
 
     schema_version: int = 2
-    identity: str
+    identity: str | None = None
     principal_id: str | None = None
     vault_id: str | None = None
     provider: str
@@ -98,7 +98,7 @@ class ProviderStateRecord(BaseModel):
 
     schema_version: int = 2
     provider: str
-    identity: str
+    identity: str | None = None
     principal_id: str | None = None
     vault_id: str | None = None
     last_refresh_at: datetime | None = None

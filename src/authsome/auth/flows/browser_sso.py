@@ -102,6 +102,12 @@ class BrowserSSOFlow(AuthFlow):
             except (ValueError, OSError):
                 pass
 
+        if not identity:
+            raise AuthenticationFailedError(
+                "Browser SSO resume requires an identity",
+                provider=provider.name,
+            )
+
         if expires_at is None:
             ttl_delta = _parse_ttl_duration(provider.browser_sso.ttl if provider.browser_sso else None)
             expires_at = now + ttl_delta if ttl_delta is not None else None
