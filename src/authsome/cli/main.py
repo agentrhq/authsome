@@ -34,7 +34,7 @@ from authsome.cli.helpers import (
     setup_logging,
 )
 from authsome.paths import get_client_log_path, get_server_log_path
-from authsome.utils import connection_is_active, format_error_code, format_expires_at, redact
+from authsome.utils import connection_is_active, format_expires_at, redact
 
 
 @click.group()
@@ -674,8 +674,7 @@ async def get(ctx_obj: ContextObj, provider: str, connection: str, field: str | 
             else:
                 ctx_obj.echo(str(data[field]))
         else:
-            ctx_obj.echo(f"Field '{field}' not found.", err=True, color="red")
-            sys.exit(1)
+            raise ValueError(f"Field '{field}' not found.")
         return
 
     if show_secret:
@@ -779,70 +778,63 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
     actx = await ctx_obj.initialize()
     filepath = pathlib.Path(path)
     if not filepath.exists():
-        ctx_obj.echo(f"File not found: {path}", err=True, color="red")
-        sys.exit(1)
+        raise ValueError(f"File not found: {path}")
 
-    try:
-        data = json_lib.loads(filepath.read_text(encoding="utf-8"))
-        from authsome.auth.models.provider import ProviderDefinition
+    data = json_lib.loads(filepath.read_text(encoding="utf-8"))
 
-        definition = ProviderDefinition.model_validate(data)
+    definition = ProviderDefinition.model_validate(data)
 
-        # 1. Extract and validate endpoints
-        endpoints_to_check = _validate_provider_endpoints(definition, ctx_obj)
+    # 1. Extract and validate endpoints
+    endpoints_to_check = _validate_provider_endpoints(definition)
 
-        # 3. Confirmation prompt — --force implies --yes (skip prompt, override existing)
-        if not ctx_obj.json_output and not ctx_obj.quiet and not yes and not force:
-            ctx_obj.echo(f"Registering '{definition.name}' provider:")
-            for name, val, _ in endpoints_to_check:
-                ctx_obj.echo(f"  - {name}: {val}")
+    # 3. Confirmation prompt — --force implies --yes (skip prompt, override existing)
+    if not ctx_obj.json_output and not ctx_obj.quiet and not yes and not force:
+        ctx_obj.echo(f"Registering '{definition.name}' provider:")
+        for name, val, _ in endpoints_to_check:
+            ctx_obj.echo(f"  - {name}: {val}")
 
-            if definition.oauth and definition.oauth.token_url:
-                prompt_msg = f"Register '{definition.name}' with token endpoint {definition.oauth.token_url}? [y/N]"
-            elif definition.api_url:
-                prompt_msg = f"Register '{definition.name}' with host {definition.api_url}? [y/N]"
-            else:
-                prompt_msg = f"Register '{definition.name}' provider? [y/N]"
-
-            if not click.confirm(prompt_msg, default=False):
-                ctx_obj.echo("Registration aborted.", color="yellow")
-                sys.exit(0)
-
-        await actx.runtime_client.register_provider(definition.model_dump(mode="json"), force=force)
-
-        endpoints = [ep for _, ep, _ in endpoints_to_check]
-        logger.info("client_event event=register provider={} endpoints={}", definition.name, endpoints)
-
-        if ctx_obj.json_output:
-            ctx_obj.print_json({"status": "registered", "provider": definition.name})
+        if definition.oauth and definition.oauth.token_url:
+            prompt_msg = f"Register '{definition.name}' with token endpoint {definition.oauth.token_url}? [y/N]"
+        elif definition.api_url:
+            prompt_msg = f"Register '{definition.name}' with host {definition.api_url}? [y/N]"
         else:
-            ctx_obj.echo(f"Provider {definition.name} registered.", color="green")
+            prompt_msg = f"Register '{definition.name}' provider? [y/N]"
 
-        # 4. Post-registration connectivity check
+        if not click.confirm(prompt_msg, default=False):
+            ctx_obj.echo("Registration aborted.", color="yellow")
+            sys.exit(0)
 
-        warnings = []
-        for name, val, is_host in endpoints_to_check:
-            if name not in ("api_url", "authorization_url"):
-                continue
+    await actx.runtime_client.register_provider(definition.model_dump(mode="json"), force=force)
 
-            target = val
-            if is_host and "://" not in target:
-                target = f"https://{target}"
+    endpoints = [ep for _, ep, _ in endpoints_to_check]
+    logger.info("client_event event=register provider={} endpoints={}", definition.name, endpoints)
 
-            if not ctx_obj.quiet:
-                ctx_obj.echo(f"Testing reachability for {name}...", color="cyan")
-            try:
-                requests.head(target, timeout=5, allow_redirects=True)
-            except requests.RequestException as e:
-                warnings.append(f"{name} ({val}) is unreachable: {e}")
+    if ctx_obj.json_output:
+        ctx_obj.print_json({"status": "registered", "provider": definition.name})
+    else:
+        ctx_obj.echo(f"Provider {definition.name} registered.", color="green")
 
-        if warnings and not ctx_obj.quiet:
-            for w in warnings:
-                ctx_obj.echo(f"Warning: {w}", color="yellow")
+    # 4. Post-registration connectivity check
 
-    except Exception as exc:
-        ctx_obj.echo(f"Failed to register provider: {exc}", err=True, color="red")
-        sys.exit(format_error_code(exc))
+    warnings = []
+    for name, val, is_host in endpoints_to_check:
+        if name not in ("api_url", "authorization_url"):
+            continue
+
+        target = val
+        if is_host and "://" not in target:
+            target = f"https://{target}"
+
+        if not ctx_obj.quiet:
+            ctx_obj.echo(f"Testing reachability for {name}...", color="cyan")
+        try:
+            requests.head(target, timeout=5, allow_redirects=True)
+        except requests.RequestException as e:
+            warnings.append(f"{name} ({val}) is unreachable: {e}")
+
+    if warnings and not ctx_obj.quiet:
+        for w in warnings:
+            ctx_obj.echo(f"Warning: {w}", color="yellow")
 
 
 @cli.command()
@@ -1119,9 +1111,8 @@ async def daemon_start(ctx_obj: ContextObj) -> None:
     except DaemonAlreadyRunningError as exc:
         pid_str = f" (PID: {exc.pid})" if exc.pid else ""
         ctx_obj.echo(f"Daemon is already running{pid_str}.", color="yellow")
-    except DaemonUnavailableError as exc:
-        ctx_obj.echo(str(exc), err=True, color="red")
-        sys.exit(1)
+    except DaemonUnavailableError:
+        raise
 
 
 @daemon.command(name="stop")
@@ -1164,9 +1155,8 @@ async def daemon_restart(ctx_obj: ContextObj) -> None:
     except DaemonAlreadyRunningError as exc:
         pid_str = f" (PID: {exc.pid})" if exc.pid else ""
         ctx_obj.echo(f"Daemon is already running{pid_str}.", color="yellow")
-    except DaemonUnavailableError as exc:
-        ctx_obj.echo(str(exc), err=True, color="red")
-        sys.exit(1)
+    except DaemonUnavailableError:
+        raise
 
 
 @daemon.command(name="status")
