@@ -393,7 +393,7 @@ def device_code_page(
     
     <div class="code-wrap">
       <input type="text" id="user-code" value="{html.escape(user_code)}" readonly>
-      <button class="copybtn" onclick="copyCode()">Copy</button>
+      <button type="button" class="copybtn" onclick="copyCode(this)">Copy</button>
     </div>
     
     <a href="{html.escape(link)}" target="_blank" class="verify">Open Login Page</a>
@@ -403,15 +403,55 @@ def device_code_page(
     </p>
 
     <script>
-      function copyCode() {{
+      function legacyCopy(text) {{
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.top = "-9999px";
+        textarea.style.left = "-9999px";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+
+        var copied = false;
+        try {{
+          copied = document.execCommand("copy");
+        }} catch (err) {{
+          copied = false;
+        }}
+
+        document.body.removeChild(textarea);
+        return copied;
+      }}
+
+      async function copyCode(btn) {{
         var copyText = document.getElementById("user-code");
-        copyText.select();
-        copyText.setSelectionRange(0, 99999);
-        navigator.clipboard.writeText(copyText.value);
-        
-        const btn = document.querySelector('.copybtn');
+        var value = copyText.value;
+
+        var copied = legacyCopy(value);
+        if (!copied && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {{
+          try {{
+            await navigator.clipboard.writeText(value);
+            copied = true;
+          }} catch (err) {{
+            copied = false;
+          }}
+        }}
+
+        if (!copied) {{
+          copyText.focus();
+          copyText.select();
+          copyText.setSelectionRange(0, copyText.value.length);
+        }}
+
         const originalText = btn.innerText;
-        btn.innerText = 'Copied!';
+        btn.innerText = copied ? 'Copied!' : 'Press Cmd+C';
+        if (!copied) {{
+          window.prompt("Copy this code:", value);
+        }}
         setTimeout(() => {{
           btn.innerText = originalText;
         }}, 2000);

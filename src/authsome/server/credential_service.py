@@ -494,7 +494,7 @@ class AuthService:
             fields.append(
                 InputField(
                     name="client_id",
-                    label="Client ID (leave blank for public device code flow)",
+                    label="Client ID",
                     secret=False,
                     default=flow_client_id or "",
                 )

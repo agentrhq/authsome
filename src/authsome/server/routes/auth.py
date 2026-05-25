@@ -442,6 +442,9 @@ def _session_response(session: AuthSession, server_base_url: str) -> AuthSession
         created_at=session.created_at,
         expires_at=session.expires_at,
         next_action=action,
+        user_code=session.payload.get("user_code"),
+        verification_uri=session.payload.get("verification_uri"),
+        verification_uri_complete=session.payload.get("verification_uri_complete"),
     )
 
 
