@@ -204,10 +204,7 @@ def load_runtime_identity(home: Path, env: Mapping[str, str] | None = None) -> R
             signer=signer,
         )
 
-    if handle_override and not identity_exists(home, handle_override):
-        identity = create_identity(home, handle_override)
-    else:
-        identity = ensure_local_identity(home, active_handle=handle_override)
+    identity = ensure_local_identity(home, active_handle=handle_override)
     return RuntimeIdentity(
         handle=identity.handle,
         did=identity.did,
@@ -308,10 +305,7 @@ def ensure_local_identity(home: Path, active_handle: str | None = None) -> Ident
         active_handle = _read_active_identity_handle(home)
     if active_handle:
         if not identity_exists(home, active_handle):
-            raise FileNotFoundError(
-                f"Configured identity '{active_handle}' not found at {identities_dir(home)}. "
-                "Run 'authsome init' to create and register a new identity."
-            )
+            return create_identity(home, active_handle)
         return load_identity(home, active_handle)
     return create_identity(home)
 

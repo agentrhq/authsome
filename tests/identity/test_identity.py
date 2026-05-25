@@ -71,9 +71,12 @@ def test_invalid_did_key_rejected() -> None:
         public_key_from_did_key("did:web:example.com")
 
 
-def test_ensure_local_identity_errors_when_configured_handle_missing(tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="brisk-boldly-clearly-1234"):
-        ensure_local_identity(tmp_path, active_handle="brisk-boldly-clearly-1234")
+def test_ensure_local_identity_creates_configured_handle_when_missing(tmp_path: Path) -> None:
+    identity = ensure_local_identity(tmp_path, active_handle="brisk-boldly-clearly-1234")
+
+    assert identity.handle == "brisk-boldly-clearly-1234"
+    assert identity_key_path(tmp_path, identity.handle).exists()
+    assert load_client_config(tmp_path).active_identity == identity.handle
 
 
 @pytest.mark.asyncio
