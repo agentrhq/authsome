@@ -1,16 +1,8 @@
-"""Tests for `authsome provider register`.
-
-Covers: --yes flag skips confirmation, file not found exits 1,
-invalid JSON exits 1, HTTP-only endpoint is rejected, and
-the provider definition is passed to the daemon client.
-"""
+"""Tests for `authsome provider register`."""
 
 import json
 from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
-from click.testing import CliRunner
 
 from authsome.cli.main import cli
 
@@ -44,51 +36,32 @@ _VALID_OAUTH_PROVIDER = {
 class TestRegisterCommand:
     """Tests for `authsome provider register <path>`."""
 
-    def test_file_not_found_exits_1(self, runner: CliRunner, mock_client: MagicMock) -> None:
+    def test_file_not_found_exits_1(self, runner, mock_client) -> None:
         result = runner.invoke(cli, ["--log-file", "", "provider", "register", "/no/such/file.json", "--yes"])
         assert result.exit_code == 1
-        assert (
-            "not found" in result.output.lower()
-            or "not found"
-            in runner.invoke(
-                cli, ["--log-file", "", "provider", "register", "/no/such/file.json", "--yes"]
-            ).output.lower()
-        )
+        data = json.loads(result.output)
+        assert data["error"] == "FileNotFoundError"
 
-    def test_invalid_json_exits_1(self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path) -> None:
+    def test_invalid_json_exits_1(self, runner, mock_client, tmp_path: Path) -> None:
         bad = tmp_path / "bad.json"
         bad.write_text("this is not json", encoding="utf-8")
         result = runner.invoke(cli, ["--log-file", "", "provider", "register", str(bad), "--yes"])
         assert result.exit_code == 1
 
-    def test_yes_flag_skips_confirmation(
-        self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_register_calls_client(self, runner, mock_client, tmp_path: Path, monkeypatch) -> None:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
-        confirm_called = []
-        monkeypatch.setattr("authsome.cli.main.click.confirm", lambda *a, **kw: confirm_called.append(True))
-
-        # Patch requests.head to avoid real network call
         monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
 
         result = runner.invoke(cli, ["--log-file", "", "provider", "register", str(path), "--yes"])
         assert result.exit_code == 0, result.output
-        assert not confirm_called, "confirm() should not be called with --yes"
-
-    def test_register_calls_client(
-        self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
-        monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
-
-        runner.invoke(cli, ["--log-file", "", "provider", "register", str(path), "--yes"])
         mock_client.register_provider.assert_called_once()
         call_kwargs = mock_client.register_provider.call_args.kwargs
         assert call_kwargs["force"] is False
+        data = json.loads(result.output)
+        assert data["status"] == "registered"
+        assert data["provider"] == "myprov"
 
-    def test_force_flag_passed_to_client(
-        self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_force_flag_passed_to_client(self, runner, mock_client, tmp_path: Path, monkeypatch) -> None:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
         monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
 
@@ -96,8 +69,7 @@ class TestRegisterCommand:
         call_kwargs = mock_client.register_provider.call_args.kwargs
         assert call_kwargs["force"] is True
 
-    def test_http_endpoint_rejected(self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path) -> None:
-        """OAuth providers with http:// token_url should be rejected."""
+    def test_http_endpoint_rejected(self, runner, mock_client, tmp_path: Path) -> None:
         bad_provider = {
             **_VALID_OAUTH_PROVIDER,
             "oauth": {
@@ -109,8 +81,7 @@ class TestRegisterCommand:
         result = runner.invoke(cli, ["--log-file", "", "provider", "register", str(path), "--yes"])
         assert result.exit_code == 1
 
-    def test_localhost_endpoint_rejected(self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path) -> None:
-        """Providers with localhost endpoints should be rejected."""
+    def test_localhost_endpoint_rejected(self, runner, mock_client, tmp_path: Path) -> None:
         bad_provider = {
             **_VALID_OAUTH_PROVIDER,
             "oauth": {
@@ -121,15 +92,3 @@ class TestRegisterCommand:
         path = _write_provider(tmp_path, bad_provider)
         result = runner.invoke(cli, ["--log-file", "", "provider", "register", str(path), "--yes"])
         assert result.exit_code == 1
-
-    def test_json_output_on_success(
-        self, runner: CliRunner, mock_client: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
-        monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
-
-        result = runner.invoke(cli, ["--log-file", "", "provider", "register", str(path), "--yes", "--json"])
-        assert result.exit_code == 0
-        data = json.loads(result.output)
-        assert data["status"] == "registered"
-        assert data["provider"] == "myprov"

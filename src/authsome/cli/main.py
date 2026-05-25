@@ -259,7 +259,7 @@ async def login(
     flow_value = FlowType(flow).value if flow else None
     scope_list = [s.strip() for s in scopes.split(",")] if scopes else None
 
-    if force and not ctx_obj.quiet:
+    if force and not ctx_obj.json_output and not ctx_obj.quiet:
         ctx_obj.echo("Warning: Forcing login will overwrite any existing connection.", color="yellow")
     if not ctx_obj.json_output:
         ctx_obj.echo(f"Starting login for {provider}...", color="cyan")
@@ -310,7 +310,8 @@ async def login(
             login_result["status"],
         )
     except Exception:
-        logger.warning("client_event event=login provider={} connection={} status=failure", provider, connection)
+        if not ctx_obj.json_output:
+            logger.warning("client_event event=login provider={} connection={} status=failure", provider, connection)
         raise
 
     if ctx_obj.json_output:
@@ -343,10 +344,10 @@ async def login(
 async def scan(ctx_obj: ContextObj, connection: str, auto_import: bool) -> None:
     """Scan env files and process env for provider API keys.
 
-    Use ``--json`` for a drift report only unless ``--import`` is also passed.
+    Returns a drift report by default unless ``--import`` is also passed.
     """
     if ctx_obj.quiet:
-        raise click.UsageError("'scan' does not support --quiet. Use --json for report-only or --import to apply.")
+        raise click.UsageError("'scan' does not support --quiet. Use the default JSON output or --import to apply.")
 
     actx = await ctx_obj.initialize()
     scanned_env = _scan_env_sources()
@@ -559,22 +560,14 @@ async def inspect_connection(ctx_obj: ContextObj, provider: str, connection: str
 
     if field:
         if field in data:
-            if ctx_obj.json_output:
-                ctx_obj.print_json({field: data[field]})
-                sys.exit(0)
-            else:
-                ctx_obj.echo(str(data[field]))
+            ctx_obj.print_json({field: data[field]})
         else:
-            ctx_obj.echo(f"Field '{field}' not found.", err=True, color="red")
+            ctx_obj.print_json({"error": "FieldNotFound", "message": f"Field '{field}' not found."})
             sys.exit(1)
         return
 
-    if ctx_obj.json_output:
-        ctx_obj.print_json(data)
-        sys.exit(0)
-    else:
-        for k, v in data.items():
-            ctx_obj.echo(f"{k}: {v}")
+    ctx_obj.print_json(data)
+    sys.exit(0)
 
 
 @provider.command(name="inspect")
@@ -620,19 +613,15 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
     actx = await ctx_obj.initialize()
     filepath = pathlib.Path(path)
     if not filepath.exists():
-        ctx_obj.echo(f"File not found: {path}", err=True, color="red")
+        ctx_obj.print_json({"error": "FileNotFoundError", "message": f"File not found: {path}"})
         sys.exit(1)
 
     try:
         data = json_lib.loads(filepath.read_text(encoding="utf-8"))
-        from authsome.auth.models.provider import ProviderDefinition
-
         definition = ProviderDefinition.model_validate(data)
 
-        # 1. Extract and validate endpoints
-        endpoints_to_check = _validate_provider_endpoints(definition, ctx_obj)
+        endpoints_to_check = _validate_provider_endpoints(definition)
 
-        # 3. Confirmation prompt — --force implies --yes (skip prompt, override existing)
         if not ctx_obj.json_output and not ctx_obj.quiet and not yes and not force:
             ctx_obj.echo(f"Registering '{definition.name}' provider:")
             for name, val, _ in endpoints_to_check:
@@ -653,13 +642,7 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
 
         endpoints = [ep for _, ep, _ in endpoints_to_check]
         logger.info("client_event event=register provider={} endpoints={}", definition.name, endpoints)
-
-        if ctx_obj.json_output:
-            ctx_obj.print_json({"status": "registered", "provider": definition.name})
-        else:
-            ctx_obj.echo(f"Provider {definition.name} registered.", color="green")
-
-        # 4. Post-registration connectivity check
+        ctx_obj.print_json({"status": "registered", "provider": definition.name})
 
         warnings = []
         for name, val, is_host in endpoints_to_check:
@@ -678,11 +661,10 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
                 warnings.append(f"{name} ({val}) is unreachable: {e}")
 
         if warnings and not ctx_obj.quiet:
-            for w in warnings:
-                ctx_obj.echo(f"Warning: {w}", color="yellow")
-
+            for warning in warnings:
+                ctx_obj.echo(f"Warning: {warning}", color="yellow")
     except Exception as exc:
-        ctx_obj.echo(f"Failed to register provider: {exc}", err=True, color="red")
+        ctx_obj.print_json({"error": exc.__class__.__name__, "message": f"Failed to register provider: {exc}"})
         sys.exit(format_error_code(exc))
 
 
@@ -860,11 +842,13 @@ async def doctor(ctx_obj: ContextObj) -> None:
     """Run health checks on directory layout and encryption."""
     actx = await ctx_obj.initialize()
     results = await actx.doctor()
+    all_ok = results.get("status") == "ready"
 
     if ctx_obj.json_output:
         ctx_obj.print_json(results)
+        if not all_ok:
+            sys.exit(1)
     else:
-        all_ok = results.get("status") == "ready"
         for key, val in results.get("checks", {}).items():
             ok = val == "ok"
             ctx_obj.emit(f"{key}: ", nl=False)
