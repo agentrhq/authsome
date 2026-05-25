@@ -403,31 +403,55 @@ def device_code_page(
     </p>
 
     <script>
-      async function copyCode(btn) {{
-        var copyText = document.getElementById("user-code");
-        copyText.focus();
-        copyText.select();
-        copyText.setSelectionRange(0, copyText.value.length);
+      function legacyCopy(text) {{
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.top = "-9999px";
+        textarea.style.left = "-9999px";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
 
         var copied = false;
-        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {{
+        try {{
+          copied = document.execCommand("copy");
+        }} catch (err) {{
+          copied = false;
+        }}
+
+        document.body.removeChild(textarea);
+        return copied;
+      }}
+
+      async function copyCode(btn) {{
+        var copyText = document.getElementById("user-code");
+        var value = copyText.value;
+
+        var copied = legacyCopy(value);
+        if (!copied && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {{
           try {{
-            await navigator.clipboard.writeText(copyText.value);
+            await navigator.clipboard.writeText(value);
             copied = true;
           }} catch (err) {{
             copied = false;
           }}
         }}
+
         if (!copied) {{
-          try {{
-            copied = document.execCommand("copy");
-          }} catch (err) {{
-            copied = false;
-          }}
+          copyText.focus();
+          copyText.select();
+          copyText.setSelectionRange(0, copyText.value.length);
         }}
 
         const originalText = btn.innerText;
         btn.innerText = copied ? 'Copied!' : 'Press Cmd+C';
+        if (!copied) {{
+          window.prompt("Copy this code:", value);
+        }}
         setTimeout(() => {{
           btn.innerText = originalText;
         }}, 2000);
