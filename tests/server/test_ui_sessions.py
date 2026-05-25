@@ -200,7 +200,7 @@ def test_hosted_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Pa
         principal_id = asyncio.run(
             client.app.state.ownership_resolver.resolve(identity="steady-wisely-boldly-0042")
         ).principal_id
-        monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPLES", principal_id)
+        monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPALS", principal_id)
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="top-secret")
         response = client.get("/ui/apps/github")
 

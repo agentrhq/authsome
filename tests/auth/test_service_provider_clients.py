@@ -190,7 +190,7 @@ async def test_hosted_admin_provider_config_satisfies_next_identity_login(monkey
 
     vault.get.side_effect = get_value
     vault.put.side_effect = put_value
-    monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPLES", "principal_admin")
+    monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPALS", "principal_admin")
 
     admin_service = AuthService(
         vault,

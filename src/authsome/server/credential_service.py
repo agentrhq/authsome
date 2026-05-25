@@ -64,10 +64,10 @@ _FLOW_HANDLERS: dict[FlowType, type[AuthFlow]] = {
 
 
 def is_admin_principal(principal_id: str | None) -> bool:
-    """Return whether a principal is listed in AUTHSOME_ADMIN_PRINCIPLES."""
+    """Return whether a principal is listed in AUTHSOME_ADMIN_PRINCIPALS."""
     if not principal_id:
         return False
-    raw = os.environ.get("AUTHSOME_ADMIN_PRINCIPLES", "")
+    raw = os.environ.get("AUTHSOME_ADMIN_PRINCIPALS", "")
     principals = {item.strip() for item in raw.split(",") if item.strip()}
     return principal_id in principals
 
