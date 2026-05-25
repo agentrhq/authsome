@@ -91,6 +91,7 @@ def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path)
 
 def test_rekey_rotates_local_vault(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
@@ -110,6 +111,7 @@ def test_rekey_rotates_local_vault(monkeypatch, tmp_path: Path) -> None:
 def test_rekey_rejects_env_master_key(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x03" * 32).decode("ascii"))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:

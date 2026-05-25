@@ -126,6 +126,99 @@ async def test_get_required_inputs_skips_scope_prompt_when_server_scopes_exist()
 
 
 @pytest.mark.asyncio
+async def test_pkce_client_credentials_prompt_id_then_secret() -> None:
+    vault = mock.AsyncMock()
+    vault.get.return_value = None
+    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+    session = _make_session(flow_type=FlowType.PKCE)
+
+    with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())):
+        fields = await service.get_required_inputs(session)
+
+    credential_fields = [field for field in fields if field.name in {"client_id", "client_secret"}]
+    assert [field.name for field in credential_fields] == ["client_id", "client_secret"]
+    assert credential_fields[1].label == "Client Secret"
+
+
+@pytest.mark.asyncio
+async def test_update_provider_configuration_persists_default_scopes_when_omitted() -> None:
+    vault = mock.AsyncMock()
+    vault.get.return_value = None
+    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+
+    with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())):
+        changed = await service.update_provider_configuration(
+            "github",
+            {"client_id": "cid", "client_secret": "secret"},
+        )
+
+    assert changed is True
+    vault.put.assert_awaited_once()
+    saved = ProviderClientRecord.model_validate_json(vault.put.await_args.args[1])
+    assert saved.client_id == "cid"
+    assert saved.client_secret == "secret"
+    assert saved.scopes == ["repo"]
+
+
+@pytest.mark.asyncio
+async def test_update_provider_configuration_persists_submitted_scopes() -> None:
+    vault = mock.AsyncMock()
+    vault.get.return_value = None
+    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+
+    with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())):
+        changed = await service.update_provider_configuration(
+            "github",
+            {"client_id": "cid", "client_secret": "secret", "scopes": "repo,read:user"},
+        )
+
+    assert changed is True
+    saved = ProviderClientRecord.model_validate_json(vault.put.await_args.args[1])
+    assert saved.scopes == ["repo", "read:user"]
+
+
+@pytest.mark.asyncio
+async def test_hosted_admin_provider_config_satisfies_next_identity_login(monkeypatch: pytest.MonkeyPatch) -> None:
+    store: dict[tuple[str, str], str] = {}
+    vault = mock.AsyncMock()
+
+    async def get_value(key: str, *, collection: str) -> str | None:
+        return store.get((collection, key))
+
+    async def put_value(key: str, value: str, *, collection: str) -> None:
+        store[(collection, key)] = value
+
+    vault.get.side_effect = get_value
+    vault.put.side_effect = put_value
+    monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPALS", "principal_admin")
+
+    admin_service = AuthService(
+        vault,
+        identity=None,
+        principal_id="principal_admin",
+        deployment_mode="hosted",
+    )
+    identity_service = AuthService(
+        vault,
+        identity="steady-wisely-boldly-0042",
+        principal_id="principal_user",
+        deployment_mode="hosted",
+    )
+    provider = _make_provider()
+
+    with mock.patch.object(admin_service, "get_provider", new=mock.AsyncMock(return_value=provider)):
+        await admin_service.update_provider_configuration(
+            "github",
+            {"client_id": "cid", "client_secret": "secret"},
+        )
+
+    with mock.patch.object(identity_service, "get_provider", new=mock.AsyncMock(return_value=provider)):
+        fields = await identity_service.get_required_inputs(_make_session(flow_type=FlowType.PKCE))
+
+    assert fields == []
+
+
+@pytest.mark.asyncio
 async def test_begin_login_flow_reuses_server_scopes() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = ProviderClientRecord(
