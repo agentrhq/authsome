@@ -34,7 +34,7 @@ class AuthSession(BaseModel):
     session_id: str
     provider: str
     identity: str | None = None
-    principal_id: str | None = None
+    principal_id: str | None = None  # TODO: Why is this optional ?
     connection_name: str
     flow_type: str
     state: str = AuthSessionStatus.PENDING

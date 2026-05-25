@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+# TODO: These are all store properties, we have a local file store, move them there
+
 
 def get_authsome_home(home: Path | None = None) -> Path:
     """Return the root Authsome home directory."""

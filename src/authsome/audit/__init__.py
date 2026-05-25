@@ -66,6 +66,7 @@ def _serialize_event(event: AuditEvent) -> str:
     return json.dumps(payload, separators=(",", ":"))
 
 
+# TODO: Better to use an audit library: otel or something similar
 def log(event_type: str, **kwargs: Any) -> None:
     """Append a structured server event to the configured log file."""
     if _log_path is None:
@@ -78,6 +79,7 @@ def log(event_type: str, **kwargs: Any) -> None:
             handle.write("\n")
 
 
+# FIXME: Why is there a  log and alog ?
 async def alog(event_type: str, **kwargs: Any) -> None:
     """Async wrapper around structured server event logging."""
     log(event_type, **kwargs)

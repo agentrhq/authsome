@@ -51,4 +51,4 @@ class LocalAppStore(AppStore):
     async def close(self) -> None:
         close = getattr(self._store, "close", None)
         if callable(close):
-            await close()
+            await self._store.close()

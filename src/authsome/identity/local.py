@@ -21,6 +21,7 @@ _ED25519_MULTICODEC_PREFIX = b"\xed\x01"
 _DID_KEY_PREFIX = "did:key:z"
 _HANDLE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
 
+# TODO: The list is very samll, will start creating conflicts soon. Use a library like randomword
 _ADJECTIVES = (
     "brisk",
     "calm",
@@ -79,6 +80,7 @@ class IdentityMetadata(BaseModel):
         return self.identity_status == IdentityStatus.CLAIMED
 
 
+# TODO: Storage of identities should be server property. The identities module should be stateless
 def identities_dir(home: Path) -> Path:
     return get_client_home(home) / "identities"
 
