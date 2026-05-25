@@ -106,11 +106,9 @@ def test_ensure_local_identity_preserves_local_status_for_matching_env_identity(
     identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
     mark_registered(tmp_path, identity.handle)
     mark_claimed(tmp_path, identity.handle)
+    private_key_hex = private_key_to_hex(load_private_key(tmp_path, identity.handle))
     monkeypatch.setenv("AUTHSOME_IDENTITY", identity.handle)
-    monkeypatch.setenv(
-        "AUTHSOME_IDENTITY_PRIVATE_KEY",
-        private_key_to_hex(load_private_key(tmp_path, identity.handle)),
-    )
+    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", private_key_hex)
 
     resolved = ensure_local_identity(tmp_path)
 

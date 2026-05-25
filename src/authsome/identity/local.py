@@ -168,10 +168,6 @@ def _env_identity_handle(env: Mapping[str, str] | None = None) -> str | None:
     return validate_handle(handle)
 
 
-def _has_env_identity_handle(env: Mapping[str, str] | None = None) -> bool:
-    return _env_values(env).get(_IDENTITY_HANDLE_ENV_VAR) is not None
-
-
 def _env_identity_private_key(env: Mapping[str, str] | None = None) -> Ed25519PrivateKey | None:
     raw_key = _env_values(env).get(_IDENTITY_PRIVATE_KEY_ENV_VAR)
     if raw_key is None:
@@ -181,13 +177,10 @@ def _env_identity_private_key(env: Mapping[str, str] | None = None) -> Ed25519Pr
     return private_key_from_hex(raw_key)
 
 
-def _has_env_identity_private_key(env: Mapping[str, str] | None = None) -> bool:
-    return _env_values(env).get(_IDENTITY_PRIVATE_KEY_ENV_VAR) is not None
-
-
 def _validate_env_identity_configuration(env: Mapping[str, str] | None = None) -> None:
-    has_handle = _has_env_identity_handle(env)
-    has_private_key = _has_env_identity_private_key(env)
+    values = _env_values(env)
+    has_handle = _IDENTITY_HANDLE_ENV_VAR in values
+    has_private_key = _IDENTITY_PRIVATE_KEY_ENV_VAR in values
     if has_handle and not has_private_key:
         handle = _env_identity_handle(env)
         raise ValueError(
@@ -219,52 +212,40 @@ def _load_env_identity(env: Mapping[str, str] | None = None) -> IdentityMetadata
     )
 
 
-def _env_identity_matches(handle: str, env: Mapping[str, str] | None = None) -> bool:
+def _load_matching_env_identity(handle: str, env: Mapping[str, str] | None = None) -> IdentityMetadata | None:
     env_identity = _load_env_identity(env)
-    return env_identity is not None and env_identity.handle == handle
-
-
-def _load_local_identity_metadata(home: Path, handle: str) -> IdentityMetadata | None:
-    path = identity_metadata_path(home, handle)
-    if not path.exists():
-        return None
-    return IdentityMetadata.model_validate_json(path.read_text(encoding="utf-8"))
-
-
-def _resolve_env_backed_identity(home: Path, handle: str) -> IdentityMetadata | None:
-    env_identity = _load_env_identity()
     if env_identity is None or env_identity.handle != handle:
         return None
-
-    stored_metadata = _load_local_identity_metadata(home, handle)
-    if stored_metadata is None:
-        return env_identity
-
-    return stored_metadata.model_copy(
-        update={
-            "did": env_identity.did,
-            "updated_at": stored_metadata.updated_at,
-        }
-    )
+    return env_identity
 
 
 def load_private_key(home: Path, handle: str) -> Ed25519PrivateKey:
-    env_key = _env_identity_private_key()
-    env_handle = _env_identity_handle()
-    if env_key is not None and env_handle == handle:
-        return env_key
+    env_identity = _load_matching_env_identity(handle)
+    if env_identity is not None:
+        env_key = _env_identity_private_key()
+        if env_key is not None:
+            return env_key
     return private_key_from_hex(identity_key_path(home, handle).read_text(encoding="utf-8"))
 
 
 def load_identity(home: Path, handle: str) -> IdentityMetadata:
-    resolved_env_identity = _resolve_env_backed_identity(home, handle)
-    if resolved_env_identity is not None:
-        return resolved_env_identity
-    return IdentityMetadata.model_validate_json(identity_metadata_path(home, handle).read_text(encoding="utf-8"))
+    path = identity_metadata_path(home, handle)
+    if path.exists():
+        metadata = IdentityMetadata.model_validate_json(path.read_text(encoding="utf-8"))
+        env_identity = _load_matching_env_identity(handle)
+        if env_identity is None:
+            return metadata
+        return metadata.model_copy(update={"did": env_identity.did})
+
+    env_identity = _load_matching_env_identity(handle)
+    if env_identity is not None:
+        return env_identity
+
+    return IdentityMetadata.model_validate_json(path.read_text(encoding="utf-8"))
 
 
 def identity_exists(home: Path, handle: str) -> bool:
-    if _env_identity_matches(handle):
+    if _load_matching_env_identity(handle) is not None:
         return True
     return identity_metadata_path(home, handle).exists() and identity_key_path(home, handle).exists()
 
@@ -342,9 +323,9 @@ def mark_registered(home: Path, handle: str) -> IdentityMetadata:
     updated = metadata.model_copy(
         update={"identity_status": IdentityStatus.REGISTERED, "updated_at": datetime.now(UTC)}
     )
-    if _env_identity_matches(handle):
-        return updated
-    identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
+    metadata_path = identity_metadata_path(home, handle)
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_path.write_text(updated.model_dump_json(indent=2), encoding="utf-8")
     return updated
 
 
@@ -352,9 +333,9 @@ def mark_claimed(home: Path, handle: str) -> IdentityMetadata:
     """Persist a claimed state for a local identity after ownership resolution."""
     metadata = load_identity(home, handle)
     updated = metadata.model_copy(update={"identity_status": IdentityStatus.CLAIMED, "updated_at": datetime.now(UTC)})
-    if _env_identity_matches(handle):
-        return updated
-    identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
+    metadata_path = identity_metadata_path(home, handle)
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_path.write_text(updated.model_dump_json(indent=2), encoding="utf-8")
     return updated
 
 
@@ -368,7 +349,7 @@ def ensure_local_identity(home: Path, active_handle: str | None = None) -> Ident
                 f"Configured identity '{active_handle}' does not match environment identity "
                 f"'{env_identity.handle}' from {_IDENTITY_HANDLE_ENV_VAR}."
             )
-        return _resolve_env_backed_identity(home, env_identity.handle) or env_identity
+        return load_identity(home, env_identity.handle)
     if active_handle is None:
         active_handle = _read_active_identity_handle(home)
     if active_handle:

@@ -165,11 +165,9 @@ async def test_identity_env_override_wins_over_active_identity(monkeypatch, tmp_
     override_identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
     mark_registered(tmp_path, override_identity.handle)
     mark_claimed(tmp_path, override_identity.handle)
+    private_key_hex = private_key_to_hex(load_private_key(tmp_path, override_identity.handle))
     monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
-    monkeypatch.setenv(
-        "AUTHSOME_IDENTITY_PRIVATE_KEY",
-        private_key_to_hex(load_private_key(tmp_path, override_identity.handle)),
-    )
+    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", private_key_hex)
     save_client_config(tmp_path, ClientConfig(active_identity="steady-wisely-boldly-0042"))
 
     client = AuthsomeApiClient("http://127.0.0.1:7998")
