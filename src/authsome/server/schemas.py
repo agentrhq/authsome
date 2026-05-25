@@ -53,6 +53,9 @@ class AuthSessionResponse(BaseModel):
     created_at: datetime | None = None
     expires_at: datetime | None = None
     next_action: NextAction = Field(default_factory=NoneAction)
+    user_code: str | None = None
+    verification_uri: str | None = None
+    verification_uri_complete: str | None = None
 
 
 class UiBootstrapResponse(BaseModel):

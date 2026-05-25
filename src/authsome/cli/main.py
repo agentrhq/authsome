@@ -105,6 +105,29 @@ async def list_cmd(ctx_obj: ContextObj) -> None:
     ctx_obj.print_json({"bundled": bundled_out, "custom": custom_out})
 
 
+def _build_login_json_payload(session_info: dict[str, Any], provider: str, connection: str) -> dict[str, Any]:
+    """Return machine-usable login output for CLI JSON mode."""
+    status = session_info.get("status")
+    payload: dict[str, Any] = {
+        "status": "success" if status == "completed" else "started",
+        "provider": provider,
+        "connection": connection,
+        "record_status": status,
+    }
+    if session_id := session_info.get("id"):
+        payload["session_id"] = session_id
+    next_action = session_info.get("next_action")
+    if isinstance(next_action, dict) and next_action.get("type") == "open_url":
+        auth_url = next_action.get("url")
+        if auth_url:
+            payload["auth_url"] = auth_url
+    for field in ("user_code", "verification_uri", "verification_uri_complete"):
+        value = session_info.get(field)
+        if value:
+            payload[field] = value
+    return payload
+
+
 @cli.command()
 @click.argument("provider")
 @click.option("--connection", default="default", metavar="NAME", help="Connection name.")
@@ -141,12 +164,9 @@ async def login(
             base_url=base_url,
             force=force,
         )
-        status = session_info.get("status")
-        login_result = {"status": "started", "record_status": status}
+        login_result = _build_login_json_payload(session_info, provider, connection)
 
-        if status == "completed":
-            login_result["status"] = "success"
-        else:
+        if login_result["status"] != "success":
             next_action = session_info.get("next_action", {"type": "none"})
             action_type = next_action.get("type")
 
@@ -169,14 +189,7 @@ async def login(
     except Exception:
         raise
 
-    ctx_obj.print_json(
-        {
-            "status": login_result.get("status", "success"),
-            "provider": provider,
-            "connection": connection,
-            "record_status": login_result.get("record_status"),
-        }
-    )
+    ctx_obj.print_json(login_result)
 
 
 @cli.command(name="scan")
