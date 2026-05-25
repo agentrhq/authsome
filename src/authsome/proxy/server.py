@@ -388,15 +388,22 @@ class AuthProxyAddon:
                 provider=match.provider,
                 connection=match.connection,
             )
-            logger.warning(
-                "No credentials for provider={} connection={} host={}: {}",
-                match.provider,
-                match.connection,
-                normalized_host,
-                exc,
-            )
             if policy == "deny":
+                logger.warning(
+                    "No credentials for provider={} connection={} host={}: {}",
+                    match.provider,
+                    match.connection,
+                    normalized_host,
+                    exc,
+                )
                 self._deny_request(flow, "no_credentials", match=match)
+            else:
+                logger.info(
+                    "No credentials for provider={} connection={} host={}; allowing passthrough",
+                    match.provider,
+                    match.connection,
+                    normalized_host,
+                )
             return
 
         for key, value in headers.items():
