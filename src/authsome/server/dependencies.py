@@ -16,6 +16,7 @@ from authsome.identity import current_from_home
 from authsome.paths import get_authsome_home as _get_authsome_home
 from authsome.paths import get_server_home as _get_server_home
 from authsome.paths import get_server_log_path as _get_server_log_path
+from authsome.server.hosted_auth import HostedAccountService
 from authsome.server.identity_bootstrap import (
     HostedIdentityBootstrapService,
     IdentityBootstrapService,
@@ -187,6 +188,16 @@ def create_identity_claim_registry(home: Path | None = None) -> IdentityClaimReg
 
 def create_principal_vault_binding_registry(home: Path | None = None) -> PrincipalVaultBindingRegistry:
     return PrincipalVaultBindingRegistry(get_principal_vault_binding_registry_path(home))
+
+
+def create_hosted_account_service(home: Path | None = None) -> HostedAccountService:
+    resolved_home = home or get_authsome_home()
+    return HostedAccountService(
+        principals=create_principal_registry(resolved_home),
+        vaults=create_vault_registry(resolved_home),
+        bindings=create_principal_vault_binding_registry(resolved_home),
+        jwt_secret=load_ui_session_signing_secret(resolved_home),
+    )
 
 
 def create_ownership_resolver(home: Path | None = None) -> OwnershipResolver:

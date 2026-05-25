@@ -156,6 +156,7 @@
               "integrations/agents/opencode",
               "integrations/agents/cowork",
               "integrations/agents/nanoclaw",
+              "integrations/agents/hermes",
               "integrations/agents/langchain",
               "integrations/agents/llamaindex",
               "integrations/agents/openai-agents-sdk",

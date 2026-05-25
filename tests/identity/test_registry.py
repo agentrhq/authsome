@@ -20,7 +20,7 @@ async def test_claim_creates_principal_and_default_vault(tmp_path: Path) -> None
     vaults = VaultRegistry(tmp_path / "vaults.json")
     bindings = PrincipalVaultBindingRegistry(tmp_path / "bindings.json")
 
-    principal = await principals.get_or_create_by_email("dev@example.com")
+    principal = await principals.create_by_email("dev@example.com")
     vault = await vaults.create_default()
     binding = await bindings.bind_default(principal.principal_id, vault.vault_id)
     claim = await claims.claim_identity("steady-wisely-boldly-0042", principal.principal_id)

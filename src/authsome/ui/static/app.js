@@ -5,13 +5,13 @@
             : fn();
 
     function initSearchAndFilter() {
-        const grid = document.getElementById("appGrid");
+        const grid = document.getElementById("connectionList") || document.getElementById("appGrid");
         const search = document.getElementById("appSearch");
         const empty = document.getElementById("appEmpty");
         if (!grid) return;
 
         let activeFilter = "all";
-        const cards = Array.from(grid.querySelectorAll(".app-card"));
+        const cards = Array.from(grid.querySelectorAll(".app-card, .connection-row"));
 
         const applyFilters = () => {
             const q = (search?.value || "").trim().toLowerCase();
@@ -20,6 +20,7 @@
                 const matchesQuery = !q || card.dataset.name.includes(q);
                 const status = card.dataset.status;
                 const matchesFilter =
+                    !document.querySelector(".filter-pill") ||
                     activeFilter === "all" ||
                     (activeFilter === "connected" && status !== "available") ||
                     (activeFilter === "available" && status === "available");
@@ -86,9 +87,38 @@
         });
     }
 
+    function initLoginModal() {
+        const modal = document.getElementById("loginModal");
+        const form = document.getElementById("loginModalForm");
+        const hiddenConnection = document.getElementById("loginConnectionName");
+        const input = document.getElementById("connectionNameInput");
+        if (!modal || !form || !hiddenConnection || !input) return;
+
+        document.querySelectorAll("[data-open-login-modal]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const provider = btn.dataset.provider;
+                if (!provider) return;
+                form.action = `/ui/apps/${provider}/connect`;
+                hiddenConnection.value = "";
+                input.value = "";
+                modal.showModal();
+                input.focus();
+            });
+        });
+
+        document.querySelectorAll("[data-close-login-modal]").forEach((btn) => {
+            btn.addEventListener("click", () => modal.close());
+        });
+
+        form.addEventListener("submit", () => {
+            hiddenConnection.value = input.value.trim();
+        });
+    }
+
     ready(() => {
         initSearchAndFilter();
         initSecretToggles();
         initCopyButtons();
+        initLoginModal();
     });
 })();

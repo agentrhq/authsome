@@ -112,10 +112,15 @@ class TestAuthServiceRefreshLogs:
                 assert entry["fallback_available"] is False
 
 
-def test_auth_service_requires_explicit_identity() -> None:
+def test_auth_service_allows_missing_identity() -> None:
     mock_vault = mock.AsyncMock()
-    with pytest.raises(ValueError, match="explicit identity"):
-        AuthService(mock_vault, identity="")
+    service = AuthService(
+        mock_vault,
+        identity=None,
+        principal_id="principal_1",
+        vault_id="vault_default",
+    )
+    assert service.identity is None
 
 
 def test_auth_service_scopes_collection_by_vault_id() -> None:

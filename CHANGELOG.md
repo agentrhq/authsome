@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.4.1](https://github.com/agentrhq/authsome/compare/authsome-v0.4.0...authsome-v0.4.1) (2026-05-25)
+
+
+### Features
+
+* enable provider configuration management for hosted admins with required credential inputs and scope persistence ([e26d584](https://github.com/agentrhq/authsome/commit/e26d5841f34467af77e67903eaf6ee8b97d59313))
+* enable provider configuration management for hosted admins with… ([30b2f8a](https://github.com/agentrhq/authsome/commit/30b2f8a3814a04b710fd37206889e3e1a71fd43f))
+
+
+### Bug Fixes
+
+* rename AUTHSOME_ADMIN_PRINCIPLES environment variable to fix typo ([10f17f4](https://github.com/agentrhq/authsome/commit/10f17f48e35f118e76d7cb5c797a498408c51db7))
+
+## [0.4.0](https://github.com/agentrhq/authsome/compare/authsome-v0.3.2...authsome-v0.4.0) (2026-05-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* Create version 0.4 which adds support for principal, identity, vault key loading precedence and many more fixes
+
+### Features
+
+* ClaimStatus lifecycle, vault_id gating, ADR 0003 alignment ([d8553ba](https://github.com/agentrhq/authsome/commit/d8553baabbfba595580fd0d6d0c0a90ba282e911))
+* Cleanup server routes ([225d7fd](https://github.com/agentrhq/authsome/commit/225d7fdcfba184c60bffdb70ba28e9576109b25c))
+* disable analytics automatically when running under pytest and add verification tests ([d1abc48](https://github.com/agentrhq/authsome/commit/d1abc48f11255419f5d58cc13d5280fa221a3b21))
+* implement HostedAccountService for email/password authentication and JWT session management ([c161ab9](https://github.com/agentrhq/authsome/commit/c161ab96d0d78ad02ce98b5ad4c0269ba3fd0530))
+* implement master key rotation via rekey command and API endpoint ([f78f872](https://github.com/agentrhq/authsome/commit/f78f872624b1da899d76dd0c1a04ee81fafca772))
+* implement opt-out telemetry support via environment variables and add associated documentation and tests ([9d7c88f](https://github.com/agentrhq/authsome/commit/9d7c88fb0a1a777b535f5e06b11a60a00eda263c))
+* implement opt-out telemetry support via environment variables and add associated tests ([1c1554c](https://github.com/agentrhq/authsome/commit/1c1554c9cf3fbf093d107d7c6a3fd15103572096))
+* implement vault rekey functionality with encryption source validation and add corresponding API and unit tests. ([e7f4187](https://github.com/agentrhq/authsome/commit/e7f418707aacde9b7705a5f79c8a84b28878715d))
+* login flow ([e0ea86d](https://github.com/agentrhq/authsome/commit/e0ea86dc99de0d1d616b3c609e48c2ba6a61d516))
+* scope connections to vault, add claim flow and principal concept ([d3f2006](https://github.com/agentrhq/authsome/commit/d3f2006d67c572fef7dd05b539c7e2c83de8ddaa))
+
+
+### Bug Fixes
+
+* correct import path and test fixture for ready endpoint ([3951af8](https://github.com/agentrhq/authsome/commit/3951af82390994ad6d5acbdc06e59d91c8ccd962))
+* deduplicate error class name in daemon responses and stop orphaned daemon ([76e2320](https://github.com/agentrhq/authsome/commit/76e2320c96e1e06eaa9d6822e98f33f8e027db1c))
+* improve whoami robustness by handling connection failures gracefully and isolating keyring tests ([83709f4](https://github.com/agentrhq/authsome/commit/83709f4e373a3057b49af0e3b9e40b2166883d43))
+
+
+### Documentation
+
+* add dedicated Hermes Agent integration page, drop stale Hermes refs ([b7297dd](https://github.com/agentrhq/authsome/commit/b7297dd5e658bf20baf0251a21460f6c6b5b7048))
+* add dedicated Hermes Agent integration page, drop stale Hermes refs ([e12082f](https://github.com/agentrhq/authsome/commit/e12082f0786504e5049550375ea97831657125e7))
+* add hosted UI auth and identity claim design spec ([e552805](https://github.com/agentrhq/authsome/commit/e5528053c146e6a8652cd8fe44409d286d8a2d6a))
+* fix CONTEXT.md dependency graph and direction ([17fff13](https://github.com/agentrhq/authsome/commit/17fff13aa893d049b65e16e1922f80130f388da2))
+* make auth/ a leaf module, move AuthService to server/ ([d92611c](https://github.com/agentrhq/authsome/commit/d92611ccd4fc987595034b1e6b1ee49e1049af16))
+* resolve merge conflicts in UBIQUITOUS_LANGUAGE.md ([48229eb](https://github.com/agentrhq/authsome/commit/48229eb8b456cbdaeeb7a7a1a2e0bf02800fb21e))
+* rewrite CONTEXT.md with module boundaries, create TODOS.md ([c7a1629](https://github.com/agentrhq/authsome/commit/c7a1629166324729a9e14868ebaa9ad082165053))
+* rewrite login and proxy sections in manual-testing guide ([3719d13](https://github.com/agentrhq/authsome/commit/3719d13a960430d2839df85b458d55ec83071006))
+* update architecture language, retire Profile, add Principal/Vault/Claim terms ([8dc663e](https://github.com/agentrhq/authsome/commit/8dc663e21e505a5327a7168ea47a245ed94b8db7))
+
+
+### Code Refactoring
+
+* Create version 0.4 which adds support for principal, identity, vault key loading precedence and many more fixes ([bb5a2a6](https://github.com/agentrhq/authsome/commit/bb5a2a615291a89bfd5c1a581692b2d86a82dca4))
+
 ## [0.3.2](https://github.com/agentrhq/authsome/compare/authsome-v0.3.1...authsome-v0.3.2) (2026-05-20)
 
 

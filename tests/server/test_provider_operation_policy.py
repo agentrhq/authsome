@@ -17,7 +17,13 @@ def _register_identity(client: TestClient, tmp_path: Path, handle: str) -> None:
     if claim_url:
         claim_path = urlparse(claim_url).path
         assert client.get(claim_path).status_code == 200
-        claimed = client.post(claim_path, data={"email": "dev@example.com"}, follow_redirects=False)
+        registered = client.post(
+            "/ui/auth/register",
+            data={"email": "dev@example.com", "password": "password-1", "next": claim_path},
+            follow_redirects=False,
+        )
+        assert registered.status_code == 303
+        claimed = client.post(f"{claim_path}/confirm", follow_redirects=False)
         assert claimed.status_code == 303
 
 

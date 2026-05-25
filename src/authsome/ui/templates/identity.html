@@ -1,0 +1,16 @@
+{% extends "_layout.html" %}
+{% block title %}Identity{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Identity</h1>
+        <p class="subtitle">Identities working for the current principal.</p>
+    </div>
+</header>
+
+{% for identity in identities %}
+<section class="card">
+    <div class="card-title">{{ identity.handle }}</div>
+</section>
+{% endfor %}
+{% endblock %}

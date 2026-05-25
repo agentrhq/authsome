@@ -15,20 +15,75 @@ from authsome.server.ui_sessions import UiSessionStore
 UI_SESSION_COOKIE_NAME = "authsome_ui_session"
 
 
-async def get_auth_service_for_identity(request: Request, identity: str) -> AuthService:
-    resolved = request.app.state.ownership_cache.get(identity)
-    if resolved is None:
-        resolved = await request.app.state.ownership_resolver.resolve(identity=identity)
-        request.app.state.ownership_cache[identity] = resolved
-    if resolved is None:
-        raise HTTPException(status_code=500, detail="Ownership context not resolved")
+async def get_auth_service(
+    request: Request,
+    *,
+    identity: str | None = None,
+    principal_id: str | None = None,
+) -> AuthService | None:
+    if identity is not None:
+        resolved = request.app.state.ownership_cache.get(identity)
+        if resolved is None:
+            resolved = await request.app.state.ownership_resolver.resolve(identity=identity)
+            request.app.state.ownership_cache[identity] = resolved
+        return AuthService(
+            vault=request.app.state.vault,
+            identity=identity,
+            principal_id=resolved.principal_id,
+            vault_id=resolved.vault_id,
+            deployment_mode=get_deployment_mode(),
+        )
+
+    if principal_id is None:
+        return None
+
+    binding = await request.app.state.principal_vault_binding_registry.get_default_vault(principal_id)
+    if binding is None:
+        return None
     return AuthService(
         vault=request.app.state.vault,
-        identity=identity,
-        principal_id=resolved.principal_id,
-        vault_id=resolved.vault_id,
+        identity=None,
+        principal_id=principal_id,
+        vault_id=binding.vault_id,
         deployment_mode=get_deployment_mode(),
     )
+
+
+async def require_auth_service(
+    request: Request,
+    *,
+    identity: str | None = None,
+    principal_id: str | None = None,
+    status_code: int = 404,
+    detail: str = "Authentication context not found",
+) -> AuthService:
+    auth = await get_auth_service(request, identity=identity, principal_id=principal_id)
+    if auth is None:
+        raise HTTPException(status_code=status_code, detail=detail)
+    return auth
+
+
+async def get_principal_browser_auth_service(request: Request) -> AuthService:
+    cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
+    if not cookie_value:
+        raise HTTPException(status_code=401, detail="Missing hosted browser session")
+
+    try:
+        session = request.app.state.ui_sessions.get_browser_session(cookie_value)
+    except KeyError as exc:
+        raise HTTPException(status_code=401, detail="Hosted browser session expired") from exc
+
+    auth = await require_auth_service(
+        request,
+        principal_id=session.principal_id,
+        status_code=403,
+        detail="Principal has no default vault",
+    )
+    request.state.ui_identity = None
+    request.state.ui_principal_id = session.principal_id
+    request.state.ui_email = session.email
+    request.state.ui_session_token = session.token
+    return auth
 
 
 async def get_protected_auth_service(request: Request) -> AuthService:
@@ -73,7 +128,12 @@ async def get_protected_auth_service(request: Request) -> AuthService:
     request.state.vault_id = resolved.vault_id
     request.state.registration_status = "registered"
     request.app.state.ownership_cache[claims.subject] = resolved
-    return await get_auth_service_for_identity(request, claims.subject)
+    return await require_auth_service(
+        request,
+        identity=claims.subject,
+        status_code=500,
+        detail="Ownership context not resolved",
+    )
 
 
 def get_vault_registry(request: Request) -> VaultRegistry:
@@ -109,11 +169,12 @@ async def resolve_ui_request_identity(request: Request) -> str | None:
         return None
 
     try:
-        session = request.app.state.ui_sessions.get_session(cookie_value)
+        session = request.app.state.ui_sessions.get_browser_session(cookie_value)
     except KeyError:
         return None
 
-    request.state.ui_identity = session.identity
+    request.state.ui_identity = None
     request.state.ui_principal_id = session.principal_id
-    request.state.ui_session_id = session.session_id
-    return session.identity
+    request.state.ui_email = session.email
+    request.state.ui_session_token = session.token
+    return None

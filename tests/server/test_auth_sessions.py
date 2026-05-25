@@ -34,6 +34,7 @@ def _auth_header(
 
 def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     owner = create_identity(tmp_path, "steady-wisely-boldly-0042")
     stranger = create_identity(tmp_path, "rapid-brightly-firmly-0007")
     app = create_app()
@@ -72,6 +73,7 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
 
 def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     owner = create_identity(tmp_path, "steady-wisely-boldly-0042")
     stranger = create_identity(tmp_path, "rapid-brightly-firmly-0007")
     app = create_app()
@@ -111,6 +113,7 @@ def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> N
 
 def test_sessions_do_not_survive_app_recreation(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     owner = create_identity(tmp_path, "steady-wisely-boldly-0042")
     session_id = ""
 

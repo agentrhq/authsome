@@ -1,0 +1,166 @@
+---
+title: "Hermes Agent"
+sidebarTitle: "Hermes Agent"
+description: "Use authsome from Hermes Agent via the bundled skill. One login, then Hermes calls every provider with a fresh token from the local vault."
+icon: "feather"
+keywords: ["hermes agent authsome", "hermes oauth", "hermes api key", "hermes credentials", "agentskills.io authsome", "nous research hermes", "hermes skills install"]
+---
+
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) is the self-improving agent runtime from [Nous Research](https://nousresearch.com). It installs skills following the [agentskills.io](https://agentskills.io) open standard, which means it can use the same authsome skill that Claude Code, Cursor, and other agentskills.io-compatible runtimes use.
+
+Authsome ships an agentskills.io-compatible `SKILL.md` at `skills/authsome/`. Once installed into Hermes, the agent runs `authsome login`, `authsome list`, and `authsome run` itself whenever it needs a credential. You never paste a token into a Hermes prompt.
+
+<Note>
+  **The agent drives login.** When Hermes hits a missing credential it runs `authsome login <provider>` itself, opens a browser on your machine for OAuth consent, and picks up from there. Pre-running logins is only useful if you want to seed a credential ahead of time.
+</Note>
+
+## Install the skill
+
+Authsome's skill installs into Hermes with a single command:
+
+```bash
+hermes skills install agentrhq/authsome/skills/authsome
+```
+
+Hermes fetches the skill from `agentrhq/authsome` on GitHub, registers it locally, and the agent can call it on the next turn.
+
+Tell Hermes to use the skill:
+
+```text
+Use the authsome skill to log me into GitHub.
+```
+
+Hermes reads the skill manifest and runs the matching `authsome` commands. The skill teaches Hermes the `list → login → run` flow plus authsome's safety rules (no `client_secret` in shell history, no `--scopes` workaround for missing access).
+
+## What the integration gives you
+
+- **One login per service.** OAuth2 and API-key flows run from inside Hermes. The skill drives the same `authsome login` commands a human would type.
+- **No credentials in prompts or files.** Hermes never sees raw tokens. The skill calls authsome, which collects secrets through a local browser bridge or the masked terminal fallback.
+- **Automatic refresh.** Tokens stay fresh for every agent run Hermes triggers. You do not re-authenticate when an access token expires.
+- **The same vault.** Connections you create through Hermes are stored in `~/.authsome/`, identical to connections created from the regular CLI or any other agentskills.io-compatible runtime. Nothing is duplicated.
+
+## First run
+
+A typical first session looks like this:
+
+<Steps>
+  <Step title="Ask Hermes what's already configured">
+    ```text
+    Use authsome to show me which providers are connected.
+    ```
+
+    Hermes runs `authsome list` and reports which providers are bundled, configured, and connected.
+  </Step>
+  <Step title="Log in to a provider">
+    ```text
+    Log in to GitHub via authsome.
+    ```
+
+    Hermes opens a browser to the OAuth2 PKCE flow. You approve the requested scopes, the callback lands on `http://127.0.0.1:7998/auth/callback/oauth`, and authsome stores the encrypted record.
+  </Step>
+  <Step title="Use the connection">
+    ```text
+    Use authsome to fetch my last 5 GitHub notifications.
+    ```
+
+    Hermes runs the agent under `authsome run`. The HTTP proxy injects the `Authorization` header at the `api.github.com` host. The agent's environment never contains the raw token.
+  </Step>
+</Steps>
+
+## Common prompts
+
+| Prompt | What Hermes runs |
+|--------|------------------|
+| "Log me in to GitHub via authsome." | `authsome login github` |
+| "Use the Resend API key from authsome to send an email." | `authsome run -- python <script>` |
+| "Switch the active GitHub connection to my work account." | `authsome login github --connection work` |
+| "Show me which providers are connected." | `authsome list` |
+| "Revoke my OpenAI key." | `authsome revoke openai` |
+| "Add a custom provider for Acme CRM." | `authsome register ./acmecrm.json` |
+
+## Why this is the safe pattern
+
+Without authsome, agents running inside Hermes typically read tokens from environment variables, `.env` files, or shell history. Each of those surfaces leaks easily:
+
+| Pattern | Token visible in |
+|---------|------------------|
+| `export GITHUB_TOKEN=...` | `ps`, `/proc/<pid>/environ`, shell history, subprocess env |
+| `.env` file in the repo | The repo, backups, git history if committed by accident |
+| Manual paste into Hermes | Hermes's transcript and skill log |
+| `authsome run -- ...` | None of the above |
+
+`authsome run` is the recommended pattern for any Hermes agent that calls third-party APIs. The child process never sees the real secret because the proxy injects headers at request time.
+
+## Multi-account workflows
+
+Most real workflows need at least two accounts (personal and work GitHub, or a personal and team OpenAI key). The skill plays well with named connections:
+
+```text
+Log me into GitHub as my work account.
+```
+
+Hermes runs:
+
+```bash
+authsome login github --connection work
+```
+
+Read it back:
+
+```text
+Use the work GitHub connection to open a PR.
+```
+
+Hermes runs the agent under `authsome run --connection work -- ...`. For the underlying model, see [Profiles vs connections](/concepts/profiles-vs-connections).
+
+## Without the skill
+
+If you want to drive authsome from Hermes without installing the skill (for example, a one-off script Hermes spawns), the same proxy pattern works directly:
+
+```bash
+authsome run -- python my_agent.py
+```
+
+Hermes can also drop below the CLI into the Python library when it needs explicit per-call control:
+
+```python
+from authsome.server.dependencies import create_auth_service
+
+auth = create_auth_service()
+github_token = auth.get_access_token("github")
+```
+
+See [Run agents with the proxy](/guides/run-agents-with-proxy) and [Python library](/reference/python-library) for the full surface.
+
+## What the skill cannot do
+
+- **It cannot type a `client_secret` for you.** Authsome refuses sensitive values as command-line arguments. The browser bridge is the only path.
+- **It cannot bypass the proxy CA requirement.** HTTPS interception needs the mitmproxy CA trusted on the machine. The first `authsome run` writes the CA to `~/.mitmproxy/`. See [Proxy networking](/troubleshooting/proxy-networking).
+- **It cannot share the vault across machines.** Hermes on a second machine has its own `~/.authsome/`. Re-run logins there, or use a hosted daemon (see [Hosted deployment model](/security/hosted-deployment)).
+
+## Troubleshooting
+
+If a Hermes-driven login hangs:
+
+- Run `authsome doctor` directly from the terminal to surface initialization errors.
+- Run `authsome --verbose login <provider>` to see the full flow including the daemon round-trips.
+- Check `~/.authsome/audit.log` for the most recent action and outcome.
+
+For provider-specific errors, see [OAuth callbacks](/troubleshooting/oauth-callbacks) and [Token refresh](/troubleshooting/token-refresh).
+
+## What's next
+
+<Columns cols={2}>
+  <Card title="Run agents with the proxy" icon="shield-halved" href="/guides/run-agents-with-proxy">
+    The proxy injection model the skill uses under the hood.
+  </Card>
+  <Card title="Python library" icon="code" href="/reference/python-library">
+    Drop below the skill into `AuthService` for fine-grained control.
+  </Card>
+  <Card title="All bundled providers" icon="plug" href="/reference/bundled-providers">
+    Every service Hermes can log you into out of the box.
+  </Card>
+  <Card title="Claude Code" icon="robot" href="/integrations/agents/claude-code">
+    The same skill pattern for Anthropic's CLI agent.
+  </Card>
+</Columns>

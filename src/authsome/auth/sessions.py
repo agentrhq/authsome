@@ -33,7 +33,7 @@ class AuthSession(BaseModel):
 
     session_id: str
     provider: str
-    identity: str
+    identity: str | None = None
     principal_id: str | None = None
     connection_name: str
     flow_type: str
@@ -61,7 +61,7 @@ class AuthSessionStore:
         self,
         *,
         provider: str,
-        identity: str,
+        identity: str | None,
         principal_id: str | None,
         connection_name: str,
         flow_type: str,
