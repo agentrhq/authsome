@@ -781,7 +781,6 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
         raise ValueError(f"File not found: {path}")
 
     data = json_lib.loads(filepath.read_text(encoding="utf-8"))
-    from authsome.auth.models.provider import ProviderDefinition
 
     definition = ProviderDefinition.model_validate(data)
 
