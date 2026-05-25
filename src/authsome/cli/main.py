@@ -364,10 +364,11 @@ async def login(
         )
         session_id = session_info["id"]
         status = session_info.get("status")
-        login_result = {"status": "started", "record_status": status}
+        login_result = {"status": "started", "record_status": status, "already_connected": False}
 
         if status == "completed":
             login_result["status"] = "success"
+            login_result["already_connected"] = True
         else:
             next_action = session_info.get("next_action", {"type": "none"})
             action_type = next_action.get("type")
@@ -445,17 +446,19 @@ async def login(
             }
         )
     elif login_result.get("status") == "success":
-        ctx_obj.echo(
-            f"Already logged in to {provider} ({connection}). Use the --force flag to overwrite and open the browser.",
-            color="green",
-        )
+        if login_result.get("already_connected"):
+            ctx_obj.echo(
+                f"Already logged in to {provider} ({connection}). "
+                "Use the --force flag to overwrite and open the browser.",
+                color="green",
+            )
+        else:
+            ctx_obj.echo(f"Successfully logged in to {provider} ({connection}).", color="green")
     elif login_result.get("status") == "started":
         ctx_obj.echo(
             f"Login started for {provider} ({connection}). Run 'authsome list' to verify completion.",
             color="green",
         )
-    else:
-        ctx_obj.echo(f"Successfully logged in to {provider} ({connection}).", color="green")
 
 
 @cli.command(name="scan")

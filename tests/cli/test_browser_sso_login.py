@@ -95,20 +95,59 @@ def test_credentials_ready_requires_named_cookies_not_guest_only():
     assert _credentials_ready_for_validation(logged_in, rules) is True
 
 
-def test_validate_uses_context_request_not_new_page():
-    """Validation must not open/close tabs on the login window."""
+def test_validate_uses_page_request_not_new_page():
+    """Validation must use the page request context, not open new tabs."""
     from unittest.mock import MagicMock
 
     from authsome.cli.browser_login import _validate_credentials_sync
 
     ctx = MagicMock()
-    ctx.request.get.return_value = MagicMock(status=200)
+    page = MagicMock()
+    page.request.get.return_value = MagicMock(status=200)
 
     assert _validate_credentials_sync(
         ctx,
         {"ct0": "x"},
         "https://x.com/i/api/2/notifications/all.json",
         {"x-csrf-token": "x"},
+        page=page,
     )
-    ctx.request.get.assert_called_once()
+    page.request.get.assert_called_once()
     ctx.new_page.assert_not_called()
+
+
+def test_extract_cookies_linkedin_jsessionid_quoted_and_derived():
+    """LinkedIn JSESSIONID must be quoted in Cookie header and bare for csrf-token."""
+    ctx = _make_mock_context(
+        [
+            {"name": "JSESSIONID", "value": "ajax:abc123", "domain": ".linkedin.com"},
+            {"name": "li_at", "value": "sessiontoken", "domain": ".linkedin.com"},
+        ]
+    )
+    rules = [
+        {"from": "cookies", "as": "cookie", "match": "*"},
+        {"from": "cookies", "as": "jsessionid", "match": "JSESSIONID"},
+        {"from": "cookies", "as": "li_at", "match": "li_at"},
+    ]
+    result = extract_cookies_from_context(ctx, rules, ["linkedin.com"])
+    assert 'JSESSIONID="ajax:abc123"' in result["cookie"]
+    assert result["jsessionid"] == "ajax:abc123"
+
+
+def test_derive_jsessionid_from_cookie_blob_when_named_cookie_missing():
+    ctx = _make_mock_context(
+        [
+            {"name": "li_at", "value": "tok", "domain": ".linkedin.com"},
+        ]
+    )
+    # Simulate wildcard cookie built manually without separate JSESSIONID cookie object
+    ctx.cookies.return_value = [
+        {"name": "li_at", "value": "tok", "domain": ".linkedin.com"},
+        {"name": "JSESSIONID", "value": "ajax:xyz", "domain": ".linkedin.com"},
+    ]
+    rules = [
+        {"from": "cookies", "as": "cookie", "match": "*"},
+        {"from": "cookies", "as": "jsessionid", "match": "JSESSIONID"},
+    ]
+    result = extract_cookies_from_context(ctx, rules, ["linkedin.com"])
+    assert result["jsessionid"] == "ajax:xyz"

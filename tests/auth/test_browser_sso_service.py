@@ -157,6 +157,21 @@ async def test_validate_browser_sso_credentials_network_error_tolerated():
 
 
 @pytest.mark.asyncio
+async def test_validate_browser_sso_credentials_skips_when_expires_at_in_future():
+    from datetime import timedelta
+
+    from authsome.utils import utc_now
+
+    record = _make_connection_record()
+    record.expires_at = utc_now() + timedelta(days=30)
+    definition = _make_browser_provider()
+
+    with patch("authsome.server.credential_service.httpx.AsyncClient") as mock_cls:
+        await _validate_browser_sso_credentials(record, definition)
+        mock_cls.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_validate_browser_sso_credentials_no_validate_url_returns_immediately():
     record = _make_connection_record()
     definition = _make_browser_provider(validate_url=None)

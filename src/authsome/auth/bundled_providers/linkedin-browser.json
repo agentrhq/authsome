@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "name": "linkedin-browser",
+  "display_name": "LinkedIn — Browser SSO",
+  "auth_type": "browser_sso",
+  "flow": "browser_sso",
+  "api_url": "regex:^(www\\.linkedin\\.com|linkedin\\.com)",
+  "browser_sso": {
+    "entry_url": "https://www.linkedin.com/feed/",
+    "domains": ["linkedin.com", "www.linkedin.com"],
+    "validate_url": "https://www.linkedin.com/voyager/api/me",
+    "extract": [
+      { "from": "cookies", "as": "cookie",     "match": "*"          },
+      { "from": "cookies", "as": "jsessionid", "match": "JSESSIONID" },
+      { "from": "cookies", "as": "li_at",      "match": "li_at"      }
+    ],
+    "extra_headers": {
+      "Cookie": "${cookie}",
+      "csrf-token": "${jsessionid}",
+      "x-restli-protocol-version": "2.0.0",
+      "x-li-lang": "en_US",
+      "Accept": "application/vnd.linkedin.normalized+json+2.1",
+      "Referer": "https://www.linkedin.com/",
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    },
+    "ttl_from_cookie": "li_at"
+  },
+  "export": {
+    "env": {
+      "cookie":     "LINKEDIN_COOKIE",
+      "jsessionid": "LINKEDIN_JSESSIONID",
+      "li_at":      "LINKEDIN_LI_AT"
+    }
+  }
+}

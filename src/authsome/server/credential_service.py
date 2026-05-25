@@ -17,6 +17,7 @@ import httpx
 from loguru import logger
 
 from authsome import audit
+from authsome.auth.browser_sso_cookies import normalize_browser_sso_credentials
 from authsome.auth.flows.api_key import ApiKeyFlow
 from authsome.auth.flows.base import AuthFlow
 from authsome.auth.flows.browser_sso import BrowserSSOFlow
@@ -88,15 +89,19 @@ async def _validate_browser_sso_credentials(
     record: ConnectionRecord,
     definition: ProviderDefinition,
 ) -> None:
-    """GET validate_url with stored Cookie. 4xx = expired; network errors tolerated."""
+    """Optionally GET validate_url before injecting browser SSO headers."""
     cfg = definition.browser_sso
     if cfg is None or cfg.validate_url is None:
         return
 
-    headers = _render_extra_headers(
-        cfg.extra_headers,
-        record.credentials or {},
-    )
+    # When the stored cookie expiry is still in the future, trust it.
+    # httpx validate_url checks are unreliable for browser session cookies —
+    # LinkedIn/X often reject non-browser clients even with valid cookies.
+    if record.expires_at is not None and record.expires_at > utc_now():
+        return
+
+    credentials = normalize_browser_sso_credentials(record.credentials or {})
+    headers = _render_extra_headers(cfg.extra_headers, credentials)
 
     try:
         async with httpx.AsyncClient(follow_redirects=False, timeout=8.0) as client:
@@ -1063,7 +1068,8 @@ class AuthService:
                 raise CredentialMissingError("No browser SSO credentials stored", provider=record.provider)
             if definition.browser_sso is None:
                 raise CredentialMissingError("Provider missing browser_sso config", provider=record.provider)
-            return _render_extra_headers(definition.browser_sso.extra_headers, record.credentials)
+            normalized = normalize_browser_sso_credentials(record.credentials)
+            return _render_extra_headers(definition.browser_sso.extra_headers, normalized)
 
         token = await self._get_access_token_from_record(record)
 
