@@ -55,12 +55,12 @@ class BrowserSSOFlow(AuthFlow):
         client_secret: str | None = None,
         base_url: str | None = None,
     ) -> None:
-        if provider.browser_sso is None:
+        if provider.browser is None:
             raise AuthenticationFailedError(
-                "Provider missing 'browser_sso' configuration",
+                "Provider missing 'browser' configuration",
                 provider=provider.name,
             )
-        cfg = provider.browser_sso
+        cfg = provider.browser
         runtime_session.state = "waiting_for_user"
         runtime_session.payload["entry_url"] = cfg.entry_url
         runtime_session.payload["domains"] = cfg.domains
@@ -109,7 +109,7 @@ class BrowserSSOFlow(AuthFlow):
             )
 
         if expires_at is None:
-            ttl_delta = _parse_ttl_duration(provider.browser_sso.ttl if provider.browser_sso else None)
+            ttl_delta = _parse_ttl_duration(provider.browser.ttl if provider.browser else None)
             expires_at = now + ttl_delta if ttl_delta is not None else None
 
         return FlowResult(
@@ -118,7 +118,7 @@ class BrowserSSOFlow(AuthFlow):
                 provider=provider.name,
                 identity=identity,
                 connection_name=connection_name,
-                auth_type=AuthType.BROWSER_SSO,
+                auth_type=AuthType.BROWSER,
                 status=ConnectionStatus.CONNECTED,
                 credentials=credentials,
                 expires_at=expires_at,

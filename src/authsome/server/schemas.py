@@ -41,7 +41,7 @@ class NoneAction(BaseModel):
 
 
 class BrowserSSOAction(BaseModel):
-    type: Literal["browser_sso"] = "browser_sso"
+    type: Literal["browser"] = "browser"
     entry_url: str
     domains: list[str]
     validate_url: str | None = None

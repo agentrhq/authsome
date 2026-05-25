@@ -385,7 +385,7 @@ async def login(
                 except Exception:
                     pass
 
-            elif action_type == "browser_sso":
+            elif action_type == "browser":
                 from authsome.cli.browser_login import run_browser_login
 
                 if not ctx_obj.json_output and not ctx_obj.quiet:
@@ -418,7 +418,7 @@ async def login(
                 else:
                     login_result["status"] = "started"
 
-            if not ctx_obj.json_output and not ctx_obj.quiet and action_type != "browser_sso":
+            if not ctx_obj.json_output and not ctx_obj.quiet and action_type != "browser":
                 ctx_obj.echo(
                     "\nLogin process started. The connection will be updated automatically once complete.",
                     color="yellow",

@@ -2,10 +2,10 @@
   "schema_version": 1,
   "name": "x-browser",
   "display_name": "X (Twitter) — Browser SSO",
-  "auth_type": "browser_sso",
-  "flow": "browser_sso",
+  "auth_type": "browser",
+  "flow": "browser",
   "api_url": "regex:^(api\\.twitter\\.com|api\\.x\\.com|x\\.com|twitter\\.com)",
-  "browser_sso": {
+  "browser": {
     "entry_url": "https://x.com/",
     "domains": ["x.com", "twitter.com"],
     "validate_url": "https://x.com/i/api/2/notifications/all.json?count=1",

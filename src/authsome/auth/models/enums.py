@@ -8,7 +8,7 @@ class AuthType(StrEnum):
 
     OAUTH2 = "oauth2"
     API_KEY = "api_key"
-    BROWSER_SSO = "browser_sso"
+    BROWSER = "browser"
 
 
 class FlowType(StrEnum):
@@ -18,7 +18,7 @@ class FlowType(StrEnum):
     DEVICE_CODE = "device_code"
     DCR_PKCE = "dcr_pkce"
     API_KEY = "api_key"
-    BROWSER_SSO = "browser_sso"
+    BROWSER = "browser"
 
 
 class ConnectionStatus(StrEnum):

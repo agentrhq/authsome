@@ -387,7 +387,7 @@ def _session_response(session: AuthSession, server_base_url: str) -> AuthSession
     input_fields = session.payload.get("input_fields")
 
     if (
-        session.flow_type == FlowType.BROWSER_SSO
+        session.flow_type == FlowType.BROWSER
         and session.state != AuthSessionStatus.COMPLETED
         and session.payload.get("entry_url")
     ):

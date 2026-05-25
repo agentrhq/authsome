@@ -104,7 +104,7 @@ class ProviderDefinition(BaseModel):
     oauth: OAuthConfig | None = None
     registration: ClientRegistrationConfig | None = None
     api_key: ApiKeyConfig | None = None
-    browser_sso: BrowserSSOConfig | None = None
+    browser: BrowserSSOConfig | None = None
     export: ExportConfig | None = None
     docs_url: str | None = None
     api_url: str | None = None

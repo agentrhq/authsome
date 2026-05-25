@@ -21,9 +21,9 @@ def _make_browser_provider(validate_url: str | None = "https://example.com/valid
             "schema_version": 1,
             "name": "test-browser",
             "display_name": "Test Browser SSO",
-            "auth_type": "browser_sso",
-            "flow": "browser_sso",
-            "browser_sso": {
+            "auth_type": "browser",
+            "flow": "browser",
+            "browser": {
                 "entry_url": "https://example.com/login",
                 "domains": ["example.com"],
                 "validate_url": validate_url,
@@ -43,7 +43,7 @@ def _make_connection_record(credentials: dict[str, str] | None = None) -> Connec
         provider="test-browser",
         identity="test-agent",
         connection_name="default",
-        auth_type=AuthType.BROWSER_SSO,
+        auth_type=AuthType.BROWSER,
         status=ConnectionStatus.CONNECTED,
         credentials=credentials or {"cookie": "abc=123", "ct0": "deadbeef"},
     )
@@ -182,12 +182,12 @@ async def test_validate_browser_sso_credentials_no_validate_url_returns_immediat
         mock_cls.assert_not_called()
 
 
-# ── _get_auth_headers_from_record (BROWSER_SSO) ───────────────────────────────
+# ── _get_auth_headers_from_record (BROWSER) ───────────────────────────────────
 
 
 @pytest.mark.asyncio
 async def test_get_auth_headers_from_record_browser_sso():
-    """BROWSER_SSO branch must run BEFORE _get_access_token_from_record, not dead code."""
+    """BROWSER branch must run BEFORE _get_access_token_from_record, not dead code."""
     from unittest.mock import MagicMock
 
     from authsome.auth.models.connection import ConnectionRecord
@@ -200,7 +200,7 @@ async def test_get_auth_headers_from_record_browser_sso():
         provider="x-browser",
         identity="agent",
         connection_name="default",
-        auth_type=AuthType.BROWSER_SSO,
+        auth_type=AuthType.BROWSER,
         status=ConnectionStatus.CONNECTED,
         credentials={"cookie": "auth_token=abc; ct0=xyz", "ct0": "xyz"},
     )
@@ -209,9 +209,9 @@ async def test_get_auth_headers_from_record_browser_sso():
             "schema_version": 1,
             "name": "x-browser",
             "display_name": "X",
-            "auth_type": "browser_sso",
-            "flow": "browser_sso",
-            "browser_sso": {
+            "auth_type": "browser",
+            "flow": "browser",
+            "browser": {
                 "entry_url": "https://x.com/",
                 "domains": ["x.com"],
                 "validate_url": None,  # skip network call

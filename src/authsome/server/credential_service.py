@@ -56,7 +56,7 @@ _EXTRA_HEADER_TMPL = re.compile(r"\$\{([\w-]+)\}")
 _VALID_FLOWS: dict[AuthType, set[FlowType]] = {
     AuthType.OAUTH2: {FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE},
     AuthType.API_KEY: {FlowType.API_KEY},
-    AuthType.BROWSER_SSO: {FlowType.BROWSER_SSO},
+    AuthType.BROWSER: {FlowType.BROWSER},
 }
 
 _NEAR_EXPIRY_SECONDS = 300
@@ -66,7 +66,7 @@ _FLOW_HANDLERS: dict[FlowType, type[AuthFlow]] = {
     FlowType.DEVICE_CODE: DeviceCodeFlow,
     FlowType.DCR_PKCE: DcrPkceFlow,
     FlowType.API_KEY: ApiKeyFlow,
-    FlowType.BROWSER_SSO: BrowserSSOFlow,
+    FlowType.BROWSER: BrowserSSOFlow,
 }
 
 
@@ -90,7 +90,7 @@ async def _validate_browser_sso_credentials(
     definition: ProviderDefinition,
 ) -> None:
     """Optionally GET validate_url before injecting browser SSO headers."""
-    cfg = definition.browser_sso
+    cfg = definition.browser
     if cfg is None or cfg.validate_url is None:
         return
 
@@ -808,7 +808,7 @@ class AuthService:
             if record.api_key:
                 env_name = export_map.get("api_key", f"{export_name_part(provider)}_API_KEY")
                 values[env_name] = record.api_key
-        elif record.auth_type == AuthType.BROWSER_SSO:
+        elif record.auth_type == AuthType.BROWSER:
             for cred_key, cred_value in (record.credentials or {}).items():
                 env_name = export_map.get(cred_key, f"{export_name_part(provider)}_{cred_key.upper()}")
                 values[env_name] = cred_value
@@ -1062,14 +1062,14 @@ class AuthService:
     async def _get_auth_headers_from_record(
         self, record: ConnectionRecord, definition: ProviderDefinition
     ) -> dict[str, str]:
-        if record.auth_type == AuthType.BROWSER_SSO:
+        if record.auth_type == AuthType.BROWSER:
             await _validate_browser_sso_credentials(record, definition)
             if not record.credentials:
                 raise CredentialMissingError("No browser SSO credentials stored", provider=record.provider)
-            if definition.browser_sso is None:
-                raise CredentialMissingError("Provider missing browser_sso config", provider=record.provider)
+            if definition.browser is None:
+                raise CredentialMissingError("Provider missing browser config", provider=record.provider)
             normalized = normalize_browser_sso_credentials(record.credentials)
-            return _render_extra_headers(definition.browser_sso.extra_headers, normalized)
+            return _render_extra_headers(definition.browser.extra_headers, normalized)
 
         token = await self._get_access_token_from_record(record)
 

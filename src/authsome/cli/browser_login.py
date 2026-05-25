@@ -1,4 +1,4 @@
-"""Browser-based login helper for browser_sso flows.
+"""Browser-based login helper for browser auth flows.
 
 Uses the system Chrome binary via Playwright against a **dedicated authsome
 profile** at ``~/.authsome/browser-data/`` — the same model as sigcli's

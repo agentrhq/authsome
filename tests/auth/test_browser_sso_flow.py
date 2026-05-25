@@ -13,9 +13,9 @@ def _make_provider(ttl: str | None = None) -> ProviderDefinition:
             "schema_version": 1,
             "name": "x-browser",
             "display_name": "X Browser SSO",
-            "auth_type": "browser_sso",
-            "flow": "browser_sso",
-            "browser_sso": {
+            "auth_type": "browser",
+            "flow": "browser",
+            "browser": {
                 "entry_url": "https://x.com/",
                 "domains": ["x.com", "twitter.com"],
                 "validate_url": "https://x.com/i/api/2/notifications/all.json?count=1",
@@ -36,7 +36,7 @@ def _make_session() -> AuthSession:
         provider="x-browser",
         identity="test-agent",
         connection_name="default",
-        flow_type="browser_sso",
+        flow_type="browser",
     )
 
 
@@ -103,12 +103,12 @@ async def test_begin_requires_browser_sso_config():
             "schema_version": 1,
             "name": "x-browser",
             "display_name": "X",
-            "auth_type": "browser_sso",
-            "flow": "browser_sso",
+            "auth_type": "browser",
+            "flow": "browser",
         }
     )
-    # browser_sso defaults to None — no object.__setattr__ needed
-    with pytest.raises(AuthenticationFailedError, match="browser_sso"):
+    # browser defaults to None — no object.__setattr__ needed
+    with pytest.raises(AuthenticationFailedError, match="browser"):
         await flow.begin(bad_provider, "test-agent", "default", session)
 
 
@@ -123,7 +123,7 @@ async def test_resume_builds_connected_record():
     callback_data = {"credentials": {"cookie": "abc=123", "ct0": "xyz"}}
     result = await flow.resume(provider, "test-agent", "default", session, callback_data)
     assert result is not None
-    assert result.connection.auth_type == AuthType.BROWSER_SSO
+    assert result.connection.auth_type == AuthType.BROWSER
     assert result.connection.status == ConnectionStatus.CONNECTED
     assert result.connection.credentials == {"cookie": "abc=123", "ct0": "xyz"}
     assert result.connection.provider == "x-browser"
@@ -190,7 +190,7 @@ def test_refresh_raises_refresh_failed_error():
         provider="x-browser",
         identity="agent",
         connection_name="default",
-        auth_type=AuthType.BROWSER_SSO,
+        auth_type=AuthType.BROWSER,
         status=ConnectionStatus.CONNECTED,
         credentials={"cookie": "abc"},
     )

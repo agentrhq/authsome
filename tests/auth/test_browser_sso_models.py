@@ -3,12 +3,12 @@ from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
 from authsome.auth.models.provider import BrowserSSOConfig, ExtractRule, ProviderDefinition
 
 
-def test_auth_type_has_browser_sso():
-    assert AuthType.BROWSER_SSO == "browser_sso"
+def test_auth_type_has_browser():
+    assert AuthType.BROWSER == "browser"
 
 
-def test_flow_type_has_browser_sso():
-    assert FlowType.BROWSER_SSO == "browser_sso"
+def test_flow_type_has_browser():
+    assert FlowType.BROWSER == "browser"
 
 
 def test_extract_rule_field_aliases():
@@ -70,19 +70,19 @@ def test_provider_definition_browser_sso_field():
             "schema_version": 1,
             "name": "x-browser",
             "display_name": "X Browser SSO",
-            "auth_type": "browser_sso",
-            "flow": "browser_sso",
-            "browser_sso": {
+            "auth_type": "browser",
+            "flow": "browser",
+            "browser": {
                 "entry_url": "https://x.com/",
                 "domains": ["x.com"],
                 "extract": [{"from": "cookies", "as": "cookie", "match": "*"}],
             },
         }
     )
-    assert defn.auth_type == AuthType.BROWSER_SSO
-    assert defn.flow == FlowType.BROWSER_SSO
-    assert defn.browser_sso is not None
-    assert defn.browser_sso.entry_url == "https://x.com/"
+    assert defn.auth_type == AuthType.BROWSER
+    assert defn.flow == FlowType.BROWSER
+    assert defn.browser is not None
+    assert defn.browser.entry_url == "https://x.com/"
 
 
 def test_connection_record_credentials_field():
@@ -90,7 +90,7 @@ def test_connection_record_credentials_field():
         provider="x-browser",
         identity="test-agent",
         connection_name="default",
-        auth_type=AuthType.BROWSER_SSO,
+        auth_type=AuthType.BROWSER,
         status=ConnectionStatus.CONNECTED,
         credentials={"cookie": "abc=123; def=456", "ct0": "xyz"},
     )

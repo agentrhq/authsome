@@ -9,7 +9,7 @@ def test_browser_sso_action_schema():
         validate_url="https://x.com/i/api/2/notifications/all.json",
         extract=[{"from": "cookies", "as": "cookie", "match": "*"}],
     )
-    assert action.type == "browser_sso"
+    assert action.type == "browser"
     assert action.entry_url == "https://x.com/"
 
 
@@ -18,13 +18,13 @@ def test_next_action_discriminator_browser_sso():
     from pydantic import TypeAdapter
 
     ta = TypeAdapter(NextAction)
-    raw = {"type": "browser_sso", "entry_url": "https://x.com/", "domains": ["x.com"], "extract": []}
+    raw = {"type": "browser", "entry_url": "https://x.com/", "domains": ["x.com"], "extract": []}
     result = ta.validate_python(raw)
     assert isinstance(result, BrowserSSOAction)
 
 
 def test_session_response_returns_browser_sso_action():
-    """_session_response builds BrowserSSOAction when flow_type is browser_sso."""
+    """_session_response builds BrowserSSOAction when flow_type is browser."""
     from authsome.server.routes.auth import _session_response
 
     session = AuthSession(
@@ -32,7 +32,7 @@ def test_session_response_returns_browser_sso_action():
         provider="x-browser",
         identity="agent",
         connection_name="default",
-        flow_type="browser_sso",
+        flow_type="browser",
         state="waiting_for_user",
     )
     session.payload["entry_url"] = "https://x.com/"
@@ -43,13 +43,13 @@ def test_session_response_returns_browser_sso_action():
 
     response = _session_response(session, "http://localhost:7998")
     assert isinstance(response.next_action, BrowserSSOAction)
-    assert response.next_action.type == "browser_sso"
+    assert response.next_action.type == "browser"
     assert response.next_action.entry_url == "https://x.com/"
     assert response.next_action.extra_headers == {"Cookie": "${cookie}", "x-csrf-token": "${ct0}"}
 
 
 def test_session_response_no_browser_sso_when_completed():
-    """Completed browser_sso sessions return NoneAction, not BrowserSSOAction."""
+    """Completed browser sessions return NoneAction, not BrowserSSOAction."""
     from authsome.auth.sessions import AuthSessionStatus
     from authsome.server.routes.auth import _session_response
 
@@ -58,7 +58,7 @@ def test_session_response_no_browser_sso_when_completed():
         provider="x-browser",
         identity="agent",
         connection_name="default",
-        flow_type="browser_sso",
+        flow_type="browser",
         state=AuthSessionStatus.COMPLETED,
     )
     session.payload["entry_url"] = "https://x.com/"

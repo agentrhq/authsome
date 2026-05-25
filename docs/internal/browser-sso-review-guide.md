@@ -41,13 +41,13 @@ sequenceDiagram
     participant Site as x.com / linkedin.com
 
     User->>CLI: authsome login linkedin-browser
-    CLI->>Daemon: begin browser_sso session
+    CLI->>Daemon: begin browser session
     Daemon-->>CLI: entry_url, extract rules, validate_url
     CLI->>Browser: open profile ~/.authsome/browser-data/
     User->>Browser: log in interactively
     Browser-->>CLI: cookies extracted + validated (page.request)
     CLI->>Daemon: resume with credentials + cookie expiry
-    Daemon->>Vault: store ConnectionRecord (browser_sso)
+    Daemon->>Vault: store ConnectionRecord (browser)
 
     User->>CLI: authsome run -- curl https://site/api/...
     CLI->>Proxy: start ephemeral proxy
@@ -67,7 +67,7 @@ Read in this order — each layer is ~100–650 lines, not 2000 at once.
 | Layer | Files | What to look for |
 |-------|--------|------------------|
 | **Provider config** | `auth/bundled_providers/x-browser.json`, `linkedin-browser.json` | Domains, `validate_url`, cookie extract rules, `extra_headers` templates |
-| **Models** | `auth/models/provider.py` (`BrowserSSOConfig`), `auth/models/enums.py` | New `browser_sso` auth/flow types |
+| **Models** | `auth/models/provider.py` (`BrowserSSOConfig`), `auth/models/enums.py` | New `browser` auth/flow types |
 | **Flow (daemon)** | `auth/flows/browser_sso.py` | `begin()` fills session payload; `resume()` writes `ConnectionRecord` with real cookie expiry |
 | **Cookie fixes** | `auth/browser_sso_cookies.py` | LinkedIn: derive bare `jsessionid` for `csrf-token` header |
 | **Login (CLI)** | `cli/browser_login.py` | Playwright login cascade, cookie extraction, validation |
@@ -151,7 +151,7 @@ Dev extras restored for CI: `ruff`, `ty`, `pytest`, etc. (`pip install -e ".[dev
 - No docs site pages for browser SSO yet
 - No generic `authsome login https://…` URL auto-provisioning (only bundled + registered providers)
 - Does not use the user's daily Chrome profile by default
-- Does not replace OAuth/API-key flows — additive `auth_type: browser_sso`
+- Does not replace OAuth/API-key flows — additive `auth_type: browser`
 
 ---
 
