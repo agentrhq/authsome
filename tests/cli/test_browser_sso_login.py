@@ -1,6 +1,8 @@
 from authsome.cli.browser_login import (
+    CHROME_NOT_FOUND_HINT,
     PLAYWRIGHT_INSTALL_HINT,
     _credentials_ready_for_validation,
+    _require_chrome_exec,
     extract_cookies_from_context,
 )
 
@@ -79,6 +81,14 @@ def test_extract_cookies_domain_subdomain_match():
 def test_playwright_install_hint_mentions_install():
     assert "install" in PLAYWRIGHT_INSTALL_HINT.lower()
     assert "playwright" in PLAYWRIGHT_INSTALL_HINT.lower()
+
+
+def test_require_chrome_exec_raises_when_not_found():
+    import pytest
+
+    with pytest.raises(RuntimeError, match="Chrome not found"):
+        _require_chrome_exec(None)
+    assert "Chrome not found" in CHROME_NOT_FOUND_HINT
 
 
 def test_credentials_ready_requires_named_cookies_not_guest_only():

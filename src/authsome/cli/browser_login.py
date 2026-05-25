@@ -36,6 +36,8 @@ PLAYWRIGHT_INSTALL_HINT = (
     "  (no 'playwright install' needed — authsome uses your system Chrome)"
 )
 
+CHROME_NOT_FOUND_HINT = "Chrome not found. Install Google Chrome (or Chromium/Brave), "
+
 # Dedicated authsome browser profile — shared across all browser-SSO providers.
 AUTHSOME_BROWSER_DATA_DIR = Path.home() / ".authsome" / "browser-data"
 
@@ -108,6 +110,11 @@ def _find_chrome_exec() -> str | None:
             logger.debug("authsome: found browser at {}", path)
             return path
     return None
+
+
+def _require_chrome_exec(chrome_exec: str | None) -> None:
+    if not chrome_exec:
+        raise RuntimeError(CHROME_NOT_FOUND_HINT)
 
 
 def _browser_data_dir(override: str | None = None) -> Path:
@@ -615,8 +622,10 @@ def run_browser_login(
     }
 
     if login_mode == "visible":
+        _require_chrome_exec(chrome_exec)
         result = _try_visible_login(provider_name, entry_url, data_dir, **poll_kwargs, timeout_s=timeout_s)
     elif login_mode == "headless":
+        _require_chrome_exec(chrome_exec)
         result = _try_existing_cookies(provider_name, data_dir, **poll_kwargs)
         if result is None:
             result = _try_headless_login(provider_name, entry_url, data_dir, **poll_kwargs)
@@ -633,6 +642,7 @@ def run_browser_login(
         if live:
             return live
 
+        _require_chrome_exec(chrome_exec)
         result = _try_existing_cookies(provider_name, data_dir, **poll_kwargs)
         if result is None:
             time.sleep(1.0)  # let any headless profile lock release before visible launch
