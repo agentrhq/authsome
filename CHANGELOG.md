@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.1](https://github.com/agentrhq/authsome/compare/authsome-v0.4.0...authsome-v0.4.1) (2026-05-25)
+
+
+### Features
+
+* enable provider configuration management for hosted admins with required credential inputs and scope persistence ([e26d584](https://github.com/agentrhq/authsome/commit/e26d5841f34467af77e67903eaf6ee8b97d59313))
+* enable provider configuration management for hosted admins with… ([30b2f8a](https://github.com/agentrhq/authsome/commit/30b2f8a3814a04b710fd37206889e3e1a71fd43f))
+
+
+### Bug Fixes
+
+* rename AUTHSOME_ADMIN_PRINCIPLES environment variable to fix typo ([10f17f4](https://github.com/agentrhq/authsome/commit/10f17f48e35f118e76d7cb5c797a498408c51db7))
+
 ## [0.4.0](https://github.com/agentrhq/authsome/compare/authsome-v0.3.2...authsome-v0.4.0) (2026-05-25)
 
 
