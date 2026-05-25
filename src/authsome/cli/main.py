@@ -1,6 +1,6 @@
 """Command-line interface for authsome."""
 
-import json as json_lib
+import json
 import os
 import pathlib
 import sys
@@ -25,7 +25,7 @@ from authsome.cli.helpers import (
     setup_logging,
 )
 from authsome.paths import get_client_log_path
-from authsome.utils import connection_is_active, format_error_code, format_expires_at, redact
+from authsome.utils import connection_is_active, format_error_code, redact
 
 
 @click.group()
@@ -48,15 +48,6 @@ def cli(ctx: click.Context, verbose: bool, log_file: str) -> None:
     """
     resolved = Path(log_file) if log_file else None
     setup_logging(verbose=verbose, log_file=resolved)
-
-
-def _render_encryption_backend(data: dict[str, Any]) -> str:
-    """Render configured mode plus effective master-key source for human output."""
-    backend = data["encryption_backend"]
-    configured_mode = data.get("configured_encryption_mode")
-    if configured_mode:
-        return f"{backend} (mode: {configured_mode})"
-    return backend
 
 
 @cli.group(name="provider")
@@ -111,125 +102,7 @@ async def list_cmd(ctx_obj: ContextObj) -> None:
 
     bundled_out = [build_provider_entry(p, "bundled") for p in by_source["bundled"]]
     custom_out = [build_provider_entry(p, "custom") for p in by_source["custom"]]
-
-    if ctx_obj.json_output:
-        ctx_obj.print_json({"bundled": bundled_out, "custom": custom_out})
-        return
-
-    rows: list[dict[str, Any]] = []
-    for p in bundled_out + custom_out:
-        provider_label = f"{p['display_name']} [{p['name']}]"
-        if p["connections"]:
-            for conn in p["connections"]:
-                rows.append(
-                    {
-                        "provider_id": p["name"],
-                        "provider": provider_label,
-                        "source": p["source"],
-                        "auth": p["auth_type"],
-                        "connection": (
-                            f"{conn['connection_name']} (default)"
-                            if conn.get("is_default")
-                            else conn["connection_name"]
-                        ),
-                        "status": conn["status"],
-                        "expires_at": conn.get("expires_at"),
-                        "expires": format_expires_at(conn.get("expires_at")) or "-",
-                    }
-                )
-        else:
-            rows.append(
-                {
-                    "provider_id": p["name"],
-                    "provider": provider_label,
-                    "source": p["source"],
-                    "auth": p["auth_type"],
-                    "connection": "-",
-                    "status": "not_connected",
-                    "expires_at": None,
-                    "expires": "-",
-                }
-            )
-
-    if not rows:
-        ctx_obj.echo("No providers configured.")
-        return
-
-    connected_provider_ids = {row["provider_id"] for row in rows if connection_is_active(row)}
-    connected_count = len(connected_provider_ids)
-    ctx_obj.echo(f"Providers: {len(bundled_out) + len(custom_out)} total, {connected_count} connected")
-    ctx_obj.echo("")
-
-    headers = {
-        "provider": "Provider",
-        "source": "Source",
-        "auth": "Auth",
-        "connection": "Connection",
-        "status": "Status",
-        "expires": "Expires",
-    }
-    widths = {
-        key: max(len(headers[key]), *(len(row[key]) for row in rows))
-        for key in ("provider", "source", "auth", "connection", "status", "expires")
-    }
-
-    def pad_field(text: str, key: str, color: str | None = None, bold: bool = False, dim: bool = False) -> str:
-        if ctx_obj.no_color or (not color and not dim):
-            return f"{text:<{widths[key]}}"
-        styled = click.style(text, fg=color, bold=bold, dim=dim)
-        padding = " " * (widths[key] - len(text))
-        return f"{styled}{padding}"
-
-    def render_row(row: dict[str, Any], is_header: bool = False, is_divider: bool = False) -> str:
-        if is_header or is_divider:
-            return (
-                f"{row['provider']:<{widths['provider']}}  "
-                f"{row['source']:<{widths['source']}}  "
-                f"{row['auth']:<{widths['auth']}}  "
-                f"{row['connection']:<{widths['connection']}}  "
-                f"{row['status']:<{widths['status']}}  "
-                f"{row['expires']:<{widths['expires']}}"
-            ).rstrip()
-
-        is_active = connection_is_active(row)
-
-        if is_active:
-            prov_color = "green"
-            prov_bold = True
-            conn_color = "cyan"
-            status_color = "green"
-            status_dim = False
-            expires_color = "yellow"
-        else:
-            prov_color = None
-            prov_bold = False
-            conn_color = None
-            expires_color = None
-            if row["status"] == "not_connected":
-                status_color = None
-                status_dim = True
-            else:
-                status_color = "red"
-                status_dim = False
-
-        provider_str = pad_field(row["provider"], "provider", color=prov_color, bold=prov_bold)
-        source_str = pad_field(row["source"], "source")
-        auth_str = pad_field(row["auth"], "auth")
-        connection_str = pad_field(row["connection"], "connection", color=conn_color)
-        status_str = pad_field(row["status"], "status", color=status_color, bold=is_active, dim=status_dim)
-        expires_str = pad_field(row["expires"], "expires", color=expires_color)
-
-        return f"{provider_str}  {source_str}  {auth_str}  {connection_str}  {status_str}  {expires_str}".rstrip()
-
-    ctx_obj.emit(render_row(headers, is_header=True))
-    ctx_obj.emit(
-        render_row(
-            {key: "-" * widths[key] for key in ("provider", "source", "auth", "connection", "status", "expires")},
-            is_divider=True,
-        )
-    )
-    for row in rows:
-        ctx_obj.emit(render_row(row))
+    ctx_obj.print_json({"bundled": bundled_out, "custom": custom_out})
 
 
 @cli.command()
@@ -259,11 +132,6 @@ async def login(
     flow_value = FlowType(flow).value if flow else None
     scope_list = [s.strip() for s in scopes.split(",")] if scopes else None
 
-    if force and not ctx_obj.json_output and not ctx_obj.quiet:
-        ctx_obj.echo("Warning: Forcing login will overwrite any existing connection.", color="yellow")
-    if not ctx_obj.json_output:
-        ctx_obj.echo(f"Starting login for {provider}...", color="cyan")
-
     try:
         session_info = await actx.runtime_client.start_login(
             provider=provider,
@@ -273,7 +141,6 @@ async def login(
             base_url=base_url,
             force=force,
         )
-        session_id = session_info["id"]
         status = session_info.get("status")
         login_result = {"status": "started", "record_status": status}
 
@@ -285,22 +152,12 @@ async def login(
 
             if action_type == "open_url":
                 auth_url = next_action["url"]
-                if not ctx_obj.json_output and not ctx_obj.quiet:
-                    ctx_obj.echo("Opening browser to continue login...", color="cyan")
-                    ctx_obj.echo(f"Visit: {auth_url}", color="cyan")
                 import webbrowser
 
                 try:
                     webbrowser.open(auth_url)
                 except Exception:
                     pass
-
-            if not ctx_obj.json_output and not ctx_obj.quiet:
-                ctx_obj.echo(
-                    "\nLogin process started. The connection will be updated automatically once complete.",
-                    color="yellow",
-                )
-                ctx_obj.echo(f"Session ID: {session_id}")
 
         logger.info(
             "client_event event=login provider={} connection={} flow={} status={}",
@@ -310,31 +167,16 @@ async def login(
             login_result["status"],
         )
     except Exception:
-        if not ctx_obj.json_output:
-            logger.warning("client_event event=login provider={} connection={} status=failure", provider, connection)
         raise
 
-    if ctx_obj.json_output:
-        ctx_obj.print_json(
-            {
-                "status": login_result.get("status", "success"),
-                "provider": provider,
-                "connection": connection,
-                "record_status": login_result.get("record_status"),
-            }
-        )
-    elif login_result.get("status") == "success":
-        ctx_obj.echo(
-            f"Already logged in to {provider} ({connection}). Use the --force flag to overwrite and open the browser.",
-            color="green",
-        )
-    elif login_result.get("status") == "started":
-        ctx_obj.echo(
-            f"Login started for {provider} ({connection}). Run 'authsome provider list' to verify completion.",
-            color="green",
-        )
-    else:
-        ctx_obj.echo(f"Successfully logged in to {provider} ({connection}).", color="green")
+    ctx_obj.print_json(
+        {
+            "status": login_result.get("status", "success"),
+            "provider": provider,
+            "connection": connection,
+            "record_status": login_result.get("record_status"),
+        }
+    )
 
 
 @cli.command(name="scan")
@@ -457,27 +299,15 @@ async def scan(ctx_obj: ContextObj, connection: str, auto_import: bool) -> None:
                 item["env_var"],
             )
 
-    if ctx_obj.json_output:
-        ctx_obj.print_json(
-            {
-                "connection": connection,
-                "import": should_import,
-                "configured_count": len(configured),
-                "imported_count": imported,
-                "results": results,
-            }
-        )
-    else:
-        if not results:
-            ctx_obj.echo("No API key providers found to process.", color="yellow")
-        else:
-            for item in results:
-                env_hint = f" ({item['env_var']})" if item.get("env_var") else ""
-                source_hint = f" from {item['source']}" if item.get("source") else ""
-                ctx_obj.echo(f"{item['provider']}: {item['status']}{env_hint}{source_hint}")
-            if configured and not should_import:
-                ctx_obj.echo("Import skipped by user.", color="yellow")
-            ctx_obj.echo(f"Imported {imported} provider(s).", color="green")
+    ctx_obj.print_json(
+        {
+            "connection": connection,
+            "import": should_import,
+            "configured_count": len(configured),
+            "imported_count": imported,
+            "results": results,
+        }
+    )
 
 
 @cli.command()
@@ -490,10 +320,7 @@ async def logout(ctx_obj: ContextObj, provider: str, connection: str) -> None:
     await actx.runtime_client.logout(provider, connection)
     logger.info("client_event event=logout provider={} connection={}", provider, connection)
 
-    if ctx_obj.json_output:
-        ctx_obj.print_json({"status": "logged_out", "provider": provider, "connection": connection})
-    else:
-        ctx_obj.echo(f"Logged out of {provider} ({connection}).", color="green")
+    ctx_obj.print_json({"status": "logged_out", "provider": provider, "connection": connection})
 
 
 @connections.command(name="set-default")
@@ -504,10 +331,7 @@ async def set_default_connection(ctx_obj: ContextObj, provider: str, connection:
     """Set the default CONNECTION for PROVIDER."""
     actx = await ctx_obj.initialize()
     await actx.runtime_client.set_default_connection(provider, connection)
-    if ctx_obj.json_output:
-        ctx_obj.print_json({"status": "ok", "provider": provider, "default_connection": connection})
-    else:
-        ctx_obj.echo(f"Default connection for {provider} set to {connection}.", color="green")
+    ctx_obj.print_json({"status": "ok", "provider": provider, "default_connection": connection})
 
 
 @provider.command()
@@ -519,10 +343,7 @@ async def revoke(ctx_obj: ContextObj, provider: str) -> None:
     await actx.runtime_client.revoke(provider)
     logger.info("client_event event=revoke provider={} connection=all", provider)
 
-    if ctx_obj.json_output:
-        ctx_obj.print_json({"status": "revoked", "provider": provider})
-    else:
-        ctx_obj.echo(f"Revoked all credentials for {provider}.", color="green")
+    ctx_obj.print_json({"status": "revoked", "provider": provider})
 
 
 @provider.command()
@@ -534,10 +355,7 @@ async def remove(ctx_obj: ContextObj, provider: str) -> None:
     await actx.runtime_client.remove(provider)
     logger.info("client_event event=remove provider={} connection=all", provider)
 
-    if ctx_obj.json_output:
-        ctx_obj.print_json({"status": "removed", "provider": provider})
-    else:
-        ctx_obj.echo(f"Removed provider {provider}.", color="green")
+    ctx_obj.print_json({"status": "removed", "provider": provider})
 
 
 @connections.command(name="inspect")
@@ -585,11 +403,8 @@ async def inspect_provider(ctx_obj: ContextObj, provider: str) -> None:
             data["connections"] = provider_group["connections"]
             break
 
-    if ctx_obj.json_output:
-        data.pop("schema_version", None)
-        ctx_obj.print_json(data)
-    else:
-        ctx_obj.echo(json_lib.dumps(data, indent=2))
+    data.pop("schema_version", None)
+    ctx_obj.print_json(data)
 
 
 @cli.command(context_settings=dict(ignore_unknown_options=True))
@@ -617,32 +432,15 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
         sys.exit(1)
 
     try:
-        data = json_lib.loads(filepath.read_text(encoding="utf-8"))
+        data = json.loads(filepath.read_text(encoding="utf-8"))
         definition = ProviderDefinition.model_validate(data)
 
         endpoints_to_check = _validate_provider_endpoints(definition)
-
-        if not ctx_obj.json_output and not ctx_obj.quiet and not yes and not force:
-            ctx_obj.echo(f"Registering '{definition.name}' provider:")
-            for name, val, _ in endpoints_to_check:
-                ctx_obj.echo(f"  - {name}: {val}")
-
-            if definition.oauth and definition.oauth.token_url:
-                prompt_msg = f"Register '{definition.name}' with token endpoint {definition.oauth.token_url}? [y/N]"
-            elif definition.api_url:
-                prompt_msg = f"Register '{definition.name}' with host {definition.api_url}? [y/N]"
-            else:
-                prompt_msg = f"Register '{definition.name}' provider? [y/N]"
-
-            if not click.confirm(prompt_msg, default=False):
-                ctx_obj.echo("Registration aborted.", color="yellow")
-                sys.exit(0)
 
         await actx.runtime_client.register_provider(definition.model_dump(mode="json"), force=force)
 
         endpoints = [ep for _, ep, _ in endpoints_to_check]
         logger.info("client_event event=register provider={} endpoints={}", definition.name, endpoints)
-        ctx_obj.print_json({"status": "registered", "provider": definition.name})
 
         warnings = []
         for name, val, is_host in endpoints_to_check:
@@ -653,16 +451,12 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
             if is_host and "://" not in target:
                 target = f"https://{target}"
 
-            if not ctx_obj.quiet:
-                ctx_obj.echo(f"Testing reachability for {name}...", color="cyan")
             try:
                 requests.head(target, timeout=5, allow_redirects=True)
             except requests.RequestException as e:
                 warnings.append(f"{name} ({val}) is unreachable: {e}")
 
-        if warnings and not ctx_obj.quiet:
-            for warning in warnings:
-                ctx_obj.echo(f"Warning: {warning}", color="yellow")
+        ctx_obj.print_json({"status": "registered", "provider": definition.name, "warnings": warnings})
     except Exception as exc:
         ctx_obj.print_json({"error": exc.__class__.__name__, "message": f"Failed to register provider: {exc}"})
         sys.exit(format_error_code(exc))
@@ -691,13 +485,7 @@ async def init(ctx_obj: ContextObj) -> None:
         "effective_encryption_source": whoami_data.get("effective_encryption_source"),
         "encryption_backend": whoami_data.get("encryption_backend"),
     }
-    if ctx_obj.json_output:
-        ctx_obj.print_json(data)
-    else:
-        ctx_obj.echo(f"Initialized authsome at {home}", color="green")
-        ctx_obj.echo(f"Profile: {identity.handle}")
-        ctx_obj.echo(f"DID: {identity.did}")
-        ctx_obj.echo(f"Master Key Source: {_render_encryption_backend(whoami_data)}")
+    ctx_obj.print_json(data)
 
 
 @cli.group(name="profile")
@@ -723,12 +511,7 @@ async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
         "registration_status": "registered" if identity_meta.registered else "local",
         "switched": True,
     }
-    if ctx_obj.json_output:
-        ctx_obj.print_json(data)
-    else:
-        ctx_obj.echo(f"Created local profile {identity_meta.handle}", color="green")
-        ctx_obj.echo("Switched to new profile")
-        ctx_obj.echo(f"DID: {identity_meta.did}")
+    ctx_obj.print_json(data)
 
 
 @profile.command(name="use")
@@ -748,11 +531,7 @@ async def profile_use(ctx_obj: ContextObj, handle: str) -> None:
         "profile": identity_meta.handle,
         "did": identity_meta.did,
     }
-    if ctx_obj.json_output:
-        ctx_obj.print_json(data)
-    else:
-        ctx_obj.echo(f"Active profile: {data['profile']}", color="green")
-        ctx_obj.echo(f"DID: {data['did']}")
+    ctx_obj.print_json(data)
 
 
 @cli.command()
@@ -804,36 +583,7 @@ async def whoami(ctx_obj: ContextObj) -> None:
         "issues": issues,
     }
 
-    if ctx_obj.json_output:
-        ctx_obj.print_json(data)
-    else:
-        ctx_obj.echo(f"Authsome Version:  {data['authsome_version']}")
-        ctx_obj.echo(f"Home Directory:    {data['home_directory']}")
-        ctx_obj.echo(f"Profile:           {data['profile']}")
-        if data["principal_id"]:
-            ctx_obj.echo(f"Principal:         {data['principal_id']}")
-        if data["vault_id"]:
-            ctx_obj.echo(f"Vault:             {data['vault_id']}")
-        if data["did"]:
-            ctx_obj.echo(f"DID:               {data['did']}")
-        if data["registration_status"]:
-            ctx_obj.echo(f"Registration:      {data['registration_status']}")
-        ctx_obj.echo(f"Daemon URL:        {data['daemon_url']}")
-        status_color = "green" if vault_status == "OK" else "red"
-        ctx_obj.echo(f"Encryption:        {_render_encryption_backend(data)} [", nl=False)
-        ctx_obj.echo(vault_status, color=status_color, nl=False)
-        ctx_obj.echo("]")
-
-        if issues:
-            ctx_obj.echo("\nIssues:", color="red")
-            for issue in issues:
-                ctx_obj.echo(f"  - {issue}", color="red")
-
-        ctx_obj.echo(f"\nConnected Providers: {data['connected_providers_count']}")
-        if connected_providers:
-            for p in sorted(connected_providers, key=lambda x: x["name"]):
-                suffix = "connection" if p["count"] == 1 else "connections"
-                ctx_obj.echo(f"  {p['name']} ({p['count']} {suffix})")
+    ctx_obj.print_json(data)
 
 
 @cli.command()
@@ -844,29 +594,9 @@ async def doctor(ctx_obj: ContextObj) -> None:
     results = await actx.doctor()
     all_ok = results.get("status") == "ready"
 
-    if ctx_obj.json_output:
-        ctx_obj.print_json(results)
-        if not all_ok:
-            sys.exit(1)
-    else:
-        for key, val in results.get("checks", {}).items():
-            ok = val == "ok"
-            ctx_obj.emit(f"{key}: ", nl=False)
-            ctx_obj.emit("OK" if ok else "FAIL", color="green" if ok else "red")
-        issues = results.get("issues", [])
-        if issues:
-            ctx_obj.echo("\nIssues found:", color="red")
-            for issue in issues:
-                ctx_obj.echo(f" - {issue}", color="red")
-
-        warnings = results.get("warnings", [])
-        if warnings:
-            ctx_obj.echo("\nWarnings:", color="yellow")
-            for warning in warnings:
-                ctx_obj.echo(f" - {warning}", color="yellow")
-
-        if not all_ok:
-            sys.exit(1)
+    ctx_obj.print_json(results)
+    if not all_ok:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

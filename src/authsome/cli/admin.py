@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 import click
-from loguru import logger
 
 from authsome.cli.context import ContextObj
 from authsome.cli.daemon_control import (

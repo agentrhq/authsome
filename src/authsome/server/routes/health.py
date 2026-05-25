@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
-import secrets
 from typing import Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
 from authsome import __version__
 from authsome.server.credential_service import AuthService
@@ -109,24 +107,6 @@ async def ready(
         effective_encryption_source=effective_source,
         encryption_backend=backend_description,
     )
-
-
-_rekey_lock = asyncio.Lock()
-
-
-@router.post("/rekey")
-async def rekey(
-    request: Request,
-    auth: AuthService = Depends(get_protected_auth_service),
-) -> dict[str, str]:
-    _ = request
-    async with _rekey_lock:
-        new_key_bytes = secrets.token_bytes(32)
-        try:
-            await auth.vault.rekey(new_key_bytes)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"status": "ok", "message": "Master key successfully rotated"}
 
 
 @router.get("/whoami")
