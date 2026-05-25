@@ -55,8 +55,9 @@ Runtime identity resolution follows this precedence order:
 
 1. If `AUTHSOME_IDENTITY` and `AUTHSOME_IDENTITY_PRIVATE_KEY` are both set,
    treat the process identity as fully env-backed.
-2. If only `AUTHSOME_IDENTITY` is set, treat it as a handle override and load
-   that handle's identity from the filesystem.
+2. If only `AUTHSOME_IDENTITY` is set, treat it as a local handle override:
+   load that handle from the filesystem when it exists, or create that named
+   local identity when it does not.
 3. If neither env var is set, fall back to the existing active filesystem
    identity flow.
 
@@ -109,9 +110,10 @@ When both env vars are present:
 
 When only `AUTHSOME_IDENTITY` is present:
 
-- treat the value as a handle override only
+- treat the value as a local handle override
 - load that handle's metadata and private key from filesystem-backed identity
-  storage
+  storage when it exists
+- create that named filesystem-backed identity when it does not exist
 - preserve existing filesystem metadata behavior
 
 ### Default filesystem mode
@@ -177,7 +179,6 @@ The implementation should fail clearly in these cases:
 - `AUTHSOME_IDENTITY_PRIVATE_KEY` is set without `AUTHSOME_IDENTITY`
 - env private key is malformed hex
 - env private key is not a valid Ed25519 32-byte raw private key
-- handle override points to a filesystem identity that does not exist
 - env `handle + private_key` yields a DID that conflicts with the daemon's
   existing registration for that handle
 
@@ -201,7 +202,7 @@ Add focused tests for:
 
 - runtime identity resolution precedence
 - full env mode using env-derived `handle + private_key + did`
-- handle-only override mode still loading key and metadata from filesystem
+- handle-only override mode loading or creating filesystem identity state
 - fallback mode preserving current active filesystem identity behavior
 - invalid partial env configuration
 - malformed env private key errors
@@ -229,5 +230,5 @@ Keep the change narrowly scoped:
 - Env identities are fully ephemeral on the client.
 - Auto-registration remains enabled for env identities.
 - Filesystem identities keep the current local metadata optimization.
-- `AUTHSOME_IDENTITY` alone remains a handle override into filesystem-backed
-  identity storage.
+- `AUTHSOME_IDENTITY` alone remains a local handle override, creating the named
+  filesystem-backed identity when needed.

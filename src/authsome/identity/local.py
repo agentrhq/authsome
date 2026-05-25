@@ -204,7 +204,10 @@ def load_runtime_identity(home: Path, env: Mapping[str, str] | None = None) -> R
             signer=signer,
         )
 
-    identity = ensure_local_identity(home, active_handle=handle_override)
+    if handle_override and not identity_exists(home, handle_override):
+        identity = create_identity(home, handle_override)
+    else:
+        identity = ensure_local_identity(home, active_handle=handle_override)
     return RuntimeIdentity(
         handle=identity.handle,
         did=identity.did,

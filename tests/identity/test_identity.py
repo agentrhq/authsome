@@ -114,6 +114,16 @@ def test_runtime_identity_uses_filesystem_for_handle_override(tmp_path: Path) ->
     assert runtime.source is IdentitySource.FILESYSTEM
 
 
+def test_runtime_identity_creates_missing_handle_override(tmp_path: Path) -> None:
+    runtime = load_runtime_identity(tmp_path, env={"AUTHSOME_IDENTITY": "rapid-brightly-firmly-0007"})
+
+    assert runtime.handle == "rapid-brightly-firmly-0007"
+    assert runtime.source is IdentitySource.FILESYSTEM
+    assert runtime.did.startswith("did:key:z6Mk")
+    assert load_client_config(tmp_path).active_identity == "rapid-brightly-firmly-0007"
+    assert identity_key_path(tmp_path, runtime.handle).exists()
+
+
 def test_runtime_identity_rejects_private_key_without_handle(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="AUTHSOME_IDENTITY"):
         load_runtime_identity(tmp_path, env={"AUTHSOME_IDENTITY_PRIVATE_KEY": "00" * 32})
