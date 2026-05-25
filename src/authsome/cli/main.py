@@ -11,20 +11,11 @@ import click
 import requests
 from loguru import logger
 
-from authsome import AuthenticationFailedError, FlowType, __version__
-from authsome.auth.models.enums import AuthType, ExportFormat
+from authsome import FlowType, __version__
+from authsome.auth.models.enums import AuthType
 from authsome.auth.models.provider import ProviderDefinition
+from authsome.cli.admin import admin
 from authsome.cli.context import ContextObj, common_options
-from authsome.cli.daemon_control import (
-    DaemonAlreadyRunningError,
-    DaemonUnavailableError,
-    daemon_status,
-    is_daemon_responsive,
-    is_port_occupied,
-    start_daemon,
-    stop_daemon,
-    wait_for_daemon_ready,
-)
 from authsome.cli.helpers import (
     _api_key_env_var,
     _scan_env_sources,
@@ -33,7 +24,7 @@ from authsome.cli.helpers import (
     auth_command,
     setup_logging,
 )
-from authsome.paths import get_client_log_path, get_server_log_path
+from authsome.paths import get_client_log_path
 from authsome.utils import connection_is_active, format_error_code, format_expires_at, redact
 
 
@@ -68,7 +59,20 @@ def _render_encryption_backend(data: dict[str, Any]) -> str:
     return backend
 
 
-@cli.command(name="list")
+@cli.group(name="provider")
+def provider() -> None:
+    """Manage provider definitions and provider-level operations."""
+
+
+@cli.group(name="connections")
+def connections() -> None:
+    """Inspect and manage stored provider connections."""
+
+
+cli.add_command(admin)
+
+
+@provider.command(name="list")
 @auth_command
 async def list_cmd(ctx_obj: ContextObj) -> None:
     """List configured providers and active connection states."""
@@ -228,99 +232,6 @@ async def list_cmd(ctx_obj: ContextObj) -> None:
         ctx_obj.emit(render_row(row))
 
 
-@cli.command(name="log")
-@click.option("-n", "--lines", default=50, metavar="COUNT", help="Number of entries to show.")
-@click.option("--raw", is_flag=True, help="Show raw client debug log instead of structured audit entries.")
-@auth_command
-async def log_cmd(ctx_obj: ContextObj, lines: int, raw: bool) -> None:
-    """View structured audit entries or the raw client debug log."""
-    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
-
-    if raw:
-        log_path = get_client_log_path(home)
-        try:
-            raw_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:]
-            if ctx_obj.json_output:
-                ctx_obj.print_json({"log_file": str(log_path), "entries": raw_lines})
-            elif not raw_lines:
-                ctx_obj.echo("No log entries found.", err=True, color="yellow")
-            else:
-                for entry in raw_lines:
-                    ctx_obj.emit(entry)
-        except FileNotFoundError:
-            if ctx_obj.json_output:
-                ctx_obj.print_json({"log_file": str(log_path), "entries": []})
-            else:
-                ctx_obj.echo("No log entries found.", err=True, color="yellow")
-        return
-
-    audit_path = get_server_log_path(home)
-    try:
-        raw_lines = audit_path.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:]
-    except FileNotFoundError:
-        raw_lines = []
-
-    parsed: list[dict] = []
-    for line in raw_lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            parsed.append(json_lib.loads(line))
-        except Exception:
-            parsed.append({"raw": line})
-
-    if ctx_obj.json_output:
-        ctx_obj.print_json({"log_file": str(audit_path), "entries": parsed})
-        return
-
-    if not parsed:
-        ctx_obj.echo("No audit entries found.", err=True, color="yellow")
-        return
-
-    col_widths = {
-        "timestamp": max(19, *(len((e.get("timestamp") or "")[:19]) for e in parsed)),
-        "event": max(5, *(len(e.get("event") or "-") for e in parsed)),
-        "provider": max(8, *(len(e.get("provider") or "-") for e in parsed)),
-        "status": max(6, *(len(e.get("status") or "-") for e in parsed)),
-    }
-
-    def _row(ts: str, ev: str, prov: str, stat: str, header: bool = False) -> str:
-        return (
-            f"{ts:<{col_widths['timestamp']}}  "
-            f"{ev:<{col_widths['event']}}  "
-            f"{prov:<{col_widths['provider']}}  "
-            f"{stat:<{col_widths['status']}}"
-        ).rstrip()
-
-    ctx_obj.emit(_row("Timestamp", "Event", "Provider", "Status", header=True))
-    ctx_obj.emit(
-        _row(
-            "-" * col_widths["timestamp"],
-            "-" * col_widths["event"],
-            "-" * col_widths["provider"],
-            "-" * col_widths["status"],
-        )
-    )
-
-    for entry in parsed:
-        ts = (entry.get("timestamp") or "")[:19].replace("T", " ")
-        ev = entry.get("event") or entry.get("raw") or "-"
-        prov = entry.get("provider") or "-"
-        stat = entry.get("status") or "-"
-        status_color = None
-        if not ctx_obj.no_color:
-            if stat in ("success", "ok", "completed"):
-                status_color = "green"
-            elif stat in ("failure", "failed", "error"):
-                status_color = "red"
-        if status_color:
-            stat_str = click.style(stat, fg=status_color)
-            ctx_obj.emit(_row(ts, ev, prov, "") + stat_str)
-        else:
-            ctx_obj.emit(_row(ts, ev, prov, stat))
-
-
 @cli.command()
 @click.argument("provider")
 @click.option("--connection", default="default", metavar="NAME", help="Connection name.")
@@ -418,7 +329,7 @@ async def login(
         )
     elif login_result.get("status") == "started":
         ctx_obj.echo(
-            f"Login started for {provider} ({connection}). Run 'authsome list' to verify completion.",
+            f"Login started for {provider} ({connection}). Run 'authsome provider list' to verify completion.",
             color="green",
         )
     else:
@@ -584,7 +495,7 @@ async def logout(ctx_obj: ContextObj, provider: str, connection: str) -> None:
         ctx_obj.echo(f"Logged out of {provider} ({connection}).", color="green")
 
 
-@cli.command(name="set-default")
+@connections.command(name="set-default")
 @click.argument("provider")
 @click.argument("connection")
 @auth_command
@@ -598,7 +509,7 @@ async def set_default_connection(ctx_obj: ContextObj, provider: str, connection:
         ctx_obj.echo(f"Default connection for {provider} set to {connection}.", color="green")
 
 
-@cli.command()
+@provider.command()
 @click.argument("provider")
 @auth_command
 async def revoke(ctx_obj: ContextObj, provider: str) -> None:
@@ -613,7 +524,7 @@ async def revoke(ctx_obj: ContextObj, provider: str) -> None:
         ctx_obj.echo(f"Revoked all credentials for {provider}.", color="green")
 
 
-@cli.command()
+@provider.command()
 @click.argument("provider")
 @auth_command
 async def remove(ctx_obj: ContextObj, provider: str) -> None:
@@ -628,14 +539,13 @@ async def remove(ctx_obj: ContextObj, provider: str) -> None:
         ctx_obj.echo(f"Removed provider {provider}.", color="green")
 
 
-@cli.command()
+@connections.command(name="inspect")
 @click.argument("provider")
 @click.option("--connection", default="default", metavar="NAME", help="Connection name.")
 @click.option("--field", metavar="FIELD", help="Retrieve only the value of the specified metadata FIELD.")
-@click.option("--show-secret", is_flag=True, help="Reveal encrypted secrets.")
 @auth_command
-async def get(ctx_obj: ContextObj, provider: str, connection: str, field: str | None, show_secret: bool) -> None:
-    """Retrieve credential and metadata details for PROVIDER."""
+async def inspect_connection(ctx_obj: ContextObj, provider: str, connection: str, field: str | None) -> None:
+    """Retrieve redacted credential and metadata details for PROVIDER."""
     actx = await ctx_obj.initialize()
     # Verify provider exists first to raise ProviderNotFoundError if unknown
     await actx.runtime_client.get_provider(provider)
@@ -643,31 +553,12 @@ async def get(ctx_obj: ContextObj, provider: str, connection: str, field: str | 
     from authsome.auth.models.connection import ConnectionRecord
 
     record = ConnectionRecord.model_validate(record_dict)
-
-    if show_secret:
-        from authsome.utils import require_os_auth
-
-        if not require_os_auth("reveal secrets"):
-            raise AuthenticationFailedError("Authentication failed or cancelled.")
-        logger.info(
-            "client_event event=get provider={} connection={} field={}",
-            provider,
-            connection,
-            field or "all",
-        )
-
-    data = redact(record) if not show_secret else record.model_dump(mode="json")
+    data = redact(record)
     # Decouple from internal schema fields
     data.pop("schema_version", None)
 
     if field:
         if field in data:
-            if show_secret:
-                ctx_obj.echo(
-                    "WARNING: Secret printed to stdout. Run: history -d <n> to remove from shell history.",
-                    err=True,
-                    color="yellow",
-                )
             if ctx_obj.json_output:
                 ctx_obj.print_json({field: data[field]})
                 sys.exit(0)
@@ -678,13 +569,6 @@ async def get(ctx_obj: ContextObj, provider: str, connection: str, field: str | 
             sys.exit(1)
         return
 
-    if show_secret:
-        ctx_obj.echo(
-            "WARNING: Secret printed to stdout. Run: history -d <n> to remove from shell history.",
-            err=True,
-            color="yellow",
-        )
-
     if ctx_obj.json_output:
         ctx_obj.print_json(data)
         sys.exit(0)
@@ -693,10 +577,10 @@ async def get(ctx_obj: ContextObj, provider: str, connection: str, field: str | 
             ctx_obj.echo(f"{k}: {v}")
 
 
-@cli.command()
+@provider.command(name="inspect")
 @click.argument("provider")
 @auth_command
-async def inspect(ctx_obj: ContextObj, provider: str) -> None:
+async def inspect_provider(ctx_obj: ContextObj, provider: str) -> None:
     """Summarize configuration settings and active connections for PROVIDER."""
     actx = await ctx_obj.initialize()
     definition_dict = await actx.runtime_client.get_provider(provider)
@@ -715,49 +599,6 @@ async def inspect(ctx_obj: ContextObj, provider: str) -> None:
         ctx_obj.echo(json_lib.dumps(data, indent=2))
 
 
-@cli.command(name="export")
-@click.argument("provider", required=False)
-@click.option("--connection", default="default", metavar="NAME", help="Connection name.")
-@click.option(
-    "--format",
-    "export_format",
-    type=click.Choice([e.value for e in ExportFormat], case_sensitive=False),
-    default=ExportFormat.ENV.value,
-    metavar="FORMAT",
-    help=f"Format to print output ({', '.join(e.value for e in ExportFormat)}).",
-)
-@auth_command
-async def export(ctx_obj: ContextObj, provider: str | None, connection: str, export_format: str) -> None:
-    """Export connection credential material in selected format."""
-    actx = await ctx_obj.initialize()
-    fmt = ExportFormat(export_format)
-    output = await actx.runtime_client.export(provider, connection, format=fmt.value)
-    logger.info(
-        "client_event event=export provider={} connection={} format={}",
-        provider,
-        connection,
-        fmt.value,
-    )
-    if ctx_obj.json_output:
-        # Call with format=json and parse the result to properly wrap with version info
-        output_str = await actx.runtime_client.export(provider, connection, format="json")
-        try:
-            data = json_lib.loads(output_str)
-        except Exception:
-            data = {}
-        ctx_obj.print_json({"credentials": data})
-        return
-
-    ctx_obj.echo(
-        "Note: secrets are now in your shell environment for this session. Prefer 'authsome run' for scoped injection.",
-        err=True,
-        color="yellow",
-    )
-
-    if output:
-        click.echo(output)
-
-
 @cli.command(context_settings=dict(ignore_unknown_options=True))
 @click.argument("command", nargs=-1, required=True)
 @auth_command
@@ -768,7 +609,7 @@ async def run(ctx_obj: ContextObj, command: tuple[str]) -> None:
     sys.exit(result.returncode)
 
 
-@cli.command()
+@provider.command()
 @click.argument("path")
 @click.option("--force", is_flag=True, help="Force overwrite if provider exists.")
 @click.option("--yes", is_flag=True, help="Skip the registration confirmation prompt.")
@@ -1042,156 +883,6 @@ async def doctor(ctx_obj: ContextObj) -> None:
 
         if not all_ok:
             sys.exit(1)
-
-
-@cli.command(name="rekey")
-@auth_command
-async def rekey(ctx_obj: ContextObj) -> None:
-    """Generate a new master key and re-encrypt all stored credentials in place."""
-    actx = await ctx_obj.initialize()
-    if not ctx_obj.json_output and not ctx_obj.quiet:
-        ctx_obj.echo("Generating a new master key and re-encrypting the vault...", color="cyan")
-
-    try:
-        await actx.runtime_client.rekey()
-
-        if ctx_obj.json_output:
-            ctx_obj.print_json({"status": "success", "message": "Master key successfully rotated"})
-        else:
-            ctx_obj.echo("Master key successfully rotated and credentials re-encrypted.", color="green")
-
-        logger.info("client_event event=rekey status=success")
-    except Exception:
-        logger.warning("client_event event=rekey status=failure")
-        raise
-
-
-@cli.command()
-@click.option("--no-browser", is_flag=True, help="Print the URL instead of opening a browser.")
-@auth_command
-async def ui(ctx_obj: ContextObj, no_browser: bool) -> None:
-    """Open the daemon dashboard in the browser."""
-    actx = await ctx_obj.initialize()
-    session = await actx.runtime_client.start_ui_session()
-    url = session["url"]
-    if no_browser:
-        ctx_obj.echo(url)
-        return
-
-    import webbrowser
-
-    ctx_obj.echo(f"Opening Authsome UI at {url}")
-    webbrowser.open(url)
-
-
-@cli.group()
-def daemon() -> None:
-    """Manage the local Authsome daemon."""
-
-
-@daemon.command(name="serve")
-@click.option("--host", default="127.0.0.1", show_default=True, metavar="HOST", help="Host interface to bind.")
-@click.option("--port", default=7998, type=int, show_default=True, metavar="PORT", help="TCP port to listen on.")
-@click.option("--reload", is_flag=True, help="Enable auto-reload on code changes.")
-def daemon_serve(host: str, port: int, reload: bool) -> None:
-    """Run the daemon in the foreground."""
-    from authsome.server.daemon import serve
-
-    serve(host=host, port=port, reload=reload)
-
-
-@daemon.command(name="start")
-@auth_command
-async def daemon_start(ctx_obj: ContextObj) -> None:
-    """Start the local daemon in the background."""
-    if await is_daemon_responsive():
-        ctx_obj.echo("Daemon is already running.", color="yellow")
-        return
-
-    if is_port_occupied(7998):
-        ctx_obj.echo("Port 7998 is occupied by an unrelated process. We did not start a new process.", color="yellow")
-        return
-
-    try:
-        start_daemon()
-        await wait_for_daemon_ready(timeout=5)
-        ctx_obj.echo("Daemon started successfully.", color="green")
-    except DaemonAlreadyRunningError as exc:
-        pid_str = f" (PID: {exc.pid})" if exc.pid else ""
-        ctx_obj.echo(f"Daemon is already running{pid_str}.", color="yellow")
-    except DaemonUnavailableError as exc:
-        ctx_obj.echo(str(exc), err=True, color="red")
-        sys.exit(1)
-
-
-@daemon.command(name="stop")
-@auth_command
-async def daemon_stop(ctx_obj: ContextObj) -> None:
-    """Stop the local daemon."""
-
-    stopped, message = await stop_daemon()
-    if stopped:
-        ctx_obj.echo(message, color="green")
-    else:
-        ctx_obj.echo(message, err=True, color="yellow")
-
-
-@daemon.command(name="restart")
-@auth_command
-async def daemon_restart(ctx_obj: ContextObj) -> None:
-    """Restart the local daemon."""
-    stopped, message = await stop_daemon()
-    if stopped:
-        ctx_obj.echo(message, color="green")
-    else:
-        ctx_obj.echo(message, color="yellow")
-
-    if await is_daemon_responsive():
-        ctx_obj.echo("Daemon is already running on port 7998. We did not start a new process.", color="yellow")
-        return
-
-    if is_port_occupied(7998):
-        ctx_obj.echo("Port 7998 is occupied by an unrelated process. We did not start a new process.", color="yellow")
-        return
-
-    try:
-        start_daemon()
-        await wait_for_daemon_ready(timeout=5)
-        if stopped:
-            ctx_obj.echo("Daemon restarted successfully.", color="green")
-        else:
-            ctx_obj.echo("New daemon started.", color="green")
-    except DaemonAlreadyRunningError as exc:
-        pid_str = f" (PID: {exc.pid})" if exc.pid else ""
-        ctx_obj.echo(f"Daemon is already running{pid_str}.", color="yellow")
-    except DaemonUnavailableError as exc:
-        ctx_obj.echo(str(exc), err=True, color="red")
-        sys.exit(1)
-
-
-@daemon.command(name="status")
-@auth_command
-async def daemon_status_cmd(ctx_obj: ContextObj) -> None:
-    """Show daemon status."""
-    status = await daemon_status()
-    if ctx_obj.json_output:
-        ctx_obj.print_json(status)
-    else:
-        ctx_obj.echo(json_lib.dumps(status, indent=2))
-
-
-@daemon.command(name="logs")
-@click.option("-n", "--lines", default=80, metavar="COUNT", help="Number of lines to show.")
-@auth_command
-async def daemon_logs(ctx_obj: ContextObj, lines: int) -> None:
-    """Show daemon log output."""
-    from authsome.cli.daemon_control import LOG_FILE
-
-    if not LOG_FILE.exists():
-        ctx_obj.echo(f"No daemon log found at {LOG_FILE}", err=True, color="yellow")
-        return
-    for line in LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:]:
-        ctx_obj.echo(line)
 
 
 if __name__ == "__main__":

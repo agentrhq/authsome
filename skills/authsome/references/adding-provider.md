@@ -15,5 +15,5 @@ When the provider isn't in the bundled list, do this before writing any config:
 
 4. **Write and register the provider JSON** — follow the [provider registration guide](https://raw.githubusercontent.com/agentrhq/authsome/main/docs/register-provider.md) to write the provider JSON. Save the file to a local path (e.g. `/tmp/<provider>.json`), then register it:
    ```bash
-   authsome register /tmp/<provider>.json
+   authsome provider register /tmp/<provider>.json
    ```

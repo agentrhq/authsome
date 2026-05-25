@@ -130,7 +130,7 @@ def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitabl
 
 def _ui_session_expired_response(status_code: int = 401) -> HTMLResponse:
     return HTMLResponse(
-        pages.message_page("Dashboard session expired", "Run 'authsome ui' to reopen the hosted dashboard."),
+        pages.message_page("Dashboard session expired", "Open the hosted dashboard again to continue."),
         status_code=status_code,
     )
 

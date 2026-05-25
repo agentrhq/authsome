@@ -1,4 +1,4 @@
-"""Tests for `authsome list`.
+"""Tests for `authsome provider list`.
 
 Verifies JSON output shape, human-readable table rendering,
 empty state, and the connected-count summary line.
@@ -47,11 +47,11 @@ def _make_list_response(
 
 
 class TestListCommand:
-    """Tests for the list command."""
+    """Tests for the provider list command."""
 
     def test_empty_providers_prints_message(self, runner: CliRunner, mock_client: MagicMock) -> None:
         mock_client.list_connections.return_value = _make_list_response()
-        result = runner.invoke(cli, ["--log-file", "", "list"])
+        result = runner.invoke(cli, ["--log-file", "", "provider", "list"])
         assert result.exit_code == 0
         assert "No providers configured" in result.output
 
@@ -83,7 +83,7 @@ class TestListCommand:
                 }
             ],
         )
-        result = runner.invoke(cli, ["--log-file", "", "list", "--json"])
+        result = runner.invoke(cli, ["--log-file", "", "provider", "list", "--json"])
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert "bundled" in data
@@ -109,7 +109,7 @@ class TestListCommand:
                 }
             ],
         )
-        result = runner.invoke(cli, ["--log-file", "", "list", "--no-color"])
+        result = runner.invoke(cli, ["--log-file", "", "provider", "list", "--no-color"])
         assert result.exit_code == 0, result.output
         assert "OpenAI" in result.output
         assert "openai" in result.output
@@ -148,7 +148,7 @@ class TestListCommand:
                 }
             ],
         )
-        result = runner.invoke(cli, ["--log-file", "", "list", "--no-color"])
+        result = runner.invoke(cli, ["--log-file", "", "provider", "list", "--no-color"])
         assert result.exit_code == 0, result.output
         assert "1 connected" in result.output
 
@@ -175,7 +175,7 @@ class TestListCommand:
                 }
             ],
         )
-        result = runner.invoke(cli, ["--log-file", "", "list", "--no-color"])
+        result = runner.invoke(cli, ["--log-file", "", "provider", "list", "--no-color"])
         assert result.exit_code == 0, result.output
         assert "not_connected" in result.output
 
@@ -192,7 +192,7 @@ class TestListCommand:
             bundled=[provider_def],
             connections=[{"name": "openai", "default_connection": "default", "connections": []}],
         )
-        result = runner.invoke(cli, ["--log-file", "", "list", "--no-color"])
+        result = runner.invoke(cli, ["--log-file", "", "provider", "list", "--no-color"])
         assert result.exit_code == 0
         # ANSI escape codes should not appear in no-color output
         assert "\x1b[" not in result.output

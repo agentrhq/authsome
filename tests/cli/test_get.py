@@ -1,4 +1,4 @@
-"""Tests for `authsome get`.
+"""Tests for `authsome connections inspect`.
 
 Covers: JSON output, --field extraction, provider-not-found (exit 4),
 connection-not-found (exit 3), and field-not-found (exit 1).
@@ -32,14 +32,14 @@ def _make_connection_record() -> dict:
     }
 
 
-class TestGetCommand:
-    """Tests for `authsome get <provider>`."""
+class TestInspectConnectionsCommand:
+    """Tests for `authsome connections inspect <provider>`."""
 
     def test_json_output_contains_record_fields(self, runner: CliRunner, mock_client: MagicMock) -> None:
         mock_client.get_provider.return_value = {"name": "openai"}
         mock_client.get_connection.return_value = _make_connection_record()
 
-        result = runner.invoke(cli, ["--log-file", "", "get", "openai", "--json"])
+        result = runner.invoke(cli, ["--log-file", "", "connections", "inspect", "openai", "--json"])
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["provider"] == "openai"
@@ -49,7 +49,7 @@ class TestGetCommand:
         mock_client.get_provider.return_value = {"name": "openai"}
         mock_client.get_connection.return_value = _make_connection_record()
 
-        result = runner.invoke(cli, ["--log-file", "", "get", "openai", "--json"])
+        result = runner.invoke(cli, ["--log-file", "", "connections", "inspect", "openai", "--json"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["api_key"] == "***REDACTED***"
@@ -58,7 +58,7 @@ class TestGetCommand:
         mock_client.get_provider.return_value = {"name": "openai"}
         mock_client.get_connection.return_value = _make_connection_record()
 
-        result = runner.invoke(cli, ["--log-file", "", "get", "openai", "--field", "status"])
+        result = runner.invoke(cli, ["--log-file", "", "connections", "inspect", "openai", "--field", "status"])
         assert result.exit_code == 0, result.output
         assert "connected" in result.output
 
@@ -66,7 +66,10 @@ class TestGetCommand:
         mock_client.get_provider.return_value = {"name": "openai"}
         mock_client.get_connection.return_value = _make_connection_record()
 
-        result = runner.invoke(cli, ["--log-file", "", "get", "openai", "--field", "provider", "--json"])
+        result = runner.invoke(
+            cli,
+            ["--log-file", "", "connections", "inspect", "openai", "--field", "provider", "--json"],
+        )
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data == {"provider": "openai", "v": 1}
@@ -75,13 +78,13 @@ class TestGetCommand:
         mock_client.get_provider.return_value = {"name": "openai"}
         mock_client.get_connection.return_value = _make_connection_record()
 
-        result = runner.invoke(cli, ["--log-file", "", "get", "openai", "--field", "nonexistent"])
+        result = runner.invoke(cli, ["--log-file", "", "connections", "inspect", "openai", "--field", "nonexistent"])
         assert result.exit_code == 1
 
     def test_provider_not_found_exits_4(self, runner: CliRunner, mock_client: MagicMock) -> None:
         mock_client.get_provider.side_effect = ProviderNotFoundError("unknown")
 
-        result = runner.invoke(cli, ["--log-file", "", "get", "unknown"])
+        result = runner.invoke(cli, ["--log-file", "", "connections", "inspect", "unknown"])
         assert result.exit_code == 4
 
     def test_connection_not_found_exits_3(self, runner: CliRunner, mock_client: MagicMock) -> None:
@@ -90,14 +93,17 @@ class TestGetCommand:
             provider="openai", connection="missing", identity="default"
         )
 
-        result = runner.invoke(cli, ["--log-file", "", "get", "openai", "--connection", "missing"])
+        result = runner.invoke(
+            cli,
+            ["--log-file", "", "connections", "inspect", "openai", "--connection", "missing"],
+        )
         assert result.exit_code == 3
 
     def test_human_output_shows_key_value_pairs(self, runner: CliRunner, mock_client: MagicMock) -> None:
         mock_client.get_provider.return_value = {"name": "openai"}
         mock_client.get_connection.return_value = _make_connection_record()
 
-        result = runner.invoke(cli, ["--log-file", "", "get", "openai"])
+        result = runner.invoke(cli, ["--log-file", "", "connections", "inspect", "openai"])
         assert result.exit_code == 0
         assert "provider: openai" in result.output
         assert "status: connected" in result.output
