@@ -393,7 +393,7 @@ def device_code_page(
     
     <div class="code-wrap">
       <input type="text" id="user-code" value="{html.escape(user_code)}" readonly>
-      <button class="copybtn" onclick="copyCode()">Copy</button>
+      <button type="button" class="copybtn" onclick="copyCode(this)">Copy</button>
     </div>
     
     <a href="{html.escape(link)}" target="_blank" class="verify">Open Login Page</a>
@@ -403,15 +403,31 @@ def device_code_page(
     </p>
 
     <script>
-      function copyCode() {{
+      async function copyCode(btn) {{
         var copyText = document.getElementById("user-code");
+        copyText.focus();
         copyText.select();
-        copyText.setSelectionRange(0, 99999);
-        navigator.clipboard.writeText(copyText.value);
-        
-        const btn = document.querySelector('.copybtn');
+        copyText.setSelectionRange(0, copyText.value.length);
+
+        var copied = false;
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {{
+          try {{
+            await navigator.clipboard.writeText(copyText.value);
+            copied = true;
+          }} catch (err) {{
+            copied = false;
+          }}
+        }}
+        if (!copied) {{
+          try {{
+            copied = document.execCommand("copy");
+          }} catch (err) {{
+            copied = false;
+          }}
+        }}
+
         const originalText = btn.innerText;
-        btn.innerText = 'Copied!';
+        btn.innerText = copied ? 'Copied!' : 'Press Cmd+C';
         setTimeout(() => {{
           btn.innerText = originalText;
         }}, 2000);
