@@ -36,6 +36,7 @@ def _auth_header(
 
 def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         response = client.get("/whoami")
@@ -46,6 +47,7 @@ def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
 def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x01" * 32).decode("ascii"))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
@@ -69,6 +71,7 @@ def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Pat
 def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x02" * 32).decode("ascii"))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
@@ -132,6 +135,7 @@ def test_hosted_registration_requires_claim(monkeypatch, tmp_path: Path) -> None
 
 def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
@@ -143,6 +147,7 @@ def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
 
 def test_whoami_rejects_unknown_subject(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         response = client.get("/whoami", headers=_auth_header(tmp_path, "GET", "/whoami"))
@@ -152,6 +157,7 @@ def test_whoami_rejects_unknown_subject(monkeypatch, tmp_path: Path) -> None:
 
 def test_whoami_rejects_registered_handle_with_wrong_issuer(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     victim = create_identity(tmp_path, "steady-wisely-boldly-0042")
     attacker = create_identity(tmp_path, "rapid-brightly-firmly-0007")
 
@@ -174,6 +180,7 @@ def test_whoami_rejects_registered_handle_with_wrong_issuer(monkeypatch, tmp_pat
 
 def test_identity_registration_rejects_duplicate_handle_different_did(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     first = create_identity(tmp_path, "steady-wisely-boldly-0042")
     second = create_identity(tmp_path, "rapid-brightly-firmly-0007")
 
@@ -203,6 +210,7 @@ def test_identity_registration_rejects_duplicate_did_different_handle(monkeypatc
 
 def test_ready_uses_active_identity_connections_for_warning_check(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:

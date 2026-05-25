@@ -1,0 +1,24 @@
+{% extends "_layout.html" %}
+{% block title %}{{ provider.display_name }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb">
+    <a href="/ui/applications">Applications</a>
+    <span class="sep">/</span>
+    <span>{{ provider.display_name }}</span>
+</nav>
+
+<header class="detail-header">
+    <span class="logo logo-lg">{{ logo_initial }}</span>
+    <div>
+        <h1 class="detail-title">{{ provider.display_name }}</h1>
+        <div class="detail-meta">Managed by Authsome</div>
+    </div>
+</header>
+
+<section class="card">
+    <div class="card-title">Managed by Authsome</div>
+    <p class="card-body">
+        This hosted deployment manages the OAuth application and related connections for {{ provider.display_name }}.
+    </p>
+</section>
+{% endblock %}

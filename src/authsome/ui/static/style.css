@@ -630,3 +630,88 @@ h2 {
     gap: 8px;
 }
 .action-stack form { margin: 0; }
+
+.card-warn {
+    border-color: rgba(255,179,79,0.28);
+    background: linear-gradient(180deg, rgba(255,179,79,0.08), rgba(255,179,79,0.03));
+}
+
+.connection-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.connection-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    transition: border-color 80ms ease, background-color 80ms ease;
+}
+
+.connection-row:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-strong);
+}
+
+.connection-row-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.connection-row-name {
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--text);
+}
+
+.connection-row-meta {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.connection-row-readonly {
+    padding: 10px 12px;
+}
+
+.connection-group + .connection-group {
+    margin-top: 14px;
+}
+
+.login-modal {
+    width: min(420px, calc(100vw - 32px));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    color: var(--text);
+    padding: 0;
+}
+
+.login-modal::backdrop {
+    background: rgba(0, 0, 0, 0.66);
+}
+
+.login-modal form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    margin: 0;
+}
+
+.login-modal-input {
+    width: 100%;
+    background: var(--bg-body);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 9px 10px;
+    font: inherit;
+}

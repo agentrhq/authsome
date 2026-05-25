@@ -73,13 +73,11 @@ class AuthService:
     def __init__(
         self,
         vault: Vault,
-        identity: str,
+        identity: str | None = None,
         principal_id: str | None = None,
         vault_id: str | None = None,
         deployment_mode: str = "local",
     ) -> None:
-        if not identity:
-            raise ValueError("AuthService requires an explicit identity handle")
         self._vault = vault
         self._identity = identity
         self._principal_id = principal_id
@@ -104,7 +102,13 @@ class AuthService:
         return self._vault
 
     @property
-    def identity(self) -> str:
+    def identity(self) -> str | None:
+        return self._identity
+
+    def require_identity(self) -> str:
+        """Return the PoP-authenticated identity handle for identity-scoped routes."""
+        if self._identity is None:
+            raise ValueError("AuthService identity is required for this operation")
         return self._identity
 
     @property
@@ -308,7 +312,11 @@ class AuthService:
         key = build_store_key(vault=self._vault_id, provider=provider, record_type="connection", connection=connection)
         record_json = await self._vault.get(key, collection=self._coll)
         if not record_json:
-            raise ConnectionNotFoundError(provider=provider, connection=connection, identity=self._identity)
+            raise ConnectionNotFoundError(
+                provider=provider,
+                connection=connection,
+                identity=self._identity or self._principal_id or "hosted-ui",
+            )
         record = self._load_connection_record(record_json, key)
         if record is None:
             raise AuthsomeError(
@@ -335,6 +343,58 @@ class AuthService:
         callers are responsible for redacting before display.
         """
         return await self._get_provider_client_credentials(provider)
+
+    async def update_provider_configuration(
+        self,
+        provider: str,
+        inputs: dict[str, str],
+        *,
+        vault_ids: list[str] | None = None,
+    ) -> bool:
+        """Replace stored provider credentials and revoke connections when they change."""
+        self._ensure_provider_client_mutation_allowed(provider)
+        definition = await self.get_provider(provider)
+        if definition.auth_type != AuthType.OAUTH2:
+            return False
+
+        existing = await self._get_provider_client_credentials(provider)
+        updated = ProviderClientRecord(provider=provider)
+        updated.client_id = inputs.get("client_id", existing.client_id if existing else None) or None
+
+        if "client_secret" in inputs:
+            secret_input = inputs["client_secret"].strip()
+            if secret_input:
+                updated.client_secret = secret_input
+            else:
+                updated.client_secret = existing.client_secret if existing else None
+        else:
+            updated.client_secret = existing.client_secret if existing else None
+
+        if definition.oauth and definition.oauth.base_url:
+            updated.base_url = inputs.get("base_url", existing.base_url if existing else None) or None
+            updated.api_url = inputs.get("api_url", existing.api_url if existing else None) or None
+        else:
+            updated.base_url = existing.base_url if existing else None
+            updated.api_url = existing.api_url if existing else None
+
+        updated.scopes = list(existing.scopes) if existing and existing.scopes is not None else None
+        updated.metadata = dict(existing.metadata) if existing else {}
+
+        changed = existing is None or any(
+            (
+                existing.client_id != updated.client_id,
+                existing.client_secret != updated.client_secret,
+                existing.base_url != updated.base_url,
+                existing.api_url != updated.api_url,
+            )
+        )
+        if not changed:
+            return False
+
+        if existing is not None:
+            await self.revoke(provider, vault_ids=vault_ids)
+        await self._save_provider_client_credentials(updated)
+        return True
 
     async def set_default_connection(self, provider: str, connection: str) -> None:
         """Set the default connection for a provider."""
@@ -371,6 +431,7 @@ class AuthService:
         definition = await self.get_provider(provider)
         flow_type = FlowType(session.flow_type)
         client_record = await self._get_provider_client_credentials(provider)
+        provider_config_only = bool(session.payload.get("provider_config_only"))
 
         flow_base_url = base_url or (client_record.base_url if client_record else None)
         flow_client_id = client_record.client_id if client_record else None
@@ -378,13 +439,13 @@ class AuthService:
 
         fields: list[InputField] = []
 
-        if definition.oauth and definition.oauth.base_url and not flow_base_url:
+        if definition.oauth and definition.oauth.base_url and (provider_config_only or not flow_base_url):
             fields.append(
                 InputField(
                     name="base_url",
                     label="Base URL",
                     secret=False,
-                    default=definition.oauth.base_url,
+                    default=flow_base_url or definition.oauth.base_url,
                 )
             )
             fields.append(
@@ -392,20 +453,29 @@ class AuthService:
                     name="api_url",
                     label="API Host URL",
                     secret=False,
-                    default=definition.api_url or "",
+                    default=(
+                        client_record.api_url if client_record and client_record.api_url else definition.api_url or ""
+                    ),
                 )
             )
 
-        if flow_type == FlowType.PKCE and not flow_client_id:
-            fields.append(InputField(name="client_id", label="Client ID", secret=False))
+        if flow_type == FlowType.PKCE and (provider_config_only or not flow_client_id):
+            fields.append(
+                InputField(
+                    name="client_id",
+                    label="Client ID",
+                    secret=False,
+                    default=flow_client_id or "",
+                )
+            )
             fields.append(InputField(name="client_secret", label="Client Secret (Optional)", secret=True, default=""))
-        elif flow_type == FlowType.DEVICE_CODE and not flow_client_id:
+        elif flow_type == FlowType.DEVICE_CODE and (provider_config_only or not flow_client_id):
             fields.append(
                 InputField(
                     name="client_id",
                     label="Client ID (leave blank for public device code flow)",
                     secret=False,
-                    default="",
+                    default=flow_client_id or "",
                 )
             )
             fields.append(InputField(name="client_secret", label="Client Secret (Optional)", secret=True, default=""))
@@ -795,7 +865,7 @@ class AuthService:
     async def get_identity(self, name: str) -> str:
         if name != self._identity:
             raise IdentityNotFoundError(name)
-        return self._identity
+        return self.require_identity()
 
     # ── Internal helpers ──────────────────────────────────────────────────
 

@@ -165,6 +165,14 @@ npm i -g mint   # requires Node.js >= 20.17.0
 mint dev
 ```
 
+## Telemetry
+
+Authsome's daemon can emit product analytics through PostHog. You can disable telemetry with any of these environment variables:
+
+- `DO_NOT_TRACK=1` disables analytics using the standard opt-out convention.
+- `POSTHOG_DISABLED=1` disables analytics using PostHog's recommended kill switch.
+- `AUTHSOME_ANALYTICS=0` disables analytics with an Authsome-specific override.
+
 ## Community
 
 - **[Discord](https://discord.gg/9YP2C9tvMp)** for questions, help, and showing what you're building.

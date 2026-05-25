@@ -136,11 +136,12 @@ async def whoami(
     server_base_url: str = Depends(get_server_base_url),
 ) -> dict[str, str]:
     effective_source, backend_description = _describe_vault_encryption(auth.vault)
+    identity = auth.require_identity()
     return {
         "version": __version__,
         "home": str(request.app.state.store.home),
-        "identity": auth.identity,
-        "active_identity": auth.identity,
+        "identity": identity,
+        "active_identity": identity,
         "principal_id": getattr(request.state, "principal_id", ""),
         "vault_id": getattr(request.state, "vault_id", ""),
         "did": getattr(request.state, "did", ""),

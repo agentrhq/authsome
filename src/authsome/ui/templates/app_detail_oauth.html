@@ -3,52 +3,6 @@
 
 {% block credentials %}
 <section class="card">
-    <div class="card-title">{{ provider_management_label }}</div>
-    {% if show_provider_client_details %}
-    <div class="field">
-        <div class="field-label">Client ID</div>
-        <div class="field-row">
-            <code class="mono">{{ client_id or '—' }}</code>
-            {% if client_id %}<button class="icon-btn" data-copy="{{ client_id }}" type="button" title="Copy">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-            </button>{% endif %}
-        </div>
-    </div>
-    <div class="field">
-        <div class="field-label">Client Secret</div>
-        <div class="field-row">
-            <code class="mono mask" data-secret>{% if has_client_secret %}••••••••••••••••{% else %}—{% endif %}</code>
-        </div>
-    </div>
-    {% else %}
-    <p class="card-body">
-        This hosted deployment manages the OAuth application for {{ provider.display_name }}. Client credentials stay deployment-managed and are not shown in the dashboard.
-    </p>
-    {% endif %}
-    <div class="field">
-        <div class="field-label">Redirect URI</div>
-        <div class="field-row">
-            <code class="mono">{{ redirect_uri }}</code>
-            <button class="icon-btn" data-copy="{{ redirect_uri }}" type="button" title="Copy">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-            </button>
-        </div>
-    </div>
-</section>
-
-<section class="card">
-    <div class="card-title">Endpoints</div>
-    <div class="field">
-        <div class="field-label">Authorization URL</div>
-        <div class="field-row"><code class="mono">{{ auth_url }}</code></div>
-    </div>
-    <div class="field">
-        <div class="field-label">Token URL</div>
-        <div class="field-row"><code class="mono">{{ token_url }}</code></div>
-    </div>
-</section>
-
-<section class="card">
     <div class="card-title">Scopes</div>
     <div class="scope-row">
         {% for scope in scopes %}

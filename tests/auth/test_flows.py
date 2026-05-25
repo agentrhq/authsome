@@ -51,6 +51,24 @@ class TestApiKeyFlow:
         assert record.api_key == "sk-test-key-123"
         assert record.schema_version == 2
 
+    async def test_successful_login_allows_missing_identity(self) -> None:
+        from unittest.mock import Mock
+
+        flow = ApiKeyFlow()
+        provider = _make_api_key_provider()
+        session = Mock()
+        session.payload = {"api_key": "sk-test-key-123"}
+
+        result = await flow.resume(
+            provider=provider,
+            identity=None,
+            connection_name="default",
+            runtime_session=session,
+            callback_data={},
+        )
+
+        assert result.connection.identity is None
+
     async def test_empty_key_rejected(self) -> None:
         from unittest.mock import Mock
 

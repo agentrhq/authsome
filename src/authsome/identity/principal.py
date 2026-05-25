@@ -27,6 +27,7 @@ class PrincipalRecord(BaseModel):
 
     principal_id: str
     email: str
+    password_hash: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

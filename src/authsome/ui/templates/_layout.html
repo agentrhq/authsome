@@ -19,6 +19,13 @@
                 </svg>
                 <span>Overview</span>
             </a>
+            <a class="nav-item {% if page == 'applications' %}active{% endif %}" href="/ui/applications">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="4" y="5" width="16" height="14" rx="2"/>
+                    <path d="M8 9h8M8 13h5"/>
+                </svg>
+                <span>Applications</span>
+            </a>
             <a class="nav-item {% if page == 'connections' %}active{% endif %}" href="/ui/connections">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="6" cy="12" r="2.5"/>
@@ -28,13 +35,12 @@
                 </svg>
                 <span>Connections</span>
             </a>
-            <a class="nav-item disabled" href="#" aria-disabled="true">
+            <a class="nav-item {% if page == 'identity' %}active{% endif %}" href="/ui/identity">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M7 3h7l5 5v13H7z"/>
-                    <path d="M14 3v5h5"/>
-                    <path d="M9 13h7M9 17h5"/>
+                    <path d="M20 21a8 8 0 0 0-16 0"/>
+                    <circle cx="12" cy="8" r="4"/>
                 </svg>
-                <span>Audit Logs</span>
+                <span>Identity</span>
             </a>
         </nav>
         <div class="nav-spacer"></div>
@@ -63,7 +69,7 @@
             {% if show_hosted_identity %}
             <div class="topbar-meta">
                 <span class="pill pill-accent">Hosted</span>
-                <span class="meta">Signed in as {{ ui_identity }}</span>
+                <span class="meta">Signed in as {{ ui_email or ui_identity }}</span>
             </div>
             {% endif %}
             <div class="topbar-actions">

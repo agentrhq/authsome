@@ -4,7 +4,10 @@
 <header class="page-header">
     <div>
         <h1>Connections</h1>
-        <p class="subtitle">App integrations, custom secrets, and LLM keys.</p>
+        <p class="subtitle">Named connections in the current vault.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-primary" href="/ui/applications">Add new connection</a>
     </div>
 </header>
 
@@ -14,47 +17,35 @@
             <circle cx="11" cy="11" r="6"/>
             <path d="m20 20-4-4"/>
         </svg>
-        <input id="appSearch" type="search" placeholder="Search apps..." autocomplete="off">
+        <input id="appSearch" type="search" placeholder="Search connections..." autocomplete="off">
     </label>
-    <div class="filter-pills" role="tablist">
-        <button class="filter-pill active" data-filter="all" type="button">All <span class="count">{{ totals.all }}</span></button>
-        <button class="filter-pill" data-filter="connected" type="button">Connected <span class="count">{{ totals.connected }}</span></button>
-        <button class="filter-pill" data-filter="available" type="button">Available <span class="count">{{ totals.available }}</span></button>
-    </div>
 </div>
 
-<div class="app-grid" id="appGrid">
-    {% for p in providers %}
-    <div class="app-card {% if p.status != 'available' %}is-connected{% endif %}"
-         data-status="{{ p.status }}"
-         data-name="{{ p.display_name|lower }} {{ p.name|lower }}"
-         id="{{ p.name }}">
-        <a class="app-card-hit" href="/ui/apps/{{ p.name }}" aria-label="Open {{ p.display_name }} details"></a>
-        <span class="logo">{{ p.logo_initial }}</span>
-        <div class="app-card-text">
-            <div class="app-card-name">{{ p.display_name }}</div>
-            <div class="app-card-sub">{{ p.auth_type_label }}</div>
+{% if connection_rows %}
+<div class="connection-list" id="connectionList">
+    {% for row in connection_rows %}
+    <a class="connection-row"
+       href="{{ row.href }}"
+       data-name="{{ row.connection_name|lower }} {{ row.provider_display_name|lower }}"
+       data-status="{{ row.status }}">
+        <div class="connection-row-main">
+            <div class="connection-row-name">{{ row.connection_name }}</div>
+            <div class="connection-row-meta">{{ row.provider_display_name }} · {{ row.auth_type_label }}</div>
         </div>
-        {% if p.status == 'reauth' %}
-        <span class="pill pill-warn">Re-auth</span>
-        {% elif p.status == 'connected' %}
-        <span class="pill pill-accent">● Connected</span>
-        {% else %}
-        <form class="inline-action"
-              method="post"
-              action="/ui/apps/{{ p.name }}/connect"
-              hx-post="/ui/apps/{{ p.name }}/connect"
-              hx-swap="none">
-            <input type="hidden" name="connection" value="default">
-            <button class="btn btn-secondary btn-sm" type="submit">Connect</button>
-        </form>
-        {% endif %}
-    </div>
+        <span class="pill {% if row.status != 'connected' %}pill-warn{% else %}pill-accent{% endif %}">{{ row.status }}</span>
+    </a>
     {% endfor %}
 </div>
+{% else %}
+<div class="empty">
+    <div class="empty-title">No connections yet</div>
+    <div class="empty-body">Go to Applications to configure a provider and start a new login.</div>
+    <a class="btn btn-primary" href="/ui/applications">Add new connection</a>
+</div>
+{% endif %}
 
 <div class="empty empty-grid hidden" id="appEmpty">
     <div class="empty-title">No matches</div>
-    <div class="empty-body">Try a different search or filter.</div>
+    <div class="empty-body">Try a different search.</div>
 </div>
 {% endblock %}

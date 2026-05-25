@@ -1,0 +1,57 @@
+{% extends "_layout.html" %}
+{% block title %}Applications{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Applications</h1>
+        <p class="subtitle">Configure providers and start new logins.</p>
+    </div>
+</header>
+
+<div class="app-grid" id="appGrid">
+    {% for p in providers %}
+    <div class="app-card {% if p.status != 'available' %}is-connected{% endif %}"
+         data-status="{{ p.status }}"
+         data-name="{{ p.display_name|lower }} {{ p.name|lower }}"
+         id="{{ p.name }}">
+        <a class="app-card-hit" href="/ui/apps/{{ p.name }}" aria-label="Open {{ p.display_name }} setup"></a>
+        <span class="logo">{{ p.logo_initial }}</span>
+        <div class="app-card-text">
+            <div class="app-card-name">{{ p.display_name }}</div>
+            <div class="app-card-sub">{{ p.auth_type_label }}</div>
+        </div>
+        <form class="inline-action login-action-form"
+              method="post"
+              action="/ui/apps/{{ p.name }}/connect"
+              hx-post="/ui/apps/{{ p.name }}/connect"
+              hx-swap="none">
+            <input type="hidden" name="connection" value="default">
+            {% if p.requires_named_login %}
+            <button class="btn btn-secondary btn-sm"
+                    type="button"
+                    data-open-login-modal
+                    data-provider="{{ p.name }}">Login</button>
+            {% else %}
+            <button class="btn btn-secondary btn-sm" type="submit">Login</button>
+            {% endif %}
+        </form>
+    </div>
+    {% endfor %}
+</div>
+
+<dialog class="login-modal" id="loginModal">
+    <form method="post" id="loginModalForm">
+        <input type="hidden" name="connection" value="" id="loginConnectionName">
+        <div class="card-title">Connection name</div>
+        <p class="subtitle">Default already exists for this provider. Choose a new connection name to continue.</p>
+        <div class="field">
+            <label class="field-label" for="connectionNameInput">Connection name</label>
+            <input class="login-modal-input" id="connectionNameInput" name="connection_name" value="" required>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary" type="button" data-close-login-modal>Cancel</button>
+            <button class="btn btn-primary" type="submit">Continue</button>
+        </div>
+    </form>
+</dialog>
+{% endblock %}
