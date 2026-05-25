@@ -14,12 +14,12 @@ from urllib.parse import urlparse
 import requests
 
 from authsome.identity import (
-    ensure_local_identity,
-    load_private_key,
+    IdentitySource,
+    load_runtime_identity,
     mark_claimed,
     mark_registered,
 )
-from authsome.identity.local import IdentityMetadata
+from authsome.identity.local import RuntimeIdentity, load_identity
 from authsome.identity.proof import POP_AUTH_SCHEME, create_proof_jwt
 from authsome.server.urls import DEFAULT_SERVER_BASE_URL
 
@@ -77,17 +77,6 @@ def raise_for_error(response: requests.Response) -> None:
         raise exc
 
 
-def _selected_identity_handle(home: Path, env: Mapping[str, str] | None = None) -> str | None:
-    """Return the acting identity override, falling back to client config."""
-    from authsome.cli.client_config import load_client_config
-
-    values = env if env is not None else os.environ
-    override = values.get(IDENTITY_OVERRIDE_ENV, "").strip()
-    if override:
-        return override
-    return load_client_config(home).active_identity
-
-
 class AuthsomeApiClient:
     """Small typed wrapper around the daemon API."""
 
@@ -126,11 +115,16 @@ class AuthsomeApiClient:
         raise_for_error(response)
         return response.json()
 
+    def _runtime_identity(self) -> RuntimeIdentity:
+        return load_runtime_identity(self._home)
+
+    def _runtime_for_handle(self, handle: str) -> RuntimeIdentity:
+        return load_runtime_identity(self._home, env={IDENTITY_OVERRIDE_ENV: handle})
+
     async def _proof_headers(self, method: str, path: str, body: bytes) -> dict[str, str | bytes]:
         identity = await self.ensure_identity_ready()
-        private_key = load_private_key(self._home, identity.handle)
         token = create_proof_jwt(
-            private_key=private_key,
+            private_key=identity.signer,
             issuer=identity.did,
             subject=identity.handle,
             method=method,
@@ -139,16 +133,19 @@ class AuthsomeApiClient:
         )
         return {"Authorization": f"{POP_AUTH_SCHEME} {token}"}
 
-    async def ensure_identity_ready(self) -> IdentityMetadata:
+    async def ensure_identity_ready(self) -> RuntimeIdentity:
         """Ensure the acting identity is registered and, in hosted mode, claimed."""
-        identity = ensure_local_identity(self._home, active_handle=_selected_identity_handle(self._home))
+        runtime = self._runtime_identity()
+        if runtime.source is IdentitySource.ENV:
+            return await self._ensure_env_identity_ready(runtime)
 
         status: dict[str, Any] | None = None
+        identity = load_identity(self._home, runtime.handle)
         if not identity.registered:
             status = await self.register_identity(identity.handle, identity.did)
             identity = mark_registered(self._home, identity.handle)
         elif identity.claimed:
-            return identity
+            return runtime
         else:
             try:
                 status = await self.get_identity_status(identity.handle)
@@ -167,11 +164,33 @@ class AuthsomeApiClient:
                 except Exception:
                     pass
             await self._poll_claim_completion(identity.handle)
-            return mark_claimed(self._home, identity.handle)
+            identity = mark_claimed(self._home, identity.handle)
+            return self._runtime_for_handle(identity.handle)
 
         if registration_status in {"claimed", "registered"}:
-            return mark_claimed(self._home, identity.handle)
+            identity = mark_claimed(self._home, identity.handle)
+            return self._runtime_for_handle(identity.handle)
 
+        return self._runtime_for_handle(identity.handle)
+
+    async def _ensure_env_identity_ready(self, identity: RuntimeIdentity) -> RuntimeIdentity:
+        try:
+            status = await self.get_identity_status(identity.handle)
+        except Exception:
+            status = await self.register_identity(identity.handle, identity.did)
+
+        registration_status = status.get("registration_status", "registered")
+        if registration_status == "claim_required":
+            claim_url = status.get("claim_url")
+            if not claim_url:
+                status = await self.register_identity(identity.handle, identity.did)
+                claim_url = status.get("claim_url")
+            if claim_url:
+                try:
+                    webbrowser.open(claim_url)
+                except Exception:
+                    pass
+            await self._poll_claim_completion(identity.handle)
         return identity
 
     async def _poll_claim_completion(self, handle: str, *, timeout_seconds: int = 300) -> dict[str, Any]:

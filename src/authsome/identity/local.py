@@ -6,6 +6,7 @@ import json
 import os
 import random
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -77,6 +78,24 @@ class IdentityMetadata(BaseModel):
     @property
     def claimed(self) -> bool:
         return self.identity_status == IdentityStatus.CLAIMED
+
+
+class IdentitySource(StrEnum):
+    """Where the acting runtime identity was resolved from."""
+
+    ENV = "env"
+    FILESYSTEM = "filesystem"
+
+
+class RuntimeIdentity(BaseModel):
+    """Resolved acting identity for the current process."""
+
+    handle: str
+    did: str
+    source: IdentitySource
+    signer: Ed25519PrivateKey
+
+    model_config = {"arbitrary_types_allowed": True}
 
 
 def identities_dir(home: Path) -> Path:
@@ -151,6 +170,13 @@ def private_key_from_hex(value: str) -> Ed25519PrivateKey:
     return Ed25519PrivateKey.from_private_bytes(raw)
 
 
+def _env_identity_values(env: Mapping[str, str] | None = None) -> tuple[str | None, str | None]:
+    values = env if env is not None else os.environ
+    handle = values.get("AUTHSOME_IDENTITY", "").strip() or None
+    private_key_hex = values.get("AUTHSOME_IDENTITY_PRIVATE_KEY", "").strip() or None
+    return handle, private_key_hex
+
+
 def load_private_key(home: Path, handle: str) -> Ed25519PrivateKey:
     return private_key_from_hex(identity_key_path(home, handle).read_text(encoding="utf-8"))
 
@@ -161,6 +187,30 @@ def load_identity(home: Path, handle: str) -> IdentityMetadata:
 
 def identity_exists(home: Path, handle: str) -> bool:
     return identity_metadata_path(home, handle).exists() and identity_key_path(home, handle).exists()
+
+
+def load_runtime_identity(home: Path, env: Mapping[str, str] | None = None) -> RuntimeIdentity:
+    """Resolve the acting process identity from env or local identity files."""
+    handle_override, private_key_hex = _env_identity_values(env)
+    if private_key_hex and not handle_override:
+        raise ValueError("AUTHSOME_IDENTITY_PRIVATE_KEY requires AUTHSOME_IDENTITY")
+
+    if handle_override and private_key_hex:
+        signer = private_key_from_hex(private_key_hex)
+        return RuntimeIdentity(
+            handle=validate_handle(handle_override),
+            did=public_key_to_did_key(signer.public_key()),
+            source=IdentitySource.ENV,
+            signer=signer,
+        )
+
+    identity = ensure_local_identity(home, active_handle=handle_override)
+    return RuntimeIdentity(
+        handle=identity.handle,
+        did=identity.did,
+        source=IdentitySource.FILESYSTEM,
+        signer=load_private_key(home, identity.handle),
+    )
 
 
 def _read_active_identity_handle(home: Path) -> str | None:

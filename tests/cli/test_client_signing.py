@@ -7,6 +7,7 @@ import pytest
 from authsome.cli.client import AuthsomeApiClient
 from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
 from authsome.identity import create_identity, mark_claimed, mark_registered
+from authsome.identity.local import identity_key_path, load_runtime_identity
 
 
 @pytest.mark.asyncio
@@ -174,6 +175,65 @@ async def test_identity_env_override_wins_over_active_identity(monkeypatch, tmp_
 
 
 @pytest.mark.asyncio
+async def test_env_identity_protected_request_signs_without_identity_file(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    source_identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    private_key_hex = identity_key_path(tmp_path, source_identity.handle).read_text(encoding="utf-8").strip()
+    monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
+    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", private_key_hex)
+    captured: dict = {}
+
+    def fake_request(method, url, data=None, headers=None, timeout=None):
+        captured.update({"method": method, "url": url, "data": data, "headers": headers, "timeout": timeout})
+        response = Mock()
+        response.raise_for_status.return_value = None
+        if url.endswith("/identities/rapid-brightly-firmly-0007"):
+            response.json.return_value = {
+                "identity": "rapid-brightly-firmly-0007",
+                "registration_status": "claimed",
+            }
+        else:
+            response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
+        return response
+
+    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+
+    await AuthsomeApiClient("http://127.0.0.1:7998").list_connections()
+
+    assert captured["headers"]["Authorization"].startswith("PoP ")
+
+
+@pytest.mark.asyncio
+async def test_env_identity_private_key_without_handle_errors(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", "00" * 32)
+
+    client = AuthsomeApiClient("http://127.0.0.1:7998")
+
+    with pytest.raises(ValueError, match="AUTHSOME_IDENTITY"):
+        await client.ensure_identity_ready()
+
+
+@pytest.mark.asyncio
+async def test_env_identity_does_not_update_active_profile(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    stored = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    save_client_config(tmp_path, ClientConfig(active_identity=stored.handle))
+    private_key_hex = identity_key_path(tmp_path, stored.handle).read_text(encoding="utf-8").strip()
+    monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
+    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", private_key_hex)
+
+    client = AuthsomeApiClient("http://127.0.0.1:7998")
+    client.get_identity_status = AsyncMock(  # type: ignore[method-assign]
+        return_value={"identity": "rapid-brightly-firmly-0007", "registration_status": "claimed"}
+    )
+
+    await client.ensure_identity_ready()
+
+    assert load_client_config(tmp_path).active_identity == stored.handle
+
+
+@pytest.mark.asyncio
 async def test_start_login_bootstraps_identity_readiness(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     client = AuthsomeApiClient("http://127.0.0.1:7998")
@@ -201,9 +261,10 @@ async def test_protected_request_bootstraps_identity_readiness(monkeypatch, tmp_
 
     monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
 
+    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
     client = AuthsomeApiClient("http://127.0.0.1:7998")
     client.ensure_identity_ready = AsyncMock(  # type: ignore[method-assign]
-        return_value=create_identity(tmp_path, "steady-wisely-boldly-0042")
+        return_value=load_runtime_identity(tmp_path, env={"AUTHSOME_IDENTITY": identity.handle})
     )
 
     await client.list_connections()
