@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib.resources
 import json
+import os
 from datetime import timedelta
 from typing import Any
 from urllib.parse import urlparse
@@ -60,6 +61,15 @@ _FLOW_HANDLERS: dict[FlowType, type[AuthFlow]] = {
     FlowType.DCR_PKCE: DcrPkceFlow,
     FlowType.API_KEY: ApiKeyFlow,
 }
+
+
+def is_admin_principal(principal_id: str | None) -> bool:
+    """Return whether a principal is listed in AUTHSOME_ADMIN_PRINCIPALS."""
+    if not principal_id:
+        return False
+    raw = os.environ.get("AUTHSOME_ADMIN_PRINCIPALS", "")
+    principals = {item.strip() for item in raw.split(",") if item.strip()}
+    return principal_id in principals
 
 
 class AuthService:
@@ -203,6 +213,8 @@ class AuthService:
         return await self._vault.delete(name, collection="providers")
 
     def _ensure_local_provider_admin_operation_allowed(self, operation: str, provider: str) -> None:
+        if is_admin_principal(self._principal_id):
+            return
         if self._deployment_mode == "hosted":
             raise OperationNotAllowedError(
                 operation,
@@ -211,6 +223,8 @@ class AuthService:
             )
 
     def _ensure_provider_client_mutation_allowed(self, provider: str) -> None:
+        if is_admin_principal(self._principal_id):
+            return
         if self._deployment_mode == "hosted":
             raise OperationNotAllowedError(
                 "login",
@@ -377,7 +391,13 @@ class AuthService:
             updated.base_url = existing.base_url if existing else None
             updated.api_url = existing.api_url if existing else None
 
-        updated.scopes = list(existing.scopes) if existing and existing.scopes is not None else None
+        if "scopes" in inputs:
+            scopes_input = inputs["scopes"].strip()
+            updated.scopes = [s.strip() for s in scopes_input.split(",") if s.strip()] if scopes_input else []
+        elif existing and existing.scopes is not None:
+            updated.scopes = list(existing.scopes)
+        else:
+            updated.scopes = list(definition.oauth.scopes or []) if definition.oauth else []
         updated.metadata = dict(existing.metadata) if existing else {}
 
         changed = existing is None or any(
@@ -386,6 +406,7 @@ class AuthService:
                 existing.client_secret != updated.client_secret,
                 existing.base_url != updated.base_url,
                 existing.api_url != updated.api_url,
+                existing.scopes != updated.scopes,
             )
         )
         if not changed:
@@ -468,7 +489,7 @@ class AuthService:
                     default=flow_client_id or "",
                 )
             )
-            fields.append(InputField(name="client_secret", label="Client Secret (Optional)", secret=True, default=""))
+            fields.append(InputField(name="client_secret", label="Client Secret", secret=True, default=""))
         elif flow_type == FlowType.DEVICE_CODE and (provider_config_only or not flow_client_id):
             fields.append(
                 InputField(

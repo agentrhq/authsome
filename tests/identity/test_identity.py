@@ -5,10 +5,12 @@ import pytest
 from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
 from authsome.identity import current_from_home
 from authsome.identity.local import (
+    IdentitySource,
     IdentityStatus,
     create_identity,
     ensure_local_identity,
     identity_key_path,
+    load_runtime_identity,
     mark_claimed,
     mark_registered,
     public_key_from_did_key,
@@ -69,9 +71,12 @@ def test_invalid_did_key_rejected() -> None:
         public_key_from_did_key("did:web:example.com")
 
 
-def test_ensure_local_identity_errors_when_configured_handle_missing(tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="brisk-boldly-clearly-1234"):
-        ensure_local_identity(tmp_path, active_handle="brisk-boldly-clearly-1234")
+def test_ensure_local_identity_creates_configured_handle_when_missing(tmp_path: Path) -> None:
+    identity = ensure_local_identity(tmp_path, active_handle="brisk-boldly-clearly-1234")
+
+    assert identity.handle == "brisk-boldly-clearly-1234"
+    assert identity_key_path(tmp_path, identity.handle).exists()
+    assert load_client_config(tmp_path).active_identity == identity.handle
 
 
 @pytest.mark.asyncio
@@ -83,3 +88,45 @@ async def test_current_from_home_uses_client_side_active_identity(tmp_path: Path
     identity = await current_from_home(tmp_path)
 
     assert identity.handle == first.handle
+
+
+def test_runtime_identity_uses_env_private_key_without_filesystem(tmp_path: Path) -> None:
+    env_identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    private_key_hex = identity_key_path(tmp_path, env_identity.handle).read_text(encoding="utf-8").strip()
+
+    runtime = load_runtime_identity(
+        tmp_path,
+        env={
+            "AUTHSOME_IDENTITY": "rapid-brightly-firmly-0007",
+            "AUTHSOME_IDENTITY_PRIVATE_KEY": private_key_hex,
+        },
+    )
+
+    assert runtime.handle == "rapid-brightly-firmly-0007"
+    assert runtime.source is IdentitySource.ENV
+    assert runtime.did.startswith("did:key:z6Mk")
+
+
+def test_runtime_identity_uses_filesystem_for_handle_override(tmp_path: Path) -> None:
+    override_identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
+
+    runtime = load_runtime_identity(tmp_path, env={"AUTHSOME_IDENTITY": override_identity.handle})
+
+    assert runtime.handle == override_identity.handle
+    assert runtime.did == override_identity.did
+    assert runtime.source is IdentitySource.FILESYSTEM
+
+
+def test_runtime_identity_creates_missing_handle_override(tmp_path: Path) -> None:
+    runtime = load_runtime_identity(tmp_path, env={"AUTHSOME_IDENTITY": "rapid-brightly-firmly-0007"})
+
+    assert runtime.handle == "rapid-brightly-firmly-0007"
+    assert runtime.source is IdentitySource.FILESYSTEM
+    assert runtime.did.startswith("did:key:z6Mk")
+    assert load_client_config(tmp_path).active_identity == "rapid-brightly-firmly-0007"
+    assert identity_key_path(tmp_path, runtime.handle).exists()
+
+
+def test_runtime_identity_rejects_private_key_without_handle(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="AUTHSOME_IDENTITY"):
+        load_runtime_identity(tmp_path, env={"AUTHSOME_IDENTITY_PRIVATE_KEY": "00" * 32})

@@ -22,7 +22,7 @@ from authsome.auth.models.connection import ConnectionRecord, ProviderClientReco
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.auth.sessions import AuthSession, AuthSessionStore
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import AuthService, is_admin_principal
 from authsome.server.dependencies import (
     create_principal_vault_binding_registry,
     create_vault_registry,
@@ -79,12 +79,18 @@ def _ui_cookie_secure(server_base_url: str) -> bool:
     return server_base_url.startswith("https://")
 
 
-def _ui_policy() -> dict[str, Any]:
+def _ui_policy(request: Request, auth: AuthService | None = None) -> dict[str, Any]:
     hosted = _is_hosted_ui()
+    principal_id = auth.principal_id if auth is not None else getattr(request.state, "ui_principal_id", None)
+    show_provider_client_details = not hosted or is_admin_principal(principal_id)
     return {
         "ui_mode": "hosted" if hosted else "local",
-        "show_provider_client_details": not hosted,
-        "provider_management_label": "OAuth application managed by Authsome" if hosted else "OAuth Application",
+        "show_provider_client_details": show_provider_client_details,
+        "provider_management_label": (
+            "OAuth application managed by Authsome"
+            if hosted and not show_provider_client_details
+            else "OAuth Application"
+        ),
         "show_hosted_identity": hosted,
     }
 
@@ -188,13 +194,13 @@ def _hosted_auth_page_response(
     return HTMLResponse(page, status_code=400 if error else 200)
 
 
-def _page_context(request: Request, page: str, **kwargs: Any) -> dict[str, Any]:
+def _page_context(request: Request, page: str, *, auth: AuthService | None = None, **kwargs: Any) -> dict[str, Any]:
     return {
         "page": page,
         "version": __version__,
         "ui_identity": getattr(request.state, "ui_identity", None),
         "ui_email": getattr(request.state, "ui_email", None),
-        **_ui_policy(),
+        **_ui_policy(request, auth),
         **kwargs,
     }
 
@@ -259,7 +265,7 @@ def _build_provider_view(
 async def _provider_connection_groups(
     request: Request,
     *,
-    identity: str,
+    identity: str | None,
     principal_id: str | None,
     provider_name: str,
 ) -> list[dict[str, Any]]:
@@ -310,6 +316,7 @@ async def _provider_connection_groups(
 
 def _provider_page_context(
     request: Request,
+    auth: AuthService,
     provider: ProviderDefinition,
     api_url: str,
     *,
@@ -319,10 +326,11 @@ def _provider_page_context(
     auth_url: str | None,
     token_url: str | None,
 ) -> dict[str, Any]:
-    policy = _ui_policy()
+    policy = _ui_policy(request, auth)
     return _page_context(
         request,
         "applications",
+        auth=auth,
         provider=provider,
         connection=None,
         grouped_connections=grouped_connections,
@@ -346,6 +354,7 @@ def _provider_page_context(
 
 def _connection_detail_context(
     request: Request,
+    auth: AuthService,
     provider: ProviderDefinition,
     connection_record: ConnectionRecord,
     api_url: str,
@@ -353,6 +362,7 @@ def _connection_detail_context(
     return _page_context(
         request,
         "connections",
+        auth=auth,
         provider=provider,
         connection=connection_record,
         logo_initial=_logo_initial(provider.display_name or provider.name),
@@ -425,6 +435,7 @@ async def overview(
         _page_context(
             request,
             "overview",
+            auth=auth,
             stats={
                 "connected": len(connected),
                 "available": available_count,
@@ -454,7 +465,7 @@ async def applications(
     return templates.TemplateResponse(
         request,
         "applications.html",
-        _page_context(request, "applications", providers=providers),
+        _page_context(request, "applications", auth=auth, providers=providers),
     )
 
 
@@ -471,6 +482,7 @@ async def connections(
         _page_context(
             request,
             "connections",
+            auth=auth,
             connection_rows=rows,
             total_connections=len(rows),
         ),
@@ -493,6 +505,7 @@ async def identity_page(
         _page_context(
             request,
             "identity",
+            auth=auth,
             identities=identities,
             principal_id=auth.principal_id,
         ),
@@ -509,13 +522,15 @@ async def app_detail(
     provider = await auth.get_provider(provider_name)
     redirect_uri = build_callback_url(server_base_url)
     api_url = provider.api_url or (provider.oauth.base_url if provider.oauth else None) or provider.name
-    if _is_hosted_ui():
+    policy = _ui_policy(request, auth)
+    if not policy["show_provider_client_details"] and _is_hosted_ui():
         return templates.TemplateResponse(
             request,
             "app_detail_managed.html",
             _page_context(
                 request,
                 "applications",
+                auth=auth,
                 provider=provider,
                 logo_initial=_logo_initial(provider.display_name or provider.name),
             ),
@@ -524,7 +539,7 @@ async def app_detail(
     client_record = await auth.get_provider_client(provider_name)
     grouped_connections = await _provider_connection_groups(
         request,
-        identity=auth.require_identity(),
+        identity=auth.identity,
         principal_id=auth.principal_id,
         provider_name=provider_name,
     )
@@ -533,6 +548,7 @@ async def app_detail(
         "app_provider.html",
         _provider_page_context(
             request,
+            auth,
             provider,
             api_url,
             grouped_connections=grouped_connections,
@@ -554,7 +570,7 @@ async def connection_detail(
     provider = await auth.get_provider(provider_name)
     connection_record = await auth.get_connection(provider_name, connection_name)
     api_url = provider.api_url or (provider.oauth.base_url if provider.oauth else None) or provider.name
-    common = _connection_detail_context(request, provider, connection_record, api_url)
+    common = _connection_detail_context(request, auth, provider, connection_record, api_url)
 
     if provider.auth_type == AuthType.OAUTH2:
         return templates.TemplateResponse(
@@ -664,7 +680,8 @@ async def configure_provider(
 ) -> Response:
     """Open the provider configuration flow for deployment-scoped credentials."""
     provider = await auth.get_provider(provider_name)
-    if provider.auth_type != AuthType.OAUTH2 or _is_hosted_ui():
+    policy = _ui_policy(request, auth)
+    if provider.auth_type != AuthType.OAUTH2 or (not policy["show_provider_client_details"] and _is_hosted_ui()):
         return _redirect(request, f"/ui/apps/{provider_name}")
 
     session = await sessions.create(
