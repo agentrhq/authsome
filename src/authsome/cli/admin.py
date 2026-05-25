@@ -64,21 +64,6 @@ async def log_cmd(ctx_obj: ContextObj, lines: int, raw: bool) -> None:
     ctx_obj.print_json({"log_file": str(audit_path), "entries": parsed})
 
 
-@admin.command(name="rekey")
-@auth_command
-async def rekey(ctx_obj: ContextObj) -> None:
-    """Generate a new master key and re-encrypt all stored credentials in place."""
-    actx = await ctx_obj.initialize()
-    try:
-        await actx.runtime_client.rekey()
-        ctx_obj.print_json({"status": "success", "message": "Master key successfully rotated"})
-        logger.info("client_event event=rekey status=success")
-    except Exception:
-        if not ctx_obj.json_output:
-            logger.warning("client_event event=rekey status=failure")
-        raise
-
-
 @admin.group(name="daemon")
 def daemon() -> None:
     """Manage the local Authsome daemon."""
