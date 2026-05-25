@@ -17,7 +17,7 @@ from authsome.utils import format_error_code
 
 
 def handle_errors(func):
-    """Catch exceptions and print cleanly or return machine JSON."""
+    """Catch exceptions and return structured JSON errors."""
 
     @functools.wraps(func)
     def wrapper(ctx_obj: ContextObj, *args, **kwargs):
@@ -29,10 +29,7 @@ def handle_errors(func):
                 return asyncio.run(func(ctx_obj, *args, **kwargs))
             return func(ctx_obj, *args, **kwargs)
         except Exception as exc:
-            if ctx_obj.json_output:
-                ctx_obj.print_json({"error": exc.__class__.__name__, "message": str(exc)})
-            else:
-                ctx_obj.echo(f"Error: {exc}", err=True, color="red")
+            ctx_obj.print_json({"error": exc.__class__.__name__, "message": str(exc)})
             sys.exit(format_error_code(exc))
 
     return wrapper
@@ -86,21 +83,20 @@ def _validate_provider_endpoints(definition: Any) -> list[tuple[str, str, bool]]
         if "://" in val:
             parsed = urllib.parse.urlparse(val)
             if parsed.scheme != "https":
-                raise ValueError(f"{name} must use HTTPS scheme ({val})")
+                raise click.ClickException(f"{name} must use HTTPS scheme ({val})")
             host = parsed.hostname
         else:
             host = val
 
         if host in ("localhost", "127.0.0.1", "::1"):
-            raise ValueError(f"{name} cannot be localhost ({val})")
+            raise click.ClickException(f"{name} cannot be localhost ({val})")
 
         if host:
             try:
                 ipaddress.ip_address(host)
+                raise click.ClickException(f"{name} cannot be a bare IP address ({val})")
             except ValueError:
                 pass
-            else:
-                raise ValueError(f"{name} cannot be a bare IP address ({val})")
 
     return endpoints_to_check
 

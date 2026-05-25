@@ -335,7 +335,7 @@ class AuthService:
         if record is None:
             raise AuthsomeError(
                 f"Stored credentials for '{provider}' use the old v1 format. "
-                "Please run: authsome revoke {provider} && authsome login {provider}"
+                "Please run: authsome provider revoke {provider} && authsome login {provider}"
             )
         return record
 

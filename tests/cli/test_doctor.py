@@ -1,9 +1,7 @@
-"""Tests for the `authsome doctor` command output and logic."""
+"""Tests for the `authsome doctor` command."""
 
 import json
 from unittest.mock import patch
-
-from click.testing import CliRunner
 
 from authsome.cli.main import cli
 
@@ -11,8 +9,7 @@ from authsome.cli.main import cli
 class TestDoctorCommand:
     """Tests for the `authsome doctor` CLI command."""
 
-    def test_doctor_success_rendering(self, runner: CliRunner) -> None:
-        """Verifies OK state renders successfully."""
+    def test_doctor_success_returns_json(self, runner) -> None:
         mock_results = {
             "status": "ready",
             "checks": {"config": "ok", "integrity": "ok", "file_permissions": "ok"},
@@ -23,13 +20,12 @@ class TestDoctorCommand:
         with patch("authsome.cli.context.CliRuntime.doctor", return_value=mock_results):
             result = runner.invoke(cli, ["--log-file", "", "doctor"])
 
-        assert result.exit_code == 0
-        assert "config: OK" in result.output
-        assert "integrity: OK" in result.output
-        assert "file_permissions: OK" in result.output
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["status"] == "ready"
+        assert data["checks"]["config"] == "ok"
 
-    def test_doctor_warnings_rendering(self, runner: CliRunner) -> None:
-        """Verifies that non-critical warnings display and allow 0 exit code."""
+    def test_doctor_warnings_return_json(self, runner) -> None:
         mock_results = {
             "status": "ready",
             "checks": {"connections": "ok", "key_age": "ok"},
@@ -41,17 +37,14 @@ class TestDoctorCommand:
             result = runner.invoke(cli, ["--log-file", "", "doctor"])
 
         assert result.exit_code == 0
-        assert "Warnings:" in result.output
-        assert "master.key too old" in result.output
-        assert "no connections" in result.output
+        data = json.loads(result.output)
+        assert "master.key too old" in data["warnings"]
+        assert "no connections" in data["warnings"]
 
-    def test_doctor_failure_rendering(self, runner: CliRunner) -> None:
-        """Verifies that actual failures cause exit code 1 and list issues."""
+    def test_doctor_failure_returns_json_and_exit_1(self, runner) -> None:
         mock_results = {
             "status": "not_ready",
-            "checks": {
-                "config": "failed",
-            },
+            "checks": {"config": "failed"},
             "issues": ["config schema mismatch"],
             "warnings": [],
         }
@@ -60,20 +53,11 @@ class TestDoctorCommand:
             result = runner.invoke(cli, ["--log-file", "", "doctor"])
 
         assert result.exit_code == 1
-        assert "config: FAIL" in result.output
-        assert "Issues found:" in result.output
-        assert "config schema mismatch" in result.output
-
-    def test_doctor_json_format(self, runner: CliRunner) -> None:
-        """Validates raw backend passthrough in json mode."""
-        mock_results = {"status": "ready", "checks": {"x": "ok"}, "issues": [], "warnings": ["caution"]}
-
-        with patch("authsome.cli.context.CliRuntime.doctor", return_value=mock_results):
-            result = runner.invoke(cli, ["--log-file", "", "doctor", "--json"])
-
-        assert result.exit_code == 0
         data = json.loads(result.output)
-        # Verify wrapper fields and inner content
-        assert data["v"] == 1
-        assert data["status"] == "ready"
-        assert "caution" in data["warnings"]
+        assert data["status"] == "not_ready"
+        assert data["issues"] == ["config schema mismatch"]
+
+    def test_json_flag_removed(self, runner) -> None:
+        result = runner.invoke(cli, ["--log-file", "", "doctor", "--json"])
+        assert result.exit_code == 2
+        assert "No such option '--json'" in result.output

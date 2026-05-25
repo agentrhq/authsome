@@ -289,4 +289,4 @@ def test_hosted_ui_auth_input_requires_matching_browser_session(monkeypatch, tmp
         response = client.get(f"/auth/sessions/{session.session_id}/input")
 
     assert response.status_code == 401
-    assert "authsome ui" in response.text
+    assert "hosted dashboard" in response.text

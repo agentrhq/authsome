@@ -472,7 +472,7 @@ def _deny_body(reason: str, match: RouteMatch | None) -> str:
     reasons fall back to a generic message.
 
     The dashboard URL uses ``DEFAULT_SERVER_BASE_URL``. It still requires an active dashboard session
-    (`authsome ui`) to land on the connect screen directly.
+    to land on the connect screen directly.
     """
     if reason == "no_credentials" and match is not None:
         provider = match.provider

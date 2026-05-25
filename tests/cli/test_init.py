@@ -5,9 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
-
-from click.testing import CliRunner
 
 from authsome import __version__
 from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
@@ -17,8 +14,8 @@ from authsome.store.local import LocalAppStore
 
 
 def test_init_removes_legacy_default_state_and_registers_identity(
-    runner: CliRunner,
-    mock_client: MagicMock,
+    runner,
+    mock_client,
     tmp_path: Path,
 ) -> None:
     identities = tmp_path / "client" / "identities"
@@ -32,7 +29,7 @@ def test_init_removes_legacy_default_state_and_registers_identity(
     mark_registered(tmp_path, created.handle)
     mock_client.ensure_identity_ready.return_value = created
 
-    result = runner.invoke(cli, ["--log-file", "", "init", "--json"])
+    result = runner.invoke(cli, ["--log-file", "", "init"])
 
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
@@ -52,8 +49,8 @@ def test_init_removes_legacy_default_state_and_registers_identity(
 
 
 def test_init_skips_registration_for_registered_active_profile(
-    runner: CliRunner,
-    mock_client: MagicMock,
+    runner,
+    mock_client,
     tmp_path: Path,
 ) -> None:
     asyncio.run(LocalAppStore(tmp_path).ensure_initialized())
@@ -61,7 +58,7 @@ def test_init_skips_registration_for_registered_active_profile(
     mark_registered(tmp_path, identity.handle)
     save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
 
-    result = runner.invoke(cli, ["--log-file", "", "init", "--json"])
+    result = runner.invoke(cli, ["--log-file", "", "init"])
 
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)

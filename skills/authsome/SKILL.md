@@ -40,9 +40,9 @@ to set any auth headers.
 - Run `authsome login <provider>` via Bash yourself — do NOT ask the user to
   run this. The browser opens on their machine; they complete OAuth without touching
   the terminal.
-- Poll the status of the login using `authsome list` after a few seconds
+- Poll the status of the login using `authsome provider list` after a few seconds
   - **If connected** — proceed normally.
-  - **If not yet connected** — display the authentication URL to the user, ask them to complete the login in their browser, and report back once done. Once the user confirms, run `authsome list` again to verify the connection before continuing.
+  - **If not yet connected** — display the authentication URL to the user, ask them to complete the login in their browser, and report back once done. Once the user confirms, run `authsome provider list` again to verify the connection before continuing.
 
 ---
 
@@ -56,16 +56,16 @@ Only when uv tool install fails, use fallback: `pipx install authsome` or `uvx a
 
 ### If you get an authentication error (401, 403) follow this decision tree:
 
-**1. Run `authsome list` to see all providers and their connections**
+**1. Run `authsome provider list` to see all providers and their connections**
 
 **2. If relevant provider exists but it has no connections → start the [login flow](#login-flow)**
 
-If there is a login error due to wrong client id/client secret you can delete the provider via `authsome remove <provider>` and start the [login flow](#login-flow)
+If there is a login error due to wrong client id/client secret you can delete the provider via `authsome provider remove <provider>` and start the [login flow](#login-flow)
 
 **3. If relevant provider exists and it is connected**
 
 For 401 error → you need to re-login, creds have expired
-- revoke the creds using `authsome revoke <provider>`
+- revoke the creds using `authsome provider revoke <provider>`
 - then start the [login flow](#login-flow)
 
 For 403 error → you need to re-login, with the correct scopes, or missing permissions
@@ -89,6 +89,9 @@ If you are unsure of the correct command syntax, need to check available flags, 
 
 ```bash
 authsome --help
+authsome provider --help
+authsome connections --help
+authsome admin --help
 authsome run --help
 ```
 
@@ -104,6 +107,8 @@ authsome run --help
 - **Never** suggest the user open Gmail/Calendar/GitHub in their browser
   when they ask you to read or interact with those services. You have API
   access. Use it.
+- **Never** use `authsome export`, `--show-secret`, or any workflow that prints
+  tokens or API keys to the terminal. Use `authsome run -- ...` instead.
 - If the gateway returns a policy error (403 with a JSON body), respect
   the block. Do not retry or circumvent it.
 - If the skill fails, the goal took too many steps, the CLI behaved unexpectedly,
