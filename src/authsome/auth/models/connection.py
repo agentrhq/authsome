@@ -15,7 +15,11 @@ from pydantic import BaseModel, Field
 
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 
+# TODO: Auth module shouldn't worry about storage. Remove all key references
+# TODO: Remvoe hardcoded schema versions everywhere
 
+
+# TODO: Pydantic as secretstr, why not just use that?
 class Sensitive:
     """Marker annotation: field contains a secret that must be redacted before display."""
 
@@ -73,8 +77,8 @@ class ProviderMetadataRecord(BaseModel):
     Stored at key: vault:<vault_id>:<provider>:metadata
     """
 
-    schema_version: int = 2
-    identity: str | None = None
+    schema_version: int = 2  # TODO: Hardcoded schema version?
+    identity: str | None = None  # TODO: Why is identity / principal_id / vault_id in provider metadata?
     principal_id: str | None = None
     vault_id: str | None = None
     provider: str

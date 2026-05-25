@@ -8,6 +8,7 @@ from pathlib import Path
 from key_value.aio.protocols.key_value import AsyncKeyValue
 
 
+# TODO: Name app store doesn't seem correct at all
 class AppStore(ABC):
     """Storage backend for the encrypted vault KV."""
 

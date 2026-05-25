@@ -17,6 +17,11 @@ if TYPE_CHECKING:
     from authsome.vault.crypto import VaultCrypto
 
 
+# TODO: Vault should be very thin wrapper on key_value store
+# TODO: AES-GCM should be a key_value store wrapper ( see FernetWrapper)
+# TODO: Add a config for vault ( master.key and crypto mode is property of this wrapper), it should load
+
+
 class Vault:
     """Encrypted key-value store backed by an AppStore.
 

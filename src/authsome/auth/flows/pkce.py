@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class PkceFlow(AuthFlow):
     """OAuth2 PKCE authorization code flow."""
 
-    callback_port: int = 7999
+    callback_port: int = 7999  # TODO: Remove hardcoded ports, better to keep a global in config file
 
     async def begin(
         self,

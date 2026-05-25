@@ -12,6 +12,9 @@ Usage:
     local proxy.
 """
 
+from importlib.metadata import PackageNotFoundError as _PkgNotFoundError
+from importlib.metadata import version as _pkg_version
+
 from loguru import logger as _logger
 
 from authsome.auth.models.connection import ConnectionRecord, Sensitive
@@ -39,9 +42,6 @@ from authsome.vault import Vault
 _logger.disable("authsome")
 
 try:
-    from importlib.metadata import PackageNotFoundError as _PkgNotFoundError
-    from importlib.metadata import version as _pkg_version
-
     __version__ = _pkg_version("authsome")
 except _PkgNotFoundError:
     __version__ = "unknown"

@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 
 from authsome.auth.models.enums import AuthType, FlowType
 
+# TODO: Remove hardcoded schema versions everywhere
+
 
 class OAuthConfig(BaseModel):
     """OAuth2-specific provider configuration."""

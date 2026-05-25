@@ -7,6 +7,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pydantic import BaseModel, Field
 
 
+# TODO: This is generic package level function, move it there
 def current_spec_version() -> int:
     """Return the config spec version derived from authsome's minor package version."""
     try:
@@ -22,12 +23,14 @@ def current_spec_version() -> int:
         return 0
 
 
+# TODO: This isn't a property of auth module
 class EncryptionConfig(BaseModel):
     """Vault encryption backend settings for the daemon."""
 
     mode: str = "auto"
 
 
+# TODO: This isn't a property of auth module
 class ServerConfig(BaseModel):
     """Daemon-owned server configuration."""
 
