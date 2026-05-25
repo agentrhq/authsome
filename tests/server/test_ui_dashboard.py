@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 from fastapi.testclient import TestClient
 
-from authsome.auth.models.connection import ConnectionRecord, ProviderMetadataRecord
+from authsome.auth.models.connection import ConnectionRecord, ProviderClientRecord, ProviderMetadataRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.identity import create_identity, load_private_key
 from authsome.identity.proof import create_proof_jwt
@@ -430,6 +430,35 @@ def test_provider_configure_route_opens_edit_flow_with_existing_values(monkeypat
     assert any(field["name"] == "client_id" and field["default"] == "cid-123" for field in fields)
 
 
+def test_hosted_admin_provider_configure_route_opens_edit_flow(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
+
+    with TestClient(create_app()) as client:
+        claim_path = _register_identity_for_claim(client, tmp_path, "steady-wisely-boldly-0042")
+        registered = client.post(
+            "/ui/auth/register",
+            data={"email": "dev@example.com", "password": "password-1", "next": claim_path},
+            follow_redirects=False,
+        )
+        assert registered.status_code == 303
+        assert client.post(f"{claim_path}/confirm", follow_redirects=False).status_code == 303
+
+        principal_id = asyncio.run(
+            client.app.state.ownership_resolver.resolve(identity="steady-wisely-boldly-0042")
+        ).principal_id
+        monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPLES", principal_id)
+        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
+        response = client.post("/ui/apps/github/configure", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert "/auth/sessions/" in response.headers["location"]
+    session = next(iter(client.app.state.auth_sessions._sessions.values()))
+    assert session.payload["provider_config_only"] is True
+    fields = session.payload["input_fields"]
+    assert any(field["name"] == "client_id" and field["default"] == "cid-123" for field in fields)
+
+
 def test_provider_configure_input_page_shows_revoke_warning(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
@@ -442,6 +471,11 @@ def test_provider_configure_input_page_shows_revoke_warning(monkeypatch, tmp_pat
 
     assert response.status_code == 200
     assert "Changing these credentials will revoke existing connections for this provider." in response.text
+    client_id_position = response.text.index('for="client_id">Client ID')
+    client_secret_position = response.text.index('for="client_secret">Client Secret')
+    advanced_position = response.text.index("<details><summary>Advanced options</summary>")
+    assert client_id_position < client_secret_position < advanced_position
+    assert "Client Secret (Optional)" not in response.text
 
 
 def test_provider_config_submit_replaces_client_and_revokes_connections(monkeypatch, tmp_path: Path) -> None:
@@ -476,5 +510,7 @@ def test_provider_config_submit_replaces_client_and_revokes_connections(monkeypa
     assert response.status_code == 303
     assert response.headers["location"].endswith("/ui/apps/github")
     assert provider_client is not None
-    assert "cid-456" in provider_client
+    provider_client_record = ProviderClientRecord.model_validate_json(provider_client)
+    assert provider_client_record.client_id == "cid-456"
+    assert provider_client_record.scopes == ["repo", "read:user"]
     assert "No connections yet" in connections_page.text

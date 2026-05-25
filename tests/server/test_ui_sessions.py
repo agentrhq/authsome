@@ -31,6 +31,26 @@ def _register_identity(client: TestClient, tmp_path: Path, handle: str) -> None:
     assert response.status_code == 200
 
 
+def _seed_provider_client(
+    client: TestClient,
+    *,
+    provider: str,
+    client_id: str,
+    client_secret: str | None = None,
+) -> None:
+    asyncio.run(
+        client.app.state.vault.put(
+            build_store_key(provider=provider, record_type="server"),
+            ProviderClientRecord(
+                provider=provider,
+                client_id=client_id,
+                client_secret=client_secret,
+            ).model_dump_json(),
+            collection="server",
+        )
+    )
+
+
 def _claim_identity_via_hosted_ui(client: TestClient, tmp_path: Path, handle: str, email: str) -> None:
     identity = create_identity(tmp_path, handle)
     response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
@@ -169,6 +189,26 @@ def test_hosted_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_pa
     assert "cid-123" not in response.text
     assert "manages the OAuth application" in response.text
     assert "Existing connections" not in response.text
+
+
+def test_hosted_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
+
+    with TestClient(create_app()) as client:
+        _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
+        principal_id = asyncio.run(
+            client.app.state.ownership_resolver.resolve(identity="steady-wisely-boldly-0042")
+        ).principal_id
+        monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPLES", principal_id)
+        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="top-secret")
+        response = client.get("/ui/apps/github")
+
+    assert response.status_code == 200
+    assert "cid-123" in response.text
+    assert "Existing connections" in response.text
+    assert "manages the OAuth application" not in response.text
+    assert 'action="/ui/apps/github/configure"' in response.text
 
 
 def test_hosted_ui_connect_starts_principal_scoped_session_without_pop(monkeypatch, tmp_path: Path) -> None:
