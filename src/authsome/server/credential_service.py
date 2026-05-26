@@ -475,7 +475,9 @@ class AuthService:
                     label="API Host URL",
                     secret=False,
                     default=(
-                        client_record.api_url if client_record and client_record.api_url else definition.api_url or ""
+                        client_record.api_url
+                        if client_record and client_record.api_url
+                        else definition.primary_api_url() or ""
                     ),
                 )
             )
@@ -648,7 +650,7 @@ class AuthService:
             await self._save_provider_client_credentials(client_record)
 
         result.connection.base_url = flow_base_url
-        result.connection.api_url = resolved_definition.api_url
+        result.connection.api_url = client_record.api_url if client_record and client_record.api_url else None
 
         await self._save_connection(result.connection)
         await self._update_provider_metadata(provider, connection_name)
@@ -843,7 +845,7 @@ class AuthService:
             token = record.access_token if record.auth_type == AuthType.OAUTH2 else record.api_key
             available_values = {
                 "BASE_URL": record.base_url,
-                "API_URL": record.api_url or definition.api_url or record.base_url,
+                "API_URL": record.api_url or definition.primary_api_url() or record.base_url,
                 "ACCESS_TOKEN": token,
                 "API_TOKEN": token,
             }

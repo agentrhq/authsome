@@ -4,7 +4,10 @@
   "display_name": "GitHub",
   "auth_type": "oauth2",
   "flow": "pkce",
-  "api_url": "api.github.com",
+  "api_url": [
+    "api.github.com",
+    "regex:.*githubusercontent\\.com$"
+  ],
   "oauth": {
     "base_url": "https://github.com",
     "authorization_url": "{base_url}/login/oauth/authorize",
