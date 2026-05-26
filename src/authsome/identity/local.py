@@ -100,6 +100,7 @@ class RuntimeIdentity(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+# TODO: This should be a server property. The identities module should be stateless
 def identities_dir(home: Path) -> Path:
     return get_client_home(home) / "identities"
 
