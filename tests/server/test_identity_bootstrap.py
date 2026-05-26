@@ -39,7 +39,7 @@ async def test_hosted_bootstrap_requires_claim_until_identity_is_claimed(tmp_pat
     status = await service.register_identity(handle=identity.handle, did=identity.did)
 
     assert status.registration_status == "claim_required"
-    assert status.claim_url.startswith("http://127.0.0.1:7998/ui/claim/")
+    assert status.claim_url.startswith("http://127.0.0.1:7998/claim/")
 
 
 @pytest.mark.asyncio

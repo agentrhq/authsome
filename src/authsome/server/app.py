@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from importlib.resources import files
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from authsome import audit
@@ -112,10 +112,6 @@ def create_app() -> FastAPI:
     app.include_router(ui_router)
 
     static_dir = files("authsome.ui").joinpath("static")
-    app.mount("/ui/static", StaticFiles(directory=str(static_dir)), name="ui-static")
-
-    @app.get("/ui", include_in_schema=False)
-    def _ui_redirect() -> RedirectResponse:
-        return RedirectResponse(url="/ui/")
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="ui-static")
 
     return app

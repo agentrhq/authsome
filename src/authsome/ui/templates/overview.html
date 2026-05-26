@@ -13,7 +13,7 @@
             </svg>
             Filter
         </button>
-        <a class="btn btn-primary" href="/ui/connections">
+        <a class="btn btn-primary" href="/manage/connections">
             <span aria-hidden="true">+</span>
             Add connection
         </a>
@@ -43,13 +43,13 @@
 <section class="section">
     <div class="section-header">
         <h2>Connected Providers</h2>
-        <a class="link" href="/ui/connections">Manage Connections →</a>
+        <a class="link" href="/manage/connections">Manage Connections →</a>
     </div>
 
     {% if connected_providers %}
     <div class="provider-grid">
         {% for p in connected_providers %}
-        <a class="provider-card" href="/ui/apps/{{ p.name }}">
+        <a class="provider-card" href="/apps/{{ p.name }}">
             <div class="provider-card-top">
                 <span class="logo">{{ p.logo_initial }}</span>
                 {% if p.status == 'reauth' %}
@@ -80,7 +80,7 @@
     <div class="empty">
         <div class="empty-title">No connections yet</div>
         <div class="empty-body">Connect your first provider to get started.</div>
-        <a class="btn btn-primary" href="/ui/connections">Browse providers</a>
+        <a class="btn btn-primary" href="/manage/connections">Browse providers</a>
     </div>
     {% endif %}
 </section>

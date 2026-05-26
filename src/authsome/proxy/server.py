@@ -486,7 +486,7 @@ def _deny_body(reason: str, match: RouteMatch | None) -> str:
         return (
             f"Forbidden: provider '{provider}' is configured but has no "
             f"active connection. Run `authsome login {provider}` to connect, "
-            f"or visit {DEFAULT_SERVER_BASE_URL}/ui/apps/{provider}."
+            f"or visit {DEFAULT_SERVER_BASE_URL}/apps/{provider}."
         )
     return "Forbidden by Authsome proxy policy"
 

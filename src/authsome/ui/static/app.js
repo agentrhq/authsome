@@ -98,7 +98,7 @@
             btn.addEventListener("click", () => {
                 const provider = btn.dataset.provider;
                 if (!provider) return;
-                form.action = `/ui/apps/${provider}/connect`;
+                form.action = `/apps/${provider}/connect`;
                 hiddenConnection.value = "";
                 input.value = "";
                 modal.showModal();

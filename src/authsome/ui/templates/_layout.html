@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1280">
     <title>{% block title %}Authsome{% endblock %} · Authsome</title>
-    <link rel="stylesheet" href="/ui/static/style.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <aside class="sidebar">
         <div class="brand">Authsome</div>
         <nav class="nav-primary">
-            <a class="nav-item {% if page == 'overview' %}active{% endif %}" href="/ui/">
+            <a class="nav-item {% if page == 'overview' %}active{% endif %}" href="/">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="3" y="3" width="7" height="7" rx="1.5"/>
                     <rect x="14" y="3" width="7" height="7" rx="1.5"/>
@@ -19,14 +19,14 @@
                 </svg>
                 <span>Overview</span>
             </a>
-            <a class="nav-item {% if page == 'applications' %}active{% endif %}" href="/ui/applications">
+            <a class="nav-item {% if page == 'applications' %}active{% endif %}" href="/applications">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="4" y="5" width="16" height="14" rx="2"/>
                     <path d="M8 9h8M8 13h5"/>
                 </svg>
                 <span>Applications</span>
             </a>
-            <a class="nav-item {% if page == 'connections' %}active{% endif %}" href="/ui/connections">
+            <a class="nav-item {% if page == 'connections' %}active{% endif %}" href="/manage/connections">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="6" cy="12" r="2.5"/>
                     <circle cx="18" cy="6" r="2.5"/>
@@ -35,7 +35,7 @@
                 </svg>
                 <span>Connections</span>
             </a>
-            <a class="nav-item {% if page == 'identity' %}active{% endif %}" href="/ui/identity">
+            <a class="nav-item {% if page == 'identity' %}active{% endif %}" href="/identity">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M20 21a8 8 0 0 0-16 0"/>
                     <circle cx="12" cy="8" r="4"/>
@@ -74,7 +74,7 @@
             {% endif %}
             <div class="topbar-actions">
                 {% if show_hosted_identity %}
-                <form method="post" action="/ui/logout">
+                <form method="post" action="/logout">
                     <button class="btn btn-sm btn-secondary" type="submit">Sign out</button>
                 </form>
                 {% endif %}
@@ -101,6 +101,6 @@
     </main>
 
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <script src="/ui/static/app.js"></script>
+    <script src="/static/app.js"></script>
 </body>
 </html>
