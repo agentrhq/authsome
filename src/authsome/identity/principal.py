@@ -32,6 +32,7 @@ class PrincipalRecord(BaseModel):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+# TODO: This should be a server property. The principal module should not care about which vault is owned by who
 class VaultRecord(BaseModel):
     """Vault record owned as a first-class resource."""
 
@@ -51,6 +52,7 @@ class IdentityClaimRecord(BaseModel):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+# TODO: This should be a server property. The principal module should not care about which vault is owned by who
 class PrincipalVaultBindingRecord(BaseModel):
     """Binding from principal to a vault."""
 

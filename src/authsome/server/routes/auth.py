@@ -201,7 +201,7 @@ async def oauth_callback(
         )
     if not await _ensure_browser_session_identity(request, session):
         return HTMLResponse(
-            pages.message_page("Dashboard session expired", "Run 'authsome ui' to reopen the hosted dashboard."),
+            pages.message_page("Dashboard session expired", "Open the hosted dashboard again to continue."),
             status_code=401,
         )
     callback_data = dict(request.query_params)
@@ -260,7 +260,7 @@ async def input_page(
         )
     if not await _ensure_browser_session_identity(request, session):
         return HTMLResponse(
-            pages.message_page("Dashboard session expired", "Run 'authsome ui' to reopen the hosted dashboard."),
+            pages.message_page("Dashboard session expired", "Open the hosted dashboard again to continue."),
             status_code=401,
         )
     auth = await require_auth_service(
@@ -306,7 +306,7 @@ async def device_page(
         )
     if not await _ensure_browser_session_identity(request, session):
         return HTMLResponse(
-            pages.message_page("Dashboard session expired", "Run 'authsome ui' to reopen the hosted dashboard."),
+            pages.message_page("Dashboard session expired", "Open the hosted dashboard again to continue."),
             status_code=401,
         )
     user_code = session.payload.get("user_code")
@@ -345,7 +345,7 @@ async def submit_input(
         )
     if not await _ensure_browser_session_identity(request, session):
         return HTMLResponse(
-            pages.message_page("Dashboard session expired", "Run 'authsome ui' to reopen the hosted dashboard."),
+            pages.message_page("Dashboard session expired", "Open the hosted dashboard again to continue."),
             status_code=401,
         )
     auth = await require_auth_service(
@@ -461,6 +461,9 @@ def _session_response(session: AuthSession, server_base_url: str) -> AuthSession
         created_at=session.created_at,
         expires_at=session.expires_at,
         next_action=action,
+        user_code=session.payload.get("user_code"),
+        verification_uri=session.payload.get("verification_uri"),
+        verification_uri_complete=session.payload.get("verification_uri_complete"),
     )
 
 

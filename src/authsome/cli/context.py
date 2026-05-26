@@ -54,33 +54,30 @@ class ContextObj:
             return
         if self.no_color:
             color = None
-        click.secho(message, err=err, fg=color, nl=nl)
+        click.secho(message, err=err or self.json_output, fg=color, nl=nl)
 
     def emit(self, message: str, color: str | None = None, nl: bool = True) -> None:
         """Print primary data output. Never suppressed by --quiet; respects --no-color."""
         if self.no_color:
             color = None
-        click.secho(message, fg=color, nl=nl)
+        click.secho(message, err=self.json_output, fg=color, nl=nl)
 
 
 pass_ctx = click.make_pass_decorator(ContextObj)
 
 
 def common_options(f):
-    @click.option("--json", "json_output", is_flag=True, help="Output in machine-readable JSON format.")
     @click.option("--quiet", is_flag=True, help="Suppress non-essential output.")
     @click.option("--no-color", is_flag=True, help="Disable ANSI colors.")
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        json_output = kwargs.pop("json_output", False)
         quiet = kwargs.pop("quiet", False)
         no_color = kwargs.pop("no_color", False)
         ctx = click.get_current_context()
         if getattr(ctx, "obj", None) is None:
-            ctx.obj = ContextObj(json_output, quiet, no_color)
+            ctx.obj = ContextObj(True, quiet, no_color)
         else:
-            if json_output:
-                ctx.obj.json_output = True
+            ctx.obj.json_output = True
             if quiet:
                 ctx.obj.quiet = True
             if no_color:

@@ -396,7 +396,7 @@ class AuthService:
         if record is None:
             raise AuthsomeError(
                 f"Stored credentials for '{provider}' use the old v1 format. "
-                "Please run: authsome revoke {provider} && authsome login {provider}"
+                "Please run: authsome provider revoke {provider} && authsome login {provider}"
             )
         return record
 
@@ -555,7 +555,7 @@ class AuthService:
             fields.append(
                 InputField(
                     name="client_id",
-                    label="Client ID (leave blank for public device code flow)",
+                    label="Client ID",
                     secret=False,
                     default=flow_client_id or "",
                 )

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.2](https://github.com/agentrhq/authsome/compare/authsome-v0.4.1...authsome-v0.4.2) (2026-05-25)
+
+
+### Features
+
+* add device flow verification fields to auth schemas and CLI JSON output ([c24779c](https://github.com/agentrhq/authsome/commit/c24779c6df5939602f06bc3b18c5e270963cbdfc))
+* auto-create env handle identities ([72e1b35](https://github.com/agentrhq/authsome/commit/72e1b350cd13cd9923eb8e2f408c599cfaf98497))
+* env backed identity design ([e1662b5](https://github.com/agentrhq/authsome/commit/e1662b51963a6dac66d6d6f30f654ad04fc96736))
+* improve copy-to-clipboard functionality with browser fallback and UI feedback ([02daa81](https://github.com/agentrhq/authsome/commit/02daa8182ed9d22abe75670db09286979844223d))
+* restructure CLI commands under provider and admin namespaces ([7b4b31a](https://github.com/agentrhq/authsome/commit/7b4b31ad4fbc5bb8ffc2c1f60e0d69268844558e))
+* restructure CLI commands under provider and admin namespaces ([a326e3f](https://github.com/agentrhq/authsome/commit/a326e3f1c43d2037124f0ba49751c8a5af0daa81))
+* simplify Client ID label and implement robust cross-browser copy-to-clipboard logic ([d763f7f](https://github.com/agentrhq/authsome/commit/d763f7f7dc8bb33b7049c27be78d0cdd08195ede))
+
+
+### Bug Fixes
+
+* expose actionable session details in login --json ([87ae0b7](https://github.com/agentrhq/authsome/commit/87ae0b7aeee76b69abae13d488e9e0829031d0c8))
+* normalize cli error handling for json output ([fb2754b](https://github.com/agentrhq/authsome/commit/fb2754bded00bcdea76a7433736f59ae60f01cff))
+* update daemon process command to include admin subcommand ([7855c77](https://github.com/agentrhq/authsome/commit/7855c77ceec670887c1cd4947e4202aaeff3a9b2))
+
 ## [0.4.1](https://github.com/agentrhq/authsome/compare/authsome-v0.4.0...authsome-v0.4.1) (2026-05-25)
 
 

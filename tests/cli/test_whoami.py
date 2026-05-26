@@ -1,13 +1,6 @@
-"""Tests for `authsome whoami`.
-
-Covers: JSON output shape, vault OK and FAIL status rendering,
-and connected providers count.
-"""
+"""Tests for `authsome whoami`."""
 
 import json
-from unittest.mock import MagicMock
-
-from click.testing import CliRunner
 
 from authsome.cli.main import cli
 
@@ -38,12 +31,12 @@ def _make_ready_fail() -> dict:
 class TestWhoamiCommand:
     """Tests for `authsome whoami`."""
 
-    def test_json_output_shape(self, runner: CliRunner, mock_client: MagicMock) -> None:
+    def test_json_output_shape(self, runner, mock_client) -> None:
         mock_client.whoami.return_value = _make_whoami()
         mock_client.doctor.return_value = _make_ready_ok()
         mock_client.list_connections.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
 
-        result = runner.invoke(cli, ["--log-file", "", "whoami", "--json"])
+        result = runner.invoke(cli, ["--log-file", "", "whoami"])
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["authsome_version"] == "1.2.3"
@@ -53,31 +46,19 @@ class TestWhoamiCommand:
         assert data["vault_status"] == "OK"
         assert data["configured_encryption_mode"] == "auto"
         assert data["effective_encryption_source"] == "keyring"
-        assert "connected_providers_count" in data
-        assert "connected_providers" in data
         assert data["issues"] == []
 
-    def test_vault_fail_shown_in_json(self, runner: CliRunner, mock_client: MagicMock) -> None:
+    def test_vault_fail_shown_in_json(self, runner, mock_client) -> None:
         mock_client.whoami.return_value = _make_whoami()
         mock_client.doctor.return_value = _make_ready_fail()
         mock_client.list_connections.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
 
-        result = runner.invoke(cli, ["--log-file", "", "whoami", "--json"])
+        result = runner.invoke(cli, ["--log-file", "", "whoami"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["vault_status"] == "ERROR"
 
-    def test_human_output_shows_version(self, runner: CliRunner, mock_client: MagicMock) -> None:
-        mock_client.whoami.return_value = _make_whoami("2.0.0")
-        mock_client.doctor.return_value = _make_ready_ok()
-        mock_client.list_connections.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
-
-        result = runner.invoke(cli, ["--log-file", "", "whoami", "--no-color"])
-        assert result.exit_code == 0
-        assert "2.0.0" in result.output
-        assert "OS Keyring (mode: auto)" in result.output
-
-    def test_connected_providers_counted(self, runner: CliRunner, mock_client: MagicMock) -> None:
+    def test_connected_providers_counted(self, runner, mock_client) -> None:
         from datetime import UTC, datetime, timedelta
 
         future = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
@@ -94,18 +75,18 @@ class TestWhoamiCommand:
             "by_source": {"bundled": [], "custom": []},
         }
 
-        result = runner.invoke(cli, ["--log-file", "", "whoami", "--json"])
+        result = runner.invoke(cli, ["--log-file", "", "whoami"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["connected_providers_count"] == 1
         assert data["connected_providers"][0]["name"] == "github"
 
-    def test_connections_failure_keeps_whoami_usable(self, runner: CliRunner, mock_client: MagicMock) -> None:
+    def test_connections_failure_keeps_whoami_usable(self, runner, mock_client) -> None:
         mock_client.whoami.return_value = _make_whoami()
         mock_client.doctor.return_value = _make_ready_fail()
         mock_client.list_connections.side_effect = Exception("EncryptionUnavailableError: Decryption failed: ")
 
-        result = runner.invoke(cli, ["--log-file", "", "whoami", "--json"])
+        result = runner.invoke(cli, ["--log-file", "", "whoami"])
 
         assert result.exit_code == 0
         data = json.loads(result.output)

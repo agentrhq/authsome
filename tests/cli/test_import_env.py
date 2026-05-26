@@ -1,9 +1,6 @@
 """Tests for `authsome scan`."""
 
 import json
-from unittest.mock import MagicMock
-
-from click.testing import CliRunner
 
 from authsome.cli.main import cli
 
@@ -34,9 +31,7 @@ def _oauth_provider(name: str) -> dict:
 class TestScanCommand:
     """Behavior tests for scan and import workflow."""
 
-    def test_scan_import_flag_imports_key_from_dotenv(
-        self, runner: CliRunner, mock_client: MagicMock, monkeypatch, tmp_path
-    ) -> None:
+    def test_scan_import_flag_imports_key_from_dotenv(self, runner, mock_client, monkeypatch, tmp_path) -> None:
         mock_client.list_connections.return_value = {
             "connections": [],
             "by_source": {
@@ -57,50 +52,33 @@ class TestScanCommand:
             provider="brevo", connection="default", flow="api_key", force=True
         )
         mock_client.resume_login_session.assert_called_once_with("sess-1", api_key="test123")
+        data = json.loads(result.output)
+        assert data["import"] is True
 
-    def test_scan_prompts_and_imports_when_confirmed(
-        self, runner: CliRunner, mock_client: MagicMock, monkeypatch
-    ) -> None:
+    def test_scan_defaults_to_report_only(self, runner, mock_client, monkeypatch) -> None:
         mock_client.list_connections.return_value = {
             "connections": [],
             "by_source": {"bundled": [_api_key_provider("openai", "OPENAI_API_KEY")], "custom": []},
         }
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-value")
-        monkeypatch.setattr("authsome.cli.main.click.confirm", lambda *args, **kwargs: True)
-        mock_client.get_connection.side_effect = Exception("not found")
-        mock_client.start_login.return_value = {"id": "sess-9", "status": "pending"}
-        mock_client.resume_login_session.return_value = {"id": "sess-9", "status": "completed"}
-
-        result = runner.invoke(cli, ["--log-file", "", "scan"])
-
-        assert result.exit_code == 0, result.output
-        mock_client.start_login.assert_called_once()
-        mock_client.resume_login_session.assert_called_once_with("sess-9", api_key="sk-test-value")
-
-    def test_scan_prompts_and_skips_import_when_declined(
-        self, runner: CliRunner, mock_client: MagicMock, monkeypatch
-    ) -> None:
-        mock_client.list_connections.return_value = {
-            "connections": [],
-            "by_source": {"bundled": [_api_key_provider("openai", "OPENAI_API_KEY")], "custom": []},
-        }
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-value")
-        monkeypatch.setattr("authsome.cli.main.click.confirm", lambda *args, **kwargs: False)
         mock_client.get_connection.return_value = {}
+
         result = runner.invoke(cli, ["--log-file", "", "scan"])
 
         assert result.exit_code == 0, result.output
         mock_client.start_login.assert_not_called()
         mock_client.resume_login_session.assert_not_called()
-        assert "Import skipped by user." in result.output
+        data = json.loads(result.output)
+        assert data["import"] is False
 
-    def test_scan_rejects_quiet_flag(self, runner: CliRunner, mock_client: MagicMock) -> None:
+    def test_scan_rejects_quiet_flag(self, runner, mock_client) -> None:
         result = runner.invoke(cli, ["--log-file", "", "scan", "--quiet"])
         assert result.exit_code == 1
-        assert result.output == ""
+        data = json.loads(result.output)
+        assert data["error"] == "UsageError"
         mock_client.list_connections.assert_not_called()
 
-    def test_scan_reports_drift_states_in_json(self, runner: CliRunner, mock_client: MagicMock, monkeypatch) -> None:
+    def test_scan_reports_drift_states(self, runner, mock_client, monkeypatch) -> None:
         mock_client.list_connections.return_value = {
             "connections": [],
             "by_source": {
@@ -125,7 +103,7 @@ class TestScanCommand:
 
         mock_client.get_connection.side_effect = _get_connection
 
-        result = runner.invoke(cli, ["--log-file", "", "scan", "--json"])
+        result = runner.invoke(cli, ["--log-file", "", "scan"])
 
         assert result.exit_code == 0, result.output
         payload = json.loads(result.output)
