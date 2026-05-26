@@ -59,12 +59,12 @@
 
 {% block actions %}
 <button class="btn btn-primary btn-block" type="button" disabled title="Not yet wired">Save changes</button>
-<form method="post" action="/ui/apps/{{ provider.name }}/connect" hx-post="/ui/apps/{{ provider.name }}/connect" hx-swap="none">
+<form method="post" action="/apps/{{ provider.name }}/connect" hx-post="/apps/{{ provider.name }}/connect" hx-swap="none">
     <input type="hidden" name="connection" value="{{ connection.connection_name }}">
     <input type="hidden" name="force" value="true">
     <button class="btn btn-secondary btn-block" type="submit">Reconnect</button>
 </form>
-<form method="post" action="/ui/apps/{{ provider.name }}/{{ connection.connection_name }}/disconnect" hx-post="/ui/apps/{{ provider.name }}/{{ connection.connection_name }}/disconnect" hx-swap="none">
+<form method="post" action="/apps/{{ provider.name }}/{{ connection.connection_name }}/disconnect" hx-post="/apps/{{ provider.name }}/{{ connection.connection_name }}/disconnect" hx-swap="none">
     <button class="btn btn-danger-ghost btn-block" type="submit">Disconnect</button>
 </form>
 {% endblock %}

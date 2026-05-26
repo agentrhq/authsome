@@ -121,7 +121,7 @@ def test_overview_navigation_shows_applications_connections_and_identity(monkeyp
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        response = client.get("/ui/")
+        response = client.get("/")
 
     assert response.status_code == 200
     assert "Overview" in response.text
@@ -136,7 +136,7 @@ def test_applications_page_renders_provider_catalog(monkeypatch, tmp_path: Path)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        response = client.get("/ui/applications")
+        response = client.get("/applications")
 
     assert response.status_code == 200
     assert "Applications" in response.text
@@ -148,10 +148,10 @@ def test_applications_page_shows_provider_login_action(monkeypatch, tmp_path: Pa
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        response = client.get("/ui/applications")
+        response = client.get("/applications")
 
     assert response.status_code == 200
-    assert 'action="/ui/apps/github/connect"' in response.text
+    assert 'action="/apps/github/connect"' in response.text
     assert "Login" in response.text
 
 
@@ -161,7 +161,7 @@ def test_identity_page_renders_informational_identity_view(monkeypatch, tmp_path
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        response = client.get("/ui/identity")
+        response = client.get("/identity")
 
     assert response.status_code == 200
     assert "Identity" in response.text
@@ -175,7 +175,7 @@ def test_hosted_identity_page_lists_all_account_claims(monkeypatch, tmp_path: Pa
     with TestClient(create_app()) as client:
         first_claim = _register_identity_for_claim(client, tmp_path, "steady-wisely-boldly-0042")
         registered = client.post(
-            "/ui/auth/register",
+            "/auth/register",
             data={"email": "dev@example.com", "password": "password-1", "next": first_claim},
             follow_redirects=False,
         )
@@ -186,7 +186,7 @@ def test_hosted_identity_page_lists_all_account_claims(monkeypatch, tmp_path: Pa
         assert "dev@example.com" in client.get(second_claim).text
         assert client.post(f"{second_claim}/confirm", follow_redirects=False).status_code == 303
 
-        response = client.get("/ui/identity")
+        response = client.get("/identity")
 
     assert response.status_code == 200
     assert "Signed in as dev@example.com" in response.text
@@ -199,10 +199,10 @@ def test_hosted_applications_redirects_to_ui_login_entry(monkeypatch, tmp_path: 
     monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
-        response = client.get("/ui/applications", follow_redirects=False)
+        response = client.get("/applications", follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/ui/?next=%2Fui%2Fapplications"
+    assert response.headers["location"] == "/?next=%2Fapplications"
 
 
 def test_provider_page_shows_provider_configuration_not_connection_tokens(monkeypatch, tmp_path: Path) -> None:
@@ -219,7 +219,7 @@ def test_provider_page_shows_provider_configuration_not_connection_tokens(monkey
             access_token="gh-access-token",
             refresh_token="gh-refresh-token",
         )
-        response = client.get("/ui/apps/github")
+        response = client.get("/apps/github")
 
     assert response.status_code == 200
     assert "OAuth Application" in response.text or "Managed by Authsome" in response.text
@@ -240,7 +240,7 @@ def test_named_connection_detail_route_exists(monkeypatch, tmp_path: Path) -> No
             access_token="gh-access-token",
             refresh_token="gh-refresh-token",
         )
-        response = client.get("/ui/apps/github/connections/default")
+        response = client.get("/apps/github/connections/default")
 
     assert response.status_code == 200
 
@@ -259,7 +259,7 @@ def test_named_connection_detail_page_shows_oauth_tokens(monkeypatch, tmp_path: 
             access_token="gh-access-token",
             refresh_token="gh-refresh-token",
         )
-        response = client.get("/ui/apps/github/connections/default")
+        response = client.get("/apps/github/connections/default")
 
     assert response.status_code == 200
     assert "Access Token" in response.text
@@ -284,7 +284,7 @@ def test_named_connection_detail_page_shows_api_key(monkeypatch, tmp_path: Path)
             auth_type=AuthType.API_KEY,
             api_key="sk-test-key",
         )
-        response = client.get("/ui/apps/openai/connections/default")
+        response = client.get("/apps/openai/connections/default")
 
     assert response.status_code == 200
     assert "API Credentials" in response.text
@@ -303,7 +303,7 @@ def test_provider_page_for_api_key_provider_omits_provider_setup_section(monkeyp
             auth_type=AuthType.API_KEY,
             api_key="sk-test-key",
         )
-        response = client.get("/ui/apps/openai")
+        response = client.get("/apps/openai")
 
     assert response.status_code == 200
     assert "OAuth Application" not in response.text
@@ -324,7 +324,7 @@ def test_provider_page_lists_existing_connections_as_read_only_context(monkeypat
             access_token="gh-access-token",
             refresh_token="gh-refresh-token",
         )
-        response = client.get("/ui/apps/github")
+        response = client.get("/apps/github")
 
     assert response.status_code == 200
     assert "Existing connections" in response.text
@@ -344,7 +344,7 @@ def test_connections_page_renders_connection_rows(monkeypatch, tmp_path: Path) -
             access_token="gh-access-token",
             refresh_token="gh-refresh-token",
         )
-        response = client.get("/ui/connections")
+        response = client.get("/manage/connections")
 
     assert response.status_code == 200
     assert "Add new connection" in response.text
@@ -365,7 +365,7 @@ def test_provider_login_modal_copy_is_rendered_when_default_exists(monkeypatch, 
             access_token="gh-access-token",
             refresh_token="gh-refresh-token",
         )
-        response = client.get("/ui/applications")
+        response = client.get("/applications")
 
     assert response.status_code == 200
     assert "Connection name" in response.text
@@ -386,7 +386,7 @@ def test_connect_app_accepts_connection_name_fallback(monkeypatch, tmp_path: Pat
             refresh_token="gh-refresh-token",
         )
         response = client.post(
-            "/ui/apps/github/connect",
+            "/apps/github/connect",
             data={"connection_name": "work"},
             follow_redirects=False,
         )
@@ -406,10 +406,10 @@ def test_provider_page_shows_configure_action_for_oauth(monkeypatch, tmp_path: P
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-        response = client.get("/ui/apps/github")
+        response = client.get("/apps/github")
 
     assert response.status_code == 200
-    assert 'action="/ui/apps/github/configure"' in response.text
+    assert 'action="/apps/github/configure"' in response.text
     assert "Replace" in response.text
 
 
@@ -420,7 +420,7 @@ def test_provider_configure_route_opens_edit_flow_with_existing_values(monkeypat
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-        response = client.post("/ui/apps/github/configure", follow_redirects=False)
+        response = client.post("/apps/github/configure", follow_redirects=False)
 
     assert response.status_code == 303
     assert "/auth/sessions/" in response.headers["location"]
@@ -437,7 +437,7 @@ def test_hosted_admin_provider_configure_route_opens_edit_flow(monkeypatch, tmp_
     with TestClient(create_app()) as client:
         claim_path = _register_identity_for_claim(client, tmp_path, "steady-wisely-boldly-0042")
         registered = client.post(
-            "/ui/auth/register",
+            "/auth/register",
             data={"email": "dev@example.com", "password": "password-1", "next": claim_path},
             follow_redirects=False,
         )
@@ -449,7 +449,7 @@ def test_hosted_admin_provider_configure_route_opens_edit_flow(monkeypatch, tmp_
         ).principal_id
         monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPALS", principal_id)
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-        response = client.post("/ui/apps/github/configure", follow_redirects=False)
+        response = client.post("/apps/github/configure", follow_redirects=False)
 
     assert response.status_code == 303
     assert "/auth/sessions/" in response.headers["location"]
@@ -466,7 +466,7 @@ def test_provider_configure_input_page_shows_revoke_warning(monkeypatch, tmp_pat
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-        configure = client.post("/ui/apps/github/configure", follow_redirects=False)
+        configure = client.post("/apps/github/configure", follow_redirects=False)
         response = client.get(configure.headers["location"])
 
     assert response.status_code == 200
@@ -494,7 +494,7 @@ def test_provider_config_submit_replaces_client_and_revokes_connections(monkeypa
         )
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
 
-        configure = client.post("/ui/apps/github/configure", follow_redirects=False)
+        configure = client.post("/apps/github/configure", follow_redirects=False)
         session_id = configure.headers["location"].rstrip("/").split("/")[-2]
         response = client.post(
             f"/auth/sessions/{session_id}/input",
@@ -505,10 +505,10 @@ def test_provider_config_submit_replaces_client_and_revokes_connections(monkeypa
         provider_client = asyncio.run(
             client.app.state.vault.get(build_store_key(provider="github", record_type="server"), collection="server")
         )
-        connections_page = client.get("/ui/connections")
+        connections_page = client.get("/manage/connections")
 
     assert response.status_code == 303
-    assert response.headers["location"].endswith("/ui/apps/github")
+    assert response.headers["location"].endswith("/apps/github")
     assert provider_client is not None
     provider_client_record = ProviderClientRecord.model_validate_json(provider_client)
     assert provider_client_record.client_id == "cid-456"

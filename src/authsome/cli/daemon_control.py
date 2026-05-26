@@ -106,7 +106,7 @@ def start_daemon() -> None:
     DAEMON_DIR.mkdir(parents=True, exist_ok=True)
     log = LOG_FILE.open("ab")
     process = subprocess.Popen(
-        [sys.executable, "-m", "authsome.cli.main", "admin", "daemon", "serve", "--host", host, "--port", str(port)],
+        [sys.executable, "-m", "authsome.cli.main", "daemon", "serve", "--host", host, "--port", str(port)],
         stdout=log,
         stderr=log,
         start_new_session=True,

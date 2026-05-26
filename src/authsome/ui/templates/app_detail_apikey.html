@@ -35,7 +35,7 @@
 
 {% block actions %}
 <button class="btn btn-primary btn-block" type="button" disabled title="Not yet wired">Save changes</button>
-<form method="post" action="/ui/apps/{{ provider.name }}/{{ connection.connection_name }}/disconnect" hx-post="/ui/apps/{{ provider.name }}/{{ connection.connection_name }}/disconnect" hx-swap="none">
+<form method="post" action="/apps/{{ provider.name }}/{{ connection.connection_name }}/disconnect" hx-post="/apps/{{ provider.name }}/{{ connection.connection_name }}/disconnect" hx-swap="none">
     <button class="btn btn-danger-ghost btn-block" type="submit">Disconnect</button>
 </form>
 {% endblock %}

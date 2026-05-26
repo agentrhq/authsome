@@ -27,8 +27,8 @@ from authsome.server.schemas import (
     ResumeAuthSessionRequest,
     StartAuthSessionRequest,
 )
-from authsome.server.ui import pages
 from authsome.server.urls import build_auth_input_url, build_callback_url, build_device_url
+from authsome.server.web_pages import pages
 from authsome.utils import utc_now
 
 router = APIRouter(prefix="/auth", tags=["auth"])

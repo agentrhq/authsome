@@ -47,7 +47,7 @@ def init_posthog() -> Posthog | None:
             logger.debug("Analytics disabled via {}", env_var_name)
             return None
 
-    api_key = "phc_6HXMDi8CjfIW0l04l34L7IDkpCDeOVz9cOz1KLAHXh8"
+    api_key = "phc_sgDwzvbX3TjBoPiWREfyfGs9pwebebKjavHGQChh9BpH"
     host = "https://us.i.posthog.com"
     if not api_key or not host:
         return None

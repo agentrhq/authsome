@@ -14,7 +14,7 @@
          data-status="{{ p.status }}"
          data-name="{{ p.display_name|lower }} {{ p.name|lower }}"
          id="{{ p.name }}">
-        <a class="app-card-hit" href="/ui/apps/{{ p.name }}" aria-label="Open {{ p.display_name }} setup"></a>
+        <a class="app-card-hit" href="/apps/{{ p.name }}" aria-label="Open {{ p.display_name }} setup"></a>
         <span class="logo">{{ p.logo_initial }}</span>
         <div class="app-card-text">
             <div class="app-card-name">{{ p.display_name }}</div>
@@ -22,8 +22,8 @@
         </div>
         <form class="inline-action login-action-form"
               method="post"
-              action="/ui/apps/{{ p.name }}/connect"
-              hx-post="/ui/apps/{{ p.name }}/connect"
+              action="/apps/{{ p.name }}/connect"
+              hx-post="/apps/{{ p.name }}/connect"
               hx-swap="none">
             <input type="hidden" name="connection" value="default">
             {% if p.requires_named_login %}

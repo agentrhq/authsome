@@ -1,0 +1,2 @@
+# PostHog public project API key — intentionally committed, not a secret
+src/authsome/server/analytics.py:generic-api-key:50

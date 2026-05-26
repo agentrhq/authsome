@@ -5,7 +5,7 @@ from __future__ import annotations
 import html
 from typing import Any
 
-from authsome.server.ui.web_theme import DARK_THEME_CSS, DEVICE_BRIDGE_STYLE
+from authsome.server.web_pages.web_theme import DARK_THEME_CSS, DEVICE_BRIDGE_STYLE
 
 
 def message_page(title: str, message: str) -> str:
@@ -71,7 +71,7 @@ def hosted_auth_page(
         <div class="auth-panel" data-auth-panel="register" {register_hidden}>
           <h2>Create account</h2>
           {error_block if active_tab == "register" else ""}
-          <form method="post" action="/ui/auth/register">
+          <form method="post" action="/auth/register">
             <input type="hidden" name="next" value="{html.escape(next_url)}">
             <label for="register-email">Email</label>
             <input id="register-email" type="email" name="email" required>
@@ -165,7 +165,7 @@ def hosted_auth_page(
         <div class="auth-panel" data-auth-panel="login" {login_hidden}>
           <h2>Welcome back</h2>
           {error_block if active_tab == "login" else ""}
-          <form method="post" action="/ui/auth/login">
+          <form method="post" action="/auth/login">
             <input type="hidden" name="next" value="{html.escape(next_url)}">
             <label for="login-email">Email</label>
             <input id="login-email" type="email" name="email" required>
@@ -202,7 +202,7 @@ def hosted_auth_page(
 def hosted_claim_auth_page(*, token: str, identity: str, error: str | None = None, active_tab: str = "login") -> str:
     """Generate the hosted sign-in/register page for an identity claim."""
     return hosted_auth_page(
-        next_url=f"/ui/claim/{html.escape(token)}",
+        next_url=f"/claim/{html.escape(token)}",
         active_tab=active_tab,
         identity=identity,
         error=error,
@@ -223,7 +223,7 @@ def hosted_claim_confirm_page(*, token: str, identity: str, email: str) -> str:
     <main>
       <h1>Claim identity</h1>
       <p>Confirm claiming <strong>{html.escape(identity)}</strong> to <strong>{html.escape(email)}</strong>.</p>
-      <form method="post" action="/ui/claim/{html.escape(token)}/confirm">
+      <form method="post" action="/claim/{html.escape(token)}/confirm">
         <button type="submit">Claim identity</button>
       </form>
     </main>

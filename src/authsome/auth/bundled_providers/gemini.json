@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "name": "gemini",
+  "display_name": "Gemini",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "generativelanguage.googleapis.com",
+  "api_key": {
+    "header_name": "x-goog-api-key",
+    "header_prefix": "",
+    "env_var": "GEMINI_API_KEY",
+    "key_pattern": "^AIza[A-Za-z0-9_-]{20,}$",
+    "key_pattern_hint": "Gemini API keys typically start with 'AIza' followed by letters, digits, '_' or '-'."
+  },
+  "export": {
+    "GEMINI_API_KEY": "API_TOKEN"
+  }
+}
