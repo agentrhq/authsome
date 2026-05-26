@@ -14,6 +14,7 @@ from loguru import logger
 from authsome import FlowType, __version__
 from authsome.auth.models.enums import AuthType
 from authsome.auth.models.provider import ProviderDefinition
+from authsome.cli.client import resolve_daemon_url
 from authsome.cli.context import ContextObj, common_options
 from authsome.cli.daemon_control import (
     DaemonAlreadyRunningError,
@@ -678,11 +679,12 @@ async def daemon_start(ctx_obj: ContextObj) -> None:
         ctx_obj.print_json({"status": "already_running", "message": "Daemon is already running."})
         return
 
-    if is_port_occupied(7998):
+    if is_port_occupied():
+        daemon_url = resolve_daemon_url()
         ctx_obj.print_json(
             {
                 "status": "port_occupied",
-                "message": "Port 7998 is occupied by an unrelated process. We did not start a new process.",
+                "message": f"{daemon_url} port is occupied by an unrelated process. We did not start a new process.",
             }
         )
         return
@@ -718,18 +720,19 @@ async def daemon_restart(ctx_obj: ContextObj) -> None:
         ctx_obj.print_json(
             {
                 "status": "already_running",
-                "message": "Daemon is already running on port 7998. We did not start a new process.",
+                "message": "Daemon is already running. We did not start a new process.",
                 "stop_message": message,
                 "stopped": stopped,
             }
         )
         return
 
-    if is_port_occupied(7998):
+    if is_port_occupied():
+        daemon_url = resolve_daemon_url()
         ctx_obj.print_json(
             {
                 "status": "port_occupied",
-                "message": "Port 7998 is occupied by an unrelated process. We did not start a new process.",
+                "message": f"{daemon_url} port is occupied by an unrelated process. We did not start a new process.",
                 "stop_message": message,
                 "stopped": stopped,
             }

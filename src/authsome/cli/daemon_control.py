@@ -10,9 +10,9 @@ import subprocess
 import sys
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 from authsome.cli.client import (
-    DEFAULT_DAEMON_URL,
     AuthsomeApiClient,
     is_managed_local_daemon_url,
     resolve_daemon_url,
@@ -27,24 +27,30 @@ LOG_FILE = DAEMON_DIR / "daemon.log"
 STATE_FILE = DAEMON_DIR / "daemon.json"
 
 
+def _resolved_host_port() -> tuple[str, int]:
+    parsed = urlparse(resolve_daemon_url())
+    return parsed.hostname or DEFAULT_HOST, parsed.port or DEFAULT_PORT
+
+
 class DaemonUnavailableError(RuntimeError):
     """Raised when the local daemon cannot be started or reached."""
 
 
 async def is_daemon_responsive() -> bool:
-    """Return whether the daemon is currently responsive on the default loopback port."""
-    client = AuthsomeApiClient(DEFAULT_DAEMON_URL)
+    """Return whether the daemon is currently responsive at the configured URL."""
+    client = AuthsomeApiClient(resolve_daemon_url())
     return await _is_ready(client)
 
 
-def is_port_occupied(port: int = 7998) -> bool:
-    """Return whether the port is currently occupied by any listening process."""
+def is_port_occupied() -> bool:
+    """Return whether the configured daemon port is currently occupied by any listening process."""
     import socket
 
+    host, port = _resolved_host_port()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(0.2)
         try:
-            s.connect(("127.0.0.1", port))
+            s.connect((host, port))
             return True
         except Exception:
             return False
@@ -60,7 +66,7 @@ class DaemonAlreadyRunningError(RuntimeError):
 
 async def ensure_daemon() -> AuthsomeApiClient:
     """Return a ready daemon client, starting/restarting the daemon if needed."""
-    client = AuthsomeApiClient(DEFAULT_DAEMON_URL)
+    client = AuthsomeApiClient(resolve_daemon_url())
     if await _is_ready(client):
         return client
     await stop_daemon()
@@ -71,7 +77,7 @@ async def ensure_daemon() -> AuthsomeApiClient:
 
 async def wait_for_daemon_ready(timeout: int = 10) -> None:
     """Wait for the daemon to become ready, raising an error if it fails."""
-    client = AuthsomeApiClient(DEFAULT_DAEMON_URL)
+    client = AuthsomeApiClient(resolve_daemon_url())
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if await _is_ready(client):
@@ -96,17 +102,18 @@ def start_daemon() -> None:
     if _pid_file_process_alive():
         raise DaemonAlreadyRunningError(_read_pid())
 
+    host, port = _resolved_host_port()
     DAEMON_DIR.mkdir(parents=True, exist_ok=True)
     log = LOG_FILE.open("ab")
     process = subprocess.Popen(
-        [sys.executable, "-m", "authsome.cli.main", "daemon", "serve"],
+        [sys.executable, "-m", "authsome.cli.main", "daemon", "serve", "--host", host, "--port", str(port)],
         stdout=log,
         stderr=log,
         start_new_session=True,
     )
     PID_FILE.write_text(str(process.pid), encoding="utf-8")
     STATE_FILE.write_text(
-        json.dumps({"pid": process.pid, "host": DEFAULT_HOST, "port": DEFAULT_PORT}, indent=2),
+        json.dumps({"pid": process.pid, "host": host, "port": port}, indent=2),
         encoding="utf-8",
     )
 
@@ -150,7 +157,7 @@ async def stop_daemon() -> tuple[bool, str]:
 
 
 async def daemon_status() -> dict[str, Any]:
-    client = AuthsomeApiClient(DEFAULT_DAEMON_URL)
+    client = AuthsomeApiClient(resolve_daemon_url())
     try:
         health = await client.health()
         return {"running": True, "health": health, "pid_file": str(PID_FILE), "log_file": str(LOG_FILE)}
