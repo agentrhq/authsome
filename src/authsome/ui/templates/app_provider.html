@@ -2,7 +2,7 @@
 {% block title %}{{ provider.display_name }}{% endblock %}
 {% block content %}
 <nav class="breadcrumb">
-    <a href="/ui/applications">Applications</a>
+    <a href="/applications">Applications</a>
     <span class="sep">/</span>
     <span>{{ provider.display_name }}</span>
 </nav>
@@ -93,11 +93,11 @@
             <div class="card-title">Actions</div>
             <div class="action-stack">
                 {% if provider.auth_type.value == "oauth2" and show_provider_client_details %}
-                <form method="post" action="/ui/apps/{{ provider.name }}/configure">
+                <form method="post" action="/apps/{{ provider.name }}/configure">
                     <button class="btn btn-secondary btn-block" type="submit">{% if client_id or has_client_secret %}Replace{% else %}Configure{% endif %}</button>
                 </form>
                 {% endif %}
-                <form class="login-action-form" method="post" action="/ui/apps/{{ provider.name }}/connect" hx-post="/ui/apps/{{ provider.name }}/connect" hx-swap="none">
+                <form class="login-action-form" method="post" action="/apps/{{ provider.name }}/connect" hx-post="/apps/{{ provider.name }}/connect" hx-swap="none">
                     <input type="hidden" name="connection" value="default">
                     {% if requires_named_login %}
                     <button class="btn btn-primary btn-block" type="button" data-open-login-modal data-provider="{{ provider.name }}">Login</button>

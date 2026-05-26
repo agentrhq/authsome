@@ -553,7 +553,7 @@ class TestAuthProxyAddon:
         body = flow.response.content.decode("utf-8")
         assert "openai" in body
         assert "authsome login openai" in body
-        assert f"{DEFAULT_SERVER_BASE_URL}/ui/apps/openai" in body
+        assert f"{DEFAULT_SERVER_BASE_URL}/apps/openai" in body
         log_mock.assert_any_call(
             "proxy_no_credentials",
             host="api.openai.com",

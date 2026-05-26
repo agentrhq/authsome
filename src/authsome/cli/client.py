@@ -287,4 +287,4 @@ class AuthsomeApiClient:
         return await self.ready()
 
     async def start_ui_session(self) -> dict[str, Any]:
-        return await self._post("/ui/session")
+        return await self._post("/session")

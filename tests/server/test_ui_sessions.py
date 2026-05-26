@@ -57,7 +57,7 @@ def _claim_identity_via_hosted_ui(client: TestClient, tmp_path: Path, handle: st
     assert response.status_code == 200
     claim_path = urlparse(response.json()["claim_url"]).path
     registered = client.post(
-        "/ui/auth/register",
+        "/auth/register",
         data={"email": email, "password": "password-1", "next": claim_path},
         follow_redirects=False,
     )
@@ -107,7 +107,7 @@ def test_hosted_ui_homepage_shows_auth_tabs(monkeypatch, tmp_path: Path) -> None
     monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
-        response = client.get("/ui/")
+        response = client.get("/")
 
     assert response.status_code == 200
     assert "Open dashboard" in response.text
@@ -139,15 +139,15 @@ def test_hosted_ui_session_returns_dashboard_url_without_browser_cookie(monkeypa
     with TestClient(create_app()) as client:
         _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
         bootstrap_response = client.post(
-            "/ui/session",
-            headers=_auth_header(tmp_path, "POST", "/ui/session", handle="steady-wisely-boldly-0042"),
+            "/session",
+            headers=_auth_header(tmp_path, "POST", "/session", handle="steady-wisely-boldly-0042"),
         )
         assert bootstrap_response.status_code == 200
-        assert urlparse(bootstrap_response.json()["url"]).path == "/ui/"
+        assert urlparse(bootstrap_response.json()["url"]).path == "/"
         assert "authsome_ui_session=" not in bootstrap_response.headers.get("set-cookie", "")
 
         client.cookies.clear()
-        dashboard_response = client.get("/ui/")
+        dashboard_response = client.get("/")
 
     assert dashboard_response.status_code == 200
     assert "Open dashboard" in dashboard_response.text
@@ -159,14 +159,14 @@ def test_hosted_homepage_registration_redirects_to_dashboard(monkeypatch, tmp_pa
 
     with TestClient(create_app()) as client:
         registered = client.post(
-            "/ui/auth/register",
-            data={"email": "dev@example.com", "password": "password-1", "next": "/ui/"},
+            "/auth/register",
+            data={"email": "dev@example.com", "password": "password-1", "next": "/"},
             follow_redirects=False,
         )
-        dashboard_response = client.get("/ui/")
+        dashboard_response = client.get("/")
 
     assert registered.status_code == 303
-    assert registered.headers["location"] == "/ui/"
+    assert registered.headers["location"] == "/"
     assert dashboard_response.status_code == 200
     assert "Overview" in dashboard_response.text
     assert "Signed in as dev@example.com" in dashboard_response.text
@@ -183,7 +183,7 @@ def test_hosted_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_pa
         record = ProviderClientRecord(provider="github", client_id="cid-123", client_secret="top-secret")
         asyncio.run(vault.put(key, record.model_dump_json(), collection="server"))
 
-        response = client.get("/ui/apps/github")
+        response = client.get("/apps/github")
 
     assert response.status_code == 200
     assert "cid-123" not in response.text
@@ -202,13 +202,13 @@ def test_hosted_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Pa
         ).principal_id
         monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPALS", principal_id)
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="top-secret")
-        response = client.get("/ui/apps/github")
+        response = client.get("/apps/github")
 
     assert response.status_code == 200
     assert "cid-123" in response.text
     assert "Existing connections" in response.text
     assert "manages the OAuth application" not in response.text
-    assert 'action="/ui/apps/github/configure"' in response.text
+    assert 'action="/apps/github/configure"' in response.text
 
 
 def test_hosted_ui_connect_starts_principal_scoped_session_without_pop(monkeypatch, tmp_path: Path) -> None:
@@ -218,7 +218,7 @@ def test_hosted_ui_connect_starts_principal_scoped_session_without_pop(monkeypat
     with TestClient(create_app()) as client:
         _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
 
-        response = client.post("/ui/apps/openai/connect", follow_redirects=False)
+        response = client.post("/apps/openai/connect", follow_redirects=False)
         session = next(iter(client.app.state.auth_sessions._sessions.values()))
 
     assert response.status_code == 303
@@ -234,13 +234,13 @@ def test_hosted_auth_rejects_external_next_redirect(monkeypatch, tmp_path: Path)
 
     with TestClient(create_app()) as client:
         response = client.post(
-            "/ui/auth/register",
+            "/auth/register",
             data={"email": "dev@example.com", "password": "password-1", "next": "https://example.test"},
             follow_redirects=False,
         )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/ui/"
+    assert response.headers["location"] == "/"
 
 
 def test_hosted_homepage_login_error_renders_auth_page(monkeypatch, tmp_path: Path) -> None:
@@ -249,14 +249,14 @@ def test_hosted_homepage_login_error_renders_auth_page(monkeypatch, tmp_path: Pa
 
     with TestClient(create_app()) as client:
         client.post(
-            "/ui/auth/register",
-            data={"email": "dev@example.com", "password": "password-1", "next": "/ui/"},
+            "/auth/register",
+            data={"email": "dev@example.com", "password": "password-1", "next": "/"},
             follow_redirects=False,
         )
         client.cookies.clear()
         response = client.post(
-            "/ui/auth/login",
-            data={"email": "dev@example.com", "password": "wrong-password", "next": "/ui/"},
+            "/auth/login",
+            data={"email": "dev@example.com", "password": "wrong-password", "next": "/"},
             follow_redirects=False,
         )
 

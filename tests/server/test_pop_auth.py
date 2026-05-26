@@ -99,7 +99,7 @@ def test_hosted_registration_requires_claim(monkeypatch, tmp_path: Path) -> None
 
     assert response.status_code == 200
     assert response.json()["registration_status"] == "claim_required"
-    assert "/ui/claim/" in response.json()["claim_url"]
+    assert "/claim/" in response.json()["claim_url"]
 
 
 def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
