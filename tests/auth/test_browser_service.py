@@ -1,4 +1,4 @@
-"""Tests for Browser SSO plumbing in AuthService (service.py)."""
+"""Tests for Browser plumbing in AuthService (service.py)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.errors import TokenExpiredError
-from authsome.server.credential_service import _render_extra_headers, _validate_browser_sso_credentials
+from authsome.server.credential_service import _render_extra_headers, _validate_browser_credentials
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ def _make_browser_provider(validate_url: str | None = "https://example.com/valid
         {
             "schema_version": 1,
             "name": "test-browser",
-            "display_name": "Test Browser SSO",
+            "display_name": "Test Browser",
             "auth_type": "browser",
             "flow": "browser",
             "browser": {
@@ -85,11 +85,11 @@ def test_render_extra_headers_empty():
     assert result == {}
 
 
-# ── _validate_browser_sso_credentials ─────────────────────────────────────────
+# ── _validate_browser_credentials ─────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_validate_browser_sso_credentials_200_does_not_raise():
+async def test_validate_browser_credentials_200_does_not_raise():
     record = _make_connection_record()
     definition = _make_browser_provider()
 
@@ -102,11 +102,11 @@ async def test_validate_browser_sso_credentials_200_does_not_raise():
     mock_client.get = AsyncMock(return_value=mock_response)
 
     with patch("authsome.server.credential_service.httpx.AsyncClient", return_value=mock_client):
-        await _validate_browser_sso_credentials(record, definition)
+        await _validate_browser_credentials(record, definition)
 
 
 @pytest.mark.asyncio
-async def test_validate_browser_sso_credentials_401_raises_token_expired():
+async def test_validate_browser_credentials_401_raises_token_expired():
     record = _make_connection_record()
     definition = _make_browser_provider()
 
@@ -120,11 +120,11 @@ async def test_validate_browser_sso_credentials_401_raises_token_expired():
 
     with patch("authsome.server.credential_service.httpx.AsyncClient", return_value=mock_client):
         with pytest.raises(TokenExpiredError):
-            await _validate_browser_sso_credentials(record, definition)
+            await _validate_browser_credentials(record, definition)
 
 
 @pytest.mark.asyncio
-async def test_validate_browser_sso_credentials_403_raises_token_expired():
+async def test_validate_browser_credentials_403_raises_token_expired():
     record = _make_connection_record()
     definition = _make_browser_provider()
 
@@ -138,11 +138,11 @@ async def test_validate_browser_sso_credentials_403_raises_token_expired():
 
     with patch("authsome.server.credential_service.httpx.AsyncClient", return_value=mock_client):
         with pytest.raises(TokenExpiredError):
-            await _validate_browser_sso_credentials(record, definition)
+            await _validate_browser_credentials(record, definition)
 
 
 @pytest.mark.asyncio
-async def test_validate_browser_sso_credentials_network_error_tolerated():
+async def test_validate_browser_credentials_network_error_tolerated():
     record = _make_connection_record()
     definition = _make_browser_provider()
 
@@ -153,11 +153,11 @@ async def test_validate_browser_sso_credentials_network_error_tolerated():
 
     with patch("authsome.server.credential_service.httpx.AsyncClient", return_value=mock_client):
         # Should not raise — network errors are tolerated
-        await _validate_browser_sso_credentials(record, definition)
+        await _validate_browser_credentials(record, definition)
 
 
 @pytest.mark.asyncio
-async def test_validate_browser_sso_credentials_skips_when_expires_at_in_future():
+async def test_validate_browser_credentials_skips_when_expires_at_in_future():
     from datetime import timedelta
 
     from authsome.utils import utc_now
@@ -167,18 +167,18 @@ async def test_validate_browser_sso_credentials_skips_when_expires_at_in_future(
     definition = _make_browser_provider()
 
     with patch("authsome.server.credential_service.httpx.AsyncClient") as mock_cls:
-        await _validate_browser_sso_credentials(record, definition)
+        await _validate_browser_credentials(record, definition)
         mock_cls.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_validate_browser_sso_credentials_no_validate_url_returns_immediately():
+async def test_validate_browser_credentials_no_validate_url_returns_immediately():
     record = _make_connection_record()
     definition = _make_browser_provider(validate_url=None)
 
     # httpx should never be called
     with patch("authsome.server.credential_service.httpx.AsyncClient") as mock_cls:
-        await _validate_browser_sso_credentials(record, definition)
+        await _validate_browser_credentials(record, definition)
         mock_cls.assert_not_called()
 
 
@@ -186,7 +186,7 @@ async def test_validate_browser_sso_credentials_no_validate_url_returns_immediat
 
 
 @pytest.mark.asyncio
-async def test_get_auth_headers_from_record_browser_sso():
+async def test_get_auth_headers_from_record_browser():
     """BROWSER branch must run BEFORE _get_access_token_from_record, not dead code."""
     from unittest.mock import MagicMock
 

@@ -69,8 +69,8 @@ class ExtractRule(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 
 
-class BrowserSSOConfig(BaseModel):
-    """Browser SSO provider configuration."""
+class BrowserConfig(BaseModel):
+    """Browser provider configuration."""
 
     entry_url: str
     domains: list[str] = Field(min_length=1)
@@ -106,7 +106,7 @@ class ProviderDefinition(BaseModel):
     oauth: OAuthConfig | None = None
     registration: ClientRegistrationConfig | None = None
     api_key: ApiKeyConfig | None = None
-    browser: BrowserSSOConfig | None = None
+    browser: BrowserConfig | None = None
     export: ExportConfig | None = None
     docs_url: str | None = None
     api_url: str | None = None

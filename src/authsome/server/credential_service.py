@@ -18,10 +18,10 @@ import httpx
 from loguru import logger
 
 from authsome import audit
-from authsome.auth.browser_sso_cookies import normalize_browser_sso_credentials
+from authsome.auth.browser_cookies import normalize_browser_credentials
 from authsome.auth.flows.api_key import ApiKeyFlow
 from authsome.auth.flows.base import AuthFlow
-from authsome.auth.flows.browser_sso import BrowserSSOFlow
+from authsome.auth.flows.browser import BrowserFlow
 from authsome.auth.flows.dcr_pkce import DcrPkceFlow
 from authsome.auth.flows.device_code import DeviceCodeFlow
 from authsome.auth.flows.pkce import PkceFlow
@@ -67,7 +67,7 @@ _FLOW_HANDLERS: dict[FlowType, type[AuthFlow]] = {
     FlowType.DEVICE_CODE: DeviceCodeFlow,
     FlowType.DCR_PKCE: DcrPkceFlow,
     FlowType.API_KEY: ApiKeyFlow,
-    FlowType.BROWSER: BrowserSSOFlow,
+    FlowType.BROWSER: BrowserFlow,
 }
 
 
@@ -86,11 +86,11 @@ def _render_extra_headers(
     return result
 
 
-async def _validate_browser_sso_credentials(
+async def _validate_browser_credentials(
     record: ConnectionRecord,
     definition: ProviderDefinition,
 ) -> None:
-    """Optionally GET validate_url before injecting browser SSO headers."""
+    """Optionally GET validate_url before injecting browser auth headers."""
     cfg = definition.browser
     if cfg is None or cfg.validate_url is None:
         return
@@ -101,7 +101,7 @@ async def _validate_browser_sso_credentials(
     if record.expires_at is not None and record.expires_at > utc_now():
         return
 
-    credentials = normalize_browser_sso_credentials(record.credentials or {})
+    credentials = normalize_browser_credentials(record.credentials or {})
     headers = _render_extra_headers(cfg.extra_headers, credentials)
 
     try:
@@ -109,7 +109,7 @@ async def _validate_browser_sso_credentials(
             resp = await client.get(cfg.validate_url, headers=headers)
         if resp.status_code in (401, 403) or (300 <= resp.status_code < 400):
             logger.info(
-                "Browser SSO credentials expired: provider={} status={}",
+                "Browser credentials expired: provider={} status={}",
                 definition.name,
                 resp.status_code,
             )
@@ -118,7 +118,7 @@ async def _validate_browser_sso_credentials(
         raise
     except Exception as exc:
         logger.warning(
-            "Browser SSO validate_url check failed (tolerated): provider={} error={}",
+            "Browser validate_url check failed (tolerated): provider={} error={}",
             definition.name,
             exc,
         )
@@ -1154,12 +1154,12 @@ class AuthService:
         self, record: ConnectionRecord, definition: ProviderDefinition
     ) -> dict[str, str]:
         if record.auth_type == AuthType.BROWSER:
-            await _validate_browser_sso_credentials(record, definition)
+            await _validate_browser_credentials(record, definition)
             if not record.credentials:
-                raise CredentialMissingError("No browser SSO credentials stored", provider=record.provider)
+                raise CredentialMissingError("No browser credentials stored", provider=record.provider)
             if definition.browser is None:
                 raise CredentialMissingError("Provider missing browser config", provider=record.provider)
-            normalized = normalize_browser_sso_credentials(record.credentials)
+            normalized = normalize_browser_credentials(record.credentials)
             return _render_extra_headers(definition.browser.extra_headers, normalized)
 
         token = await self._get_access_token_from_record(record)

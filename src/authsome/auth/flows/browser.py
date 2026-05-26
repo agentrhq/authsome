@@ -1,4 +1,4 @@
-"""Browser SSO authentication flow.
+"""Browser authentication flow.
 
 begin() — populates session payload for the CLI to launch CloakBrowser.
 resume() — stores extracted credentials returned by the CLI into a ConnectionRecord.
@@ -41,8 +41,8 @@ def _parse_ttl_duration(ttl: str | None) -> timedelta | None:
     return timedelta(minutes=value)
 
 
-class BrowserSSOFlow(AuthFlow):
-    """Browser SSO flow — cookie extraction via CloakBrowser on the CLI side."""
+class BrowserFlow(AuthFlow):
+    """Browser flow — cookie extraction via CloakBrowser on the CLI side."""
 
     async def begin(
         self,
@@ -86,7 +86,7 @@ class BrowserSSOFlow(AuthFlow):
         credentials = callback_data.get("credentials")
         if not credentials or not isinstance(credentials, dict):
             raise AuthenticationFailedError(
-                "Browser SSO resume requires 'credentials' dict in callback_data",
+                "Browser resume requires 'credentials' dict in callback_data",
                 provider=provider.name,
             )
 
@@ -104,7 +104,7 @@ class BrowserSSOFlow(AuthFlow):
 
         if not identity:
             raise AuthenticationFailedError(
-                "Browser SSO resume requires an identity",
+                "Browser resume requires an identity",
                 provider=provider.name,
             )
 
@@ -134,8 +134,8 @@ class BrowserSSOFlow(AuthFlow):
         client_id: str | None = None,
         client_secret: str | None = None,
     ) -> ConnectionRecord:
-        """Browser SSO has no token refresh — re-login is always required."""
+        """Browser has no token refresh — re-login is always required."""
         raise RefreshFailedError(
-            "Browser SSO credentials cannot be refreshed automatically. Run: authsome login " + record.provider,
+            "Browser credentials cannot be refreshed automatically. Run: authsome login " + record.provider,
             provider=provider.name,
         )

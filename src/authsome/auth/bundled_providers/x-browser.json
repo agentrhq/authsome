@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "name": "x-browser",
-  "display_name": "X (Twitter) — Browser SSO",
+  "display_name": "X (Twitter) — Browser",
   "auth_type": "browser",
   "flow": "browser",
   "api_url": "regex:^(api\\.twitter\\.com|api\\.x\\.com|x\\.com|twitter\\.com)",

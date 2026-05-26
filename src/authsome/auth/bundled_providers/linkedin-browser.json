@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "name": "linkedin-browser",
-  "display_name": "LinkedIn — Browser SSO",
+  "display_name": "LinkedIn — Browser",
   "auth_type": "browser",
   "flow": "browser",
   "api_url": "regex:^(www\\.linkedin\\.com|linkedin\\.com)",

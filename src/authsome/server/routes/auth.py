@@ -22,7 +22,7 @@ from authsome.server.routes._deps import (
 )
 from authsome.server.schemas import (
     AuthSessionResponse,
-    BrowserSSOAction,
+    BrowserAction,
     NoneAction,
     OpenUrlAction,
     ResumeAuthSessionRequest,
@@ -422,7 +422,7 @@ def _update_device_code_expiry(sessions: AuthSessionStore, session: AuthSession)
 
 
 def _session_response(session: AuthSession, server_base_url: str) -> AuthSessionResponse:
-    action: OpenUrlAction | BrowserSSOAction | NoneAction = NoneAction()
+    action: OpenUrlAction | BrowserAction | NoneAction = NoneAction()
     input_fields = session.payload.get("input_fields")
 
     if (
@@ -430,7 +430,7 @@ def _session_response(session: AuthSession, server_base_url: str) -> AuthSession
         and session.state != AuthSessionStatus.COMPLETED
         and session.payload.get("entry_url")
     ):
-        action = BrowserSSOAction(
+        action = BrowserAction(
             entry_url=session.payload["entry_url"],
             domains=session.payload.get("domains", []),
             validate_url=session.payload.get("validate_url"),

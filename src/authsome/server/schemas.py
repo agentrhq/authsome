@@ -40,7 +40,7 @@ class NoneAction(BaseModel):
     type: Literal["none"] = "none"
 
 
-class BrowserSSOAction(BaseModel):
+class BrowserAction(BaseModel):
     type: Literal["browser"] = "browser"
     entry_url: str
     domains: list[str]
@@ -55,7 +55,7 @@ class BrowserSSOAction(BaseModel):
 
 
 NextAction = Annotated[
-    OpenUrlAction | BrowserSSOAction | NoneAction,
+    OpenUrlAction | BrowserAction | NoneAction,
     Field(discriminator="type"),
 ]
 

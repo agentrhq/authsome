@@ -1,6 +1,6 @@
-# Browser SSO — PR review guide
+# Browser — PR review guide
 
-**PR:** [#301 — feat: browser sso support](https://github.com/agentrhq/authsome/pull/301)  
+**PR:** [#301 — feat: browser auth support](https://github.com/agentrhq/authsome/pull/301)  
 **Audience:** reviewers / team leads who don't want to read ~2k lines blind  
 **Scope:** internal only — not published to the docs site
 
@@ -8,7 +8,7 @@
 
 ## TL;DR
 
-This PR adds a new auth path called **Browser SSO**: the user logs in through a real browser, authsome captures session cookies, stores them in the vault, and the existing **mitmproxy** injects the right headers when you run `authsome run -- curl …`.
+This PR adds a new auth path called **Browser**: the user logs in through a real browser, authsome captures session cookies, stores them in the vault, and the existing **mitmproxy** injects the right headers when you run `authsome run -- curl …`.
 
 Bundled providers: **`x-browser`**, **`linkedin-browser`**.
 
@@ -67,13 +67,13 @@ Read in this order — each layer is ~100–650 lines, not 2000 at once.
 | Layer | Files | What to look for |
 |-------|--------|------------------|
 | **Provider config** | `auth/bundled_providers/x-browser.json`, `linkedin-browser.json` | Domains, `validate_url`, cookie extract rules, `extra_headers` templates |
-| **Models** | `auth/models/provider.py` (`BrowserSSOConfig`), `auth/models/enums.py` | New `browser` auth/flow types |
-| **Flow (daemon)** | `auth/flows/browser_sso.py` | `begin()` fills session payload; `resume()` writes `ConnectionRecord` with real cookie expiry |
-| **Cookie fixes** | `auth/browser_sso_cookies.py` | LinkedIn: derive bare `jsessionid` for `csrf-token` header |
+| **Models** | `auth/models/provider.py` (`BrowserConfig`), `auth/models/enums.py` | New `browser` auth/flow types |
+| **Flow (daemon)** | `auth/flows/browser.py` | `begin()` fills session payload; `resume()` writes `ConnectionRecord` with real cookie expiry |
+| **Cookie fixes** | `auth/browser_cookies.py` | LinkedIn: derive bare `jsessionid` for `csrf-token` header |
 | **Login (CLI)** | `cli/browser_login.py` | Playwright login cascade, cookie extraction, validation |
 | **Daemon service** | `server/credential_service.py` | Header rendering, **skip httpx validate when `expires_at` > now** |
 | **CLI wiring** | `cli/main.py`, `server/routes/auth.py`, `server/schemas.py` | Login command path, session resume API |
-| **Tests** | `tests/auth/test_browser_sso_*.py`, `tests/cli/test_browser_sso_login.py`, `tests/server/test_browser_sso_session.py` | Unit coverage without real browser in CI |
+| **Tests** | `tests/auth/test_browser_*.py`, `tests/cli/test_browser_login.py`, `tests/server/test_browser_session.py` | Unit coverage without real browser in CI |
 
 **Intentionally large file:** `cli/browser_login.py` (~650 lines) — all browser/Playwright logic lives here so the daemon stays headless.
 
@@ -89,7 +89,7 @@ When you run `authsome login <provider>`:
 
 Headless navigation to the login page is **not** in `auto` mode (LinkedIn/X often break in headless). It remains available via `login_mode=headless` in provider config.
 
-**Profile directory:** `~/.authsome/browser-data/` — shared across all browser-SSO providers unless `browser_data_dir` is set in the provider JSON.
+**Profile directory:** `~/.authsome/browser-data/` — shared across all browser providers unless `browser_data_dir` is set in the provider JSON.
 
 ---
 
@@ -101,9 +101,9 @@ New behaviour in `credential_service.py`:
 
 1. Match request host to provider via existing proxy route catalog (regex `api_url` for `www.linkedin.com`, `x.com`, etc.).
 2. Load stored credentials from vault.
-3. **`_validate_browser_sso_credentials`** — only calls httpx `validate_url` if `expires_at` is missing or in the past.  
+3. **`_validate_browser_credentials`** — only calls httpx `validate_url` if `expires_at` is missing or in the past.  
    **Why:** login validation uses Playwright (browser TLS fingerprint); httpx often gets 401/403 with the same cookies → false `TokenExpiredError`.
-4. **`normalize_browser_sso_credentials`** → render `extra_headers` from provider JSON (`${cookie}`, `${jsessionid}`, etc.).
+4. **`normalize_browser_credentials`** → render `extra_headers` from provider JSON (`${cookie}`, `${jsessionid}`, etc.).
 
 ---
 
@@ -125,13 +125,13 @@ Provider JSON wires this as:
 }
 ```
 
-`browser_sso_cookies.py` + `_format_cookie_pair()` in `browser_login.py` handle quoting/derivation. Other providers (e.g. X) use `ct0` / `auth_token` and are unaffected unless they have a `JSESSIONID` cookie.
+`browser_cookies.py` + `_format_cookie_pair()` in `browser_login.py` handle quoting/derivation. Other providers (e.g. X) use `ct0` / `auth_token` and are unaffected unless they have a `JSESSIONID` cookie.
 
 ---
 
 ## Type / identity changes (small but spread across files)
 
-Aligned with `main`: `identity: str | None` on `AuthFlow.begin` / `resume` and connection models. Touches `base.py`, all flow handlers, `connection.py`, and a guard in `browser_sso.py` resume. No behaviour change — satisfies `ty check`.
+Aligned with `main`: `identity: str | None` on `AuthFlow.begin` / `resume` and connection models. Touches `base.py`, all flow handlers, `connection.py`, and a guard in `browser.py` resume. No behaviour change — satisfies `ty check`.
 
 ---
 
@@ -148,7 +148,7 @@ Dev extras restored for CI: `ruff`, `ty`, `pytest`, etc. (`pip install -e ".[dev
 
 ## What this PR does **not** do
 
-- No docs site pages for browser SSO yet
+- No docs site pages for browser auth yet
 - No generic `authsome login https://…` URL auto-provisioning (only bundled + registered providers)
 - Does not use the user's daily Chrome profile by default
 - Does not replace OAuth/API-key flows — additive `auth_type: browser`
@@ -192,11 +192,11 @@ pytest --cov=authsome --cov-report=term -p no:xdist
 
 | Test file | Covers |
 |-----------|--------|
-| `test_browser_sso_models.py` | Pydantic models, extract rules |
-| `test_browser_sso_flow.py` | `BrowserSSOFlow` begin/resume, TTL/expiry |
-| `test_browser_sso_service.py` | Header rendering, validate skip when `expires_at` future |
-| `test_browser_sso_login.py` | Cookie extraction, JSESSIONID quoting |
-| `test_browser_sso_session.py` | Daemon session payload / API |
+| `test_browser_models.py` | Pydantic models, extract rules |
+| `test_browser_flow.py` | `BrowserFlow` begin/resume, TTL/expiry |
+| `test_browser_service.py` | Header rendering, validate skip when `expires_at` future |
+| `test_browser_login.py` | Cookie extraction, JSESSIONID quoting |
+| `test_browser_session.py` | Daemon session payload / API |
 
 Playwright is **not** run in CI — browser login is covered by unit tests + manual smoke above.
 
@@ -216,6 +216,6 @@ Playwright is **not** run in CI — browser login is covered by unit tests + man
 
 ## Questions for review discussion
 
-1. Should browser SSO providers share one Chrome profile (`browser-data/`) or per-provider profiles?
-2. Is httpx re-validation when `expires_at` passes acceptable, or should we drop it entirely for browser SSO?
+1. Should browser auth providers share one Chrome profile (`browser-data/`) or per-provider profiles?
+2. Is httpx re-validation when `expires_at` passes acceptable, or should we drop it entirely for browser auth?
 3. Docs site + bundled provider list update — follow-up PR?

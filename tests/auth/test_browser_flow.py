@@ -1,6 +1,6 @@
 import pytest
 
-from authsome.auth.flows.browser_sso import BrowserSSOFlow, _parse_ttl_duration
+from authsome.auth.flows.browser import BrowserFlow, _parse_ttl_duration
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
@@ -12,7 +12,7 @@ def _make_provider(ttl: str | None = None) -> ProviderDefinition:
         {
             "schema_version": 1,
             "name": "x-browser",
-            "display_name": "X Browser SSO",
+            "display_name": "X Browser",
             "auth_type": "browser",
             "flow": "browser",
             "browser": {
@@ -69,12 +69,12 @@ def test_parse_ttl_duration_invalid_returns_none():
     assert _parse_ttl_duration("invalid") is None
 
 
-# --- BrowserSSOFlow.begin() ---
+# --- BrowserFlow.begin() ---
 
 
 @pytest.mark.asyncio
 async def test_begin_sets_waiting_for_user():
-    flow = BrowserSSOFlow()
+    flow = BrowserFlow()
     session = _make_session()
     provider = _make_provider()
     await flow.begin(provider, "test-agent", "default", session)
@@ -83,7 +83,7 @@ async def test_begin_sets_waiting_for_user():
 
 @pytest.mark.asyncio
 async def test_begin_stores_entry_url_in_payload():
-    flow = BrowserSSOFlow()
+    flow = BrowserFlow()
     session = _make_session()
     provider = _make_provider()
     await flow.begin(provider, "test-agent", "default", session)
@@ -93,10 +93,10 @@ async def test_begin_stores_entry_url_in_payload():
 
 
 @pytest.mark.asyncio
-async def test_begin_requires_browser_sso_config():
+async def test_begin_requires_browser_config():
     from authsome.errors import AuthenticationFailedError
 
-    flow = BrowserSSOFlow()
+    flow = BrowserFlow()
     session = _make_session()
     bad_provider = ProviderDefinition.model_validate(
         {
@@ -112,12 +112,12 @@ async def test_begin_requires_browser_sso_config():
         await flow.begin(bad_provider, "test-agent", "default", session)
 
 
-# --- BrowserSSOFlow.resume() ---
+# --- BrowserFlow.resume() ---
 
 
 @pytest.mark.asyncio
 async def test_resume_builds_connected_record():
-    flow = BrowserSSOFlow()
+    flow = BrowserFlow()
     session = _make_session()
     provider = _make_provider()
     callback_data = {"credentials": {"cookie": "abc=123", "ct0": "xyz"}}
@@ -132,7 +132,7 @@ async def test_resume_builds_connected_record():
 
 @pytest.mark.asyncio
 async def test_resume_sets_expires_at_from_ttl():
-    flow = BrowserSSOFlow()
+    flow = BrowserFlow()
     session = _make_session()
     provider = _make_provider(ttl="30d")
     callback_data = {"credentials": {"cookie": "abc=123", "ct0": "xyz"}}
@@ -150,7 +150,7 @@ async def test_resume_sets_expires_at_from_ttl():
 
 @pytest.mark.asyncio
 async def test_resume_no_ttl_means_no_expires_at():
-    flow = BrowserSSOFlow()
+    flow = BrowserFlow()
     session = _make_session()
     provider = _make_provider(ttl=None)
     callback_data = {"credentials": {"cookie": "abc=123", "ct0": "xyz"}}
@@ -163,7 +163,7 @@ async def test_resume_no_ttl_means_no_expires_at():
 async def test_resume_missing_credentials_raises():
     from authsome.errors import AuthenticationFailedError
 
-    flow = BrowserSSOFlow()
+    flow = BrowserFlow()
     session = _make_session()
     provider = _make_provider()
     with pytest.raises(AuthenticationFailedError, match="credentials"):
@@ -174,7 +174,7 @@ async def test_resume_missing_credentials_raises():
 async def test_resume_empty_credentials_raises():
     from authsome.errors import AuthenticationFailedError
 
-    flow = BrowserSSOFlow()
+    flow = BrowserFlow()
     session = _make_session()
     provider = _make_provider()
     with pytest.raises(AuthenticationFailedError, match="credentials"):
@@ -184,7 +184,7 @@ async def test_resume_empty_credentials_raises():
 def test_refresh_raises_refresh_failed_error():
     from authsome.errors import RefreshFailedError
 
-    flow = BrowserSSOFlow()
+    flow = BrowserFlow()
     provider = _make_provider()
     record = ConnectionRecord(
         provider="x-browser",

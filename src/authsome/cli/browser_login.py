@@ -28,17 +28,17 @@ from typing import Any, TypedDict
 
 from loguru import logger
 
-from authsome.auth.browser_sso_cookies import normalize_browser_sso_credentials
+from authsome.auth.browser_cookies import normalize_browser_credentials
 
 PLAYWRIGHT_INSTALL_HINT = (
-    "Browser SSO requires playwright.\n"
+    "Browser requires playwright.\n"
     "Install it with:  pip install playwright\n"
     "  (no 'playwright install' needed — authsome uses your system Chrome)"
 )
 
 CHROME_NOT_FOUND_HINT = "Chrome not found. Install Google Chrome (or Chromium/Brave), "
 
-# Dedicated authsome browser profile — shared across all browser-SSO providers.
+# Dedicated authsome browser profile — shared across all browser providers.
 AUTHSOME_BROWSER_DATA_DIR = Path.home() / ".authsome" / "browser-data"
 
 # Alias kept for backwards-compat with any code that imported the old name.
@@ -175,14 +175,14 @@ def _format_cookie_pair(name: str, value: str) -> str:
 
 def _derive_jsessionid(credentials: dict[str, str]) -> None:
     """Fill ``jsessionid`` from the cookie blob when the named cookie is missing."""
-    normalized = normalize_browser_sso_credentials(credentials)
+    normalized = normalize_browser_credentials(credentials)
     credentials.clear()
     credentials.update(normalized)
 
 
 def _normalize_extracted_credentials(credentials: dict[str, str]) -> dict[str, str]:
     """Post-extraction normalizations for site-specific cookie quirks."""
-    return normalize_browser_sso_credentials(credentials)
+    return normalize_browser_credentials(credentials)
 
 
 def _is_domain_match(cookie_domain: str, domains: list[str]) -> bool:
@@ -308,13 +308,13 @@ def _validate_credentials_sync(
 
         if not (200 <= status < 300):
             logger.debug(
-                "Browser SSO validation returned status {} for {}",
+                "Browser validation returned status {} for {}",
                 status,
                 validate_url,
             )
         return 200 <= status < 300
     except Exception as exc:
-        logger.debug("Browser SSO validation request failed: {}", exc)
+        logger.debug("Browser validation request failed: {}", exc)
         return False
 
 
@@ -649,10 +649,10 @@ def run_browser_login(
             result = _try_visible_login(provider_name, entry_url, data_dir, **poll_kwargs, timeout_s=timeout_s)
 
     if result:
-        logger.info("authsome: browser SSO credentials validated for {}", provider_name)
+        logger.info("authsome: browser credentials validated for {}", provider_name)
         return result
 
     raise RuntimeError(
-        f"Browser SSO login timed out after {int(timeout_s)}s for '{provider_name}'.\n"
+        f"Browser login timed out after {int(timeout_s)}s for '{provider_name}'.\n"
         "Please complete login in the browser window before the timeout."
     )

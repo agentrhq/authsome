@@ -1,6 +1,6 @@
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
-from authsome.auth.models.provider import BrowserSSOConfig, ExtractRule, ProviderDefinition
+from authsome.auth.models.provider import BrowserConfig, ExtractRule, ProviderDefinition
 
 
 def test_auth_type_has_browser():
@@ -32,8 +32,8 @@ def test_extract_rule_localstorage():
     assert rule.json_path == "teams.T123.token"
 
 
-def test_browser_sso_config_minimal():
-    config = BrowserSSOConfig(
+def test_browser_config_minimal():
+    config = BrowserConfig(
         entry_url="https://x.com/",
         domains=["x.com"],
         extract=[ExtractRule.model_validate({"from": "cookies", "as": "cookie", "match": "*"})],
@@ -46,8 +46,8 @@ def test_browser_sso_config_minimal():
     assert config.ttl is None
 
 
-def test_browser_sso_config_full():
-    config = BrowserSSOConfig(
+def test_browser_config_full():
+    config = BrowserConfig(
         entry_url="https://x.com/",
         domains=["x.com", "twitter.com"],
         validate_url="https://x.com/i/api/2/notifications/all.json?count=1",
@@ -64,12 +64,12 @@ def test_browser_sso_config_full():
     assert config.ttl == "30d"
 
 
-def test_provider_definition_browser_sso_field():
+def test_provider_definition_browser_field():
     defn = ProviderDefinition.model_validate(
         {
             "schema_version": 1,
             "name": "x-browser",
-            "display_name": "X Browser SSO",
+            "display_name": "X Browser",
             "auth_type": "browser",
             "flow": "browser",
             "browser": {

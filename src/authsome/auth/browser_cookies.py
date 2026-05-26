@@ -1,4 +1,4 @@
-"""Shared helpers for normalizing browser SSO credential dicts."""
+"""Shared helpers for normalizing browser credential dicts."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import re
 _JSESSIONID_IN_COOKIE = re.compile(r'JSESSIONID="?([^";]+)"?')
 
 
-def normalize_browser_sso_credentials(credentials: dict[str, str]) -> dict[str, str]:
+def normalize_browser_credentials(credentials: dict[str, str]) -> dict[str, str]:
     """Return a copy with site-specific cookie fixes applied.
 
     LinkedIn requires ``JSESSIONID="ajax:…"`` in the ``Cookie`` header and a

@@ -61,7 +61,7 @@ class ConnectionRecord(BaseModel):
     # API key field
     api_key: Annotated[str | None, Sensitive()] = None
 
-    # Browser SSO extracted credentials (keyed by extraction rule name)
+    # Browser extracted credentials (keyed by extraction rule name)
     credentials: Annotated[dict[str, str] | None, Sensitive()] = None
 
     # Account info
