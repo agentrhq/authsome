@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "d29926b4634e",
+  "strategy": "manual-commit",
+  "branch": "feature/respect-authsome-daemon-url",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/authsome/cli/admin.py",
+    "src/authsome/cli/daemon_control.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d2/9926b4634e/0/metadata.json",
+      "transcript": "/d2/9926b4634e/0/full.jsonl",
+      "content_hash": "/d2/9926b4634e/0/content_hash.txt",
+      "prompt": "/d2/9926b4634e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 27,
+    "cache_creation_tokens": 51061,
+    "cache_read_tokens": 1147985,
+    "output_tokens": 14699,
+    "api_call_count": 24
+  }
+}
