@@ -3,7 +3,7 @@
   "checkpoint_id": "85f9bdcbf1f4",
   "strategy": "manual-commit",
   "branch": "feature/respect-authsome-daemon-url",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "uv.lock"
   ],
@@ -13,13 +13,19 @@
       "transcript": "/85/f9bdcbf1f4/0/full.jsonl",
       "content_hash": "/85/f9bdcbf1f4/0/content_hash.txt",
       "prompt": "/85/f9bdcbf1f4/0/prompt.txt"
+    },
+    {
+      "metadata": "/85/f9bdcbf1f4/1/metadata.json",
+      "transcript": "/85/f9bdcbf1f4/1/full.jsonl",
+      "content_hash": "/85/f9bdcbf1f4/1/content_hash.txt",
+      "prompt": "/85/f9bdcbf1f4/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 38,
-    "cache_creation_tokens": 40800,
-    "cache_read_tokens": 899177,
-    "output_tokens": 18677,
-    "api_call_count": 28
+    "input_tokens": 69,
+    "cache_creation_tokens": 93758,
+    "cache_read_tokens": 2303752,
+    "output_tokens": 34554,
+    "api_call_count": 56
   }
 }
