@@ -127,8 +127,7 @@ async def create_auth_service(
     if not vault_id:
         raise ValueError("create_auth_service requires an explicit vault_id")
     store = await create_store(home)
-    config = await load_server_config(store)
-    vault = await create_vault(store.home, config)
+    vault = await create_vault(store.home)
     return AuthService(
         vault=vault,
         identity=identity,

@@ -17,7 +17,6 @@ from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import (
     create_store,
     create_vault,
-    load_server_config,
 )
 from authsome.utils import build_store_key
 
@@ -371,7 +370,7 @@ async def test_revoke_local_deletes_shared_client_and_all_identity_connections(t
     primary_vault = await store.vaults.create_default()
     secondary_vault = await store.vaults.create_default()
 
-    vault = await create_vault(store.home, await load_server_config(store))
+    vault = await create_vault(store.home)
     try:
         service = AuthService(
             vault,
