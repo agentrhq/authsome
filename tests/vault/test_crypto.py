@@ -1,6 +1,6 @@
 """Tests for the vault crypto layer.
 
-Only tests our code (MasterSecretResolver, DekManager, AesGcmEncryptionWrapper).
+Only tests our code (DekManager, AesGcmEncryptionWrapper).
 The underlying key-value library's encryption primitives are already well-tested.
 """
 
@@ -8,23 +8,19 @@ from __future__ import annotations
 
 import base64
 import os
-import sys
 from pathlib import Path
-from types import ModuleType
 
 import pytest
 from key_value.aio.stores.simple import SimpleStore
 
 from authsome.errors import EncryptionUnavailableError
+from authsome.server.secrets import MASTER_KEY_ENV, load_master_secret
 from authsome.vault.crypto import (
     _DEK_KEY,
     _KEY_SIZE,
-    _MASTER_KEY_ENV,
-    _MASTER_KEY_FILE_ENV,
     _META_COLLECTION,
     AesGcmEncryptionWrapper,
     DekManager,
-    MasterSecretResolver,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -42,87 +38,6 @@ def dek() -> bytes:
 
 def _random_secret() -> str:
     return base64.b64encode(os.urandom(_KEY_SIZE)).decode("ascii")
-
-
-def _stub_keyring(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    stored: str | None = None,
-    fail_get: bool = False,
-    fail_set: bool = False,
-) -> dict:
-    state: dict = {"stored": stored, "set_calls": []}
-    module = ModuleType("keyring")
-
-    def get_password(service, username):
-        if fail_get:
-            raise OSError("keyring unavailable")
-        return state["stored"]
-
-    def set_password(service, username, value):
-        if fail_set:
-            raise OSError("keyring write failed")
-        state["stored"] = value
-        state["set_calls"].append(value)
-
-    module.get_password = get_password  # type: ignore[attr-defined]
-    module.set_password = set_password  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "keyring", module)
-    return state
-
-
-# ── MasterSecretResolver ──────────────────────────────────────────────────────
-
-
-class TestMasterSecretResolver:
-    def test_env_var_takes_priority(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv(_MASTER_KEY_ENV, "from-env")
-        _stub_keyring(monkeypatch, stored="from-keyring")
-        assert MasterSecretResolver(tmp_path).resolve() == "from-env"
-
-    def test_env_var_strips_whitespace(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv(_MASTER_KEY_ENV, "  my-secret  ")
-        assert MasterSecretResolver(tmp_path).resolve() == "my-secret"
-
-    def test_default_file_used_when_env_absent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv(_MASTER_KEY_ENV, raising=False)
-        _stub_keyring(monkeypatch, fail_get=True)
-        (tmp_path / "master.key").write_text("from-file", encoding="utf-8")
-        assert MasterSecretResolver(tmp_path).resolve() == "from-file"
-
-    def test_custom_file_via_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv(_MASTER_KEY_ENV, raising=False)
-        custom = tmp_path / "custom.key"
-        custom.write_text("from-custom", encoding="utf-8")
-        monkeypatch.setenv(_MASTER_KEY_FILE_ENV, str(custom))
-        _stub_keyring(monkeypatch, fail_get=True)
-        assert MasterSecretResolver(tmp_path).resolve() == "from-custom"
-
-    def test_keyring_used_when_file_absent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv(_MASTER_KEY_ENV, raising=False)
-        _stub_keyring(monkeypatch, stored="from-keyring")
-        assert MasterSecretResolver(tmp_path).resolve() == "from-keyring"
-
-    def test_auto_generates_to_keyring(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv(_MASTER_KEY_ENV, raising=False)
-        state = _stub_keyring(monkeypatch, stored=None)
-        result = MasterSecretResolver(tmp_path).resolve()
-        assert result and len(state["set_calls"]) == 1
-        assert not (tmp_path / "master.key").exists()
-
-    def test_auto_generates_to_file_when_keyring_unavailable(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.delenv(_MASTER_KEY_ENV, raising=False)
-        _stub_keyring(monkeypatch, fail_get=True, fail_set=True)
-        result = MasterSecretResolver(tmp_path).resolve()
-        assert (tmp_path / "master.key").read_text(encoding="utf-8").strip() == result
-
-    def test_generated_value_is_stable_across_calls(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv(_MASTER_KEY_ENV, raising=False)
-        _stub_keyring(monkeypatch, fail_get=True, fail_set=True)
-        r = MasterSecretResolver(tmp_path)
-        assert r.resolve() == r.resolve()
 
 
 # ── DekManager ────────────────────────────────────────────────────────────────
@@ -177,9 +92,9 @@ class TestAesGcmEncryptionWrapper:
 class TestVaultBootstrap:
     @pytest.mark.asyncio
     async def test_full_roundtrip(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv(_MASTER_KEY_ENV, "my-passphrase")
+        monkeypatch.setenv(MASTER_KEY_ENV, "my-passphrase")
         raw_kv = SimpleStore()
-        secret = MasterSecretResolver(tmp_path).resolve()
+        secret = load_master_secret(tmp_path)
         dek = await DekManager().load_or_create(secret, raw_kv)
         vault_kv = AesGcmEncryptionWrapper(raw_kv, dek=dek)
         await vault_kv.put("token", {"data": "secret-value"}, collection="creds")
@@ -187,9 +102,9 @@ class TestVaultBootstrap:
 
     @pytest.mark.asyncio
     async def test_dek_survives_reload(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv(_MASTER_KEY_ENV, "stable-passphrase")
+        monkeypatch.setenv(MASTER_KEY_ENV, "stable-passphrase")
         raw_kv = SimpleStore()
-        secret = MasterSecretResolver(tmp_path).resolve()
+        secret = load_master_secret(tmp_path)
 
         dek1 = await DekManager().load_or_create(secret, raw_kv)
         await AesGcmEncryptionWrapper(raw_kv, dek=dek1).put("k", {"data": "v"}, collection="c")

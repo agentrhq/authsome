@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import secrets
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -24,12 +23,13 @@ from authsome.server.identity_bootstrap import (
     LocalIdentityBootstrapService,
 )
 from authsome.server.ownership import HostedOwnershipResolver, LocalOwnershipResolver, OwnershipResolver
+from authsome.server.secrets import load_master_secret, load_ui_session_signing_secret
 from authsome.server.store import ServerStore
 from authsome.server.store import create_server_store as _create_server_store
 from authsome.server.store.repositories import IdentityRegistry
 from authsome.server.urls import build_server_base_url
 from authsome.vault import Vault
-from authsome.vault.crypto import AesGcmEncryptionWrapper, DekManager, MasterSecretResolver
+from authsome.vault.crypto import AesGcmEncryptionWrapper, DekManager
 
 
 def get_authsome_home() -> Path:
@@ -47,11 +47,6 @@ def get_server_log_path(home: Path | None = None) -> Path:
     return _get_server_log_path(home)
 
 
-def get_ui_session_secret_path(home: Path | None = None) -> Path:
-    """Return the hosted UI session signing-secret path."""
-    return get_server_home(home) / "ui_session_secret.key"
-
-
 def get_server_base_url() -> str:
     """Return the daemon's canonical external base URL."""
     return build_server_base_url()
@@ -61,19 +56,6 @@ def get_deployment_mode() -> str:
     """Return the daemon deployment mode."""
     mode = os.environ.get("AUTHSOME_DEPLOYMENT_MODE", "local").strip().lower()
     return "hosted" if mode == "hosted" else "local"
-
-
-def load_ui_session_signing_secret(home: Path | None = None) -> str:
-    """Load or create the hosted UI session signing secret."""
-    path = get_ui_session_secret_path(home)
-    try:
-        return path.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        secret = secrets.token_hex(32)
-        path.write_text(secret, encoding="utf-8")
-        os.chmod(path, 0o600)
-        return secret
 
 
 async def get_local_ui_identity(home: Path | None = None) -> str:
@@ -110,7 +92,7 @@ async def create_vault(home: Path) -> Vault:
     """Create the daemon vault from an initialized application store."""
     server_home = get_server_home(home)
     raw_kv = DiskStore(directory=str(server_home / "kv_store"))
-    secret = MasterSecretResolver(server_home).resolve()
+    secret = load_master_secret(home)
     dek = await DekManager().load_or_create(secret, raw_kv)
     encrypted_kv = AesGcmEncryptionWrapper(raw_kv, dek=dek)
     return Vault(encrypted_kv)

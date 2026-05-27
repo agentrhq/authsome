@@ -14,9 +14,7 @@ protected by AES-256-GCM with the KEK; stealing it without the master secret is 
 from __future__ import annotations
 
 import base64
-import os
 import secrets
-from pathlib import Path
 from typing import Any
 
 import argon2.low_level
@@ -34,82 +32,11 @@ _KEY_SIZE = 32  # 256-bit
 _META_COLLECTION = "__vault_meta__"
 _DEK_KEY = "__dek__"
 
-_MASTER_KEY_ENV = "AUTHSOME_MASTER_KEY"
-_MASTER_KEY_FILE_ENV = "AUTHSOME_MASTER_KEY_FILE"
-_KEYRING_SERVICE = "authsome"
-_KEYRING_USERNAME = "master_key"
-
 _ARGON2_MEMORY_COST = 65536  # 64 MB
 _ARGON2_TIME_COST = 3
 _ARGON2_PARALLELISM = 4
 
 ENCRYPTION_VERSION = 1
-
-
-class MasterSecretResolver:
-    """Resolves the vault master secret from env, file, keyring, or auto-generates one.
-
-    Resolution order:
-      1. AUTHSOME_MASTER_KEY env var
-      2. File at AUTHSOME_MASTER_KEY_FILE env var, or default ~/.authsome/server/master.key
-      3. OS keyring
-      4. Auto-generate → persist to keyring, or to the default file if keyring unavailable
-    """
-
-    def __init__(self, server_home: Path) -> None:
-        self._default_key_file = server_home / "master.key"
-
-    def resolve(self) -> str:
-        value = os.environ.get(_MASTER_KEY_ENV)
-        if value and value.strip():
-            return value.strip()
-
-        key_file = self._key_file_path()
-        if key_file.exists():
-            content = key_file.read_text(encoding="utf-8").strip()
-            if content:
-                return content
-
-        keyring_value = self._read_keyring()
-        if keyring_value:
-            return keyring_value
-
-        generated = base64.b64encode(secrets.token_bytes(_KEY_SIZE)).decode("ascii")
-        if self._write_keyring(generated):
-            logger.info("Generated and stored new master secret in OS keyring")
-        else:
-            self._write_file(self._default_key_file, generated)
-            logger.info("Generated new master secret at {}", self._default_key_file)
-        return generated
-
-    def _key_file_path(self) -> Path:
-        custom = os.environ.get(_MASTER_KEY_FILE_ENV)
-        return Path(custom) if custom else self._default_key_file
-
-    def _read_keyring(self) -> str | None:
-        try:
-            import keyring
-
-            return keyring.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
-        except Exception:
-            return None
-
-    def _write_keyring(self, value: str) -> bool:
-        try:
-            import keyring
-
-            keyring.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, value)
-            return True
-        except Exception:
-            return False
-
-    def _write_file(self, path: Path, value: str) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value, encoding="utf-8")
-        try:
-            os.chmod(path, 0o600)
-        except OSError:
-            pass
 
 
 class DekManager:
