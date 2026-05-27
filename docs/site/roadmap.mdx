@@ -15,6 +15,9 @@ keywords: ["authsome roadmap", "authsome planned features", "authsome future"]
 - **Encrypted local vault** — all credentials are encrypted at rest on your machine. No cloud account, no SaaS dependency.
 - **45+ bundled providers** — GitHub, Google, Linear, OpenAI, Slack, Notion, and more. Custom providers via a JSON file.
 - **Multi-tenant provider support** — connect to GitHub Enterprise, self-managed GitLab, Okta, and other multi-tenant services with a custom `--base-url` at login time.
+- **Multi-user identity model** — multiple identities can share a vault through a claim-and-accept flow. Each identity carries a cryptographic key pair and a proof-of-possession token on every request.
+- **Vault key rotation** — rotate the vault master key at any time without losing stored credentials.
+- **Environment-backed identities** — headless machines and CI runners can load an identity from environment variables with no local filesystem dependency.
 - **Web dashboard** — view and manage all your connections in a local browser UI.
 - **Audit log** — a structured record of every credential access, login, and logout.
 - **Hosted daemon mode** — deploy authsome on an internal server and point multiple machines at it.
@@ -22,14 +25,16 @@ keywords: ["authsome roadmap", "authsome planned features", "authsome future"]
 
 ## Coming next
 
-- **Per-agent access control** — decide which agents are allowed to use which credentials, without changing the agent itself.
-- **Proxy firewall rules** — block or allow outbound requests at the proxy layer per agent and per service.
-- **Multi-user support** — multiple users sharing a deployed daemon with proper credential isolation between them.
-- **Native MCP tool** — use authsome as an MCP tool in any MCP-compatible agent, not just via the CLI.
+- **Roles & admin routes** — explicit user and admin roles with role-scoped API routes. Admins manage identities, vaults, and provider configuration; users authenticate and access their own credentials.
+- **Policy layer** — declarative rules that decide which agents are allowed to use which credentials, without changing the agent itself. Deny by default; rules grant access per agent, provider, and connection.
+- **Hosted proxy** — a server-side proxy mode for teams where agents run on remote machines. Credential injection happens at the server, not on each agent's machine.
+- **Audit export & OpenTelemetry** — export the audit log as structured OTLP traces and metrics. Connect to Grafana, Datadog, or any OpenTelemetry-compatible backend.
+- **Improved UI** — a more capable web dashboard: connection health, audit log viewer, identity and role management, and hosted provider setup.
 - **Homebrew** — `brew install authsome` for macOS.
 
 ## Considering
 
+- **Native MCP tool** — use authsome as an MCP tool in any MCP-compatible agent, not just via the CLI.
 - **GitHub Actions** — inject credentials directly into CI workflows without running a daemon.
 - **Managed SaaS** — hosted credential management for teams who don't want to self-host. No timeline yet.
 - **Windows** — first-class Windows support.
