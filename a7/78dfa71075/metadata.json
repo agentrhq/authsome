@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "a778dfa71075",
+  "strategy": "manual-commit",
+  "branch": "feature/vault-aes-gcm-dek-kek",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "src/authsome/auth/models/__init__.py",
+    "src/authsome/auth/models/config.py",
+    "src/authsome/server/dependencies.py",
+    "src/authsome/server/routes/health.py",
+    "src/authsome/vault/__init__.py",
+    "src/authsome/vault/crypto.py",
+    "tests/auth/test_service_provider_clients.py",
+    "tests/server/test_pop_auth.py",
+    "tests/vault/test_crypto.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a7/78dfa71075/0/metadata.json",
+      "transcript": "/a7/78dfa71075/0/full.jsonl",
+      "content_hash": "/a7/78dfa71075/0/content_hash.txt",
+      "prompt": "/a7/78dfa71075/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 158,
+    "cache_creation_tokens": 311210,
+    "cache_read_tokens": 13473164,
+    "output_tokens": 70949,
+    "api_call_count": 124
+  }
+}

@@ -1,0 +1,301 @@
+Read @src/authsome/vault/ and work on this: ## Summary: Argon2id + KEK/DEK + AES-256-GCM for Authsome Vault Encryption
+
+We discussed a stronger local encryption design for Authsome based on the issue around **KEK/DEK wrapping with optional Argon2id passphrase support**.
+
+## Core concepts
+
+### **DEK — Data Encryption Key**
+
+The **DEK** is the key that directly encrypts stored credentials:
+
+```text
+OAuth refresh token / API key / client secret
+        ↓ encrypted with
+DEK
+        ↓
+ciphertext stored on disk
+```
+
+The DEK should be **randomly generated**, typically **32 bytes** for AES-256.
+
+---
+
+### **KEK — Key Encryption Key**
+
+The **KEK** does not encrypt secrets directly. It encrypts, or “wraps,” the DEK.
+
+```text
+DEK
+  ↓ encrypted with
+KEK
+wrapped_dek
+```
+
+This allows key rotation without re-encrypting every stored secret.
+
+For example:
+
+| Action             | Required work                 |
+| ------------------ | ----------------------------- |
+| Change passphrase  | Re-wrap DEK                   |
+| Change machine key | Re-wrap DEK                   |
+| Rotate DEK         | Re-encrypt all stored secrets |
+| Add a new secret   | Encrypt with existing DEK     |
+
+---
+
+### **Argon2id**
+
+**Argon2id** is used to derive a KEK from a passphrase.
+
+```text
+passphrase + salt
+        ↓ Argon2id
+KEK
+```
+
+It makes brute-force attacks expensive if someone steals the encrypted vault files.
+
+This is useful for something like:
+
+```bash
+AUTHSOME_MASTER_PASSWORD=...
+```
+
+or an explicit passphrase-based unlock mode.
+
+---
+
+## Recommended encryption model
+
+The ideal layering is:
+
+```text
+Argon2id(passphrase, salt) → KEK
+
+random(32 bytes) → DEK
+
+AES-256-GCM(DEK, secret) → encrypted secret
+
+AES-256-GCM(KEK, DEK) → wrapped DEK
+```
+
+In short:
+
+```text
+Secrets are locked with DEK.
+DEK is locked with KEK.
+KEK comes from Argon2id passphrase or machine/keychain-backed material.
+```
+
+---
+
+## AES-256-GCM
+
+We discussed using **AES-256-GCM** as the encryption primitive.
+
+AES-256-GCM gives both:
+
+1. **Confidentiality** — attackers cannot read the token.
+2. **Integrity/authentication** — attackers cannot modify ciphertext or metadata without detection.
+
+This is important because Authsome stores sensitive agent credentials: OAuth refresh tokens, API keys, client secrets, provider credentials, etc.
+
+---
+
+## Suggested encrypted secret format
+
+Each encrypted secret could look like:
+
+```json
+{
+  "version": 1,
+  "alg": "AES-256-GCM",
+  "kid": "local-dek-v1",
+  "nonce": "base64...",
+  "ciphertext": "base64...",
+  "tag": "base64..."
+}
+```
+
+The wrapped DEK metadata could look like:
+
+```json
+{
+  "version": 1,
+  "kek": {
+    "type": "argon2id",
+    "salt": "base64...",
+    "memory_cost": 65536,
+    "time_cost": 3,
+    "parallelism": 4
+  },
+  "wrapped_dek": {
+    "alg": "AES-256-GCM",
+    "nonce": "base64...",
+    "ciphertext": "base64...",
+    "tag": "base64..."
+  }
+}
+```
+
+---
+
+## Important implementation rules
+
+### 1. Generate random DEKs
+
+```text
+DEK = 32 random bytes
+```
+
+Do not derive the DEK from the passphrase.
+
+---
+
+### 2. Never reuse AES-GCM nonces
+
+For AES-GCM, nonce reuse with the same key is catastrophic.
+
+Use a fresh nonce per encryption:
+
+```text
+nonce = 12 random bytes
+```
+
+---
+
+### 3. Use AAD
+
+Use **AAD**, or Additional Authenticated Data, to bind metadata to ciphertext.
+
+Example:
+
+```text
+provider:profile:connection:secret_type:version
+```
+
+For example:
+
+```text
+github:default:default:refresh_token:v1
+```
+
+This prevents ciphertext from being swapped across providers, profiles, or secret types.
+
+---
+
+### 4. Store the authentication tag
+
+Some libraries return:
+
+```text
+ciphertext + tag
+```
+
+Others return them separately.
+
+Either is fine, but the tag must be persisted and verified on decrypt.
+
+---
+
+## Recommended Authsome design
+
+For Authsome, the design should be:
+
+```text
+Default mode:
+  Use OS keychain / machine-bound KEK where available.
+
+Stronger mode:
+  Use Argon2id-derived KEK from AUTHSOME_MASTER_PASSWORD.
+
+Secret encryption:
+  AES-256-GCM with random DEK.
+
+DEK wrapping:
+  AES-256-GCM or AES-KW with KEK.
+```
+
+My recommendation was:
+
+```text
+Secrets: AES-256-GCM with DEK
+DEK wrapping: AES-256-GCM with KEK
+Passphrase mode: Argon2id
+```
+
+## Product implication for Authsome
+
+Passphrase mode should probably be **optional**, not mandatory.
+
+For an agent authentication tool, mandatory interactive unlock can break automation. But supporting `AUTHSOME_MASTER_PASSWORD` gives advanced users and CI/local daemon environments stronger protection against disk theft.
+
+So the practical position is:
+
+```text
+Authsome should work out of the box with local encryption.
+
+Advanced users can opt into Argon2id passphrase-based vault protection.
+
+The vault should never expose raw credentials to agent runtimes.
+
+Agents should call through the proxy, and Authsome injects credentials safely.
+```
+. Before doing any change explain me current implementation, the proposal and best way forward.
+
+---
+
+Also, refer to suggestion in @docs/refactor.md about vault and we can make a decision
+
+---
+
+We can do breaking changes. I need to understand where does KEK, DEK store. The master passphrase can be file or env
+
+---
+
+What happens if i run this vault in a serverless mode ?
+
+---
+
+How do vaults like hashicorp, infiscal or aws secret manager work?
+
+---
+
+this makes more sense. What is argon ?
+
+---
+
+There shouldn't be 2 different modes. AUTHSOME_MASTER_KEY and password should be same. Suggest a final single implementation.
+
+---
+
+this makes sense. 2 and 4 are same in secret resolution is same. the default file path is ~/.authsome/server/master.key. Also, the implementation should use the key-value-store from library, and implement a wrapper.
+
+---
+
+See FernetWrpper for example https://strawgate.com/py-key-value/wrappers/#key_value.aio.wrappers.encryption.fernet.FernetEncryptionWrapper
+
+---
+
+What is index in @src/authsome/vault/__init__.py and wgere is it used?
+
+---
+
+This https://github.com/strawgate/py-key-value/blob/main/src/key_value/aio/protocols/key_value.py#L141 already has keys support
+
+---
+
+Where doe we use keys?
+
+---
+
+Ok. Can we use a simple InMemoryStore for testing in tests rather than file store ?
+
+---
+
+Why does it need close?
+
+---
+
+yes. Remove close and fix tests
