@@ -15,6 +15,20 @@ from authsome.server.credential_service import AuthService
 from authsome.utils import utc_now
 
 
+class EmptyProviderDefinitions:
+    async def get(self, name: str):  # noqa: ANN001, ANN201
+        return None
+
+    async def list(self):  # noqa: ANN201
+        return []
+
+    async def save(self, definition, *, force: bool = False) -> None:  # noqa: ANN001
+        raise AssertionError("unexpected provider definition save")
+
+    async def delete(self, name: str) -> bool:
+        return False
+
+
 @pytest.mark.asyncio
 class TestAuthServiceRefreshLogs:
     """Tests validating that token refresh failure writes correct logs and audit trails."""
@@ -29,7 +43,12 @@ class TestAuthServiceRefreshLogs:
     @pytest.fixture
     def service(self) -> AuthService:
         mock_vault = mock.AsyncMock()
-        return AuthService(mock_vault, identity="test-profile", vault_id="test-vault")
+        return AuthService(
+            mock_vault,
+            identity="test-profile",
+            vault_id="test-vault",
+            provider_definitions=EmptyProviderDefinitions(),
+        )
 
     async def test_refresh_failure_fallback_available(self, audit_log: Path, service: AuthService):
         """Verify behavior when refresh fails but current token is valid (close to expiry)."""
@@ -119,6 +138,7 @@ def test_auth_service_allows_missing_identity() -> None:
         identity=None,
         principal_id="principal_1",
         vault_id="vault_default",
+        provider_definitions=EmptyProviderDefinitions(),
     )
     assert service.identity is None
 
@@ -130,5 +150,13 @@ def test_auth_service_scopes_collection_by_vault_id() -> None:
         identity="agent-a",
         principal_id="principal_1",
         vault_id="vault_default",
+        provider_definitions=EmptyProviderDefinitions(),
     )
     assert service._coll == "vault:vault_default"
+
+
+def test_auth_service_requires_provider_definitions() -> None:
+    mock_vault = mock.AsyncMock()
+
+    with pytest.raises(TypeError):
+        AuthService(mock_vault, identity="agent-a", vault_id="vault_default")  # type: ignore[call-arg]

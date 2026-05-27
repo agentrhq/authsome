@@ -40,12 +40,12 @@ from authsome.errors import (
     IdentityNotFoundError,
     InvalidProviderSchemaError,
     OperationNotAllowedError,
-    ProviderAlreadyRegisteredError,
     ProviderNotFoundError,
     RefreshFailedError,
     TokenExpiredError,
     UnsupportedFlowError,
 )
+from authsome.server.store.repositories import ProviderDefinitionRepository
 from authsome.utils import build_store_key, format_duration, is_filesystem_safe, parse_store_key, utc_now
 from authsome.vault import Vault
 
@@ -86,6 +86,7 @@ class AuthService:
     def __init__(
         self,
         vault: Vault,
+        provider_definitions: ProviderDefinitionRepository,
         identity: str | None = None,
         principal_id: str | None = None,
         vault_id: str | None = None,
@@ -96,6 +97,7 @@ class AuthService:
         self._principal_id = principal_id
         self._vault_id = vault_id
         self._deployment_mode = "hosted" if deployment_mode == "hosted" else "local"
+        self._provider_definitions = provider_definitions
         self._bundled: dict[str, ProviderDefinition] = self._load_bundled_providers()
 
     @property
@@ -150,15 +152,8 @@ class AuthService:
         return bundled
 
     async def _load_custom_providers(self) -> dict[str, ProviderDefinition]:
-        providers: dict[str, ProviderDefinition] = {}
-        try:
-            for name in await self._vault.list(collection="providers"):
-                raw = await self._vault.get(name, collection="providers")
-                if raw:
-                    providers[name] = ProviderDefinition.model_validate_json(raw)
-        except Exception as exc:
-            logger.warning("Could not load custom providers: {}", exc)
-        return providers
+        providers = await self._provider_definitions.list()
+        return {provider.name: provider for provider in providers}
 
     async def list_providers(self) -> list[ProviderDefinition]:
         providers = {**self._bundled, **(await self._load_custom_providers())}
@@ -171,17 +166,16 @@ class AuthService:
         return {"bundled": bundled_list, "custom": custom_list}
 
     async def get_provider(self, provider: str) -> ProviderDefinition:
-        raw = await self._vault.get(provider, collection="providers")
-        if raw:
-            return ProviderDefinition.model_validate_json(raw)
+        custom = await self._provider_definitions.get(provider)
+        if custom is not None:
+            return custom
         if provider in self._bundled:
             return self._bundled[provider]
         raise ProviderNotFoundError(provider)
 
     async def is_local_provider(self, provider: str) -> bool:
         """Check if a provider is a custom/local provider."""
-        val = await self._vault.get(provider, collection="providers")
-        return val is not None
+        return await self._provider_definitions.get(provider) is not None
 
     async def resolve_credentials(self, **kwargs: Any) -> dict[str, Any]:
         """Resolve credentials for a provider/connection pair."""
@@ -200,20 +194,12 @@ class AuthService:
     async def register_provider(self, definition: ProviderDefinition, *, force: bool = False) -> None:
         self._ensure_local_provider_admin_operation_allowed("register", definition.name)
         self._validate_provider(definition)
-        has_custom = (await self._vault.get(definition.name, collection="providers")) is not None
-        if force or not has_custom:
-            await self._vault.put(
-                definition.name,
-                definition.model_dump_json(indent=2, exclude_none=True),
-                collection="providers",
-            )
-        else:
-            raise ProviderAlreadyRegisteredError(definition.name)
+        await self._provider_definitions.save(definition, force=force)
         logger.info("Registered provider: {}", definition.name)
 
     async def remove_provider(self, name: str) -> bool:
         """Remove a custom provider. Returns True if removed."""
-        return await self._vault.delete(name, collection="providers")
+        return await self._provider_definitions.delete(name)
 
     def _ensure_local_provider_admin_operation_allowed(self, operation: str, provider: str) -> None:
         if is_admin_principal(self._principal_id):
@@ -777,6 +763,7 @@ class AuthService:
                 principal_id=self._principal_id,
                 vault_id=vault_id,
                 deployment_mode=self._deployment_mode,
+                provider_definitions=self._provider_definitions,
             )
             meta_key = build_store_key(vault=vault_id, provider=provider, record_type="metadata")
             existing_json = await self._vault.get(meta_key, collection=vault_service._coll)
@@ -796,7 +783,7 @@ class AuthService:
         self._ensure_local_provider_admin_operation_allowed("remove", provider)
         await self.revoke(provider)
         if await self.is_local_provider(provider):
-            await self._vault.delete(provider, collection="providers")
+            await self._provider_definitions.delete(provider)
             logger.info("Removed local provider definition: {}", provider)
         else:
             logger.info("Revoked bundled provider: {} (definition kept)", provider)

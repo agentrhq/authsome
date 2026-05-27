@@ -17,7 +17,9 @@ from authsome.utils import utc_now
 
 def _svc() -> AuthService:
     vault = MagicMock()
-    return AuthService(vault=vault, identity="agent", principal_id="p1", vault_id="v1")
+    return AuthService(
+        vault=vault, identity="agent", principal_id="p1", vault_id="v1", provider_definitions=[_provider()]
+    )
 
 
 def _provider(validate_url: str | None = None) -> ProviderDefinition:
