@@ -499,5 +499,4 @@ async def test_revoke_local_deletes_shared_client_and_all_identity_connections(t
             is None
         )
     finally:
-        await vault.close()
         await store.close()

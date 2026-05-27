@@ -29,6 +29,7 @@ from authsome.server.store import create_server_store as _create_server_store
 from authsome.server.store.repositories import IdentityRegistry
 from authsome.server.urls import build_server_base_url
 from authsome.vault import Vault
+from authsome.vault.crypto import AesGcmEncryptionWrapper, DekManager, MasterSecretResolver
 
 
 def get_authsome_home() -> Path:
@@ -105,16 +106,14 @@ async def list_registered_identity_handles(home: Path | None = None) -> list[str
         await store.close()
 
 
-async def create_vault(home: Path, config: ServerConfig) -> Vault:
-    """Create the daemon Vault over the current local py-key-value adapter."""
+async def create_vault(home: Path) -> Vault:
+    """Create the daemon vault from an initialized application store."""
     server_home = get_server_home(home)
-    server_home.mkdir(parents=True, exist_ok=True)
-    kv = DiskStore(directory=str(server_home / "kv_store"))
-    return Vault(
-        kv=kv,
-        crypto_mode=config.encryption.mode,
-        master_key_path=get_server_home(home) / "master.key",
-    )
+    raw_kv = DiskStore(directory=str(server_home / "kv_store"))
+    secret = MasterSecretResolver(server_home).resolve()
+    dek = await DekManager().load_or_create(secret, raw_kv)
+    encrypted_kv = AesGcmEncryptionWrapper(raw_kv, dek=dek)
+    return Vault(encrypted_kv)
 
 
 async def create_auth_service(

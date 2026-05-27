@@ -24,17 +24,9 @@ def current_spec_version() -> int:
 
 
 # TODO: This isn't a property of auth module
-class EncryptionConfig(BaseModel):
-    """Vault encryption backend settings for the daemon."""
-
-    mode: str = "auto"
-
-
-# TODO: This isn't a property of auth module
 class ServerConfig(BaseModel):
     """Daemon-owned server configuration."""
 
     spec_version: int = Field(default_factory=current_spec_version)
-    encryption: EncryptionConfig = Field(default_factory=EncryptionConfig)
 
     model_config = {"extra": "allow"}

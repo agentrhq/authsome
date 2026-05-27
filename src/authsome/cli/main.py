@@ -186,6 +186,15 @@ async def login(
                 except Exception:
                     pass
 
+            elif action_type == "browser":
+                from authsome.auth.flows.browser import BrowserFlow
+
+                credentials = await BrowserFlow.run_login(next_action, provider)
+                session_info = await actx.runtime_client.resume_login_session(
+                    session_info["id"], credentials=credentials
+                )
+                login_result = _build_login_json_payload(session_info, provider, connection)
+
         logger.info(
             "client_event event=login provider={} connection={} flow={} status={}",
             provider,

@@ -1,273 +1,216 @@
-"""Vault encryption backends.
+"""Vault encryption — AES-256-GCM wrapper over AsyncKeyValue.
 
-The vault uses AES-256-GCM to encrypt record blobs at rest.
-The compact wire format is: base64(nonce) + "." + base64(ciphertext || tag)
+Key hierarchy:
+  master_secret (env → file → keyring → auto-generate)
+      → Argon2id(master_secret, salt) → KEK
+      → AES-256-GCM.decrypt(KEK, wrapped_dek) → DEK  [in memory only]
+      → AES-256-GCM(DEK, value) → encrypted blob in KV store
 
-Two backends are available:
-- LocalFileCrypto: master key stored in ~/.authsome/server/master.key (mode 0600)
-- KeyringCrypto: master key stored in the OS keyring
+The wrapped DEK lives in the KV store under collection=_META_COLLECTION, key=_DEK_KEY.
+That collection is accessed directly (unencrypted) — the wrapped DEK is already
+protected by AES-256-GCM with the KEK; stealing it without the master secret is useless.
 """
 
 from __future__ import annotations
 
 import base64
-import json
 import os
 import secrets
-from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any
 
+import argon2.low_level
+from argon2 import Type as Argon2Type
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from key_value.aio.protocols.key_value import AsyncKeyValue
+from key_value.aio.wrappers.encryption.base import BaseEncryptionWrapper
 from loguru import logger
 
 from authsome.errors import EncryptionUnavailableError
 
-_KEY_SIZE_BYTES = 32  # 256-bit
-_NONCE_SIZE_BYTES = 12  # 96-bit for AES-GCM
+_NONCE_SIZE = 12  # 96-bit for AES-GCM
+_KEY_SIZE = 32  # 256-bit
+
+_META_COLLECTION = "__vault_meta__"
+_DEK_KEY = "__dek__"
+
+_MASTER_KEY_ENV = "AUTHSOME_MASTER_KEY"
+_MASTER_KEY_FILE_ENV = "AUTHSOME_MASTER_KEY_FILE"
 _KEYRING_SERVICE = "authsome"
 _KEYRING_USERNAME = "master_key"
-_MASTER_KEY_ENV_VAR = "AUTHSOME_MASTER_KEY"
+
+_ARGON2_MEMORY_COST = 65536  # 64 MB
+_ARGON2_TIME_COST = 3
+_ARGON2_PARALLELISM = 4
+
+ENCRYPTION_VERSION = 1
 
 
-class VaultCrypto(ABC):
-    """Protocol for vault-level encryption backends."""
+class MasterSecretResolver:
+    """Resolves the vault master secret from env, file, keyring, or auto-generates one.
 
-    @property
-    @abstractmethod
-    def source_id(self) -> str:
-        """Stable identifier for the effective master-key source."""
-        ...
+    Resolution order:
+      1. AUTHSOME_MASTER_KEY env var
+      2. File at AUTHSOME_MASTER_KEY_FILE env var, or default ~/.authsome/server/master.key
+      3. OS keyring
+      4. Auto-generate → persist to keyring, or to the default file if keyring unavailable
+    """
 
-    @property
-    @abstractmethod
-    def source_description(self) -> str:
-        """Human-readable description of the effective master-key source."""
-        ...
+    def __init__(self, server_home: Path) -> None:
+        self._default_key_file = server_home / "master.key"
 
-    @abstractmethod
-    def encrypt(self, plaintext: str) -> str:
-        """Encrypt plaintext and return a compact ciphertext string."""
-        ...
+    def resolve(self) -> str:
+        value = os.environ.get(_MASTER_KEY_ENV)
+        if value and value.strip():
+            return value.strip()
 
-    @abstractmethod
-    def decrypt(self, ciphertext: str) -> str:
-        """Decrypt a compact ciphertext string and return plaintext."""
-        ...
+        key_file = self._key_file_path()
+        if key_file.exists():
+            content = key_file.read_text(encoding="utf-8").strip()
+            if content:
+                return content
 
+        keyring_value = self._read_keyring()
+        if keyring_value:
+            return keyring_value
 
-def _encode(nonce: bytes, ct_with_tag: bytes) -> str:
-    """Pack nonce + ciphertext+tag into a single dot-separated base64 string."""
-    return base64.b64encode(nonce).decode("ascii") + "." + base64.b64encode(ct_with_tag).decode("ascii")
+        generated = base64.b64encode(secrets.token_bytes(_KEY_SIZE)).decode("ascii")
+        if self._write_keyring(generated):
+            logger.info("Generated and stored new master secret in OS keyring")
+        else:
+            self._write_file(self._default_key_file, generated)
+            logger.info("Generated new master secret at {}", self._default_key_file)
+        return generated
 
+    def _key_file_path(self) -> Path:
+        custom = os.environ.get(_MASTER_KEY_FILE_ENV)
+        return Path(custom) if custom else self._default_key_file
 
-def _decode(token: str) -> tuple[bytes, bytes]:
-    """Unpack a dot-separated base64 string into (nonce, ciphertext+tag)."""
-    try:
-        nonce_b64, ct_b64 = token.split(".", 1)
-        return base64.b64decode(nonce_b64), base64.b64decode(ct_b64)
-    except Exception as exc:
-        raise EncryptionUnavailableError(f"Malformed vault ciphertext: {exc}") from exc
-
-
-class _AesGcmCrypto(VaultCrypto):
-    """Base class for AES-GCM encryption backends."""
-
-    def __init__(self, master_key: bytes) -> None:
-        if len(master_key) != _KEY_SIZE_BYTES:
-            raise EncryptionUnavailableError(
-                f"Master key must be {_KEY_SIZE_BYTES} bytes after base64 decoding; got {len(master_key)} bytes."
-            )
-        self._aesgcm = AESGCM(master_key)
-
-    def encrypt(self, plaintext: str) -> str:
-        nonce = secrets.token_bytes(_NONCE_SIZE_BYTES)
-        ct_with_tag = self._aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
-        return _encode(nonce, ct_with_tag)
-
-    def decrypt(self, ciphertext: str) -> str:
-        nonce, ct_with_tag = _decode(ciphertext)
+    def _read_keyring(self) -> str | None:
         try:
-            return self._aesgcm.decrypt(nonce, ct_with_tag, None).decode("utf-8")
-        except Exception as exc:
-            raise EncryptionUnavailableError(f"Decryption failed: {exc}") from exc
+            import keyring
 
+            return keyring.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+        except Exception:
+            return None
 
-class LocalFileCrypto(_AesGcmCrypto):
-    """AES-256-GCM with master key stored as a local file."""
-
-    def __init__(self, key_file: Path) -> None:
-        self._key_file = key_file
-        super().__init__(self._load_key())
-
-    @property
-    def source_id(self) -> str:
-        return "local_key"
-
-    @property
-    def source_description(self) -> str:
-        return f"Local File ({self._key_file})"
-
-    def _load_key(self) -> bytes:
-        if self._key_file.exists():
-            try:
-                key_data = json.loads(self._key_file.read_text(encoding="utf-8"))
-                return _decode_master_key(key_data["key"], f"local key file {self._key_file}")
-            except (json.JSONDecodeError, KeyError, ValueError) as exc:
-                raise EncryptionUnavailableError(f"Failed to read local key file {self._key_file}: {exc}") from exc
-
-        master_key = _new_master_key()
-        self._key_file.parent.mkdir(parents=True, exist_ok=True)
-        key_data = {
-            "version": 1,
-            "key": base64.b64encode(master_key).decode("ascii"),
-            "algorithm": "AES-256-GCM",
-            "note": "Local master key for authsome. Protect this file.",
-        }
-        self._key_file.write_text(json.dumps(key_data, indent=2), encoding="utf-8")
+    def _write_keyring(self, value: str) -> bool:
         try:
-            os.chmod(self._key_file, 0o600)
+            import keyring
+
+            keyring.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, value)
+            return True
+        except Exception:
+            return False
+
+    def _write_file(self, path: Path, value: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(value, encoding="utf-8")
+        try:
+            os.chmod(path, 0o600)
         except OSError:
             pass
-        logger.info("Generated new master key at {}", self._key_file)
-        return master_key
 
 
-class KeyringCrypto(_AesGcmCrypto):
-    """AES-256-GCM with master key stored in the OS keyring."""
+class DekManager:
+    """Bootstraps and loads the vault DEK from the raw (unencrypted) KV store.
 
-    def __init__(self, master_key: bytes | None = None) -> None:
-        super().__init__(master_key or self._load_key())
+    The DEK record is stored in _META_COLLECTION and contains the Argon2id parameters,
+    the salt, and the AES-256-GCM-wrapped DEK. It is NOT re-encrypted by the
+    AesGcmEncryptionWrapper — the KEK wrapping is the protection layer.
+    """
 
-    @property
-    def source_id(self) -> str:
-        return "keyring"
+    async def load_or_create(self, master_secret: str, kv: AsyncKeyValue) -> bytes:
+        """Return the DEK, creating and persisting a new one if none exists."""
+        record = await kv.get(_DEK_KEY, collection=_META_COLLECTION)
+        if record is not None:
+            return self._unwrap(master_secret, record)
+        return await self._create(master_secret, kv)
 
-    @property
-    def source_description(self) -> str:
-        return "OS Keyring"
-
-    def _load_key(self) -> bytes:
-        master_key = _get_keyring_key(create_if_missing=True, strict=True)
-        if master_key is None:
-            raise EncryptionUnavailableError("OS keyring is unavailable and no master key could be created.")
-        return master_key
-
-
-class EnvVarCrypto(_AesGcmCrypto):
-    """AES-256-GCM with master key supplied via AUTHSOME_MASTER_KEY."""
-
-    def __init__(self) -> None:
-        super().__init__(self._load_key())
-
-    @property
-    def source_id(self) -> str:
-        return "env"
-
-    @property
-    def source_description(self) -> str:
-        return f"Environment Variable ({_MASTER_KEY_ENV_VAR})"
-
-    def _load_key(self) -> bytes:
-        raw_value = os.environ.get(_MASTER_KEY_ENV_VAR)
-        if raw_value is None:
-            raise EncryptionUnavailableError(f"{_MASTER_KEY_ENV_VAR} is not set.")
-        if not raw_value.strip():
-            raise EncryptionUnavailableError(f"{_MASTER_KEY_ENV_VAR} is set but empty.")
-        return _decode_master_key(raw_value.strip(), _MASTER_KEY_ENV_VAR)
-
-
-def _new_master_key() -> bytes:
-    """Generate a new 256-bit master key."""
-    return secrets.token_bytes(_KEY_SIZE_BYTES)
-
-
-def _decode_master_key(encoded_value: str, source: str) -> bytes:
-    """Decode and validate a base64-encoded master key."""
-    try:
-        master_key = base64.b64decode(encoded_value, validate=True)
-    except (ValueError, TypeError) as exc:
-        raise EncryptionUnavailableError(f"Failed to decode master key from {source}: {exc}") from exc
-    if len(master_key) != _KEY_SIZE_BYTES:
-        raise EncryptionUnavailableError(
-            f"Master key from {source} must decode to {_KEY_SIZE_BYTES} bytes; got {len(master_key)} bytes."
+    def _derive_kek(self, master_secret: str, salt: bytes) -> bytes:
+        return argon2.low_level.hash_secret_raw(
+            secret=master_secret.encode("utf-8"),
+            salt=salt,
+            time_cost=_ARGON2_TIME_COST,
+            memory_cost=_ARGON2_MEMORY_COST,
+            parallelism=_ARGON2_PARALLELISM,
+            hash_len=_KEY_SIZE,
+            type=Argon2Type.ID,
         )
-    return master_key
+
+    def _unwrap(self, master_secret: str, record: dict[str, Any]) -> bytes:
+        try:
+            salt = base64.b64decode(record["kdf"]["salt"])
+            kek = self._derive_kek(master_secret, salt)
+            nonce = base64.b64decode(record["wrapped_dek"]["nonce"])
+            ct = base64.b64decode(record["wrapped_dek"]["ciphertext"])
+            return AESGCM(kek).decrypt(nonce, ct, None)
+        except Exception as exc:
+            raise EncryptionUnavailableError(f"Failed to unwrap vault DEK: {exc}") from exc
+
+    async def _create(self, master_secret: str, kv: AsyncKeyValue) -> bytes:
+        salt = secrets.token_bytes(16)
+        dek = secrets.token_bytes(_KEY_SIZE)
+        kek = self._derive_kek(master_secret, salt)
+        nonce = secrets.token_bytes(_NONCE_SIZE)
+        wrapped = AESGCM(kek).encrypt(nonce, dek, None)
+        record: dict[str, Any] = {
+            "version": ENCRYPTION_VERSION,
+            "kdf": {
+                "alg": "argon2id",
+                "salt": base64.b64encode(salt).decode("ascii"),
+                "memory_cost": _ARGON2_MEMORY_COST,
+                "time_cost": _ARGON2_TIME_COST,
+                "parallelism": _ARGON2_PARALLELISM,
+            },
+            "wrapped_dek": {
+                "alg": "AES-256-GCM",
+                "nonce": base64.b64encode(nonce).decode("ascii"),
+                "ciphertext": base64.b64encode(wrapped).decode("ascii"),
+            },
+        }
+        await kv.put(_DEK_KEY, record, collection=_META_COLLECTION)
+        logger.info("Created and stored new vault DEK")
+        return dek
 
 
-def _get_keyring_key(*, create_if_missing: bool, strict: bool) -> bytes | None:
-    """Load a key from the OS keyring, optionally creating it when absent."""
+def _aes_gcm_encrypt(aesgcm: AESGCM, data: bytes) -> bytes:
+    """Encrypt data with a fresh nonce; returns nonce + ciphertext-with-tag."""
+    nonce = secrets.token_bytes(_NONCE_SIZE)
+    return nonce + aesgcm.encrypt(nonce, data, None)
+
+
+def _aes_gcm_decrypt(aesgcm: AESGCM, data: bytes, version: int) -> bytes:
+    if version > ENCRYPTION_VERSION:
+        raise EncryptionUnavailableError(f"Unsupported encryption version: {version}")
+    nonce, ct = data[:_NONCE_SIZE], data[_NONCE_SIZE:]
     try:
-        import keyring as kr
-    except ImportError as exc:
-        if strict:
-            raise EncryptionUnavailableError(
-                "The 'keyring' package is required for keyring mode. Install it with: pip install keyring"
-            ) from exc
-        return None
-
-    try:
-        key_b64 = kr.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+        return aesgcm.decrypt(nonce, ct, None)
     except Exception as exc:
-        if strict:
-            raise EncryptionUnavailableError(
-                f"Failed to access OS keyring: {exc}. Use encryption mode 'local_key' for headless environments."
-            ) from exc
-        return None
-
-    if key_b64:
-        return _decode_master_key(key_b64, "OS keyring")
-    if not create_if_missing:
-        return None
-
-    master_key = _new_master_key()
-    key_b64_str = base64.b64encode(master_key).decode("ascii")
-    try:
-        kr.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, key_b64_str)
-    except Exception as exc:
-        if strict:
-            raise EncryptionUnavailableError(
-                f"Failed to store master key in OS keyring: {exc}. "
-                "Use encryption mode 'local_key' for headless environments."
-            ) from exc
-        return None
-    logger.info("Generated and stored new master key in OS keyring")
-    return master_key
+        raise EncryptionUnavailableError(f"Decryption failed: {exc}") from exc
 
 
-def _has_env_master_key() -> bool:
-    """Return whether AUTHSOME_MASTER_KEY is present in the environment."""
-    return _MASTER_KEY_ENV_VAR in os.environ
+class AesGcmEncryptionWrapper(BaseEncryptionWrapper):
+    """AES-256-GCM encryption wrapper — drop-in replacement for FernetEncryptionWrapper.
 
+    Follows the same BaseEncryptionWrapper pattern: values are JSON-serialised,
+    encrypted, base64-encoded, and stored as {"__encrypted_data__": ..., "__encryption_version__": 1}.
+    """
 
-def _create_auto_crypto(key_file: Path | None) -> VaultCrypto:
-    """Resolve master keys by strength while preserving existing local installs."""
-    if _has_env_master_key():
-        return EnvVarCrypto()
-
-    existing_keyring_key = _get_keyring_key(create_if_missing=False, strict=False)
-    if existing_keyring_key is not None:
-        return KeyringCrypto(existing_keyring_key)
-
-    if key_file is None:
-        raise ValueError("key_file is required for auto mode fallback")
-    if key_file.exists():
-        return LocalFileCrypto(key_file)
-
-    created_keyring_key = _get_keyring_key(create_if_missing=True, strict=False)
-    if created_keyring_key is not None:
-        return KeyringCrypto(created_keyring_key)
-
-    return LocalFileCrypto(key_file)
-
-
-def create_crypto(key_file: Path | None, mode: str = "auto") -> VaultCrypto:
-    """Factory: return the appropriate VaultCrypto backend for the given mode."""
-    if mode == "auto":
-        return _create_auto_crypto(key_file)
-    if mode == "keyring":
-        return KeyringCrypto()
-    if mode == "env":
-        return EnvVarCrypto()
-    if key_file is None:
-        raise ValueError("key_file is required for 'local_key' mode")
-    return LocalFileCrypto(key_file)
+    def __init__(
+        self,
+        key_value: AsyncKeyValue,
+        *,
+        dek: bytes,
+        raise_on_decryption_error: bool = True,
+    ) -> None:
+        if len(dek) != _KEY_SIZE:
+            raise EncryptionUnavailableError(f"DEK must be {_KEY_SIZE} bytes; got {len(dek)}")
+        aesgcm = AESGCM(dek)
+        super().__init__(
+            key_value=key_value,
+            encryption_fn=lambda data: _aes_gcm_encrypt(aesgcm, data),
+            decryption_fn=lambda data, version: _aes_gcm_decrypt(aesgcm, data, version),
+            encryption_version=ENCRYPTION_VERSION,
+            raise_on_decryption_error=raise_on_decryption_error,
+        )

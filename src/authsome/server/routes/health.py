@@ -16,12 +16,12 @@ from authsome.utils import connection_is_active
 router = APIRouter()
 
 
-def _describe_vault_encryption(vault) -> tuple[str | None, str | None]:
+def _describe_vault_encryption(vault) -> tuple[str, str]:
     """Return effective vault encryption details for API output."""
     try:
         return vault.crypto_source, vault.crypto_source_description
     except Exception as exc:
-        return None, f"Unavailable ({exc})"
+        return "unavailable", f"Unavailable ({exc})"
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -33,7 +33,7 @@ def health(request: Request) -> HealthResponse:
         status="ok",
         version=__version__,
         mode=response_mode,
-        configured_encryption_mode=request.app.state.server_config.encryption.mode,
+        configured_encryption_mode=effective_source,
         effective_encryption_source=effective_source,
         encryption_backend=backend_description,
         store_backend=request.app.state.store.backend,
@@ -60,7 +60,7 @@ async def ready(
         issues.append(f"store: {exc}")
 
     vault = request.app.state.vault
-    configured_mode = vault.crypto_mode
+    configured_mode = vault.crypto_source
 
     # 1. Active Identity Check — scoped to the authenticated caller
     checks["identity"] = "ok"
@@ -136,7 +136,7 @@ async def whoami(
         "did": getattr(request.state, "did", ""),
         "registration_status": getattr(request.state, "registration_status", "registered"),
         "daemon_url": server_base_url,
-        "configured_encryption_mode": request.app.state.server_config.encryption.mode,
-        "effective_encryption_source": effective_source or "unavailable",
-        "encryption_backend": backend_description or "Unavailable",
+        "configured_encryption_mode": effective_source,
+        "effective_encryption_source": effective_source,
+        "encryption_backend": backend_description,
     }
