@@ -53,6 +53,7 @@ dev = [
     "ruff>=0.9",
     "ty",
     "httpx>=0.28.1",
+    "pre-commit>=4.6.0",
 ]
 
 [project.scripts]

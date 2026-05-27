@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     app.state.store = await create_store()
     app.state.server_config = await load_server_config(app.state.store)
     audit.setup(get_server_log_path(app.state.store.home))
-    app.state.vault = await create_vault(app.state.store.home, app.state.server_config)
+    app.state.vault = await create_vault(app.state.store.home)
     app.state.auth_sessions = AuthSessionStore()
     app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.store.home))
     app.state.proof_replay_cache = ReplayCache()
