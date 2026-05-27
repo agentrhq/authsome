@@ -36,6 +36,8 @@ dependencies = [
     "python-multipart>=0.0.27",
     "jinja2>=3.1",
     "py-key-value-aio[disk]",
+    "aiosqlite>=0.20",
+    "asyncpg>=0.30",
     "pyjwt>=2.12.1",
     "argon2-cffi>=25.1.0",
     "base58>=2.1.1",
@@ -51,6 +53,7 @@ dev = [
     "ruff>=0.9",
     "ty",
     "httpx>=0.28.1",
+    "pre-commit>=4.6.0",
 ]
 
 [project.scripts]

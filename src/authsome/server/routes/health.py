@@ -36,6 +36,7 @@ def health(request: Request) -> HealthResponse:
         configured_encryption_mode=effective_source,
         effective_encryption_source=effective_source,
         encryption_backend=backend_description,
+        store_backend=request.app.state.store.backend,
     )
 
 
@@ -49,6 +50,14 @@ async def ready(
     warnings: list[str] = []
 
     checks["spec_version"] = "ok"
+
+    try:
+        checks["store"] = "ok" if await request.app.state.store.is_healthy() else "failed"
+        if checks["store"] == "failed":
+            issues.append("store: readiness check failed")
+    except Exception as exc:
+        checks["store"] = "failed"
+        issues.append(f"store: {exc}")
 
     vault = request.app.state.vault
     configured_mode = vault.crypto_source

@@ -9,9 +9,9 @@ import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
 
+from authsome.identity.principal import PrincipalRecord
 from authsome.server.ownership import ensure_principal_default_vault
-from authsome.server.registries import (
-    PrincipalRecord,
+from authsome.server.store.repositories import (
     PrincipalRegistry,
     PrincipalVaultBindingRegistry,
     VaultRegistry,

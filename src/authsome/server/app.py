@@ -13,23 +13,18 @@ from authsome import audit
 from authsome.auth.sessions import AuthSessionStore
 from authsome.errors import AuthsomeError
 from authsome.identity.proof import ReplayCache
-from authsome.paths import get_server_log_path
 from authsome.server.analytics import init_posthog, shutdown_posthog
 from authsome.server.dependencies import (
-    create_app_store,
     create_hosted_account_service,
     create_identity_bootstrap_service,
-    create_identity_claim_registry,
     create_ownership_resolver,
-    create_principal_vault_binding_registry,
+    create_store,
     create_vault,
-    create_vault_registry,
-    get_identity_registry_path,
     get_server_base_url,
+    get_server_log_path,
     load_server_config,
     load_ui_session_signing_secret,
 )
-from authsome.server.registries import IdentityRegistrationError, IdentityRegistry
 from authsome.server.routes.auth import router as auth_router
 from authsome.server.routes.connections import router as connections_router
 from authsome.server.routes.health import router as health_router
@@ -38,33 +33,35 @@ from authsome.server.routes.providers import router as providers_router
 from authsome.server.routes.proxy import router as proxy_router
 from authsome.server.routes.ui import UiAuthRequiredError
 from authsome.server.routes.ui import router as ui_router
+from authsome.server.store.repositories import IdentityRegistrationError
 from authsome.server.ui_sessions import UiSessionStore
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage daemon lifecycle."""
-    app.state.store = await create_app_store()
-    app.state.server_config = load_server_config(app.state.store.home)
+    app.state.store = await create_store()
+    app.state.server_config = await load_server_config(app.state.store)
     audit.setup(get_server_log_path(app.state.store.home))
-    app.state.vault = await create_vault(app.state.store)
+    app.state.vault = await create_vault(app.state.store.home)
     app.state.auth_sessions = AuthSessionStore()
     app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.store.home))
     app.state.proof_replay_cache = ReplayCache()
-    app.state.identity_registry = IdentityRegistry(get_identity_registry_path(app.state.store.home))
-    app.state.vault_registry = create_vault_registry(app.state.store.home)
-    app.state.identity_claim_registry = create_identity_claim_registry(app.state.store.home)
-    app.state.principal_vault_binding_registry = create_principal_vault_binding_registry(app.state.store.home)
-    app.state.hosted_account_service = create_hosted_account_service(app.state.store.home)
+    app.state.identity_registry = app.state.store.identity_registry
+    app.state.vault_registry = app.state.store.vaults
+    app.state.identity_claim_registry = app.state.store.identity_claims
+    app.state.principal_vault_binding_registry = app.state.store.principal_vault_bindings
+    app.state.provider_definition_repository = app.state.store.provider_definitions
+    app.state.hosted_account_service = create_hosted_account_service(app.state.store)
     app.state.server_base_url = get_server_base_url()
     init_posthog()
     app.state.identity_bootstrap = create_identity_bootstrap_service(
         app.state.identity_registry,
         app.state.ui_sessions,
-        home=app.state.store.home,
+        store=app.state.store,
         server_base_url=app.state.server_base_url,
     )
-    app.state.ownership_resolver = create_ownership_resolver(app.state.store.home)
+    app.state.ownership_resolver = create_ownership_resolver(app.state.store)
     app.state.ownership_cache = {}
     yield
     shutdown_posthog()

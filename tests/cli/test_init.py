@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 
@@ -10,7 +9,6 @@ from authsome import __version__
 from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
 from authsome.cli.main import cli
 from authsome.identity import create_identity, mark_registered
-from authsome.store.local import LocalAppStore
 
 
 def test_init_removes_legacy_default_state_and_registers_identity(
@@ -22,8 +20,6 @@ def test_init_removes_legacy_default_state_and_registers_identity(
     identities.mkdir(parents=True)
     (identities / "default.json").write_text("{}", encoding="utf-8")
     (identities / "default.key").write_text("legacy\n", encoding="utf-8")
-
-    asyncio.run(LocalAppStore(tmp_path).ensure_initialized())
 
     created = create_identity(tmp_path, "steady-wisely-boldly-0042")
     mark_registered(tmp_path, created.handle)
@@ -53,7 +49,6 @@ def test_init_skips_registration_for_registered_active_profile(
     mock_client,
     tmp_path: Path,
 ) -> None:
-    asyncio.run(LocalAppStore(tmp_path).ensure_initialized())
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
     mark_registered(tmp_path, identity.handle)
     save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))

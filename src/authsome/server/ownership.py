@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from authsome.identity.principal import ClaimStatus
-from authsome.server.registries import (
+from authsome.server.store.repositories import (
     IdentityClaimRegistry,
     PrincipalRegistry,
     PrincipalVaultBindingRegistry,
