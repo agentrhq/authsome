@@ -242,6 +242,17 @@ def _logo_initial(name: str) -> str:
     return (name[:1] or "?").upper()
 
 
+def _provider_api_url_label(provider: ProviderDefinition) -> str:
+    urls = provider.api_urls()
+    if urls:
+        return ", ".join(urls)
+    return (provider.oauth.base_url if provider.oauth else None) or provider.name
+
+
+def _provider_primary_api_url(provider: ProviderDefinition) -> str:
+    return provider.primary_api_url() or (provider.oauth.base_url if provider.oauth else None) or provider.name
+
+
 def _build_provider_view(
     provider: ProviderDefinition,
     source: str,
@@ -252,7 +263,7 @@ def _build_provider_view(
         "display_name": provider.display_name,
         "auth_type": provider.auth_type.value,
         "auth_type_label": "OAuth 2.0" if provider.auth_type == AuthType.OAUTH2 else "API Key",
-        "api_url": provider.api_url or (provider.oauth.base_url if provider.oauth else None) or provider.name,
+        "api_url": _provider_api_url_label(provider),
         "description": (provider.metadata or {}).get("description", ""),
         "source": source,
         "logo_initial": _logo_initial(provider.display_name or provider.name),
@@ -521,7 +532,7 @@ async def app_detail(
 ) -> Response:
     provider = await auth.get_provider(provider_name)
     redirect_uri = build_callback_url(server_base_url)
-    api_url = provider.api_url or (provider.oauth.base_url if provider.oauth else None) or provider.name
+    api_url = _provider_api_url_label(provider)
     policy = _ui_policy(request, auth)
     if not policy["show_provider_client_details"] and _is_hosted_ui():
         return templates.TemplateResponse(
@@ -569,7 +580,7 @@ async def connection_detail(
 ) -> Response:
     provider = await auth.get_provider(provider_name)
     connection_record = await auth.get_connection(provider_name, connection_name)
-    api_url = provider.api_url or (provider.oauth.base_url if provider.oauth else None) or provider.name
+    api_url = _provider_api_url_label(provider)
     common = _connection_detail_context(request, auth, provider, connection_record, api_url)
 
     if provider.auth_type == AuthType.OAUTH2:
@@ -591,7 +602,7 @@ async def connection_detail(
             "api_key": connection_record.api_key,
             "base_url": connection_record.base_url
             or (provider.oauth.base_url if provider.oauth else None)
-            or provider.api_url,
+            or _provider_primary_api_url(provider),
         },
     )
 

@@ -758,7 +758,7 @@ class TestProviderProxyMetadata:
     async def test_github_provider_has_api_url(self, tmp_path: Path) -> None:
         auth = await _make_auth(tmp_path)
         provider = await auth.get_provider("github")
-        assert provider.api_url == "api.github.com"
+        assert provider.api_url == ["api.github.com", r"regex:.*githubusercontent\.com$"]
 
 
 # ── CLI tests ────────────────────────────────────────────────────────────

@@ -185,40 +185,42 @@ class ProxyRouter:
             for conn in selected_connections:
                 if conn.get("is_default") is False:
                     continue
-                target_api_url = conn.get("api_url") or getattr(definition, "api_url", None)
+                resolved = definition.resolve_urls(conn.get("base_url"))
+                target_api_url = conn.get("api_url") or getattr(resolved, "api_url", None)
                 if not target_api_url:
                     continue
 
-                resolved = definition.resolve_urls(conn.get("base_url"))
                 route_match = RouteMatch(provider=provider_name, connection=conn.get("connection_name"))
-                regex_pattern = _compile_host_regex(target_api_url)
-                if regex_pattern is not None:
-                    regex_routes.append(
-                        _RegexRouteTarget(
-                            host_pattern=regex_pattern,
-                            target=_RouteTarget(
-                                match=route_match,
-                                path_prefix=None,
-                                auth_endpoint_paths=_auth_endpoint_paths_for_regex(resolved, regex_pattern),
-                                host_specificity=_HOST_SPECIFICITY_REGEX,
-                            ),
+                api_urls = _api_url_values(target_api_url)
+                for api_url in api_urls:
+                    regex_pattern = _compile_host_regex(api_url)
+                    if regex_pattern is not None:
+                        regex_routes.append(
+                            _RegexRouteTarget(
+                                host_pattern=regex_pattern,
+                                target=_RouteTarget(
+                                    match=route_match,
+                                    path_prefix=None,
+                                    auth_endpoint_paths=_auth_endpoint_paths_for_regex(resolved, regex_pattern),
+                                    host_specificity=_HOST_SPECIFICITY_REGEX,
+                                ),
+                            )
+                        )
+                        continue
+
+                    host, path_prefix = _parse_api_url(api_url)
+                    if not host or host in _LOOPBACK_HOSTS:
+                        continue
+
+                    auth_endpoint_paths = _auth_endpoint_paths(resolved, host)
+                    routes_by_host.setdefault(host, []).append(
+                        _RouteTarget(
+                            match=route_match,
+                            path_prefix=path_prefix,
+                            auth_endpoint_paths=auth_endpoint_paths,
+                            host_specificity=_HOST_SPECIFICITY_EXACT,
                         )
                     )
-                    continue
-
-                host, path_prefix = _parse_api_url(target_api_url)
-                if not host or host in _LOOPBACK_HOSTS:
-                    continue
-
-                auth_endpoint_paths = _auth_endpoint_paths(resolved, host)
-                routes_by_host.setdefault(host, []).append(
-                    _RouteTarget(
-                        match=route_match,
-                        path_prefix=path_prefix,
-                        auth_endpoint_paths=auth_endpoint_paths,
-                        host_specificity=_HOST_SPECIFICITY_EXACT,
-                    )
-                )
 
         return {host: tuple(routes) for host, routes in routes_by_host.items()}, tuple(regex_routes)
 
@@ -238,6 +240,12 @@ def _is_auth_endpoint(provider, host: str, path: str) -> bool:
 
 def _extract_host(api_url: str) -> str:
     return _parse_api_url(api_url)[0]
+
+
+def _api_url_values(api_url: str | list[str]) -> tuple[str, ...]:
+    if isinstance(api_url, str):
+        return (api_url,)
+    return tuple(value for value in api_url if isinstance(value, str) and value.strip())
 
 
 def _parse_api_url(api_url: str) -> tuple[str, str | None]:

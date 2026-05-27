@@ -77,7 +77,9 @@ def _validate_provider_endpoints(definition: Any) -> list[tuple[str, str, bool]]
     if definition.registration and definition.registration.registration_endpoint:
         endpoints_to_check.append(("registration_endpoint", definition.registration.registration_endpoint, False))
     if definition.api_url:
-        endpoints_to_check.append(("api_url", definition.api_url, True))
+        api_urls = definition.api_url if isinstance(definition.api_url, list) else [definition.api_url]
+        for api_url in api_urls:
+            endpoints_to_check.append(("api_url", api_url, True))
 
     for name, val, is_host in endpoints_to_check:
         if "://" in val:

@@ -76,11 +76,24 @@ class ProviderDefinition(BaseModel):
     api_key: ApiKeyConfig | None = None
     export: ExportConfig | None = None
     docs_url: str | None = None
-    api_url: str | None = None
+    api_url: str | list[str] | None = None
 
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"extra": "allow"}
+
+    def api_urls(self) -> tuple[str, ...]:
+        """Return the configured API URLs as a normalized tuple."""
+        if self.api_url is None:
+            return ()
+        if isinstance(self.api_url, str):
+            return (self.api_url,)
+        return tuple(url for url in self.api_url if isinstance(url, str) and url.strip())
+
+    def primary_api_url(self) -> str | None:
+        """Return the first configured API URL, if any."""
+        urls = self.api_urls()
+        return urls[0] if urls else None
 
     def resolve_urls(self, base_url: str | None = None) -> ProviderDefinition:
         """Return a new ProviderDefinition with {base_url} templates resolved."""
@@ -111,6 +124,9 @@ class ProviderDefinition(BaseModel):
             resolved.registration.registration_endpoint = resolve(resolved.registration.registration_endpoint)
 
         # Resolve api_url if it contains the template
-        resolved.api_url = resolve(resolved.api_url) or resolved.api_url
+        if isinstance(resolved.api_url, str):
+            resolved.api_url = resolve(resolved.api_url) or resolved.api_url
+        elif isinstance(resolved.api_url, list):
+            resolved.api_url = [resolve(url) or url for url in resolved.api_url]
 
         return resolved

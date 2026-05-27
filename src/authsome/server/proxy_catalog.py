@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from authsome.server.credential_service import AuthService
 
 
-def _build_route_entry(definition: Any, connection_name: str) -> dict[str, Any]:
+def _build_route_entry(definition: Any, connection_name: str, api_url: str | list[str] | None) -> dict[str, Any]:
     paths: set[str] = set()
     if definition.oauth:
         for raw_url in [
@@ -28,9 +28,21 @@ def _build_route_entry(definition: Any, connection_name: str) -> dict[str, Any]:
     return {
         "provider": definition.name,
         "connection": connection_name,
-        "api_url": definition.api_url,
+        "api_url": api_url,
         "auth_endpoint_paths": sorted(list(paths)),
     }
+
+
+def _route_entries(definition: Any, connection_name: str, api_url: str | list[str] | None) -> list[dict[str, Any]]:
+    """Return one proxy route entry per API URL."""
+    if api_url is None:
+        return []
+    api_urls = (api_url,) if isinstance(api_url, str) else tuple(url for url in api_url if url and url.strip())
+    if not api_urls:
+        return []
+
+    base_entry = _build_route_entry(definition, connection_name, api_url)
+    return [{**base_entry, "api_url": api_url} for api_url in api_urls]
 
 
 async def build_proxy_routes(auth: AuthService, scope: str = "connected") -> dict[str, Any]:
@@ -61,13 +73,19 @@ async def build_proxy_routes(auth: AuthService, scope: str = "connected") -> dic
             if not default_conn:
                 continue
 
-            routes.append(_build_route_entry(definition, default_conn.get("connection_name", "default")))
+            routes.extend(
+                _route_entries(
+                    definition,
+                    default_conn.get("connection_name", "default"),
+                    default_conn.get("api_url") or definition.api_url,
+                )
+            )
     else:  # configured
         for definition in await auth.list_providers():
             if not definition.api_url:
                 continue
             connection = await auth.resolve_connection_name(definition.name)
-            routes.append(_build_route_entry(definition, connection))
+            routes.extend(_route_entries(definition, connection, definition.api_url))
 
     routes.sort(key=lambda r: (r["api_url"].startswith("regex:"), r["provider"]))
     return {"routes": routes}
