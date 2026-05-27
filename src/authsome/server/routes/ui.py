@@ -23,11 +23,7 @@ from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.auth.sessions import AuthSession, AuthSessionStore
 from authsome.server.credential_service import AuthService, is_admin_principal
-from authsome.server.dependencies import (
-    create_principal_vault_binding_registry,
-    create_vault_registry,
-    get_deployment_mode,
-)
+from authsome.server.dependencies import get_deployment_mode
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
     get_auth_service,
@@ -283,8 +279,8 @@ async def _provider_connection_groups(
     if not principal_id:
         return []
 
-    bindings = create_principal_vault_binding_registry(request.app.state.store.home)
-    vaults = create_vault_registry(request.app.state.store.home)
+    bindings = request.app.state.store.principal_vault_bindings
+    vaults = request.app.state.store.vaults
     groups: list[dict[str, Any]] = []
 
     for binding in await bindings.list_for_principal(principal_id):
@@ -294,6 +290,7 @@ async def _provider_connection_groups(
             principal_id=principal_id,
             vault_id=binding.vault_id,
             deployment_mode=get_deployment_mode(),
+            provider_definitions=request.app.state.provider_definition_repository,
         )
         provider_connections = next(
             (group["connections"] for group in await scoped_auth.list_connections() if group["name"] == provider_name),

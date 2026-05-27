@@ -15,13 +15,29 @@ from authsome.errors import OperationNotAllowedError
 from authsome.identity import create_identity
 from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import (
-    create_app_store,
+    create_store,
     create_vault,
-    create_vault_registry,
-    get_identity_registry_path,
+    load_server_config,
 )
-from authsome.server.registries import IdentityRegistry
 from authsome.utils import build_store_key
+
+
+class EmptyProviderDefinitions:
+    async def get(self, name: str):  # noqa: ANN001, ANN201
+        return None
+
+    async def list(self):  # noqa: ANN201
+        return []
+
+    async def save(self, definition, *, force: bool = False) -> None:  # noqa: ANN001
+        raise AssertionError("unexpected provider definition save")
+
+    async def delete(self, name: str) -> bool:
+        return False
+
+
+def _service(vault, **kwargs) -> AuthService:  # noqa: ANN001, ANN003
+    return AuthService(vault, provider_definitions=EmptyProviderDefinitions(), **kwargs)
 
 
 def _make_provider(*, flow: FlowType = FlowType.PKCE) -> ProviderDefinition:
@@ -52,7 +68,7 @@ def _make_session(*, flow_type: FlowType) -> AuthSession:
 async def test_get_provider_client_reads_from_server_scope() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = ProviderClientRecord(provider="github", client_id="cid").model_dump_json()
-    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+    service = _service(vault, identity="steady-wisely-boldly-0042")
 
     record = await service.get_provider_client("github")
 
@@ -65,7 +81,7 @@ async def test_get_provider_client_reads_from_server_scope() -> None:
 async def test_save_inputs_persists_provider_client_to_server_scope() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
-    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+    service = _service(vault, identity="steady-wisely-boldly-0042")
     session = _make_session(flow_type=FlowType.PKCE)
 
     await service.save_inputs(
@@ -91,7 +107,7 @@ async def test_save_inputs_persists_provider_client_to_server_scope() -> None:
 async def test_save_inputs_with_scopes_only_writes_server_record() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
-    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+    service = _service(vault, identity="steady-wisely-boldly-0042")
     session = _make_session(flow_type=FlowType.PKCE)
 
     await service.save_inputs(session, {"scopes": "repo,read:user"})
@@ -105,7 +121,7 @@ async def test_save_inputs_with_scopes_only_writes_server_record() -> None:
 @pytest.mark.asyncio
 async def test_get_required_inputs_skips_scope_prompt_when_server_scopes_exist() -> None:
     vault = mock.AsyncMock()
-    service = AuthService(vault, identity="second-identity")
+    service = _service(vault, identity="second-identity")
     session = _make_session(flow_type=FlowType.PKCE)
 
     with mock.patch.object(
@@ -129,7 +145,7 @@ async def test_get_required_inputs_skips_scope_prompt_when_server_scopes_exist()
 async def test_pkce_client_credentials_prompt_id_then_secret() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
-    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+    service = _service(vault, identity="steady-wisely-boldly-0042")
     session = _make_session(flow_type=FlowType.PKCE)
 
     with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())):
@@ -144,7 +160,7 @@ async def test_pkce_client_credentials_prompt_id_then_secret() -> None:
 async def test_update_provider_configuration_persists_default_scopes_when_omitted() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
-    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+    service = _service(vault, identity="steady-wisely-boldly-0042")
 
     with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())):
         changed = await service.update_provider_configuration(
@@ -164,7 +180,7 @@ async def test_update_provider_configuration_persists_default_scopes_when_omitte
 async def test_update_provider_configuration_persists_submitted_scopes() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
-    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+    service = _service(vault, identity="steady-wisely-boldly-0042")
 
     with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())):
         changed = await service.update_provider_configuration(
@@ -192,13 +208,13 @@ async def test_hosted_admin_provider_config_satisfies_next_identity_login(monkey
     vault.put.side_effect = put_value
     monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPALS", "principal_admin")
 
-    admin_service = AuthService(
+    admin_service = _service(
         vault,
         identity=None,
         principal_id="principal_admin",
         deployment_mode="hosted",
     )
-    identity_service = AuthService(
+    identity_service = _service(
         vault,
         identity="steady-wisely-boldly-0042",
         principal_id="principal_user",
@@ -227,7 +243,7 @@ async def test_begin_login_flow_reuses_server_scopes() -> None:
         client_secret="secret",
         scopes=["repo", "read:user"],
     ).model_dump_json()
-    service = AuthService(vault, identity="second-identity")
+    service = _service(vault, identity="second-identity")
     session = _make_session(flow_type=FlowType.PKCE)
     handler = mock.AsyncMock()
 
@@ -244,7 +260,7 @@ async def test_begin_login_flow_reuses_server_scopes() -> None:
 async def test_resume_login_flow_saves_dcr_client_record_to_server_scope() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
-    service = AuthService(vault, identity="steady-wisely-boldly-0042")
+    service = _service(vault, identity="steady-wisely-boldly-0042")
     session = _make_session(flow_type=FlowType.DCR_PKCE)
     session.payload["base_url"] = "https://api.github.example"
 
@@ -293,7 +309,7 @@ async def test_resume_login_flow_saves_dcr_client_record_to_server_scope() -> No
 async def test_hosted_save_inputs_rejects_shared_client_mutation() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
-    service = AuthService(vault, identity="steady-wisely-boldly-0042", deployment_mode="hosted")
+    service = _service(vault, identity="steady-wisely-boldly-0042", deployment_mode="hosted")
     session = _make_session(flow_type=FlowType.PKCE)
 
     with pytest.raises(OperationNotAllowedError):
@@ -307,7 +323,7 @@ async def test_hosted_save_inputs_rejects_shared_client_mutation() -> None:
 async def test_hosted_save_inputs_rejects_scopes_only_server_write() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
-    service = AuthService(vault, identity="steady-wisely-boldly-0042", deployment_mode="hosted")
+    service = _service(vault, identity="steady-wisely-boldly-0042", deployment_mode="hosted")
     session = _make_session(flow_type=FlowType.PKCE)
 
     with pytest.raises(OperationNotAllowedError):
@@ -318,7 +334,7 @@ async def test_hosted_save_inputs_rejects_scopes_only_server_write() -> None:
 async def test_hosted_resume_login_flow_rejects_dcr_client_persistence() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
-    service = AuthService(vault, identity="steady-wisely-boldly-0042", deployment_mode="hosted")
+    service = _service(vault, identity="steady-wisely-boldly-0042", deployment_mode="hosted")
     session = _make_session(flow_type=FlowType.DCR_PKCE)
 
     connection = ConnectionRecord(
@@ -350,14 +366,12 @@ async def test_hosted_resume_login_flow_rejects_dcr_client_persistence() -> None
 @pytest.mark.asyncio
 async def test_revoke_local_deletes_shared_client_and_all_identity_connections(tmp_path) -> None:
     first_identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    store = await create_app_store(tmp_path)
-    registry = IdentityRegistry(get_identity_registry_path(tmp_path))
-    await registry.register(handle=first_identity.handle, did=first_identity.did)
-    vault_registry = create_vault_registry(tmp_path)
-    primary_vault = await vault_registry.create_default()
-    secondary_vault = await vault_registry.create_default()
+    store = await create_store(tmp_path)
+    await store.identity_registry.register(handle=first_identity.handle, did=first_identity.did)
+    primary_vault = await store.vaults.create_default()
+    secondary_vault = await store.vaults.create_default()
 
-    vault = await create_vault(store)
+    vault = await create_vault(store.home, await load_server_config(store))
     try:
         service = AuthService(
             vault,
@@ -365,6 +379,7 @@ async def test_revoke_local_deletes_shared_client_and_all_identity_connections(t
             principal_id="principal_1",
             vault_id=primary_vault.vault_id,
             deployment_mode="local",
+            provider_definitions=store.provider_definitions,
         )
 
         primary_connection = ConnectionRecord(

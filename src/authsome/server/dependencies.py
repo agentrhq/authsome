@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from authsome.server.credential_service import AuthService
-    from authsome.store.interfaces import AppStore
+
+from key_value.aio.stores.disk import DiskStore
 
 from authsome.auth.models.config import ServerConfig
 from authsome.identity import current_from_home
@@ -23,15 +24,10 @@ from authsome.server.identity_bootstrap import (
     LocalIdentityBootstrapService,
 )
 from authsome.server.ownership import HostedOwnershipResolver, LocalOwnershipResolver, OwnershipResolver
-from authsome.server.registries import (
-    IdentityClaimRegistry,
-    IdentityRegistry,
-    PrincipalRegistry,
-    PrincipalVaultBindingRegistry,
-    VaultRegistry,
-)
+from authsome.server.store import ServerStore
+from authsome.server.store import create_server_store as _create_server_store
+from authsome.server.store.repositories import IdentityRegistry
 from authsome.server.urls import build_server_base_url
-from authsome.store.local import LocalAppStore
 from authsome.vault import Vault
 
 
@@ -45,39 +41,9 @@ def get_server_home(home: Path | None = None) -> Path:
     return _get_server_home(home)
 
 
-def get_server_config_path(home: Path | None = None) -> Path:
-    """Return the daemon-owned config file path."""
-    return get_server_home(home) / "config.json"
-
-
 def get_server_log_path(home: Path | None = None) -> Path:
     """Return the daemon-owned structured log path."""
     return _get_server_log_path(home)
-
-
-def get_identity_registry_path(home: Path | None = None) -> Path:
-    """Return the daemon-owned identity registry file path."""
-    return get_server_home(home) / "identity_registry.json"
-
-
-def get_principal_registry_path(home: Path | None = None) -> Path:
-    """Return the daemon-owned principal registry file path."""
-    return get_server_home(home) / "principal_registry.json"
-
-
-def get_vault_registry_path(home: Path | None = None) -> Path:
-    """Return the daemon-owned vault registry file path."""
-    return get_server_home(home) / "vault_registry.json"
-
-
-def get_identity_claim_registry_path(home: Path | None = None) -> Path:
-    """Return the daemon-owned identity-claim registry file path."""
-    return get_server_home(home) / "identity_claim_registry.json"
-
-
-def get_principal_vault_binding_registry_path(home: Path | None = None) -> Path:
-    """Return the daemon-owned principal-vault binding registry file path."""
-    return get_server_home(home) / "principal_vault_binding_registry.json"
 
 
 def get_ui_session_secret_path(home: Path | None = None) -> Path:
@@ -115,47 +81,39 @@ async def get_local_ui_identity(home: Path | None = None) -> str:
     return identity.handle
 
 
-def load_server_config(home: Path | None = None) -> ServerConfig:
-    """Load daemon-owned server config, defaulting when absent or invalid."""
-    path = get_server_config_path(home)
-    try:
-        return ServerConfig.model_validate_json(path.read_text(encoding="utf-8"))
-    except Exception:
-        config = ServerConfig()
-        save_server_config(config, home)
-        return config
+async def create_store(home: Path | None = None) -> ServerStore:
+    """Create the server-owned relational Store."""
+    return await _create_server_store(home=home or get_authsome_home())
 
 
-def save_server_config(config: ServerConfig, home: Path | None = None) -> None:
-    """Persist daemon-owned server config."""
-    path = get_server_config_path(home)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(config.model_dump_json(indent=2), encoding="utf-8")
+async def load_server_config(store: ServerStore) -> ServerConfig:
+    """Load daemon-owned server config from Store."""
+    return await store.server_config.load()
 
 
-async def create_app_store(home: Path | None = None) -> AppStore:
-    """Create the daemon application store."""
-    resolved_home = home or get_authsome_home()
-    load_server_config(resolved_home)
-    app_store = LocalAppStore(resolved_home)
-    await app_store.ensure_initialized()
-    return app_store
+async def save_server_config(store: ServerStore, config: ServerConfig) -> None:
+    """Persist daemon-owned server config to Store."""
+    await store.server_config.save(config)
 
 
 async def list_registered_identity_handles(home: Path | None = None) -> list[str]:
     """Return identity handles registered with this daemon."""
-    registry = IdentityRegistry(get_identity_registry_path(home))
-    return await registry.list_handles()
+    store = await create_store(home)
+    try:
+        return await store.identity_registry.list_handles()
+    finally:
+        await store.close()
 
 
-async def create_vault(app_store: AppStore) -> Vault:
-    """Create the daemon vault from an initialized application store."""
-    resolved_home = app_store.home
-    config = load_server_config(resolved_home)
+async def create_vault(home: Path, config: ServerConfig) -> Vault:
+    """Create the daemon Vault over the current local py-key-value adapter."""
+    server_home = get_server_home(home)
+    server_home.mkdir(parents=True, exist_ok=True)
+    kv = DiskStore(directory=str(server_home / "kv_store"))
     return Vault(
-        app_store=app_store,
+        kv=kv,
         crypto_mode=config.encryption.mode,
-        master_key_path=get_server_home(resolved_home) / "master.key",
+        master_key_path=get_server_home(home) / "master.key",
     )
 
 
@@ -169,54 +127,39 @@ async def create_auth_service(
         raise ValueError("create_auth_service requires an explicit identity handle")
     if not vault_id:
         raise ValueError("create_auth_service requires an explicit vault_id")
-    store = await create_app_store(home)
-    vault = await create_vault(store)
-    return AuthService(vault=vault, identity=identity, vault_id=vault_id, deployment_mode=get_deployment_mode())
-
-
-def create_principal_registry(home: Path | None = None) -> PrincipalRegistry:
-    return PrincipalRegistry(get_principal_registry_path(home))
-
-
-def create_vault_registry(home: Path | None = None) -> VaultRegistry:
-    return VaultRegistry(get_vault_registry_path(home))
-
-
-def create_identity_claim_registry(home: Path | None = None) -> IdentityClaimRegistry:
-    return IdentityClaimRegistry(get_identity_claim_registry_path(home))
-
-
-def create_principal_vault_binding_registry(home: Path | None = None) -> PrincipalVaultBindingRegistry:
-    return PrincipalVaultBindingRegistry(get_principal_vault_binding_registry_path(home))
-
-
-def create_hosted_account_service(home: Path | None = None) -> HostedAccountService:
-    resolved_home = home or get_authsome_home()
-    return HostedAccountService(
-        principals=create_principal_registry(resolved_home),
-        vaults=create_vault_registry(resolved_home),
-        bindings=create_principal_vault_binding_registry(resolved_home),
-        jwt_secret=load_ui_session_signing_secret(resolved_home),
+    store = await create_store(home)
+    config = await load_server_config(store)
+    vault = await create_vault(store.home, config)
+    return AuthService(
+        vault=vault,
+        identity=identity,
+        vault_id=vault_id,
+        deployment_mode=get_deployment_mode(),
+        provider_definitions=store.provider_definitions,
     )
 
 
-def create_ownership_resolver(home: Path | None = None) -> OwnershipResolver:
-    resolved_home = home or get_authsome_home()
-    principals = create_principal_registry(resolved_home)
-    vaults = create_vault_registry(resolved_home)
-    claims = create_identity_claim_registry(resolved_home)
-    bindings = create_principal_vault_binding_registry(resolved_home)
+def create_hosted_account_service(store: ServerStore) -> HostedAccountService:
+    return HostedAccountService(
+        principals=store.principals,
+        vaults=store.vaults,
+        bindings=store.principal_vault_bindings,
+        jwt_secret=load_ui_session_signing_secret(store.home),
+    )
+
+
+def create_ownership_resolver(store: ServerStore) -> OwnershipResolver:
     if get_deployment_mode() == "hosted":
         return HostedOwnershipResolver(
-            principals=principals,
-            vaults=vaults,
-            claims=claims,
-            bindings=bindings,
+            principals=store.principals,
+            vaults=store.vaults,
+            claims=store.identity_claims,
+            bindings=store.principal_vault_bindings,
         )
     return LocalOwnershipResolver(
-        principals=principals,
-        vaults=vaults,
-        bindings=bindings,
+        principals=store.principals,
+        vaults=store.vaults,
+        bindings=store.principal_vault_bindings,
     )
 
 
@@ -224,14 +167,13 @@ def create_identity_bootstrap_service(
     identity_registry: IdentityRegistry,
     ui_sessions: Any,
     *,
-    home: Path | None = None,
+    store: ServerStore,
     server_base_url: str | None = None,
 ) -> IdentityBootstrapService:
-    resolved_home = home or get_authsome_home()
     if get_deployment_mode() == "hosted":
         return HostedIdentityBootstrapService(
             registry=identity_registry,
-            claims=create_identity_claim_registry(resolved_home),
+            claims=store.identity_claims,
             ui_sessions=ui_sessions,
             server_base_url=server_base_url or get_server_base_url(),
         )

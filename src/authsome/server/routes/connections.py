@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends
 from authsome.auth.models.enums import ExportFormat
 from authsome.server.analytics import capture_event
 from authsome.server.credential_service import AuthService
-from authsome.server.registries import VaultRegistry
 from authsome.server.routes._deps import get_protected_auth_service, get_vault_registry
+from authsome.server.store.repositories import VaultRegistry
 
 router = APIRouter(tags=["connections"])
 

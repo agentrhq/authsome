@@ -9,7 +9,7 @@ from authsome.identity import current_from_home
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
 from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import get_deployment_mode
-from authsome.server.registries import VaultRegistry
+from authsome.server.store.repositories import VaultRegistry
 from authsome.server.ui_sessions import UiSessionStore
 
 UI_SESSION_COOKIE_NAME = "authsome_ui_session"
@@ -32,6 +32,7 @@ async def get_auth_service(
             principal_id=resolved.principal_id,
             vault_id=resolved.vault_id,
             deployment_mode=get_deployment_mode(),
+            provider_definitions=request.app.state.provider_definition_repository,
         )
 
     if principal_id is None:
@@ -46,6 +47,7 @@ async def get_auth_service(
         principal_id=principal_id,
         vault_id=binding.vault_id,
         deployment_mode=get_deployment_mode(),
+        provider_definitions=request.app.state.provider_definition_repository,
     )
 
 

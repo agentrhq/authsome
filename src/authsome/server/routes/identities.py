@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from authsome.server.analytics import capture_event
-from authsome.server.registries import IdentityRegistrationError
+from authsome.server.store.repositories import IdentityRegistrationError
 
 router = APIRouter(prefix="/identities", tags=["identities"])
 
