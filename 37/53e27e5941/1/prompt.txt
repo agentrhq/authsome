@@ -1,0 +1,21 @@
+/review https://github.com/agentrhq/authsome/pull/301/changes
+
+---
+
+Tell me in brief what is it doing?
+
+---
+
+Why is it 3000 lines of code change? Why does it even need playwright in first place?
+
+---
+
+we can ask for keychain request directly, its not that hard. User can authorize when loggin in
+
+---
+
+what dies the library do? browser-cookie3 ?
+
+---
+
+Make a plan on how the same implememntation would be done on the main branch. Ignore that PR. The core goal is to run browser automations as well
