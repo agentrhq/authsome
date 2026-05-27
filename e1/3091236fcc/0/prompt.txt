@@ -1,0 +1,17 @@
+Help me build a roadmap, refer to the codebase and current roadmap in docs.
+
+---
+
+Wait, update the plan. The major features are audit + otel export, hosted proxy, multi user is already there but we need to add roles of who is user, admin and make proper routes, improved ui, policy layer.  Thats it for featues. Then add distribution channels like homebrew.
+
+---
+
+Okay. Read the internal docs/refactor and compare the code and lets make updated refactor plan
+
+---
+
+/improve-codebase-architecture Based on the CONTEXT.md and the design that identity, audit , vault, auth being child nodes. server being sole orchestrator. Revisit decisions and refactor.md and suggest next improvements.
+
+---
+
+Update the refactor.md file with the discussions. Ignore 3rd as there is no .keys or list_keys function

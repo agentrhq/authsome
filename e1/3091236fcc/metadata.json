@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "e13091236fcc",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "docs/refactor.md",
+    "docs/site/roadmap.mdx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e1/3091236fcc/0/metadata.json",
+      "transcript": "/e1/3091236fcc/0/full.jsonl",
+      "content_hash": "/e1/3091236fcc/0/content_hash.txt",
+      "prompt": "/e1/3091236fcc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10188,
+    "cache_creation_tokens": 116679,
+    "cache_read_tokens": 1687591,
+    "output_tokens": 25073,
+    "api_call_count": 24
+  }
+}
