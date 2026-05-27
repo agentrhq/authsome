@@ -704,16 +704,21 @@ async def configure_provider(
     session.payload["existing_provider_client"] = existing_provider_client
     session.payload["callback_url_override"] = build_callback_url(server_base_url)
     session.payload["return_url"] = f"{server_base_url.rstrip('/')}/apps/{provider_name}"
-    input_fields = [
-        field.model_dump(mode="json", exclude_none=True) for field in await auth.get_required_inputs(session)
-    ]
-    if provider.flow == FlowType.DCR_PKCE and existing_provider_client and not input_fields:
+    if provider.flow == FlowType.DCR_PKCE and existing_provider_client:
         all_vaults = await request.app.state.vault_registry.list_all()
         vault_ids = [vault.vault_id for vault in all_vaults] or ([auth.vault_id] if auth.vault_id else [])
         await auth.update_provider_configuration(provider_name, {}, vault_ids=vault_ids)
-        await sessions.delete(session.session_id)
+        await auth.begin_login_flow(session=session, force=True)
+        await sessions.index_oauth_state(session)
+        auth_url = session.payload.get("auth_url")
+        if auth_url:
+            return _redirect(request, str(auth_url))
+        await sessions.save(session)
         return _redirect(request, f"/apps/{provider_name}")
 
+    input_fields = [
+        field.model_dump(mode="json", exclude_none=True) for field in await auth.get_required_inputs(session)
+    ]
     session.payload["input_fields"] = input_fields
     await sessions.save(session)
     return _redirect(request, build_auth_input_url(server_base_url, session.session_id))
