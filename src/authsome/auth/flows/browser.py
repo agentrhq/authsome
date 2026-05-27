@@ -132,7 +132,6 @@ class BrowserFlow(AuthFlow):
         domains: list[str] = action.get("domains", [])
         auth_cookies: list[str] = action.get("auth_cookies", [])
         ttl_from_cookie: str | None = action.get("ttl_from_cookie")
-        ttl_hours: int = int(action.get("ttl_hours", 24))
 
         def _read() -> dict[str, str] | None:
             try:
