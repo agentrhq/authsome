@@ -33,6 +33,7 @@ from authsome.server.registries import (
 from authsome.server.urls import build_server_base_url
 from authsome.store.local import LocalAppStore
 from authsome.vault import Vault
+from authsome.vault.crypto import AesGcmEncryptionWrapper, DekManager, MasterSecretResolver
 
 
 def get_authsome_home() -> Path:
@@ -150,13 +151,11 @@ async def list_registered_identity_handles(home: Path | None = None) -> list[str
 
 async def create_vault(app_store: AppStore) -> Vault:
     """Create the daemon vault from an initialized application store."""
-    resolved_home = app_store.home
-    config = load_server_config(resolved_home)
-    return Vault(
-        app_store=app_store,
-        crypto_mode=config.encryption.mode,
-        master_key_path=get_server_home(resolved_home) / "master.key",
-    )
+    raw_kv = app_store.kv
+    secret = MasterSecretResolver(get_server_home(app_store.home)).resolve()
+    dek = await DekManager().load_or_create(secret, raw_kv)
+    encrypted_kv = AesGcmEncryptionWrapper(raw_kv, dek=dek)
+    return Vault(encrypted_kv)
 
 
 async def create_auth_service(

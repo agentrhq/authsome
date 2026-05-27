@@ -63,9 +63,9 @@ def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Pat
     assert response.json()["principal_id"].startswith("principal_")
     assert response.json()["vault_id"].startswith("vault_")
     assert response.json()["did"].startswith("did:key:z6Mk")
-    assert response.json()["configured_encryption_mode"] == "auto"
-    assert response.json()["effective_encryption_source"] == "env"
-    assert "AUTHSOME_MASTER_KEY" in response.json()["encryption_backend"]
+    assert response.json()["configured_encryption_mode"] == "aes-256-gcm"
+    assert response.json()["effective_encryption_source"] == "aes-256-gcm"
+    assert "Argon2id" in response.json()["encryption_backend"]
 
 
 def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path) -> None:
@@ -80,13 +80,13 @@ def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path)
         ready_response = client.get("/ready", headers=_auth_header(tmp_path, "GET", "/ready"))
 
     assert health_response.status_code == 200
-    assert health_response.json()["configured_encryption_mode"] == "auto"
-    assert health_response.json()["effective_encryption_source"] == "env"
-    assert "AUTHSOME_MASTER_KEY" in health_response.json()["encryption_backend"]
+    assert health_response.json()["configured_encryption_mode"] == "aes-256-gcm"
+    assert health_response.json()["effective_encryption_source"] == "aes-256-gcm"
+    assert "Argon2id" in health_response.json()["encryption_backend"]
     assert ready_response.status_code == 200
-    assert ready_response.json()["configured_encryption_mode"] == "auto"
-    assert ready_response.json()["effective_encryption_source"] == "env"
-    assert "AUTHSOME_MASTER_KEY" in ready_response.json()["encryption_backend"]
+    assert ready_response.json()["configured_encryption_mode"] == "aes-256-gcm"
+    assert ready_response.json()["effective_encryption_source"] == "aes-256-gcm"
+    assert "Argon2id" in ready_response.json()["encryption_backend"]
 
 
 def test_hosted_registration_requires_claim(monkeypatch, tmp_path: Path) -> None:
