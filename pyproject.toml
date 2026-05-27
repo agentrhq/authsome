@@ -40,6 +40,7 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "base58>=2.1.1",
     "posthog>=3.0",
+    "browser-cookie3>=0.19",
 ]
 
 [project.optional-dependencies]

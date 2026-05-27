@@ -61,6 +61,9 @@ class ConnectionRecord(BaseModel):
     # API key field
     api_key: Annotated[str | None, Sensitive()] = None
 
+    # Browser session cookies (keyed by cookie name)
+    credentials: Annotated[dict[str, str] | None, Sensitive()] = None
+
     # Account info
     account: AccountInfo | None = Field(default_factory=AccountInfo)
 

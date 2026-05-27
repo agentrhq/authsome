@@ -22,6 +22,7 @@ from authsome.server.routes._deps import (
 )
 from authsome.server.schemas import (
     AuthSessionResponse,
+    BrowserAction,
     NoneAction,
     OpenUrlAction,
     ResumeAuthSessionRequest,
@@ -421,10 +422,18 @@ def _update_device_code_expiry(sessions: AuthSessionStore, session: AuthSession)
 
 
 def _session_response(session: AuthSession, server_base_url: str) -> AuthSessionResponse:
-    action: OpenUrlAction | NoneAction = NoneAction()
+    action: OpenUrlAction | BrowserAction | NoneAction = NoneAction()
     input_fields = session.payload.get("input_fields")
     if input_fields and session.state != AuthSessionStatus.COMPLETED:
         action = OpenUrlAction(type="open_url", url=build_auth_input_url(server_base_url, session.session_id))
+    elif session.payload.get("browser_login") and session.state != AuthSessionStatus.COMPLETED:
+        action = BrowserAction(
+            entry_url=str(session.payload["entry_url"]),
+            domains=session.payload.get("domains", []),
+            auth_cookies=session.payload.get("auth_cookies", []),
+            ttl_from_cookie=session.payload.get("ttl_from_cookie"),
+            ttl_hours=int(session.payload.get("ttl_hours", 24)),
+        )
     elif session.payload.get("auth_url"):
         action = OpenUrlAction(type="open_url", url=str(session.payload["auth_url"]))
     elif session.payload.get("verification_uri") and session.payload.get("user_code"):

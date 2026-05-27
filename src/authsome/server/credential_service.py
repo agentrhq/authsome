@@ -18,6 +18,7 @@ from loguru import logger
 from authsome import audit
 from authsome.auth.flows.api_key import ApiKeyFlow
 from authsome.auth.flows.base import AuthFlow
+from authsome.auth.flows.browser import BrowserFlow
 from authsome.auth.flows.dcr_pkce import DcrPkceFlow
 from authsome.auth.flows.device_code import DeviceCodeFlow
 from authsome.auth.flows.pkce import PkceFlow
@@ -51,6 +52,7 @@ from authsome.vault import Vault
 _VALID_FLOWS: dict[AuthType, set[FlowType]] = {
     AuthType.OAUTH2: {FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE},
     AuthType.API_KEY: {FlowType.API_KEY},
+    AuthType.BROWSER: {FlowType.BROWSER},
 }
 
 _NEAR_EXPIRY_SECONDS = 300
@@ -60,6 +62,7 @@ _FLOW_HANDLERS: dict[FlowType, type[AuthFlow]] = {
     FlowType.DEVICE_CODE: DeviceCodeFlow,
     FlowType.DCR_PKCE: DcrPkceFlow,
     FlowType.API_KEY: ApiKeyFlow,
+    FlowType.BROWSER: BrowserFlow,
 }
 
 
@@ -255,6 +258,10 @@ class AuthService:
         if definition.auth_type == AuthType.API_KEY and definition.api_key is None:
             raise InvalidProviderSchemaError(
                 "auth_type 'api_key' requires an 'api_key' configuration section", provider=definition.name
+            )
+        if definition.auth_type == AuthType.BROWSER and definition.browser is None:
+            raise InvalidProviderSchemaError(
+                "auth_type 'browser' requires a 'browser' configuration section", provider=definition.name
             )
         if definition.oauth:
             for field_name in ("authorization_url", "token_url"):
@@ -840,6 +847,10 @@ class AuthService:
             if record.api_key:
                 env_name = export_map.get("api_key", f"{export_name_part(provider)}_API_KEY")
                 values[env_name] = record.api_key
+        elif record.auth_type == AuthType.BROWSER:
+            for k, v in (record.credentials or {}).items():
+                env_name = export_map.get(k, f"{export_name_part(provider)}_{k.upper()}")
+                values[env_name] = v
 
         if definition.export and definition.export.model_extra:
             token = record.access_token if record.auth_type == AuthType.OAUTH2 else record.api_key
@@ -1090,6 +1101,21 @@ class AuthService:
     async def _get_auth_headers_from_record(
         self, record: ConnectionRecord, definition: ProviderDefinition
     ) -> dict[str, str]:
+        if record.auth_type == AuthType.BROWSER:
+            if not record.credentials:
+                raise CredentialMissingError("No browser credentials stored", provider=record.provider)
+            if record.expires_at and utc_now() >= record.expires_at:
+                raise TokenExpiredError(provider=record.provider)
+            cfg = definition.browser
+            headers: dict[str, str] = {}
+            if cfg:
+                for rule in cfg.extract:
+                    if v := record.credentials.get(rule.cookie):
+                        headers[rule.header] = f"{rule.prefix}{v}" if rule.prefix else v
+                headers.update(cfg.extra_headers)
+            headers["Cookie"] = "; ".join(f"{k}={v}" for k, v in record.credentials.items())
+            return headers
+
         token = await self._get_access_token_from_record(record)
 
         if record.auth_type == AuthType.OAUTH2:
