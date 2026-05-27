@@ -40,7 +40,14 @@ class NoneAction(BaseModel):
     type: Literal["none"] = "none"
 
 
-NextAction = Annotated[OpenUrlAction | NoneAction, Field(discriminator="type")]
+class BrowserAction(BaseModel):
+    type: Literal["browser"] = "browser"
+    entry_url: str
+    domains: list[str]
+    auth_cookies: list[str]
+
+
+NextAction = Annotated[OpenUrlAction | BrowserAction | NoneAction, Field(discriminator="type")]
 
 
 class AuthSessionResponse(BaseModel):

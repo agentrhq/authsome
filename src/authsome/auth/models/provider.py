@@ -58,6 +58,28 @@ class ExportConfig(BaseModel):
     model_config = {"extra": "allow"}
 
 
+class ExtractRule(BaseModel):
+    """Map one cookie name to one HTTP request header."""
+
+    cookie: str
+    header: str
+    prefix: str = ""
+
+
+class BrowserConfig(BaseModel):
+    """Browser session cookie provider configuration."""
+
+    entry_url: str
+    domains: list[str]
+    auth_cookies: list[str]
+    validate_url: str | None = None
+    extra_headers: dict[str, str] = Field(default_factory=dict)
+    ttl_hours: int = 24
+    extract: list[ExtractRule] = Field(default_factory=list)
+
+    model_config = {"extra": "allow"}
+
+
 class ProviderDefinition(BaseModel):
     """
     Complete provider definition.
@@ -74,6 +96,7 @@ class ProviderDefinition(BaseModel):
     oauth: OAuthConfig | None = None
     registration: ClientRegistrationConfig | None = None
     api_key: ApiKeyConfig | None = None
+    browser: BrowserConfig | None = None
     export: ExportConfig | None = None
     docs_url: str | None = None
     api_url: str | None = None

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "name": "x-browser",
+  "display_name": "X (Twitter) — Browser Session",
+  "auth_type": "browser",
+  "flow": "browser",
+  "api_url": "regex:^(api\\.twitter\\.com|api\\.x\\.com|x\\.com|twitter\\.com)",
+  "browser": {
+    "entry_url": "https://x.com/login",
+    "domains": [".x.com", "x.com", ".twitter.com", "twitter.com"],
+    "auth_cookies": ["auth_token"],
+    "ttl_hours": 24,
+    "extra_headers": {
+      "x-twitter-active-user": "yes",
+      "x-twitter-client-language": "en"
+    },
+    "extract": [
+      { "cookie": "ct0", "header": "x-csrf-token" }
+    ]
+  },
+  "export": {
+    "env": {
+      "auth_token": "X_AUTH_TOKEN",
+      "ct0": "X_CT0"
+    }
+  }
+}
