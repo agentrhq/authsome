@@ -9,12 +9,17 @@ from __future__ import annotations
 
 import asyncio
 import webbrowser
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
-from authsome.auth.browser_cookies import cookies_are_valid, normalize_jsessionid, read_chrome_cookies
+from authsome.auth.browser_cookies import (
+    COOKIE_EXPIRES_AT_KEY,
+    cookies_are_valid,
+    normalize_jsessionid,
+    read_chrome_cookies,
+)
 from authsome.auth.flows.base import AuthFlow, FlowResult
 from authsome.auth.models.connection import AccountInfo, ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
@@ -51,6 +56,8 @@ class BrowserFlow(AuthFlow):
         runtime_session.payload["entry_url"] = cfg.entry_url
         runtime_session.payload["domains"] = cfg.domains
         runtime_session.payload["auth_cookies"] = cfg.auth_cookies
+        runtime_session.payload["ttl_from_cookie"] = cfg.ttl_from_cookie
+        runtime_session.payload["ttl_hours"] = cfg.ttl_hours
 
     async def resume(
         self,
@@ -69,6 +76,12 @@ class BrowserFlow(AuthFlow):
             return None
 
         now = utc_now()
+        stored_credentials = dict(credentials)
+        expires_at = _resolve_browser_expires_at(
+            stored_credentials,
+            ttl_hours=provider.browser.ttl_hours,
+            now=now,
+        )
         return FlowResult(
             connection=ConnectionRecord(
                 schema_version=2,
@@ -77,8 +90,8 @@ class BrowserFlow(AuthFlow):
                 connection_name=connection_name,
                 auth_type=AuthType.BROWSER,
                 status=ConnectionStatus.CONNECTED,
-                credentials=credentials,
-                expires_at=now + timedelta(hours=provider.browser.ttl_hours),
+                credentials=stored_credentials,
+                expires_at=expires_at,
                 obtained_at=now,
                 account=AccountInfo(),
             )
@@ -118,10 +131,12 @@ class BrowserFlow(AuthFlow):
         entry_url: str = action["entry_url"]
         domains: list[str] = action.get("domains", [])
         auth_cookies: list[str] = action.get("auth_cookies", [])
+        ttl_from_cookie: str | None = action.get("ttl_from_cookie")
+        ttl_hours: int = int(action.get("ttl_hours", 24))
 
         def _read() -> dict[str, str] | None:
             try:
-                cookies = read_chrome_cookies(domains)
+                cookies = read_chrome_cookies(domains, ttl_from_cookie=ttl_from_cookie)
                 if provider_name == "linkedin-browser":
                     cookies = normalize_jsessionid(cookies)
                 if cookies_are_valid(cookies, auth_cookies):
@@ -152,3 +167,19 @@ class BrowserFlow(AuthFlow):
                     f"Timed out waiting for browser login to {entry_url!r} after {int(timeout)}s. "
                     "Please complete login in the browser window."
                 )
+
+
+def _resolve_browser_expires_at(
+    credentials: dict[str, str],
+    *,
+    ttl_hours: int,
+    now: datetime,
+) -> datetime:
+    """Use real cookie expiry when present, otherwise fall back to ttl_hours."""
+    raw_expiry = credentials.pop(COOKIE_EXPIRES_AT_KEY, None)
+    if raw_expiry:
+        try:
+            return datetime.fromtimestamp(int(raw_expiry), tz=UTC)
+        except (ValueError, OSError):
+            pass
+    return now + timedelta(hours=ttl_hours)

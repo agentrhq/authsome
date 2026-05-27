@@ -75,6 +75,7 @@ class BrowserConfig(BaseModel):
     validate_url: str | None = None
     extra_headers: dict[str, str] = Field(default_factory=dict)
     ttl_hours: int = 24
+    ttl_from_cookie: str | None = None  # cookie name whose expires timestamp overrides ttl_hours
     extract: list[ExtractRule] = Field(default_factory=list)
 
     model_config = {"extra": "allow"}

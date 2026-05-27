@@ -9,6 +9,7 @@
     "entry_url": "https://www.linkedin.com/login",
     "domains": [".linkedin.com", "linkedin.com"],
     "auth_cookies": ["li_at"],
+    "ttl_from_cookie": "li_at",
     "ttl_hours": 24,
     "extra_headers": {},
     "extract": [

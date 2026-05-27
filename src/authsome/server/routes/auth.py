@@ -431,6 +431,8 @@ def _session_response(session: AuthSession, server_base_url: str) -> AuthSession
             entry_url=str(session.payload["entry_url"]),
             domains=session.payload.get("domains", []),
             auth_cookies=session.payload.get("auth_cookies", []),
+            ttl_from_cookie=session.payload.get("ttl_from_cookie"),
+            ttl_hours=int(session.payload.get("ttl_hours", 24)),
         )
     elif session.payload.get("auth_url"):
         action = OpenUrlAction(type="open_url", url=str(session.payload["auth_url"]))

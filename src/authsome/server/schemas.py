@@ -45,6 +45,8 @@ class BrowserAction(BaseModel):
     entry_url: str
     domains: list[str]
     auth_cookies: list[str]
+    ttl_from_cookie: str | None = None
+    ttl_hours: int = 24
 
 
 NextAction = Annotated[OpenUrlAction | BrowserAction | NoneAction, Field(discriminator="type")]
