@@ -444,10 +444,6 @@ def test_hosted_admin_provider_configure_route_opens_edit_flow(monkeypatch, tmp_
         assert registered.status_code == 303
         assert client.post(f"{claim_path}/confirm", follow_redirects=False).status_code == 303
 
-        principal_id = asyncio.run(
-            client.app.state.ownership_resolver.resolve(identity="steady-wisely-boldly-0042")
-        ).principal_id
-        monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPALS", principal_id)
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
         response = client.post("/apps/github/configure", follow_redirects=False)
 

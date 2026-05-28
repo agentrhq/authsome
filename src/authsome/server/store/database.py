@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 import aiosqlite
 
 from authsome.paths import get_authsome_home, get_server_home
+from authsome.utils import utc_now
 
 StoreBackend = Literal["sqlite", "postgres"]
 
@@ -162,7 +163,7 @@ def build_schema(backend: StoreBackend) -> list[str]:
         ")",
         "CREATE TABLE IF NOT EXISTS principals ("
         "principal_id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT, "
-        "created_at TEXT NOT NULL, updated_at TEXT NOT NULL"
+        "role TEXT NOT NULL DEFAULT 'user', created_at TEXT NOT NULL, updated_at TEXT NOT NULL"
         ")",
         "CREATE TABLE IF NOT EXISTS vaults ("
         "vault_id TEXT PRIMARY KEY, handle TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL"
@@ -191,6 +192,39 @@ def build_schema(backend: StoreBackend) -> list[str]:
 
 async def initialize_schema(database: StoreDatabase) -> None:
     await database.execute_many(build_schema(database.backend))
+    await migrate_principal_roles(database)
+
+
+async def migrate_principal_roles(database: StoreDatabase) -> None:
+    """Add persisted principal roles to existing Store databases."""
+    if not await _column_exists(database, table="principals", column="role"):
+        await database.execute("ALTER TABLE principals ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+
+    existing_admin = await database.fetch_one("SELECT principal_id FROM principals WHERE role = ? LIMIT 1", ["admin"])
+    if existing_admin is not None:
+        return
+
+    first_principal = await database.fetch_one(
+        "SELECT principal_id FROM principals ORDER BY created_at ASC, principal_id ASC LIMIT 1"
+    )
+    if first_principal is None:
+        return
+    await database.execute(
+        "UPDATE principals SET role = ?, updated_at = ? WHERE principal_id = ?",
+        ["admin", utc_now().isoformat(), first_principal["principal_id"]],
+    )
+
+
+async def _column_exists(database: StoreDatabase, *, table: str, column: str) -> bool:
+    if database.backend == "sqlite":
+        rows = await database.fetch_all(f"PRAGMA table_info({table})")  # noqa: S608
+        return any(row["name"] == column for row in rows)
+
+    row = await database.fetch_one(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = ? AND column_name = ?",
+        [table, column],
+    )
+    return row is not None
 
 
 async def create_server_store(home: Path | None = None, database_url: str | None = None):

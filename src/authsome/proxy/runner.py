@@ -26,6 +26,8 @@ class ProxyClient(Protocol):
 
     async def list_providers_by_source(self) -> Any: ...
 
+    async def record_audit_event(self, event: dict[str, Any]) -> Any: ...
+
 
 class ProxyRunner:
     """Launch a subprocess behind the Authsome local auth proxy."""

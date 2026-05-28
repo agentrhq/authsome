@@ -177,6 +177,7 @@ def test_hosted_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_pa
     monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
+        _claim_identity_via_hosted_ui(client, tmp_path, "admin-ready-boldly-0001", "admin@example.com")
         _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
         vault = client.app.state.vault
         key = build_store_key(provider="github", record_type="server")
@@ -197,10 +198,6 @@ def test_hosted_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Pa
 
     with TestClient(create_app()) as client:
         _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
-        principal_id = asyncio.run(
-            client.app.state.ownership_resolver.resolve(identity="steady-wisely-boldly-0042")
-        ).principal_id
-        monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPALS", principal_id)
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="top-secret")
         response = client.get("/apps/github")
 
