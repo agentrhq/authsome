@@ -17,10 +17,9 @@ from authsome.identity.principal import (
     ClaimStatus,
     IdentityClaimRecord,
     PrincipalRecord,
-    PrincipalVaultBindingRecord,
-    VaultRecord,
 )
 from authsome.identity.registry import IdentityRegistration
+from authsome.server.schemas import PrincipalVaultBindingRecord, VaultRecord
 from authsome.server.store.database import StoreBackend, StoreDatabase
 from authsome.utils import utc_now
 

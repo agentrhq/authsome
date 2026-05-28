@@ -8,7 +8,9 @@ import pytest
 from authsome.auth.models.connection import ProviderClientRecord
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.models.provider import ApiKeyConfig, ProviderDefinition
+from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import AuthService
+from authsome.server.provider_repository import ProviderRepository
 from authsome.server.store import create_server_store
 from authsome.vault import Vault
 
@@ -29,10 +31,15 @@ async def test_custom_provider_definition_is_stored_in_store_not_vault(tmp_path:
     try:
         vault = AsyncMock(spec=Vault)
         service = AuthService(
-            vault=vault,
+            credentials=CredentialRepository(
+                vault,
+                identity="steady-wisely-boldly-0042",
+                principal_id=None,
+                vault_id="vault_test",
+            ),
+            providers=ProviderRepository(store.provider_definitions),
             identity="steady-wisely-boldly-0042",
             vault_id="vault_test",
-            provider_definitions=store.provider_definitions,
         )
 
         await service.register_provider(_provider())
@@ -49,10 +56,15 @@ async def test_provider_client_credentials_still_use_vault(tmp_path: Path) -> No
     try:
         vault = AsyncMock(spec=Vault)
         service = AuthService(
-            vault=vault,
+            credentials=CredentialRepository(
+                vault,
+                identity="steady-wisely-boldly-0042",
+                principal_id=None,
+                vault_id="vault_test",
+            ),
+            providers=ProviderRepository(store.provider_definitions),
             identity="steady-wisely-boldly-0042",
             vault_id="vault_test",
-            provider_definitions=store.provider_definitions,
         )
 
         await service._save_provider_client_credentials(ProviderClientRecord(provider="github", client_id="cid"))

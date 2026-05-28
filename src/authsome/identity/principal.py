@@ -1,4 +1,4 @@
-"""Domain models for principals, vaults, and ownership bindings.
+"""Domain models for principals and identity claims.
 
 These are pure data models shared across server, cli, and identity modules.
 Filesystem-backed registry implementations live in server/registries.py.
@@ -32,32 +32,11 @@ class PrincipalRecord(BaseModel):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
-# TODO: This should be a server property. The principal module should not care about which vault is owned by who
-class VaultRecord(BaseModel):
-    """Vault record owned as a first-class resource."""
-
-    vault_id: str
-    handle: str = "default"
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
-
-
 class IdentityClaimRecord(BaseModel):
     """Binding from identity to principal with lifecycle state."""
 
     identity_handle: str
     principal_id: str
     claim_status: ClaimStatus = ClaimStatus.PENDING
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
-
-
-# TODO: This should be a server property. The principal module should not care about which vault is owned by who
-class PrincipalVaultBindingRecord(BaseModel):
-    """Binding from principal to a vault."""
-
-    principal_id: str
-    vault_id: str
-    is_default: bool = False
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)

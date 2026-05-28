@@ -7,12 +7,36 @@ from fastapi import HTTPException, Request
 from authsome.auth.sessions import AuthSessionStore
 from authsome.identity import current_from_home
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
+from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import get_deployment_mode
 from authsome.server.store.repositories import VaultRegistry
 from authsome.server.ui_sessions import UiSessionStore
 
 UI_SESSION_COOKIE_NAME = "authsome_ui_session"
+
+
+def build_auth_service(
+    request: Request,
+    *,
+    identity: str | None,
+    principal_id: str | None,
+    vault_id: str,
+) -> AuthService:
+    credentials = CredentialRepository(
+        request.app.state.vault,
+        identity=identity,
+        principal_id=principal_id,
+        vault_id=vault_id,
+    )
+    return AuthService(
+        credentials=credentials,
+        providers=request.app.state.provider_repository,
+        identity=identity,
+        principal_id=principal_id,
+        vault_id=vault_id,
+        deployment_mode=get_deployment_mode(),
+    )
 
 
 async def get_auth_service(
@@ -26,13 +50,11 @@ async def get_auth_service(
         if resolved is None:
             resolved = await request.app.state.ownership_resolver.resolve(identity=identity)
             request.app.state.ownership_cache[identity] = resolved
-        return AuthService(
-            vault=request.app.state.vault,
+        return build_auth_service(
+            request,
             identity=identity,
             principal_id=resolved.principal_id,
             vault_id=resolved.vault_id,
-            deployment_mode=get_deployment_mode(),
-            provider_definitions=request.app.state.provider_definition_repository,
         )
 
     if principal_id is None:
@@ -41,13 +63,11 @@ async def get_auth_service(
     binding = await request.app.state.principal_vault_binding_registry.get_default_vault(principal_id)
     if binding is None:
         return None
-    return AuthService(
-        vault=request.app.state.vault,
+    return build_auth_service(
+        request,
         identity=None,
         principal_id=principal_id,
         vault_id=binding.vault_id,
-        deployment_mode=get_deployment_mode(),
-        provider_definitions=request.app.state.provider_definition_repository,
     )
 
 

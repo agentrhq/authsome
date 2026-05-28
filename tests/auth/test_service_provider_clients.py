@@ -13,30 +13,43 @@ from authsome.auth.models.provider import OAuthConfig, ProviderDefinition
 from authsome.auth.sessions import AuthSession
 from authsome.errors import OperationNotAllowedError
 from authsome.identity import create_identity
+from authsome.server.credential_repository import CredentialRepository, build_store_key
 from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import (
     create_store,
     create_vault,
 )
-from authsome.utils import build_store_key
+from authsome.server.provider_repository import ProviderRepository
 
 
-class EmptyProviderDefinitions:
+class EmptyProviders:
     async def get(self, name: str):  # noqa: ANN001, ANN201
-        return None
+        from authsome.errors import ProviderNotFoundError
+
+        raise ProviderNotFoundError(name)
 
     async def list(self):  # noqa: ANN201
         return []
 
-    async def save(self, definition, *, force: bool = False) -> None:  # noqa: ANN001
-        raise AssertionError("unexpected provider definition save")
+    async def list_by_source(self):  # noqa: ANN201
+        return {"bundled": [], "custom": []}
 
-    async def delete(self, name: str) -> bool:
+    async def save_custom(self, definition, *, force: bool = False) -> None:  # noqa: ANN001
+        raise AssertionError("unexpected provider save")
+
+    async def delete_custom(self, name: str) -> bool:
+        return False
+
+    async def is_custom(self, name: str) -> bool:
         return False
 
 
 def _service(vault, **kwargs) -> AuthService:  # noqa: ANN001, ANN003
-    return AuthService(vault, provider_definitions=EmptyProviderDefinitions(), **kwargs)
+    identity = kwargs.get("identity")
+    principal_id = kwargs.get("principal_id")
+    vault_id = kwargs.get("vault_id", "vault_default")
+    credentials = CredentialRepository(vault, identity=identity, principal_id=principal_id, vault_id=vault_id)
+    return AuthService(credentials=credentials, providers=EmptyProviders(), **kwargs)
 
 
 def _make_provider(*, flow: FlowType = FlowType.PKCE) -> ProviderDefinition:
@@ -373,12 +386,17 @@ async def test_revoke_local_deletes_shared_client_and_all_identity_connections(t
     vault = await create_vault(store.home)
     try:
         service = AuthService(
-            vault,
+            credentials=CredentialRepository(
+                vault,
+                identity="steady-wisely-boldly-0042",
+                principal_id="principal_1",
+                vault_id=primary_vault.vault_id,
+            ),
+            providers=ProviderRepository(store.provider_definitions),
             identity="steady-wisely-boldly-0042",
             principal_id="principal_1",
             vault_id=primary_vault.vault_id,
             deployment_mode="local",
-            provider_definitions=store.provider_definitions,
         )
 
         primary_connection = ConnectionRecord(

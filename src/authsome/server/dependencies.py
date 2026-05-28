@@ -16,6 +16,7 @@ from authsome.identity import current_from_home
 from authsome.paths import get_authsome_home as _get_authsome_home
 from authsome.paths import get_server_home as _get_server_home
 from authsome.paths import get_server_log_path as _get_server_log_path
+from authsome.server.credential_repository import CredentialRepository
 from authsome.server.hosted_auth import HostedAccountService
 from authsome.server.identity_bootstrap import (
     HostedIdentityBootstrapService,
@@ -23,6 +24,7 @@ from authsome.server.identity_bootstrap import (
     LocalIdentityBootstrapService,
 )
 from authsome.server.ownership import HostedOwnershipResolver, LocalOwnershipResolver, OwnershipResolver
+from authsome.server.provider_repository import ProviderRepository
 from authsome.server.secrets import load_master_secret, load_ui_session_signing_secret
 from authsome.server.store import ServerStore
 from authsome.server.store import create_server_store as _create_server_store
@@ -98,6 +100,21 @@ async def create_vault(home: Path) -> Vault:
     return Vault(encrypted_kv)
 
 
+def create_credential_repository(
+    *,
+    vault: Vault,
+    identity: str | None,
+    principal_id: str | None,
+    vault_id: str,
+) -> CredentialRepository:
+    return CredentialRepository(
+        vault,
+        identity=identity,
+        principal_id=principal_id,
+        vault_id=vault_id,
+    )
+
+
 async def create_auth_service(
     home: Path | None = None, identity: str | None = None, vault_id: str | None = None
 ) -> AuthService:
@@ -111,11 +128,16 @@ async def create_auth_service(
     store = await create_store(home)
     vault = await create_vault(store.home)
     return AuthService(
-        vault=vault,
+        credentials=create_credential_repository(
+            vault=vault,
+            identity=identity,
+            principal_id=None,
+            vault_id=vault_id,
+        ),
+        providers=ProviderRepository(store.provider_definitions),
         identity=identity,
         vault_id=vault_id,
         deployment_mode=get_deployment_mode(),
-        provider_definitions=store.provider_definitions,
     )
 
 

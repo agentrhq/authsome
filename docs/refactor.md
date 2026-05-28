@@ -1,6 +1,6 @@
 # Storage, Secrets, Identity, And Composition Refactor Plan
 
-_Updated 2026-05-27. Reflects actual codebase state vs. original plan._
+_Updated 2026-05-28. Reflects actual codebase state vs. original plan._
 
 ---
 
@@ -11,9 +11,9 @@ _Updated 2026-05-27. Reflects actual codebase state vs. original plan._
 | 1 — Storage foundation | **Replaced** | `StoreDatabase` (SQLite/Postgres) for registries; `DiskStore + AesGcmEncryptionWrapper` for credentials. Two-store design is better than the single-KV-substrate plan. |
 | 2 — Secret source chain | **Partial** | `ServerSecretResolver` (env → file → keyring → generate) covers server-owned keys (master key, UI session key). Client identity private keys still resolved in `identity/local.py`. |
 | 3 — IdentityRepository | **Partial** | Server-side: `IdentityRegistry` in `server/store/repositories.py` (relational, done). Client-side: still raw `identity/local.py`, no structural server boundary. |
-| 4 — CredentialRepository | **Not done** | `AuthService` still calls `build_store_key()` and `self._vault.get/put/delete` directly. This is the most significant remaining gap. |
-| 5 — ProviderRepository | **Partial** | `ProviderDefinitionRepository` handles custom providers (done). Bundled provider loading still lives in `AuthService._load_bundled_providers()`. |
-| 6 — Slim AuthService | **Partial** | Receives `ProviderDefinitionRepository` (done). Still owns raw vault key construction and all vault I/O. |
+| 4 — CredentialRepository | **Done** | `server/credential_repository.py` owns vault key construction and credential persistence. |
+| 5 — ProviderRepository | **Done** | `server/provider_repository.py` owns bundled + custom provider resolution. |
+| 6 — Slim AuthService | **Partial** | Receives `CredentialRepository` and `ProviderRepository`; policy cleanup and audit logger injection remain separate follow-ups. |
 | 7 — Server composition root | **Functional** | `ServerStore` + `app.state` + `dependencies.py` cover the spirit. No `ServerState` dataclass. `identity="server"` placeholder is gone. |
 | 8 — Proxy server authority | **Done** | `proxy_catalog.py` + `/proxy/routes` endpoint. |
 | 9 — Docs | **Partial** | CONTEXT.md and UBIQUITOUS_LANGUAGE.md updated. |
@@ -31,7 +31,7 @@ _Updated 2026-05-27. Reflects actual codebase state vs. original plan._
 
 ## Remaining work
 
-Three gaps remain. They are listed in delivery order — each one unblocks the next.
+The original CredentialRepository and ProviderRepository gaps are now closed. Remaining phases below are follow-up work and historical context for the broader refactor.
 
 ---
 

@@ -30,8 +30,6 @@ from authsome.identity.principal import (
     ClaimStatus,
     IdentityClaimRecord,
     PrincipalRecord,
-    PrincipalVaultBindingRecord,
-    VaultRecord,
 )
 from authsome.identity.proof import (
     POP_AUTH_SCHEME,
@@ -51,13 +49,11 @@ __all__ = [
     "IdentityStatus",
     "IdentityRegistration",
     "PrincipalRecord",
-    "PrincipalVaultBindingRecord",
     "POP_AUTH_SCHEME",
     "ProofClaims",
     "ProofValidationError",
     "ReplayCache",
     "RuntimeIdentity",
-    "VaultRecord",
     "current_from_home",
     "create_identity",
     "create_proof_jwt",

@@ -25,6 +25,7 @@ from authsome.server.dependencies import (
     load_server_config,
     load_ui_session_signing_secret,
 )
+from authsome.server.provider_repository import ProviderRepository
 from authsome.server.routes.auth import router as auth_router
 from authsome.server.routes.connections import router as connections_router
 from authsome.server.routes.health import router as health_router
@@ -51,7 +52,7 @@ async def lifespan(app: FastAPI):
     app.state.vault_registry = app.state.store.vaults
     app.state.identity_claim_registry = app.state.store.identity_claims
     app.state.principal_vault_binding_registry = app.state.store.principal_vault_bindings
-    app.state.provider_definition_repository = app.state.store.provider_definitions
+    app.state.provider_repository = ProviderRepository(app.state.store.provider_definitions)
     app.state.hosted_account_service = create_hosted_account_service(app.state.store)
     app.state.server_base_url = get_server_base_url()
     init_posthog()
