@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "48bda8cba15d",
+  "strategy": "manual-commit",
+  "branch": "feature/improve-admin-role-policy",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "CONTEXT.md",
+    "docs/adr/0003-proxy-unmatched-pass-through.md",
+    "docs/adr/0005-audit-otel-sqlite.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/48/bda8cba15d/0/metadata.json",
+      "transcript": "/48/bda8cba15d/0/full.jsonl",
+      "content_hash": "/48/bda8cba15d/0/content_hash.txt",
+      "prompt": "/48/bda8cba15d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 57,
+    "cache_creation_tokens": 43425,
+    "cache_read_tokens": 1607010,
+    "output_tokens": 20772,
+    "api_call_count": 35
+  }
+}

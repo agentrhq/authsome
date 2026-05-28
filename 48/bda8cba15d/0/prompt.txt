@@ -1,0 +1,41 @@
+/grill-with-docs Help me create a better audit module. The current problem is audit is append only logs which works across all layers, cli , proxy and server. The issue is that the admin to be able to see the audit logs in one place, including the api calls that are done. This might require a lot of proxy changes, maybe proxy routes are in server itself.
+
+---
+
+yes. All the api calles like read_repos to land in audit as well. These will be external events, credential referesh like events will be internal. The concern with current design is that the proxy runs on client computer hence the audit logs are at two different places.
+
+---
+
+yes. Thats the topology its sdesigned for. Authsome already supports client/server architechture.
+
+---
+
+We can do outgoing and incoming audit both in the proxy. We need to track, identity, principal provider, connections as mandatory. The other request field like path, params, return are optional and can be logged. Idea is for the IT admin to view the audit log
+
+---
+
+The kind of events and shape can be figured out later. We need to discuss how to record. Should the proxy be hosted on serer side, should the cli send the event to server, or we use a standard otel provider and all events ( client & server) transmitted to others? or something else entirely. The goal is to come up with that design
+
+---
+
+does hosted proxy makes sense at all?
+
+---
+
+best effort , fire and forget is fine.
+
+---
+
+Its not there yet, but it is necessary and will be soon added. Do not worry about it for now. We can show all events to be visible. Lets focus on audit. Concern where do we write these audit events in audit module? Just a log file or eject to stdout or use a proper otel ?
+
+---
+
+Can we use OTEL with sqlite as exported? The audit storage should be server propery. audit should be pure leaf node.
+
+---
+
+If everything is finallized write an adr in docs.
+
+---
+
+Also, do we need two different things: audit and logger?
