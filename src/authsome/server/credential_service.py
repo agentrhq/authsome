@@ -365,10 +365,15 @@ class AuthService:
             return False
 
         existing = await self._get_provider_client_credentials(provider)
+        refresh_dcr_client = definition.flow == FlowType.DCR_PKCE and existing is not None and "client_id" not in inputs
         updated = ProviderClientRecord(provider=provider)
-        updated.client_id = inputs.get("client_id", existing.client_id if existing else None) or None
+        updated.client_id = (
+            None if refresh_dcr_client else inputs.get("client_id", existing.client_id if existing else None) or None
+        )
 
-        if "client_secret" in inputs:
+        if refresh_dcr_client:
+            updated.client_secret = None
+        elif "client_secret" in inputs:
             secret_input = inputs["client_secret"].strip()
             if secret_input:
                 updated.client_secret = secret_input
