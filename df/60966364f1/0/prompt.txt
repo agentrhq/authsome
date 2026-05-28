@@ -1,0 +1,9 @@
+Read @src/authsome/audit/ folder for todos And show me possible fixes there.
+
+---
+
+Remove alog and use log
+
+---
+
+Second, check if there is a file exporter otel available? Or search for similar alternatives. Also, we should create a config using pydantic settings that tells audit settings.

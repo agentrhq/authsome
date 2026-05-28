@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "df60966364f1",
+  "session_id": "1543fdbd-5382-46e6-ae81-a55923e522c0",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-28T09:43:57.266115Z",
+  "branch": "feature/improve-admin-role-policy",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/authsome/audit/__init__.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "192927cea530",
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 40800,
+    "cache_read_tokens": 899177,
+    "output_tokens": 18677,
+    "api_call_count": 28
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-28T09:43:57.261391Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 730,
+    "human_modified": 59,
+    "human_removed": 0,
+    "total_committed": 730,
+    "total_lines_changed": 952,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}

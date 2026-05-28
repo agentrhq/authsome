@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "df60966364f1",
+  "strategy": "manual-commit",
+  "branch": "feature/improve-admin-role-policy",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/authsome/audit/__init__.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/df/60966364f1/0/metadata.json",
+      "transcript": "/df/60966364f1/0/full.jsonl",
+      "content_hash": "/df/60966364f1/0/content_hash.txt",
+      "prompt": "/df/60966364f1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 40800,
+    "cache_read_tokens": 899177,
+    "output_tokens": 18677,
+    "api_call_count": 28
+  }
+}
