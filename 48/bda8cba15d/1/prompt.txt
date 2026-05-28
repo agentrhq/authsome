@@ -1,0 +1,33 @@
+/grill-with-docs Add support for principal roles, the idea is some principal is admin all others are users. ( we can default to first principal as admin)
+
+---
+
+Then we can update the routes to also check which is admin route and so on. Also the ui can be improved significantly
+
+---
+
+Audit and providers are admin only routes. Along with revoke and so on. claim accept / reject is also principal route as he will accept that the agent identity belongs to him
+
+---
+
+go with recommended.
+
+---
+
+yes. But we can keep it out of scope for now
+
+---
+
+That will be removed entirely.
+
+---
+
+We will kill the differentiation between local and hosted. Both will have same admin login. Two approaches: create an admin user by default, first user becomes admin always. Which seems betetr?
+
+---
+
+Its not gonna happen. The hosted is maintained by us. Lets do first user becomes admin.
+
+---
+
+yes. Makes sense. Lets do the recommended. Go with fastapi dependency.
