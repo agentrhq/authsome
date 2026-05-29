@@ -120,7 +120,6 @@ CRUD for connection records. Behind the scenes, every route goes through the Aut
 | `POST` | `/connections/{provider}/{connection}/logout` | Remove a single connection record from the local store. |
 | `POST` | `/connections/{provider}/revoke` | Call the provider's revocation endpoint (where supported) and clear all connections for the provider. |
 | `POST` | `/connections/{provider}/{connection}/default` | Set this connection as the provider's default. |
-| `POST` | `/credentials/export` | Return `KEY=value` lines or JSON for a provider's connection, mirroring `authsome export`. |
 
 ## Providers
 

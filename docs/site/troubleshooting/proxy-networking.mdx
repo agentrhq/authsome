@@ -141,7 +141,7 @@ When two providers' `api_url` patterns match the same request, authsome refuses 
 
 If you sit behind a corporate proxy, your shell already has `HTTP_PROXY` set. `authsome run` overwrites these variables for the child, so the corporate proxy is bypassed inside the child process. Two ways to handle this:
 
-1. **Use `authsome export` for the agent and let the corporate proxy stay in place.** This skips authsome's proxy entirely.
+1. **Supply credentials manually to the agent and let the corporate proxy stay in place.** This skips authsome's proxy entirely.
 2. **Chain proxies.** Set `--upstream` on mitmproxy via the underlying configuration. This is not currently exposed through the authsome CLI; for now, prefer option 1 in corporate-proxy environments.
 
 ## Non-HTTP traffic is not intercepted
@@ -154,7 +154,7 @@ Authsome only intercepts HTTP(S). The following connections bypass the proxy ent
 - Raw TCP connections
 - SSH
 
-For these, fall back to environment-variable injection with `authsome export`, or design the agent so the credential-bearing calls go over HTTP(S).
+For these, fall back to manual environment-variable injection, or design the agent so the credential-bearing calls go over HTTP(S).
 
 ## What's next
 

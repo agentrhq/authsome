@@ -9,23 +9,18 @@ All commands support `--json` for machine-readable output, `--quiet` to suppress
 
 | Command | Description |
 |---------|-------------|
-| `whoami` | Show local identity context and encryption mode. |
-| `doctor` | Run health checks on identity, providers, vault, and store integrity. |
-| `list` | List all providers (bundled and custom) and their connection states. |
-| `inspect <provider>` | Show the full provider definition and any connections. |
-| `login <provider>` | Authenticate with a provider using its configured flow. |
-| `get <provider>` | Get connection metadata (secrets redacted by default). |
-| `export <provider>` | Export credentials in `env`, `shell`, or `json` format. |
-| `run -- <cmd>` | Run a subprocess behind the local auth proxy. |
-| `scan` | Discover provider API keys in env files and the current environment. |
-| `logout <provider>` | Log out of a connection and remove local state. |
-| `revoke <provider>` | Reset all connections and client secrets for the provider. |
-| `remove <provider>` | Uninstall a custom provider or reset a bundled one. |
-| `register <path>` | Register a custom provider from a JSON file. |
-| `set-default <provider> <connection>` | Set the default connection for a provider. |
+| `connections` | Inspect and manage stored provider connections. |
+| `daemon` | Manage the local Authsome daemon. |
+| `doctor` | Run health checks on directory layout and encryption. |
+| `init` | Initialize local storage and register a fresh profile. |
+| `log` | View structured audit entries or the raw client debug log. |
+| `login <provider>` | Authenticate with PROVIDER using the configured flow. |
+| `logout <provider>` | Log out of the specified PROVIDER connection. |
 | `profile` | Manage local profiles backed by identity keys. |
-| `ui` | Open the dashboard in the browser. |
-| `log` | View structured audit entries. |
+| `provider` | Manage provider definitions and provider-level operations. |
+| `run -- <cmd>` | Run COMMAND as a subprocess injected with authentication credentials. |
+| `scan` | Scan env files and process env for provider API keys. |
+| `whoami` | Show basic local context. |
 
 ## Global flags
 
@@ -40,9 +35,10 @@ All commands support `--json` for machine-readable output, `--quiet` to suppress
 
 ## Command details
 
-### `whoami` / `doctor`
+### `init` / `whoami` / `doctor`
 
 ```bash
+authsome init             # initialize local storage and register profile
 authsome whoami           # show identity context and encryption mode
 authsome doctor           # run health checks
 authsome doctor --json    # structured output for monitoring
@@ -59,12 +55,13 @@ authsome doctor --json    # structured output for monitoring
 | `vault` | Vault roundtrip (put / get / delete) succeeds |
 | `integrity` | Store integrity check passes |
 
-### `list` / `inspect`
+### `provider list` / `provider inspect` / `connections inspect`
 
 ```bash
-authsome list                      # all providers + connection states
-authsome list --json               # machine-readable, bundled + custom arrays
-authsome inspect github            # full provider definition + connections as JSON
+authsome provider list                      # all providers + connection states
+authsome provider list --json               # machine-readable, bundled + custom arrays
+authsome provider inspect github            # full provider definition + connections as JSON
+authsome connections inspect github         # full connection details + credentials (redacted)
 ```
 
 `--quiet` suppresses the summary header (`Providers: N total, N connected`) but always prints the table.
@@ -96,43 +93,6 @@ authsome login github --base-url https://github.acme.com   # GitHub Enterprise
 <Warning>
   Sensitive values — `client_secret`, API keys — are never accepted as command-line arguments. Authsome collects them through the secure browser bridge or, on headless machines, through masked terminal input.
 </Warning>
-
-### `get`
-
-```bash
-authsome get <provider> [OPTIONS]
-```
-
-| Option | Description |
-|--------|-------------|
-| `--connection <name>` | Connection name. Default: `default`. |
-| `--field <field>` | Return only the value of a specific field. |
-| `--show-secret` | Reveal encrypted secret values in output. |
-
-```bash
-authsome get github                                  # metadata, secrets redacted
-authsome get github --field status                   # → connected
-authsome get github --field access_token --show-secret
-```
-
-### `export`
-
-```bash
-authsome export <provider> [OPTIONS]
-```
-
-| Option | Description |
-|--------|-------------|
-| `--connection <name>` | Connection name. Default: `default`. |
-| `--format <fmt>` | Output format: `env` (default), `shell`, or `json`. |
-
-```bash
-authsome export github --format env      # KEY=value lines
-authsome export github --format shell    # export KEY=value (sourceable)
-authsome export openai --format json     # JSON object
-```
-
-Only the `access_token` (OAuth2) or `api_key` (API-key) is exported. Refresh tokens are never exposed — authsome handles refresh transparently.
 
 ### `run`
 
@@ -181,16 +141,16 @@ authsome scan --import --connection ci  # import into a named connection
 
 `scan` does not support `--quiet`. Use `--json` for headless contexts.
 
-### `set-default`
+### `connections set-default`
 
 ```bash
-authsome set-default <provider> <connection>
+authsome connections set-default <provider> <connection>
 ```
 
 Sets the default connection for a provider. The proxy and library calls use the default unless an explicit `--connection` flag is passed.
 
 ```bash
-authsome set-default github work
+authsome connections set-default github work
 ```
 
 ### `profile`
@@ -202,32 +162,35 @@ authsome profile use      # switch the active local profile
 
 Profiles are backed by Ed25519 identity keys at `~/.authsome/identities/`. Each profile has its own credential namespace in the vault. See [Profiles vs Connections](/concepts/profiles-vs-connections) for the distinction.
 
-### `ui`
+### `daemon`
 
 ```bash
-authsome ui [--no-browser]
+authsome daemon serve      # run the daemon in the foreground
+authsome daemon start      # start the local daemon in the background
+authsome daemon stop       # stop the local daemon
+authsome daemon restart    # restart the local daemon
+authsome daemon status     # show daemon status
+authsome daemon logs       # show daemon log output
 ```
 
-Opens the daemon dashboard in your default browser at `http://127.0.0.1:7998/ui/`. Pass `--no-browser` to just print the URL.
-
-### `logout` / `revoke` / `remove`
+### `logout` / `provider revoke` / `provider remove`
 
 | Command | Local state | Remote provider |
 |---------|-------------|-----------------|
 | `logout` | Removes the connection record | Not contacted |
-| `revoke` | Removes all connections + client credentials | Calls revocation endpoint where supported |
-| `remove` | Removes the provider entirely (custom) or resets to bundled default (bundled) | Not contacted |
+| `provider revoke` | Removes all connections + client credentials | Calls revocation endpoint where supported |
+| `provider remove` | Removes the provider entirely (custom) or resets to bundled default (bundled) | Not contacted |
 
 ```bash
 authsome logout github --connection work
-authsome revoke github
-authsome remove acmecrm
+authsome provider revoke github
+authsome provider remove acmecrm
 ```
 
-### `register`
+### `provider register`
 
 ```bash
-authsome register <path/to/provider.json> [OPTIONS]
+authsome provider register <path/to/provider.json> [OPTIONS]
 ```
 
 | Option | Description |
@@ -235,12 +198,12 @@ authsome register <path/to/provider.json> [OPTIONS]
 | `--force` | Overwrite an existing provider with the same name without prompting. |
 | `--yes` | Skip the confirmation prompt (without forcing an overwrite). |
 
-Validates the JSON, copies it into `~/.authsome/providers/`, and confirms the new provider appears in `authsome list`.
+Validates the JSON, copies it into `~/.authsome/providers/`, and confirms the new provider appears in `authsome provider list`.
 
 ```bash
-authsome register ./acme.json             # prompt before registering
-authsome register ./acme.json --force     # overwrite existing, no prompt
-authsome register ./acme.json --yes       # skip prompt, fail if already exists
+authsome provider register ./acme.json             # prompt before registering
+authsome provider register ./acme.json --force     # overwrite existing, no prompt
+authsome provider register ./acme.json --yes       # skip prompt, fail if already exists
 ```
 
 See [Custom providers](/guides/custom-providers) for full templates.
@@ -255,7 +218,7 @@ authsome log --raw        # raw client debug log (loguru format)
 authsome log --raw -n 20  # last 20 lines of the client debug log
 ```
 
-Reads from `~/.authsome/server/logs/authsome.log` (the server-side structured audit log). Each entry records actions like `login`, `logout`, `revoke`, `export`, and `get --show-secret`, with fields: `timestamp`, `event`, `provider`, `connection`, `identity`, `status`.
+Reads from `~/.authsome/server/logs/authsome.log` (the server-side structured audit log). Each entry records actions like `login`, `logout`, `revoke`, and `scan`, with fields: `timestamp`, `event`, `provider`, `connection`, `identity`, `status`.
 
 The `--raw` flag switches to the client-side debug log at `~/.authsome/client/logs/authsome.log` (loguru format, DEBUG level).
 

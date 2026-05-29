@@ -39,7 +39,7 @@ The CLI entry point after install:
 ```bash
 uv run authsome init
 uv run authsome login github
-uv run authsome list
+uv run authsome provider list
 ```
 
 ## Engineering principles

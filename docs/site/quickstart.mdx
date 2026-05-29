@@ -120,7 +120,7 @@ You'll paste both values into authsome's local browser bridge on the next step. 
   </Step>
   <Step title="Confirm the connection">
     ```bash
-    authsome list
+    authsome provider list
     ```
 
     GitHub should show as `connected`.
@@ -140,7 +140,7 @@ authsome login openai
 Verify the key was captured:
 
 ```bash
-authsome get openai --field status
+authsome connections inspect openai --field status
 # → connected
 ```
 
@@ -208,20 +208,7 @@ A minimal agent that uses both credentials you just set up: it stars `agentrhq/a
 
 Zero pip dependencies — just the standard library. Now pick how to give it credentials.
 
-#### Option 1: Export to environment variables
-
-Best for quick scripts and existing tooling that reads from environment variables.
-
-```bash
-authsome export openai --format env
-authsome export github --format env
-
-python my_agent.py
-```
-
-`export` prints valid `KEY=value` lines on stdout. Use `eval "$(authsome export <provider> --format env)"` to load them into the current shell.
-
-#### Option 2: Run behind the auth proxy
+#### Run behind the auth proxy
 
 Best for production-style agents. Authsome starts a local HTTP proxy that intercepts outbound requests to known provider hosts and injects the auth headers. The child process never sees the raw secret.
 
@@ -257,7 +244,7 @@ What happens:
   </Step>
   <Step title="Confirm the connection">
     ```bash
-    authsome list
+    authsome provider list
     ```
 
     `notion_dcr` should show as `connected`.

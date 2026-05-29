@@ -159,4 +159,4 @@ authsome register /path/to/provider.json
 
 Use `--yes` to skip the confirmation prompt in scripts, and `--force` to overwrite an existing provider with the same name.
 
-After registration, run `authsome list` to confirm the provider appears, then proceed with `authsome login <provider>`.
+After registration, run `authsome provider list` to confirm the provider appears, then proceed with `authsome login <provider>`.

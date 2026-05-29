@@ -44,35 +44,6 @@ If the variable is set and non-empty, `authsome login <provider>` uses its value
 
 The OAuth2 client config block can declare `client.client_id_env` and `client.client_secret_env` for similar automated collection. Bundled providers do not currently declare these, they rely on the browser bridge, but custom provider definitions can.
 
-## Outputs from `authsome export`
-
-`authsome export <provider> --format env` prints `KEY=value` lines on stdout. The `KEY` names come from the provider's `export.env` map.
-
-```bash
-$ authsome export github --format env
-GITHUB_ACCESS_TOKEN=ghu_...
-```
-
-Source the output to load the variables into your shell:
-
-```bash
-eval "$(authsome export github --format env)"
-```
-
-Only `access_token` (OAuth2) and `api_key` (API-key) are exported. Refresh tokens are never exposed.
-
-For JSON output:
-
-```bash
-authsome export github --format json
-```
-
-```json
-{
-  "access_token": "ghu_..."
-}
-```
-
 ## Variables injected by `authsome run`
 
 When you use `authsome run -- <cmd>`, authsome sets several variables inside the child process.
