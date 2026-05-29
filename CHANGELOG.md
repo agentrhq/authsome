@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.5.0](https://github.com/agentrhq/authsome/compare/authsome-v0.4.2...authsome-v0.5.0) (2026-05-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* existing local installs have an unclaimed identity under local@authsome.internal and are rejected until the user registers a principal (email+password) and claims the identity.
+* existing Fernet-encrypted vaults cannot be read back; migration requires re-importing credentials.
+* mount dashboard at / instead of /ui
+
+### Features
+
+* add admin audit dashboard ([1bc5044](https://github.com/agentrhq/authsome/commit/1bc504472ace6629e88a9ad06531c927ff31da26))
+* add Anthropic and Gemini bundled providers ([1e47c48](https://github.com/agentrhq/authsome/commit/1e47c48b07ee76d5a9dfdd58c238150316dca2a0))
+* add Anthropic and Gemini bundled providers ([e788328](https://github.com/agentrhq/authsome/commit/e78832884f69492978a097587374d0e3853371db))
+* add browser SSO via Chrome cookie reading (browser-cookie3) ([aeb4263](https://github.com/agentrhq/authsome/commit/aeb426357f43abe6a13b3684de135c3e6e110166))
+* Add docs for design of principal roles and audit ([de33f8a](https://github.com/agentrhq/authsome/commit/de33f8a5148ff9f6d30e5b392b76e57af751b5ed))
+* add principal_role parameter to AuthService and dependency injection routes ([7d43b56](https://github.com/agentrhq/authsome/commit/7d43b567c8c3e0eec8e4ef33b7fd0eb53cb431b4))
+* browser SSO via Chrome cookie reading (browser-cookie3) ([7607600](https://github.com/agentrhq/authsome/commit/7607600eba2e62125aac801cd09ad28f3948cf3c))
+* implement audit events and principal roles ([9503710](https://github.com/agentrhq/authsome/commit/950371088ba46e5f38086dd0c7fccabd0333f83d))
+* implement audit events and principal roles ([0ed077b](https://github.com/agentrhq/authsome/commit/0ed077b9df60808f840d37460de3a75c5dd8303c))
+* move daemon management commands from admin module to main CLI ([397a8e8](https://github.com/agentrhq/authsome/commit/397a8e8e0aa1142a432ba1af73a3f4235ecccfd9))
+* move daemon management commands from admin module to main CLI ([af356d5](https://github.com/agentrhq/authsome/commit/af356d5f4ff435488484c736516cdad1f61780f4))
+* replace flat master-key vault encryption with Argon2id KEK/DEK model ([b76903d](https://github.com/agentrhq/authsome/commit/b76903d74b61ff469a4221d41e95713a04bdaeb2))
+* respect AUTHSOME_DAEMON_URL in all daemon control paths ([fa23037](https://github.com/agentrhq/authsome/commit/fa23037d73c6c1cc2892654eca6a5d6931f79243))
+* respect AUTHSOME_DAEMON_URL in all daemon control paths ([1ba904b](https://github.com/agentrhq/authsome/commit/1ba904bf0db74fb20e43a370fecf559e97e1f95c))
+* server store refactor ([acb2013](https://github.com/agentrhq/authsome/commit/acb20132f04ef05c81f9d16ce6c2685607ee4171))
+
+
+### Bug Fixes
+
+* added support for cookie expiry date ([5ea8aa9](https://github.com/agentrhq/authsome/commit/5ea8aa977e8d044420d4f469c047319ed1c3765c))
+* Fix incorrect posthog key and remove unnecessary tests ([77c7bb7](https://github.com/agentrhq/authsome/commit/77c7bb7b24e9bd4f8135685127ff53617e9a73b1))
+* Fix incorrect posthog key and remove unnecessary tests ([8f8d9b9](https://github.com/agentrhq/authsome/commit/8f8d9b9e59f6896dca3f3b6b14d33f363d4738b3))
+* refresh DCR provider client on replace ([9af604d](https://github.com/agentrhq/authsome/commit/9af604d80d023ef0762f5f1c6ae41857302de0de))
+* refresh DCR provider client on replace ([595de28](https://github.com/agentrhq/authsome/commit/595de28f25f5526f63cf6e9136291d86c6972754))
+* remove extraneous admin command argument from daemon subprocess invocation ([2c43de6](https://github.com/agentrhq/authsome/commit/2c43de6449ad38f95bd80c6e6d1901b8526e952c))
+* ruff check ([6dbef78](https://github.com/agentrhq/authsome/commit/6dbef782679cdb82a0735dfd879234316d34efad))
+
+
+### Reverts
+
+* display input fields for dcr providers ([6c108cb](https://github.com/agentrhq/authsome/commit/6c108cb44f5c63ee0c069f941ff2302e9f7a9ff3))
+
+
+### Documentation
+
+* correct manual testing guide against the current CLI surface ([0a7c379](https://github.com/agentrhq/authsome/commit/0a7c379c007afe1b01d48341b2df14f199411841))
+* update manual testing guide for the unified claim flow ([70e5539](https://github.com/agentrhq/authsome/commit/70e5539a5924a96b7864862444957dc4e385f49e))
+
+
+### Code Refactoring
+
+* mount dashboard at / instead of /ui ([f8cf936](https://github.com/agentrhq/authsome/commit/f8cf93663f7a4bc757082155c6f4d6bde51da366))
+* unify local and hosted into a single deployment flow ([63bd4c9](https://github.com/agentrhq/authsome/commit/63bd4c90aa10e31d4b11ad9b190f00f1e1e1a316))
+
 ## [0.4.2](https://github.com/agentrhq/authsome/compare/authsome-v0.4.1...authsome-v0.4.2) (2026-05-25)
 
 
