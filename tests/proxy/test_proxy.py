@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -520,16 +521,19 @@ class TestAuthProxyAddon:
         auth = mock.AsyncMock()
         flow = self._make_flow(host="example.com", path="/")
 
-        with patch("authsome.proxy.server.audit.log") as log_mock:
-            addon, _router, patcher = self._make_addon(auth, None, miss_reason="no_match", mode="connected_deny")
-            try:
-                await addon.request(flow)
-            finally:
-                patcher.stop()
+        addon, _router, patcher = self._make_addon(auth, None, miss_reason="no_match", mode="connected_deny")
+        try:
+            await addon.request(flow)
+            await asyncio.sleep(0)
+        finally:
+            patcher.stop()
 
         assert flow.response.status_code == 403
         assert flow.response.content == b"Forbidden by Authsome proxy policy"
-        log_mock.assert_called_once_with("proxy_deny", host="example.com", reason="no_match")
+        auth.record_audit_event.assert_awaited_once()
+        event = auth.record_audit_event.await_args.args[0]
+        assert event["event"] == "proxy_deny"
+        assert event["metadata"] == {"host": "example.com", "reason": "no_match"}
         auth.resolve_credentials.assert_not_called()
 
     @pytest.mark.asyncio
@@ -538,29 +542,37 @@ class TestAuthProxyAddon:
         auth.resolve_credentials.side_effect = RuntimeError("no connection for openai")
         flow = self._make_flow()
 
-        with patch("authsome.proxy.server.audit.log") as log_mock:
-            addon, _router, patcher = self._make_addon(
-                auth,
-                RouteMatch(provider="openai", connection="default"),
-                mode="configured_deny",
-            )
-            try:
-                await addon.request(flow)
-            finally:
-                patcher.stop()
+        addon, _router, patcher = self._make_addon(
+            auth,
+            RouteMatch(provider="openai", connection="default"),
+            mode="configured_deny",
+        )
+        try:
+            await addon.request(flow)
+            await asyncio.sleep(0)
+        finally:
+            patcher.stop()
 
         assert flow.response.status_code == 403
         body = flow.response.content.decode("utf-8")
         assert "openai" in body
         assert "authsome login openai" in body
         assert f"{DEFAULT_SERVER_BASE_URL}/apps/openai" in body
-        log_mock.assert_any_call(
-            "proxy_no_credentials",
-            host="api.openai.com",
-            provider="openai",
-            connection="default",
-        )
-        log_mock.assert_any_call("proxy_deny", host="api.openai.com", reason="no_credentials")
+        events = [call.args[0] for call in auth.record_audit_event.await_args_list]
+        assert {
+            "event": "proxy_no_credentials",
+            "source": "external",
+            "provider": "openai",
+            "connection": "default",
+            "metadata": {"host": "api.openai.com", "error": "no connection for openai"},
+        } in events
+        assert {
+            "event": "proxy_deny",
+            "source": "external",
+            "provider": "openai",
+            "connection": "default",
+            "metadata": {"host": "api.openai.com", "reason": "no_credentials"},
+        } in events
 
     @pytest.mark.asyncio
     async def test_addon_kills_connect_tunnel_on_deny(self) -> None:
@@ -568,12 +580,12 @@ class TestAuthProxyAddon:
         flow = self._make_flow(host="example.com", path="/")
         flow.request.method = "CONNECT"
 
-        with patch("authsome.proxy.server.audit.log"):
-            addon, _router, patcher = self._make_addon(auth, None, miss_reason="no_match", mode="connected_deny")
-            try:
-                await addon.request(flow)
-            finally:
-                patcher.stop()
+        addon, _router, patcher = self._make_addon(auth, None, miss_reason="no_match", mode="connected_deny")
+        try:
+            await addon.request(flow)
+            await asyncio.sleep(0)
+        finally:
+            patcher.stop()
 
         flow.kill.assert_called_once()
 

@@ -17,7 +17,6 @@ from mitmproxy import http
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
-from authsome import audit
 from authsome.cli.client_config import ProxyMode
 from authsome.proxy.router import RouteMatch, RouteResolution
 from authsome.server.urls import DEFAULT_SERVER_BASE_URL
@@ -38,6 +37,8 @@ class ProxyClient(Protocol):
     async def resolve_credentials(self, **kwargs: Any) -> Any: ...
 
     async def proxy_routes(self, scope: str = "connected") -> Any: ...
+
+    async def record_audit_event(self, event: dict[str, Any]) -> Any: ...
 
 
 @dataclass(frozen=True)
@@ -390,11 +391,12 @@ class AuthProxyAddon:
             headers = await self._get_auth_headers(match)
         except Exception as exc:
             normalized_host = _normalize_host(flow.request.host)
-            audit.log(
+            self._record_external_audit(
                 "proxy_no_credentials",
                 host=normalized_host,
                 provider=match.provider,
                 connection=match.connection,
+                error=str(exc),
             )
             if policy == "deny":
                 logger.warning(
@@ -434,12 +436,44 @@ class AuthProxyAddon:
         match: RouteMatch | None = None,
     ) -> None:
         host = _normalize_host(flow.request.host)
-        audit.log("proxy_deny", host=host, reason=reason)
+        self._record_external_audit(
+            "proxy_deny",
+            host=host,
+            reason=reason,
+            provider=match.provider if match else None,
+            connection=match.connection if match else None,
+        )
         logger.warning("Proxy deny: host={} reason={}", host, reason)
         if flow.request.method.upper() == "CONNECT":
             flow.kill()
             return
         flow.response = http.Response.make(403, _deny_body(reason, match).encode("utf-8"))
+
+    def _record_external_audit(
+        self,
+        event: str,
+        *,
+        provider: str | None = None,
+        connection: str | None = None,
+        **metadata: Any,
+    ) -> None:
+        payload = {
+            "event": event,
+            "source": "external",
+            "provider": provider,
+            "connection": connection,
+            "metadata": {key: value for key, value in metadata.items() if value is not None},
+        }
+        try:
+            asyncio.create_task(self._send_external_audit(payload))
+        except RuntimeError:
+            logger.debug("Could not enqueue proxy audit event {}", event)
+
+    async def _send_external_audit(self, payload: dict[str, Any]) -> None:
+        try:
+            await self._client.record_audit_event(payload)
+        except Exception as exc:
+            logger.debug("Could not send proxy audit event {}: {}", payload.get("event"), exc)
 
     async def _get_auth_headers(self, match: RouteMatch) -> dict[str, str]:
         cache_key = (match.provider, match.connection or "")

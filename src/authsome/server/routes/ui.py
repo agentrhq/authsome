@@ -22,7 +22,8 @@ from authsome.auth.models.connection import ConnectionRecord, ProviderClientReco
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.auth.sessions import AuthSession, AuthSessionStore
-from authsome.server.credential_service import AuthService, is_admin_principal
+from authsome.identity.principal import PrincipalRole
+from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import get_deployment_mode
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
@@ -77,8 +78,8 @@ def _ui_cookie_secure(server_base_url: str) -> bool:
 
 def _ui_policy(request: Request, auth: AuthService | None = None) -> dict[str, Any]:
     hosted = _is_hosted_ui()
-    principal_id = auth.principal_id if auth is not None else getattr(request.state, "ui_principal_id", None)
-    show_provider_client_details = not hosted or is_admin_principal(principal_id)
+    role = auth.principal_role if auth is not None else getattr(request.state, "ui_principal_role", None)
+    show_provider_client_details = not hosted or role == PrincipalRole.ADMIN
     return {
         "ui_mode": "hosted" if hosted else "local",
         "show_provider_client_details": show_provider_client_details,

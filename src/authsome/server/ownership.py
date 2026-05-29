@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from authsome.identity.principal import ClaimStatus
+from authsome.identity.principal import ClaimStatus, PrincipalRole
 from authsome.server.store.repositories import (
     IdentityClaimRegistry,
     PrincipalRegistry,
@@ -23,6 +23,7 @@ class ResolvedOwnership:
     identity: str
     principal_id: str
     vault_id: str
+    role: PrincipalRole
 
 
 class OwnershipResolver(ABC):
@@ -74,7 +75,12 @@ class LocalOwnershipResolver(OwnershipResolver):
             vaults=self._vaults,
             bindings=self._bindings,
         )
-        return ResolvedOwnership(identity=identity, principal_id=principal.principal_id, vault_id=vault_id)
+        return ResolvedOwnership(
+            identity=identity,
+            principal_id=principal.principal_id,
+            vault_id=vault_id,
+            role=principal.role,
+        )
 
     async def claim_identity_for_principal(self, *, identity: str, principal_id: str) -> ResolvedOwnership:
         return await self.resolve(identity=identity)
@@ -102,8 +108,16 @@ class HostedOwnershipResolver(OwnershipResolver):
             raise ValueError(f"Identity '{identity}' claim has been rejected")
         if claim.claim_status != ClaimStatus.ACCEPTED:
             raise ValueError(f"Identity '{identity}' claim is pending principal approval")
+        principal = await self._principals.get(claim.principal_id)
+        if principal is None:
+            raise ValueError(f"Principal '{claim.principal_id}' not found")
         binding = await self._bindings.require_default_vault(claim.principal_id)
-        return ResolvedOwnership(identity=identity, principal_id=claim.principal_id, vault_id=binding.vault_id)
+        return ResolvedOwnership(
+            identity=identity,
+            principal_id=claim.principal_id,
+            vault_id=binding.vault_id,
+            role=principal.role,
+        )
 
     async def claim_identity_for_principal(self, *, identity: str, principal_id: str) -> ResolvedOwnership:
         vault_id = await ensure_principal_default_vault(
@@ -113,4 +127,7 @@ class HostedOwnershipResolver(OwnershipResolver):
         )
         await self._claims.claim_identity(identity, principal_id)
         await self._claims.accept_claim(identity)
-        return ResolvedOwnership(identity=identity, principal_id=principal_id, vault_id=vault_id)
+        principal = await self._principals.get(principal_id)
+        if principal is None:
+            raise ValueError(f"Principal '{principal_id}' not found")
+        return ResolvedOwnership(identity=identity, principal_id=principal_id, vault_id=vault_id, role=principal.role)

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import importlib.resources
 import json
-import os
 from datetime import timedelta
 from typing import Any
 from urllib.parse import urlparse
@@ -45,6 +44,7 @@ from authsome.errors import (
     TokenExpiredError,
     UnsupportedFlowError,
 )
+from authsome.identity.principal import PrincipalRole
 from authsome.server.store.repositories import ProviderDefinitionRepository
 from authsome.utils import build_store_key, format_duration, is_filesystem_safe, parse_store_key, utc_now
 from authsome.vault import Vault
@@ -66,15 +66,6 @@ _FLOW_HANDLERS: dict[FlowType, type[AuthFlow]] = {
 }
 
 
-def is_admin_principal(principal_id: str | None) -> bool:
-    """Return whether a principal is listed in AUTHSOME_ADMIN_PRINCIPALS."""
-    if not principal_id:
-        return False
-    raw = os.environ.get("AUTHSOME_ADMIN_PRINCIPALS", "")
-    principals = {item.strip() for item in raw.split(",") if item.strip()}
-    return principal_id in principals
-
-
 class AuthService:
     """
     Authentication and credential lifecycle service.
@@ -89,12 +80,14 @@ class AuthService:
         provider_definitions: ProviderDefinitionRepository,
         identity: str | None = None,
         principal_id: str | None = None,
+        principal_role: PrincipalRole = PrincipalRole.USER,
         vault_id: str | None = None,
         deployment_mode: str = "local",
     ) -> None:
         self._vault = vault
         self._identity = identity
         self._principal_id = principal_id
+        self._principal_role = principal_role
         self._vault_id = vault_id
         self._deployment_mode = "hosted" if deployment_mode == "hosted" else "local"
         self._provider_definitions = provider_definitions
@@ -129,6 +122,10 @@ class AuthService:
     @property
     def principal_id(self) -> str | None:
         return self._principal_id
+
+    @property
+    def principal_role(self) -> PrincipalRole:
+        return self._principal_role
 
     @property
     def vault_id(self) -> str | None:
@@ -192,7 +189,7 @@ class AuthService:
         }
 
     async def register_provider(self, definition: ProviderDefinition, *, force: bool = False) -> None:
-        self._ensure_local_provider_admin_operation_allowed("register", definition.name)
+        self._ensure_admin_operation_allowed("register", definition.name)
         self._validate_provider(definition)
         await self._provider_definitions.save(definition, force=force)
         logger.info("Registered provider: {}", definition.name)
@@ -201,8 +198,8 @@ class AuthService:
         """Remove a custom provider. Returns True if removed."""
         return await self._provider_definitions.delete(name)
 
-    def _ensure_local_provider_admin_operation_allowed(self, operation: str, provider: str) -> None:
-        if is_admin_principal(self._principal_id):
+    def _ensure_admin_operation_allowed(self, operation: str, provider: str) -> None:
+        if self._principal_role == PrincipalRole.ADMIN:
             return
         if self._deployment_mode == "hosted":
             raise OperationNotAllowedError(
@@ -212,7 +209,7 @@ class AuthService:
             )
 
     def _ensure_provider_client_mutation_allowed(self, provider: str) -> None:
-        if is_admin_principal(self._principal_id):
+        if self._principal_role == PrincipalRole.ADMIN:
             return
         if self._deployment_mode == "hosted":
             raise OperationNotAllowedError(
@@ -758,7 +755,7 @@ class AuthService:
         The server layer resolves the full list of vault IDs and passes them in.
         When vault_ids is None, only this service's own vault_id is used.
         """
-        self._ensure_local_provider_admin_operation_allowed("revoke", provider)
+        self._ensure_admin_operation_allowed("revoke", provider)
         await self.get_provider(provider)
         ids_to_revoke = vault_ids if vault_ids is not None else ([self._vault_id] if self._vault_id else [])
         for vault_id in ids_to_revoke:
@@ -766,6 +763,7 @@ class AuthService:
                 vault=self._vault,
                 identity=self._identity,
                 principal_id=self._principal_id,
+                principal_role=self._principal_role,
                 vault_id=vault_id,
                 deployment_mode=self._deployment_mode,
                 provider_definitions=self._provider_definitions,
@@ -785,7 +783,7 @@ class AuthService:
 
     async def remove(self, provider: str) -> None:
         """Revoke all tokens and remove the provider definition if it is local."""
-        self._ensure_local_provider_admin_operation_allowed("remove", provider)
+        self._ensure_admin_operation_allowed("remove", provider)
         await self.revoke(provider)
         if await self.is_local_provider(provider):
             await self._provider_definitions.delete(provider)
@@ -982,11 +980,12 @@ class AuthService:
                     return refreshed.access_token
                 except RefreshFailedError as exc:
                     fallback_available = record.expires_at and now < record.expires_at
-                    await audit.alog(
+                    audit.emit_event(
                         "refresh_failed",
                         provider=provider,
                         connection=connection,
                         identity=self._identity,
+                        principal_id=self._principal_id,
                         error=str(exc),
                         fallback_available=bool(fallback_available),
                     )
