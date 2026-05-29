@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 from fastapi.testclient import TestClient
 
+from authsome import audit
 from authsome.auth.models.connection import ConnectionRecord, ProviderClientRecord, ProviderMetadataRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.identity import create_identity, load_private_key
@@ -133,6 +134,7 @@ def test_overview_navigation_shows_applications_connections_and_identity(monkeyp
     assert "Applications" in response.text
     assert "Connections" in response.text
     assert "Identity" in response.text
+    assert 'href="/audit"' in response.text
 
 
 def test_applications_page_renders_provider_catalog(monkeypatch, tmp_path: Path) -> None:
@@ -193,6 +195,53 @@ def test_hosted_identity_page_lists_all_account_claims(monkeypatch, tmp_path: Pa
     assert "Signed in as dev@example.com" in response.text
     assert "steady-wisely-boldly-0042" in response.text
     assert "brave-softly-surely-0043" in response.text
+
+
+def test_audit_page_renders_recent_events_for_admin(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+
+    with TestClient(create_app()) as client:
+        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
+        audit.emit_event(
+            "credentials_exported",
+            source="external",
+            identity="steady-wisely-boldly-0042",
+            provider="github",
+            status="ok",
+            request_id="req-123",
+        )
+        response = client.get("/audit")
+
+    assert response.status_code == 200
+    assert "Audit Log" in response.text
+    assert "Credentials exported" in response.text
+    assert "steady-wisely-boldly-0042" in response.text
+    assert "github" in response.text
+    assert "req-123" in response.text
+
+
+def test_non_admin_ui_hides_audit_and_provider_configuration(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+
+    with TestClient(create_app()) as client:
+        _register_identity(client, tmp_path, "admin-steadily-surely-0041", email="admin@example.com")
+        _register_identity(client, tmp_path, "user-steadily-surely-0042", email="user@example.com")
+        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
+
+        overview = client.get("/")
+        provider = client.get("/apps/github")
+        configure = client.post("/apps/github/configure", follow_redirects=False)
+        audit_page = client.get("/audit")
+
+    assert overview.status_code == 200
+    assert 'href="/audit"' not in overview.text
+    assert provider.status_code == 200
+    assert 'action="/apps/github/configure"' not in provider.text
+    assert "Client ID" not in provider.text
+    assert configure.status_code == 403
+    assert "Provider configuration is available only to administrators." in configure.text
+    assert audit_page.status_code == 403
+    assert "Audit events are available only to administrators." in audit_page.text
 
 
 def test_hosted_applications_redirects_to_ui_login_entry(monkeypatch, tmp_path: Path) -> None:

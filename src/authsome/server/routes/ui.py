@@ -73,12 +73,13 @@ def _ui_cookie_secure(server_base_url: str) -> bool:
 
 def _ui_policy(request: Request, auth: AuthService | None = None) -> dict[str, Any]:
     role = auth.principal_role if auth is not None else getattr(request.state, "ui_principal_role", None)
-    show_provider_client_details = role == PrincipalRole.ADMIN
+    is_admin = role == PrincipalRole.ADMIN
     return {
-        "show_provider_client_details": show_provider_client_details,
-        "provider_management_label": (
-            "OAuth Application" if show_provider_client_details else "OAuth application managed by Authsome"
-        ),
+        "is_admin": is_admin,
+        "role_label": role.value.title() if role else None,
+        "show_admin_sections": is_admin,
+        "show_provider_client_details": is_admin,
+        "provider_management_label": ("OAuth Application" if is_admin else "OAuth application managed by Authsome"),
         "show_hosted_identity": True,
     }
 
@@ -211,6 +212,60 @@ def _format_relative(when: datetime | None) -> str | None:
 
     plural = "" if amount == 1 else "s"
     return f"{direction} {amount} {unit}{plural}" if direction == "in" else f"{amount} {unit}{plural} ago"
+
+
+def _format_audit_time(value: Any) -> str:
+    if not value:
+        return "-"
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return str(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def _humanize_audit_event(value: Any) -> str:
+    event = str(value or "audit_event").replace("_", " ").replace("-", " ").strip()
+    return event[:1].upper() + event[1:] if event else "Audit event"
+
+
+def _audit_event_rows(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    known = {
+        "event_id",
+        "timestamp",
+        "event",
+        "source",
+        "principal_id",
+        "identity",
+        "provider",
+        "connection",
+        "status",
+    }
+    rows: list[dict[str, Any]] = []
+    for entry in entries:
+        provider = entry.get("provider")
+        connection = entry.get("connection")
+        metadata = {key: value for key, value in entry.items() if key not in known and value is not None}
+        target = " / ".join(str(part) for part in (provider, connection) if part) or "Authsome"
+        rows.append(
+            {
+                "event_id": entry.get("event_id") or "-",
+                "time": _format_audit_time(entry.get("timestamp")),
+                "event": _humanize_audit_event(entry.get("event")),
+                "source": entry.get("source") or "internal",
+                "actor": entry.get("identity") or entry.get("principal_id") or "system",
+                "target": target,
+                "status": entry.get("status") or "-",
+                "metadata": metadata,
+            }
+        )
+    return rows
+
+
+def _admin_required_response(title: str, message: str) -> HTMLResponse:
+    return HTMLResponse(pages.message_page(title, message), status_code=403)
 
 
 def _provider_status(provider_name: str, connection_summaries: list[dict[str, Any]]) -> str:
@@ -505,6 +560,32 @@ async def identity_page(
     )
 
 
+@router.get("/audit", response_class=HTMLResponse)
+async def audit_page(
+    request: Request,
+    auth: AuthService = Depends(require_ui_auth("/audit")),
+) -> Response:
+    if auth.principal_role != PrincipalRole.ADMIN:
+        return _admin_required_response(
+            "Admin access required",
+            "Audit events are available only to administrators.",
+        )
+
+    entries = request.app.state.audit_log.list_events(limit=100)
+    rows = _audit_event_rows(entries)
+    return templates.TemplateResponse(
+        request,
+        "audit.html",
+        _page_context(
+            request,
+            "audit",
+            auth=auth,
+            audit_events=rows,
+            audit_total=len(rows),
+        ),
+    )
+
+
 @router.get("/apps/{provider_name}", response_class=HTMLResponse)
 async def app_detail(
     provider_name: str,
@@ -673,7 +754,12 @@ async def configure_provider(
     """Open the provider configuration flow for deployment-scoped credentials."""
     provider = await auth.get_provider(provider_name)
     policy = _ui_policy(request, auth)
-    if provider.auth_type != AuthType.OAUTH2 or not policy["show_provider_client_details"]:
+    if not policy["show_provider_client_details"]:
+        return _admin_required_response(
+            "Admin access required",
+            "Provider configuration is available only to administrators.",
+        )
+    if provider.auth_type != AuthType.OAUTH2:
         return _redirect(request, f"/apps/{provider_name}")
 
     session = await sessions.create(
