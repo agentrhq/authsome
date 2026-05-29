@@ -1,0 +1,1 @@
+Update the manual testing doc. @docs/internal/manual-testing.md
