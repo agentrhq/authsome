@@ -31,7 +31,7 @@ class TestRevokeCommand:
 
         mock_client.revoke.side_effect = OperationNotAllowedError(
             "revoke",
-            "revoke is not allowed in hosted deployments",
+            "revoke requires an admin principal",
         )
         result = runner.invoke(cli, ["--log-file", "", "provider", "revoke", "openai"])
         assert result.exit_code == 4

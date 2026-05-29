@@ -3,14 +3,14 @@ from pathlib import Path
 import jwt
 import pytest
 
-from authsome.server.hosted_auth import UI_TOKEN_AUDIENCE, HostedAccountService
+from authsome.server.account_auth import UI_TOKEN_AUDIENCE, AccountAuthService
 from authsome.server.store import ServerStore, create_server_store
 
 
-async def _service(tmp_path: Path) -> tuple[HostedAccountService, ServerStore]:
+async def _service(tmp_path: Path) -> tuple[AccountAuthService, ServerStore]:
     store = await create_server_store(home=tmp_path)
     return (
-        HostedAccountService(
+        AccountAuthService(
             principals=store.principals,
             vaults=store.vaults,
             bindings=store.principal_vault_bindings,

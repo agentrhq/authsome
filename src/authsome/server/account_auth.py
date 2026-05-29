@@ -1,4 +1,4 @@
-"""Hosted account authentication for browser UI sessions."""
+"""Account authentication for browser UI sessions."""
 
 from __future__ import annotations
 
@@ -22,18 +22,18 @@ UI_TOKEN_AUDIENCE = "authsome-ui"
 
 
 @dataclass(frozen=True)
-class HostedAccountSession:
-    """Authenticated hosted browser account session."""
+class AccountSession:
+    """Authenticated browser account session."""
 
     principal_id: str
     email: str
     token: str
 
 
-class HostedAccountService:
-    """Register and authenticate hosted accounts.
+class AccountAuthService:
+    """Register and authenticate browser accounts.
 
-    In hosted mode, the hosted account is the principal.
+    An account is represented by a Principal and can claim one or more identities.
     """
 
     def __init__(
@@ -58,7 +58,7 @@ class HostedAccountService:
         if principal is None:
             principal = await self._principals.create_by_email(normalized, password_hash=password_hash)
         elif principal.password_hash is not None:
-            raise ValueError(f"Hosted account '{normalized}' is already registered")
+            raise ValueError(f"Account '{normalized}' is already registered")
         else:
             principal = await self._principals.update_password(principal.principal_id, password_hash=password_hash)
         await ensure_principal_default_vault(
@@ -68,15 +68,15 @@ class HostedAccountService:
         )
         return principal
 
-    async def register_and_login(self, *, email: str, password: str) -> HostedAccountSession:
+    async def register_and_login(self, *, email: str, password: str) -> AccountSession:
         record = await self.register(email=email, password=password)
-        return HostedAccountSession(
+        return AccountSession(
             principal_id=record.principal_id,
             email=record.email,
             token=self.issue_token(principal_id=record.principal_id, email=record.email),
         )
 
-    async def login(self, *, email: str, password: str) -> HostedAccountSession:
+    async def login(self, *, email: str, password: str) -> AccountSession:
         principal = await self._principals.get_by_email(self._normalize_email(email))
         if principal is None or not principal.password_hash:
             raise ValueError("Invalid email or password")
@@ -84,7 +84,7 @@ class HostedAccountService:
             self._hasher.verify(principal.password_hash, password)
         except (VerificationError, VerifyMismatchError) as exc:
             raise ValueError("Invalid email or password") from exc
-        return HostedAccountSession(
+        return AccountSession(
             principal_id=principal.principal_id,
             email=principal.email,
             token=self.issue_token(principal_id=principal.principal_id, email=principal.email),

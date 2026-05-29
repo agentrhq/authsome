@@ -77,14 +77,14 @@
 
     <main class="main">
         <div class="topbar">
-            {% if show_hosted_identity %}
+            {% if show_identity %}
             <div class="topbar-meta">
                 {% if role_label %}<span class="pill pill-neutral">{{ role_label }}</span>{% endif %}
                 <span class="meta">Signed in as {{ ui_email or ui_identity }}</span>
             </div>
             {% endif %}
             <div class="topbar-actions">
-                {% if show_hosted_identity %}
+                {% if show_identity %}
                 <form method="post" action="/logout">
                     <button class="btn btn-sm btn-secondary" type="submit">Sign out</button>
                 </form>

@@ -81,7 +81,7 @@ def _ui_policy(request: Request, auth: AuthService | None = None) -> dict[str, A
         "show_admin_sections": is_admin,
         "show_provider_client_details": is_admin,
         "provider_management_label": ("OAuth Application" if is_admin else "OAuth application managed by Authsome"),
-        "show_hosted_identity": True,
+        "show_identity": True,
     }
 
 
@@ -102,10 +102,10 @@ async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> 
     if auth is not None:
         return auth
 
-    target = _hosted_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
+    target = _account_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
     if request.method == "GET" and request.url.path == "/":
-        raise UiAuthRequiredError(_hosted_auth_page_response(request.app.state.ui_sessions, next_url=target))
-    raise UiAuthRequiredError(RedirectResponse(url=_hosted_auth_entry_url(target), status_code=303))
+        raise UiAuthRequiredError(_account_auth_page_response(request.app.state.ui_sessions, next_url=target))
+    raise UiAuthRequiredError(RedirectResponse(url=_account_auth_entry_url(target), status_code=303))
 
 
 def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitable[AuthService]]:
@@ -117,13 +117,13 @@ def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitabl
 
 def _ui_session_expired_response(status_code: int = 401) -> HTMLResponse:
     return HTMLResponse(
-        pages.message_page("Dashboard session expired", "Open the hosted dashboard again to continue."),
+        pages.message_page("Dashboard session expired", "Open the dashboard again to continue."),
         status_code=status_code,
     )
 
 
-def _hosted_auth_entry_url(next_url: str = "/") -> str:
-    return f"/?{urlencode({'next': _hosted_auth_next_url(next_url)})}"
+def _account_auth_entry_url(next_url: str = "/") -> str:
+    return f"/?{urlencode({'next': _account_auth_next_url(next_url)})}"
 
 
 def _set_ui_session_cookie(
@@ -146,7 +146,7 @@ def _clear_ui_session_cookie(response: Response) -> None:
     response.delete_cookie(UI_SESSION_COOKIE_NAME, path="/")
 
 
-def _hosted_auth_next_url(value: Any) -> str:
+def _account_auth_next_url(value: Any) -> str:
     next_url = str(value or "/").strip() or "/"
     if not next_url.startswith("/") or next_url.startswith("//"):
         return "/"
@@ -155,29 +155,29 @@ def _hosted_auth_next_url(value: Any) -> str:
 
 def _pending_claim_for_next_url(ui_sessions: UiSessionStore, next_url: str):
     if not next_url.startswith("/claim/"):
-        raise KeyError("Hosted auth request is not tied to a pending claim")
+        raise KeyError("Account auth request is not tied to a pending claim")
     token = next_url.rstrip("/").rsplit("/", 1)[-1]
     return ui_sessions.get_pending_claim(token)
 
 
-def _hosted_auth_page_response(
+def _account_auth_page_response(
     ui_sessions: UiSessionStore,
     *,
     next_url: str,
     error: str | None = None,
     active_tab: str = "login",
 ) -> HTMLResponse:
-    next_url = _hosted_auth_next_url(next_url)
+    next_url = _account_auth_next_url(next_url)
     if next_url.startswith("/claim/"):
         pending = _pending_claim_for_next_url(ui_sessions, next_url)
-        page = pages.hosted_claim_auth_page(
+        page = pages.account_claim_auth_page(
             token=pending.token,
             identity=pending.identity,
             error=error,
             active_tab=active_tab,
         )
     else:
-        page = pages.hosted_auth_page(next_url=next_url, error=error, active_tab=active_tab)
+        page = pages.account_auth_page(next_url=next_url, error=error, active_tab=active_tab)
     return HTMLResponse(page, status_code=400 if error else 200)
 
 
@@ -571,7 +571,7 @@ async def audit_page(
             "Audit events are available only to administrators.",
         )
 
-    entries = request.app.state.audit_log.list_events(limit=100)
+    entries = await request.app.state.audit_log.list_events(limit=100)
     rows = _audit_event_rows(entries)
     return templates.TemplateResponse(
         request,
@@ -795,7 +795,7 @@ async def logout_ui_session(
     request: Request,
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
 ) -> Response:
-    """Clear the hosted dashboard browser session."""
+    """Clear the dashboard browser session."""
     response = _redirect(request, "/")
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
     if cookie_value:
@@ -820,14 +820,14 @@ async def claim_identity_page(
 
     await resolve_ui_request_identity(request)
     if getattr(request.state, "ui_principal_id", None) is None:
-        return HTMLResponse(pages.hosted_claim_auth_page(token=token, identity=pending.identity))
+        return HTMLResponse(pages.account_claim_auth_page(token=token, identity=pending.identity))
 
     email = getattr(request.state, "ui_email", None) or "this account"
-    return HTMLResponse(pages.hosted_claim_confirm_page(token=token, identity=pending.identity, email=email))
+    return HTMLResponse(pages.account_claim_confirm_page(token=token, identity=pending.identity, email=email))
 
 
 @router.post("/auth/register", include_in_schema=False)
-async def register_hosted_account(
+async def register_account(
     request: Request,
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
     server_base_url: str = Depends(get_server_base_url),
@@ -835,13 +835,13 @@ async def register_hosted_account(
     form = await request.form()
     email = str(form.get("email", "")).strip()
     password = str(form.get("password", ""))
-    next_url = _hosted_auth_next_url(form.get("next"))
+    next_url = _account_auth_next_url(form.get("next"))
 
     try:
-        session = await request.app.state.hosted_account_service.register_and_login(email=email, password=password)
+        session = await request.app.state.account_auth_service.register_and_login(email=email, password=password)
     except ValueError as exc:
         try:
-            return _hosted_auth_page_response(ui_sessions, next_url=next_url, error=str(exc), active_tab="register")
+            return _account_auth_page_response(ui_sessions, next_url=next_url, error=str(exc), active_tab="register")
         except KeyError:
             return _ui_session_expired_response(status_code=404)
 
@@ -851,7 +851,7 @@ async def register_hosted_account(
 
 
 @router.post("/auth/login", include_in_schema=False)
-async def login_hosted_account(
+async def login_account(
     request: Request,
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
     server_base_url: str = Depends(get_server_base_url),
@@ -859,13 +859,13 @@ async def login_hosted_account(
     form = await request.form()
     email = str(form.get("email", "")).strip()
     password = str(form.get("password", ""))
-    next_url = _hosted_auth_next_url(form.get("next"))
+    next_url = _account_auth_next_url(form.get("next"))
 
     try:
-        session = await request.app.state.hosted_account_service.login(email=email, password=password)
+        session = await request.app.state.account_auth_service.login(email=email, password=password)
     except ValueError as exc:
         try:
-            return _hosted_auth_page_response(ui_sessions, next_url=next_url, error=str(exc), active_tab="login")
+            return _account_auth_page_response(ui_sessions, next_url=next_url, error=str(exc), active_tab="login")
         except KeyError:
             return _ui_session_expired_response(status_code=404)
 

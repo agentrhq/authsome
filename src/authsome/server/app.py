@@ -13,14 +13,12 @@ from authsome.auth.sessions import AuthSessionStore
 from authsome.errors import AuthsomeError
 from authsome.identity.proof import ReplayCache
 from authsome.server.analytics import init_posthog, shutdown_posthog
-from authsome.server.audit import configure_server_audit_log
 from authsome.server.dependencies import (
-    create_hosted_account_service,
+    create_account_auth_service,
     create_identity_bootstrap_service,
     create_ownership_resolver,
     create_store,
     create_vault,
-    get_server_audit_db_path,
     get_server_base_url,
     load_server_config,
     load_ui_session_signing_secret,
@@ -44,7 +42,7 @@ async def lifespan(app: FastAPI):
     """Manage daemon lifecycle."""
     app.state.store = await create_store()
     app.state.server_config = await load_server_config(app.state.store)
-    app.state.audit_log = configure_server_audit_log(get_server_audit_db_path(app.state.store.home))
+    app.state.audit_log = app.state.store.audit_events.configure_exporter()
     app.state.vault = await create_vault(app.state.store.home)
     app.state.auth_sessions = AuthSessionStore()
     app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.store.home))
@@ -54,7 +52,7 @@ async def lifespan(app: FastAPI):
     app.state.identity_claim_registry = app.state.store.identity_claims
     app.state.principal_vault_binding_registry = app.state.store.principal_vault_bindings
     app.state.provider_repository = ProviderRepository(app.state.store.provider_definitions)
-    app.state.hosted_account_service = create_hosted_account_service(app.state.store)
+    app.state.account_auth_service = create_account_auth_service(app.state.store)
     app.state.server_base_url = get_server_base_url()
     init_posthog()
     app.state.identity_bootstrap = create_identity_bootstrap_service(

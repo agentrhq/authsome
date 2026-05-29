@@ -173,7 +173,7 @@ def test_identity_page_renders_informational_identity_view(monkeypatch, tmp_path
     assert "steady-wisely-boldly-0042" in response.text
 
 
-def test_hosted_identity_page_lists_all_account_claims(monkeypatch, tmp_path: Path) -> None:
+def test_account_identity_page_lists_all_account_claims(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -245,7 +245,7 @@ def test_non_admin_ui_hides_audit_and_provider_configuration(monkeypatch, tmp_pa
     assert "Audit events are available only to administrators." in audit_page.text
 
 
-def test_hosted_applications_redirects_to_ui_login_entry(monkeypatch, tmp_path: Path) -> None:
+def test_account_applications_redirects_to_ui_login_entry(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -469,7 +469,7 @@ def test_provider_configure_route_opens_edit_flow_with_existing_values(monkeypat
     assert any(field["name"] == "client_id" and field["default"] == "cid-123" for field in fields)
 
 
-def test_hosted_admin_provider_configure_route_opens_edit_flow(monkeypatch, tmp_path: Path) -> None:
+def test_account_admin_provider_configure_route_opens_edit_flow(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
