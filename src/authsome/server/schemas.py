@@ -17,7 +17,6 @@ from authsome.utils import utc_now
 class HealthResponse(BaseModel):
     status: Literal["ok"]
     version: str
-    mode: Literal["local", "hosted"] = "local"
     configured_encryption_mode: str | None = None
     effective_encryption_source: str | None = None
     encryption_backend: str | None = None

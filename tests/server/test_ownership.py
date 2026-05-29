@@ -6,17 +6,13 @@ import aiosqlite
 import pytest
 
 from authsome.identity.principal import PrincipalRole
-from authsome.server.ownership import (
-    LOCAL_PRINCIPAL_EMAIL,
-    HostedOwnershipResolver,
-    LocalOwnershipResolver,
-)
+from authsome.server.ownership import OwnershipResolver
 from authsome.server.store import create_server_store
 from authsome.server.store.database import StoreDatabaseConfig, open_store_database
 
 
 @pytest.mark.asyncio
-async def test_hosted_resolution_maps_identity_to_default_vault(tmp_path: Path) -> None:
+async def test_resolution_maps_accepted_claim_to_principal_default_vault(tmp_path: Path) -> None:
     store = await create_server_store(home=tmp_path)
     try:
         principal = await store.principals.create_by_email("dev@example.com")
@@ -25,7 +21,7 @@ async def test_hosted_resolution_maps_identity_to_default_vault(tmp_path: Path) 
         await store.identity_claims.claim_identity("steady-wisely-boldly-0042", principal.principal_id)
         await store.identity_claims.accept_claim("steady-wisely-boldly-0042")
 
-        resolver = HostedOwnershipResolver(
+        resolver = OwnershipResolver(
             principals=store.principals,
             vaults=store.vaults,
             claims=store.identity_claims,
@@ -41,25 +37,17 @@ async def test_hosted_resolution_maps_identity_to_default_vault(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
-async def test_local_resolution_creates_implicit_principal_and_vault(tmp_path: Path) -> None:
+async def test_resolution_rejects_unclaimed_identity(tmp_path: Path) -> None:
     store = await create_server_store(home=tmp_path)
     try:
-        resolver = LocalOwnershipResolver(
+        resolver = OwnershipResolver(
             principals=store.principals,
             vaults=store.vaults,
+            claims=store.identity_claims,
             bindings=store.principal_vault_bindings,
         )
-        context = await resolver.resolve(identity="steady-wisely-boldly-0042")
-
-        principal = await store.principals.get(context.principal_id)
-        binding = await store.principal_vault_bindings.get_default_vault(context.principal_id)
-
-        assert principal is not None
-        assert principal.email == LOCAL_PRINCIPAL_EMAIL
-        assert principal.role == PrincipalRole.ADMIN
-        assert binding is not None
-        assert binding.vault_id == context.vault_id
-        assert context.role == PrincipalRole.ADMIN
+        with pytest.raises(ValueError):
+            await resolver.resolve(identity="steady-wisely-boldly-0042")
     finally:
         await store.close()
 

@@ -3,35 +3,17 @@ from pathlib import Path
 import pytest
 
 from authsome.identity import create_identity
-from authsome.server.identity_bootstrap import (
-    HostedIdentityBootstrapService,
-    LocalIdentityBootstrapService,
-)
+from authsome.server.identity_bootstrap import IdentityBootstrapService
 from authsome.server.store import create_server_store
 from authsome.server.ui_sessions import UiSessionStore
 
 
 @pytest.mark.asyncio
-async def test_local_bootstrap_registers_without_claim(tmp_path: Path) -> None:
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    store = await create_server_store(home=tmp_path)
-    service = LocalIdentityBootstrapService(registry=store.identity_registry)
-
-    try:
-        status = await service.register_identity(handle=identity.handle, did=identity.did)
-
-        assert status.registration_status == "registered"
-        assert status.claim_url == ""
-    finally:
-        await store.close()
-
-
-@pytest.mark.asyncio
-async def test_hosted_bootstrap_requires_claim_until_identity_is_claimed(tmp_path: Path) -> None:
+async def test_bootstrap_requires_claim_until_identity_is_claimed(tmp_path: Path) -> None:
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
     store = await create_server_store(home=tmp_path)
     ui_sessions = UiSessionStore("test-secret")
-    service = HostedIdentityBootstrapService(
+    service = IdentityBootstrapService(
         registry=store.identity_registry,
         claims=store.identity_claims,
         ui_sessions=ui_sessions,
@@ -48,11 +30,11 @@ async def test_hosted_bootstrap_requires_claim_until_identity_is_claimed(tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_hosted_bootstrap_returns_claimed_status_after_claim(tmp_path: Path) -> None:
+async def test_bootstrap_returns_claimed_status_after_claim(tmp_path: Path) -> None:
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
     store = await create_server_store(home=tmp_path)
     ui_sessions = UiSessionStore("test-secret")
-    service = HostedIdentityBootstrapService(
+    service = IdentityBootstrapService(
         registry=store.identity_registry,
         claims=store.identity_claims,
         ui_sessions=ui_sessions,

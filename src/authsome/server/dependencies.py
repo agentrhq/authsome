@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -19,13 +18,9 @@ from authsome.paths import get_server_home as _get_server_home
 from authsome.paths import get_server_log_path as _get_server_log_path
 from authsome.server.credential_repository import CredentialRepository
 from authsome.server.hosted_auth import HostedAccountService
-from authsome.server.identity_bootstrap import (
-    HostedIdentityBootstrapService,
-    IdentityBootstrapService,
-    LocalIdentityBootstrapService,
-)
-from authsome.server.ownership import HostedOwnershipResolver, LocalOwnershipResolver, OwnershipResolver
 from authsome.server.provider_repository import ProviderRepository
+from authsome.server.identity_bootstrap import IdentityBootstrapService
+from authsome.server.ownership import OwnershipResolver
 from authsome.server.secrets import load_master_secret, load_ui_session_signing_secret
 from authsome.server.store import ServerStore
 from authsome.server.store import create_server_store as _create_server_store
@@ -58,12 +53,6 @@ def get_server_audit_db_path(home: Path | None = None) -> Path:
 def get_server_base_url() -> str:
     """Return the daemon's canonical external base URL."""
     return build_server_base_url()
-
-
-def get_deployment_mode() -> str:
-    """Return the daemon deployment mode."""
-    mode = os.environ.get("AUTHSOME_DEPLOYMENT_MODE", "local").strip().lower()
-    return "hosted" if mode == "hosted" else "local"
 
 
 async def get_local_ui_identity(home: Path | None = None) -> str:
@@ -143,7 +132,6 @@ async def create_auth_service(
         providers=ProviderRepository(store.provider_definitions),
         identity=identity,
         vault_id=vault_id,
-        deployment_mode=get_deployment_mode(),
     )
 
 
@@ -157,16 +145,10 @@ def create_hosted_account_service(store: ServerStore) -> HostedAccountService:
 
 
 def create_ownership_resolver(store: ServerStore) -> OwnershipResolver:
-    if get_deployment_mode() == "hosted":
-        return HostedOwnershipResolver(
-            principals=store.principals,
-            vaults=store.vaults,
-            claims=store.identity_claims,
-            bindings=store.principal_vault_bindings,
-        )
-    return LocalOwnershipResolver(
+    return OwnershipResolver(
         principals=store.principals,
         vaults=store.vaults,
+        claims=store.identity_claims,
         bindings=store.principal_vault_bindings,
     )
 
@@ -178,11 +160,9 @@ def create_identity_bootstrap_service(
     store: ServerStore,
     server_base_url: str | None = None,
 ) -> IdentityBootstrapService:
-    if get_deployment_mode() == "hosted":
-        return HostedIdentityBootstrapService(
-            registry=identity_registry,
-            claims=store.identity_claims,
-            ui_sessions=ui_sessions,
-            server_base_url=server_base_url or get_server_base_url(),
-        )
-    return LocalIdentityBootstrapService(registry=identity_registry)
+    return IdentityBootstrapService(
+        registry=identity_registry,
+        claims=store.identity_claims,
+        ui_sessions=ui_sessions,
+        server_base_url=server_base_url or get_server_base_url(),
+    )

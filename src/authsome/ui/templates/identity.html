@@ -3,14 +3,21 @@
 {% block content %}
 <header class="page-header">
     <div>
+        <div class="eyebrow">Identity</div>
         <h1>Identity</h1>
         <p class="subtitle">Identities working for the current principal.</p>
     </div>
 </header>
 
+<section class="panel">
 {% for identity in identities %}
-<section class="card">
-    <div class="card-title">{{ identity.handle }}</div>
-</section>
+<div class="identity-row">
+    <div>
+        <div class="identity-name">{{ identity.handle }}</div>
+        <div class="identity-meta">Accepted principal claim</div>
+    </div>
+    <span class="pill pill-neutral">Active</span>
+</div>
 {% endfor %}
+</section>
 {% endblock %}

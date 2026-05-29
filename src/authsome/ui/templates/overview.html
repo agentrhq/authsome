@@ -4,15 +4,12 @@
 <header class="page-header">
     <div>
         <div class="eyebrow">Overview</div>
-        <h1>System Status</h1>
+        <h1>Workspace Status</h1>
     </div>
     <div class="page-actions">
-        <button class="btn btn-secondary" type="button">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M3 5h18M6 12h12M10 19h4"/>
-            </svg>
-            Filter
-        </button>
+        {% if show_admin_sections %}
+        <a class="btn btn-secondary" href="/audit">Audit log</a>
+        {% endif %}
         <a class="btn btn-primary" href="/manage/connections">
             <span aria-hidden="true">+</span>
             Add connection
@@ -28,9 +25,9 @@
     </div>
 
     <div class="stat-card">
-        <div class="stat-label">Last Activity</div>
+        <div class="stat-label">Next Expiry</div>
         <div class="stat-value stat-value-sm">{{ last_activity }}</div>
-        <div class="stat-foot accent">● Operational</div>
+        <div class="stat-foot">Across connected providers</div>
     </div>
 
     <div class="stat-card">
@@ -43,7 +40,7 @@
 <section class="section">
     <div class="section-header">
         <h2>Connected Providers</h2>
-        <a class="link" href="/manage/connections">Manage Connections →</a>
+        <a class="link" href="/manage/connections">Manage Connections</a>
     </div>
 
     {% if connected_providers %}
@@ -85,11 +82,13 @@
     {% endif %}
 </section>
 
-<section class="cta-card">
+{% if show_admin_sections %}
+<section class="notice-band">
     <div>
-        <div class="cta-title">Need expert support?</div>
-        <p class="cta-body">Read the docs, file an issue, or open a discussion. Authsome is open source and runs entirely on your machine.</p>
+        <div class="notice-title">Administrative controls</div>
+        <p class="notice-body">Provider configuration and audit events are restricted to administrators.</p>
     </div>
-    <a class="btn btn-light" href="https://github.com/agentrhq/authsome" target="_blank" rel="noreferrer">Contact Us</a>
+    <a class="btn btn-secondary" href="/audit">Review audit</a>
 </section>
+{% endif %}
 {% endblock %}

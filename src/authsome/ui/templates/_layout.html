@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1280">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Authsome{% endblock %} · Authsome</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -42,6 +42,17 @@
                 </svg>
                 <span>Identity</span>
             </a>
+            {% if show_admin_sections %}
+            <a class="nav-item {% if page == 'audit' %}active{% endif %}" href="/audit">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 4v16h16"/>
+                    <path d="M8 16v-5"/>
+                    <path d="M12 16V8"/>
+                    <path d="M16 16v-3"/>
+                </svg>
+                <span>Audit</span>
+            </a>
+            {% endif %}
         </nav>
         <div class="nav-spacer"></div>
         <nav class="nav-secondary">
@@ -68,7 +79,7 @@
         <div class="topbar">
             {% if show_hosted_identity %}
             <div class="topbar-meta">
-                <span class="pill pill-accent">Hosted</span>
+                {% if role_label %}<span class="pill pill-neutral">{{ role_label }}</span>{% endif %}
                 <span class="meta">Signed in as {{ ui_email or ui_identity }}</span>
             </div>
             {% endif %}

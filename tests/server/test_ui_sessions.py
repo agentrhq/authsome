@@ -104,7 +104,6 @@ def test_build_cookie_round_trips_hosted_browser_session() -> None:
 
 def test_hosted_ui_homepage_shows_auth_tabs(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         response = client.get("/")
@@ -117,7 +116,6 @@ def test_hosted_ui_homepage_shows_auth_tabs(monkeypatch, tmp_path: Path) -> None
 
 def test_hosted_claim_page_shows_auth_tabs_for_unauthenticated_users(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
@@ -134,7 +132,6 @@ def test_hosted_claim_page_shows_auth_tabs_for_unauthenticated_users(monkeypatch
 
 def test_hosted_ui_session_returns_dashboard_url_without_browser_cookie(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
@@ -155,7 +152,6 @@ def test_hosted_ui_session_returns_dashboard_url_without_browser_cookie(monkeypa
 
 def test_hosted_homepage_registration_redirects_to_dashboard(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         registered = client.post(
@@ -174,7 +170,6 @@ def test_hosted_homepage_registration_redirects_to_dashboard(monkeypatch, tmp_pa
 
 def test_hosted_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         _claim_identity_via_hosted_ui(client, tmp_path, "admin-ready-boldly-0001", "admin@example.com")
@@ -194,7 +189,6 @@ def test_hosted_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_pa
 
 def test_hosted_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
@@ -210,7 +204,6 @@ def test_hosted_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Pa
 
 def test_hosted_ui_connect_starts_principal_scoped_session_without_pop(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
@@ -227,7 +220,6 @@ def test_hosted_ui_connect_starts_principal_scoped_session_without_pop(monkeypat
 
 def test_hosted_auth_rejects_external_next_redirect(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         response = client.post(
@@ -242,7 +234,6 @@ def test_hosted_auth_rejects_external_next_redirect(monkeypatch, tmp_path: Path)
 
 def test_hosted_homepage_login_error_renders_auth_page(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         client.post(
@@ -265,7 +256,6 @@ def test_hosted_homepage_login_error_renders_auth_page(monkeypatch, tmp_path: Pa
 
 def test_hosted_ui_auth_input_requires_matching_browser_session(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     app = create_app()
     with TestClient(app) as client:

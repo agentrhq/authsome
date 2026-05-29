@@ -8,7 +8,7 @@ Principals need an authorization tier to gate deployment-level operations (audit
 
 **Separate `principal_roles` table** — considered for future extensibility (multiple roles per principal). Rejected as premature: the role model is binary and a join adds complexity without benefit today.
 
-**Default admin account created at server init** — would require deciding on credentials before any real user exists. Rejected in favour of first-user-becomes-admin, which is zero-config and correct for both local and hosted deployments.
+**Default admin account created at server init** — would require deciding on credentials before any real user exists. Rejected in favour of first-user-becomes-admin: the first principal to register is admin, all subsequent principals are users. (Originally justified as "zero-config" for an implicit local principal; that implicit-principal path was later removed when local and hosted were unified into a single registration + claim flow — see ADR 0007. First-principal-is-admin remains the rule, now reached the same way in every deployment.)
 
 ## Consequences
 

@@ -3,10 +3,21 @@
 {% block content %}
 <header class="page-header">
     <div>
+        <div class="eyebrow">Applications</div>
         <h1>Applications</h1>
         <p class="subtitle">Configure providers and start new logins.</p>
     </div>
 </header>
+
+<div class="toolbar">
+    <label class="search">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="6"/>
+            <path d="m20 20-4-4"/>
+        </svg>
+        <input id="appSearch" type="search" placeholder="Search applications..." autocomplete="off">
+    </label>
+</div>
 
 <div class="app-grid" id="appGrid">
     {% for p in providers %}
@@ -37,6 +48,11 @@
         </form>
     </div>
     {% endfor %}
+</div>
+
+<div class="empty empty-grid hidden" id="appEmpty">
+    <div class="empty-title">No applications found</div>
+    <div class="empty-body">Try a different search.</div>
 </div>
 
 <dialog class="login-modal" id="loginModal">
