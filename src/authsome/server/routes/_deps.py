@@ -6,6 +6,7 @@ from fastapi import HTTPException, Request
 
 from authsome.auth.sessions import AuthSessionStore
 from authsome.identity import current_from_home
+from authsome.identity.principal import PrincipalRole
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
 from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import AuthService
@@ -54,6 +55,7 @@ async def get_auth_service(
             request,
             identity=identity,
             principal_id=resolved.principal_id,
+            principal_role=resolved.role,
             vault_id=resolved.vault_id,
         )
 
@@ -63,10 +65,14 @@ async def get_auth_service(
     binding = await request.app.state.principal_vault_binding_registry.get_default_vault(principal_id)
     if binding is None:
         return None
+    principal = await request.app.state.store.principals.get(principal_id)
+    if principal is None:
+        return None
     return build_auth_service(
         request,
         identity=None,
         principal_id=principal_id,
+        principal_role=principal.role,
         vault_id=binding.vault_id,
     )
 
@@ -103,6 +109,7 @@ async def get_principal_browser_auth_service(request: Request) -> AuthService:
     )
     request.state.ui_identity = None
     request.state.ui_principal_id = session.principal_id
+    request.state.ui_principal_role = auth.principal_role
     request.state.ui_email = session.email
     request.state.ui_session_token = session.token
     return auth
@@ -148,6 +155,8 @@ async def get_protected_auth_service(request: Request) -> AuthService:
     request.state.did = claims.issuer
     request.state.principal_id = resolved.principal_id
     request.state.vault_id = resolved.vault_id
+    request.state.principal_role = resolved.role
+    request.state.ownership = resolved
     request.state.registration_status = "registered"
     request.app.state.ownership_cache[claims.subject] = resolved
     return await require_auth_service(
@@ -156,6 +165,13 @@ async def get_protected_auth_service(request: Request) -> AuthService:
         status_code=500,
         detail="Ownership context not resolved",
     )
+
+
+async def get_admin_auth_service(request: Request) -> AuthService:
+    auth = await get_protected_auth_service(request)
+    if auth.principal_role != PrincipalRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin role required")
+    return auth
 
 
 def get_vault_registry(request: Request) -> VaultRegistry:
@@ -182,8 +198,10 @@ async def resolve_ui_request_identity(request: Request) -> str | None:
         try:
             resolved = await request.app.state.ownership_resolver.resolve(identity=identity.handle)
             request.state.ui_principal_id = resolved.principal_id
+            request.state.ui_principal_role = resolved.role
         except ValueError:
             request.state.ui_principal_id = None
+            request.state.ui_principal_role = None
         return identity.handle
 
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
@@ -197,6 +215,8 @@ async def resolve_ui_request_identity(request: Request) -> str | None:
 
     request.state.ui_identity = None
     request.state.ui_principal_id = session.principal_id
+    principal = await request.app.state.store.principals.get(session.principal_id)
+    request.state.ui_principal_role = principal.role if principal else None
     request.state.ui_email = session.email
     request.state.ui_session_token = session.token
     return None

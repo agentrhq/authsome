@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from authsome.auth.models.enums import ExportFormat
 from authsome.server.analytics import capture_event
 from authsome.server.credential_service import AuthService
-from authsome.server.routes._deps import get_protected_auth_service, get_vault_registry
+from authsome.server.routes._deps import get_admin_auth_service, get_protected_auth_service, get_vault_registry
 from authsome.server.store.repositories import VaultRegistry
 
 router = APIRouter(tags=["connections"])
@@ -48,7 +48,7 @@ async def logout(provider: str, connection: str, auth: AuthService = Depends(get
 @router.post("/connections/{provider}/revoke")
 async def revoke(
     provider: str,
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: AuthService = Depends(get_admin_auth_service),
     vault_registry: VaultRegistry = Depends(get_vault_registry),
 ):
     all_vaults = await vault_registry.list_all()

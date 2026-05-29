@@ -22,11 +22,19 @@ class ClaimStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class PrincipalRole(StrEnum):
+    """Authorization tier assigned to a Principal."""
+
+    ADMIN = "admin"
+    USER = "user"
+
+
 class PrincipalRecord(BaseModel):
     """Principal account record."""
 
     principal_id: str
     email: str
+    role: PrincipalRole = PrincipalRole.USER
     password_hash: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)

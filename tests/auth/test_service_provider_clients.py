@@ -14,6 +14,7 @@ from authsome.auth.sessions import AuthSession
 from authsome.errors import OperationNotAllowedError
 from authsome.identity import create_identity
 from authsome.server.credential_repository import CredentialRepository, build_store_key
+from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import (
     create_store,
@@ -206,7 +207,7 @@ async def test_update_provider_configuration_persists_submitted_scopes() -> None
 
 
 @pytest.mark.asyncio
-async def test_hosted_admin_provider_config_satisfies_next_identity_login(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_hosted_admin_provider_config_satisfies_next_identity_login() -> None:
     store: dict[tuple[str, str], str] = {}
     vault = mock.AsyncMock()
 
@@ -218,12 +219,11 @@ async def test_hosted_admin_provider_config_satisfies_next_identity_login(monkey
 
     vault.get.side_effect = get_value
     vault.put.side_effect = put_value
-    monkeypatch.setenv("AUTHSOME_ADMIN_PRINCIPALS", "principal_admin")
-
     admin_service = _service(
         vault,
         identity=None,
         principal_id="principal_admin",
+        principal_role=PrincipalRole.ADMIN,
         deployment_mode="hosted",
     )
     identity_service = _service(

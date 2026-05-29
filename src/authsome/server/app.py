@@ -9,23 +9,24 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from authsome import audit
 from authsome.auth.sessions import AuthSessionStore
 from authsome.errors import AuthsomeError
 from authsome.identity.proof import ReplayCache
 from authsome.server.analytics import init_posthog, shutdown_posthog
+from authsome.server.audit import configure_server_audit_log
 from authsome.server.dependencies import (
     create_hosted_account_service,
     create_identity_bootstrap_service,
     create_ownership_resolver,
     create_store,
     create_vault,
+    get_server_audit_db_path,
     get_server_base_url,
-    get_server_log_path,
     load_server_config,
     load_ui_session_signing_secret,
 )
 from authsome.server.provider_repository import ProviderRepository
+from authsome.server.routes.audit import router as audit_router
 from authsome.server.routes.auth import router as auth_router
 from authsome.server.routes.connections import router as connections_router
 from authsome.server.routes.health import router as health_router
@@ -43,7 +44,7 @@ async def lifespan(app: FastAPI):
     """Manage daemon lifecycle."""
     app.state.store = await create_store()
     app.state.server_config = await load_server_config(app.state.store)
-    audit.setup(get_server_log_path(app.state.store.home))
+    app.state.audit_log = configure_server_audit_log(get_server_audit_db_path(app.state.store.home))
     app.state.vault = await create_vault(app.state.store.home)
     app.state.auth_sessions = AuthSessionStore()
     app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.store.home))
@@ -66,7 +67,7 @@ async def lifespan(app: FastAPI):
     app.state.ownership_cache = {}
     yield
     shutdown_posthog()
-    audit.clear()
+    app.state.audit_log.shutdown()
     await app.state.store.close()
 
 
@@ -103,6 +104,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(identities_router)
+    app.include_router(audit_router)
     app.include_router(auth_router)
     app.include_router(connections_router)
     app.include_router(providers_router)

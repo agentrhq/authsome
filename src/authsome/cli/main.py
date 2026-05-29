@@ -34,7 +34,7 @@ from authsome.cli.helpers import (
     auth_command,
     setup_logging,
 )
-from authsome.paths import get_client_log_path, get_server_log_path
+from authsome.paths import get_client_log_path
 from authsome.utils import connection_is_active, format_error_code, redact
 
 
@@ -645,23 +645,9 @@ async def log_cmd(ctx_obj: ContextObj, lines: int, raw: bool) -> None:
         ctx_obj.print_json({"log_file": str(log_path), "entries": raw_lines})
         return
 
-    audit_path = get_server_log_path(home)
-    try:
-        raw_lines = audit_path.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:]
-    except FileNotFoundError:
-        raw_lines = []
-
-    parsed: list[dict] = []
-    for line in raw_lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            parsed.append(json.loads(line))
-        except Exception:
-            parsed.append({"raw": line})
-
-    ctx_obj.print_json({"log_file": str(audit_path), "entries": parsed})
+    actx = await ctx_obj.initialize()
+    events = await actx.runtime_client.list_audit_events(limit=lines)
+    ctx_obj.print_json(events)
 
 
 @cli.group(name="daemon")

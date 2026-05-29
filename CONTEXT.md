@@ -88,18 +88,19 @@ Think of this as the secrets layer. Encrypts and decrypts credential blobs trans
 
 ### `audit/` — Structured event recording
 
-Think of this as the append-only ledger. Records who did what and when.
+Think of this as the audit instrumentation layer. Defines what happened; `server/` decides where it goes.
 
 **Owns:**
-- `AuditEvent` model
-- `log()` / `alog()` — append to a structured JSON-lines log file
-- `setup()` / `clear()` — log file lifecycle (called by server at startup/shutdown)
+- `AuditEvent` domain model — mandatory fields: `identity`, `principal_id`, `provider`, `connection`; optional: `method`, `path`, `status`, `metadata`
+- `log()` / `alog()` — emit an `AuditEvent` as an OTel `LogRecord` via `get_logger_provider()`
+- Translation from `AuditEvent` → OTel `LogRecord`
 
 **Does not own:**
-- Business logic
-- Any storage beyond the append-only log file
+- Storage — no file I/O, no database
+- Provider lifecycle (`setup()` / `clear()` removed — owned by `server/`)
+- Knowledge of where events are routed
 
-**Imports nothing from this codebase.** Imported by: `auth/`, `server/`
+**Imports:** `opentelemetry-api` only (no SDK, no storage). **Imports nothing from this codebase.** Imported by: `server/`, `proxy/`
 
 ---
 
@@ -120,6 +121,9 @@ Think of this as the daemon process. Wires identity + auth + vault + audit toget
 - `server/app.py` — FastAPI application factory and lifespan
 - `server/routes/` — HTTP API surface
 - `server/schemas.py` — API response schemas
+- `server/audit_store.py` — `SQLiteLogExporter` (OTel `LogExporter` impl) + `AuditStore` query interface; `LoggerProvider` lifecycle (setup at startup, shutdown at teardown)
+- `server/routes/audit.py` — `GET /audit/events` (filtered, paginated admin read)
+- `POST /audit/events` — ingest endpoint for proxy-side external AuditEvents; server enriches `principal_id` from PoP JWT
 
 **All filesystem interaction for server-owned state lives here.** No other module writes to server-owned paths.
 
@@ -141,6 +145,7 @@ A mitmproxy-based HTTPS proxy. Intercepts outgoing agent requests and injects au
 - Credential loading (asks the server)
 - Route catalog construction (asks the server)
 - Provider definitions
+- Audit storage — ships External AuditEvents to server via `POST /audit/events` (fire-and-forget); does not call `audit.log()` directly
 
 **Imported by:** `cli/`
 
@@ -178,11 +183,14 @@ Click-based CLI and HTTP client. Everything here is a client to the server HTTP 
 
 **PoP JWT**: Short-lived (60 s) Proof-of-Possession token signed with the Identity's Ed25519 private key. Bound to `htm`, `htu`, `body_sha256`. Sent as `Authorization: PoP <token>`.
 
-**Principal**: Non-cryptographic logical partition (human or team) that owns Vaults. Identified by an opaque **PrincipalId** (e.g., `principal_abc123def456`). Has no cryptographic key.
+**Principal**: Non-cryptographic logical partition (human or team) that owns Vaults. Identified by an opaque **PrincipalId** (e.g., `principal_abc123def456`). Has no cryptographic key. Carries exactly one **PrincipalRole**.
 _Avoid_: User, account, PrincipalHandle, profile
 
 **PrincipalId**: Opaque stable identifier for a Principal. Never the email or handle — those can change; the PrincipalId cannot.
 _Avoid_: principal_handle, principal_name, username
+
+**PrincipalRole**: Authorization tier for a Principal. Either `admin` or `user`. The first Principal created on a server is always `admin`; all subsequent Principals are `user`. Stored as a column on the Principal record — not in environment variables or a separate table.
+_Avoid_: permission level, access level, user type
 
 **Vault**: Named credential store owned by exactly one Principal. Identified by an opaque **VaultId** (e.g., `vault_a1b2c3d4e5f6`). All credential store keys are prefixed `vault:<vault_id>:...`.
 _Avoid_: credential store, token store, secret store, profile store
@@ -239,6 +247,14 @@ AuthService does not query registries, does not know about server filesystem pat
 ## Audit Contract
 
 Every `AuditEvent` carries `identity` (the agent Handle) and `principal_id` (the PrincipalId). Both are required — every auditable action has an acting agent and an owning principal.
+
+**External AuditEvent**: An event produced by the proxy layer — records an outbound HTTP call an agent made through the proxy to a third-party API (e.g., a call to `api.github.com`). Classified by provider and connection. Mandatory fields: identity, principal_id, provider, connection. Optional fields: HTTP method, path, response status.
+_Avoid_: proxy event, API event, outbound event
+
+**Internal AuditEvent**: An event produced by the server layer — records credential lifecycle operations (login, logout, token refresh, revocation) and auth flow steps.
+_Avoid_: server event, auth event, lifecycle event
+
+**Audit delivery**: External AuditEvents are shipped from the proxy to the server via `POST /audit/events` (fire-and-forget, best-effort). The proxy does not write to a local audit file. The server is the single source of truth for all audit events. `principal_id` is resolved server-side from the PoP JWT on the ingest request — the proxy does not need to supply it.
 
 ---
 

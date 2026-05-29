@@ -106,17 +106,19 @@ class PrincipalRegistry:
                 raise ValueError(f"Principal '{normalized}' already exists")
             raise ValueError(f"Hosted account '{normalized}' is already registered")
         now = utc_now()
+        role = await self._role_for_new_principal()
         record = PrincipalRecord(
             principal_id=f"principal_{uuid.uuid4().hex[:12]}",
             email=normalized,
+            role=role,
             password_hash=password_hash,
             created_at=now,
             updated_at=now,
         )
         await self._db.execute(
-            "INSERT INTO principals (principal_id, email, password_hash, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            [record.principal_id, record.email, record.password_hash, _dump_dt(now), _dump_dt(now)],
+            "INSERT INTO principals (principal_id, email, password_hash, role, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            [record.principal_id, record.email, record.password_hash, record.role.value, _dump_dt(now), _dump_dt(now)],
         )
         return record
 
@@ -136,10 +138,15 @@ class PrincipalRegistry:
         return PrincipalRecord(
             principal_id=row["principal_id"],
             email=row["email"],
+            role=PrincipalRole(row["role"]),
             password_hash=row["password_hash"],
             created_at=_dt(row["created_at"]),
             updated_at=_dt(row["updated_at"]),
         )
+
+    async def _role_for_new_principal(self) -> PrincipalRole:
+        existing = await self._db.fetch_one("SELECT principal_id FROM principals LIMIT 1")
+        return PrincipalRole.ADMIN if existing is None else PrincipalRole.USER
 
 
 class VaultRegistry:

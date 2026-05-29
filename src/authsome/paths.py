@@ -33,3 +33,8 @@ def get_client_log_path(home: Path | None = None) -> Path:
 def get_server_log_path(home: Path | None = None) -> Path:
     """Return the default server log file path."""
     return get_server_home(home) / "logs" / "authsome.log"
+
+
+def get_server_audit_db_path(home: Path | None = None) -> Path:
+    """Return the server-owned audit event database path."""
+    return get_server_home(home) / "audit" / "events.sqlite3"

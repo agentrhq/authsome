@@ -248,6 +248,12 @@ class AuthsomeApiClient:
     async def register_provider(self, definition_dict: dict[str, Any], force: bool = False) -> None:
         await self._post("/providers", {"definition": definition_dict, "force": force})
 
+    async def list_audit_events(self, *, limit: int = 50) -> dict[str, Any]:
+        return await self._get(f"/audit/events?limit={limit}")
+
+    async def record_audit_event(self, event: dict[str, Any]) -> None:
+        await self._post("/audit/events", {"event": event})
+
     async def register_identity(self, handle: str, did: str) -> dict[str, Any]:
         return await self._post("/identities/register", {"handle": handle, "did": did}, protected=False)
 

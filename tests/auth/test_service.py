@@ -1,17 +1,15 @@
 """Tests for AuthService business logic."""
 
-import json
 from datetime import timedelta
-from pathlib import Path
 from unittest import mock
 
 import pytest
 
-from authsome import audit
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.errors import RefreshFailedError
 from authsome.server.credential_repository import CredentialRepository
+from authsome.server.audit import ServerAuditLog, configure_server_audit_log
 from authsome.server.credential_service import AuthService
 from authsome.utils import utc_now
 
@@ -49,11 +47,10 @@ class TestAuthServiceRefreshLogs:
     """Tests validating that token refresh failure writes correct logs and audit trails."""
 
     @pytest.fixture
-    def audit_log(self, tmp_path: Path) -> Path:
-        log_file = tmp_path / "audit.log"
-        audit.setup(log_file)
-        yield log_file
-        audit.clear()
+    def audit_log(self, tmp_path) -> ServerAuditLog:  # noqa: ANN001
+        log = configure_server_audit_log(tmp_path / "audit.sqlite3")
+        yield log
+        log.shutdown()
 
     @pytest.fixture
     def service(self) -> AuthService:
@@ -65,7 +62,7 @@ class TestAuthServiceRefreshLogs:
             vault_id="test-vault",
         )
 
-    async def test_refresh_failure_fallback_available(self, audit_log: Path, service: AuthService):
+    async def test_refresh_failure_fallback_available(self, audit_log: ServerAuditLog, service: AuthService):
         """Verify behavior when refresh fails but current token is valid (close to expiry)."""
         now = utc_now()
         # Close to expiry (<5m) triggers auto-refresh
@@ -100,14 +97,14 @@ class TestAuthServiceRefreshLogs:
                 assert "expires in " in log_msg
 
                 # 3. Audit verified
-                lines = audit_log.read_text().splitlines()
-                assert len(lines) == 1
-                entry = json.loads(lines[0])
+                entries = audit_log.list_events()
+                assert len(entries) == 1
+                entry = entries[0]
                 assert entry["event"] == "refresh_failed"
                 assert entry["fallback_available"] is True
                 assert "API down" in entry["error"]
 
-    async def test_refresh_failure_expired(self, audit_log: Path, service: AuthService):
+    async def test_refresh_failure_expired(self, audit_log: ServerAuditLog, service: AuthService):
         """Verify behavior when refresh fails and current token is already expired."""
         now = utc_now()
         # Already expired
@@ -139,9 +136,9 @@ class TestAuthServiceRefreshLogs:
                 assert "token expired" in log_msg
 
                 # 2. Audit written
-                lines = audit_log.read_text().splitlines()
-                assert len(lines) == 1
-                entry = json.loads(lines[0])
+                entries = audit_log.list_events()
+                assert len(entries) == 1
+                entry = entries[0]
                 assert entry["event"] == "refresh_failed"
                 assert entry["fallback_available"] is False
 
