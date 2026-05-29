@@ -46,10 +46,10 @@ from authsome.errors import (
     TokenExpiredError,
     UnsupportedFlowError,
 )
+from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_repository import CredentialRepository, parse_store_key
 from authsome.server.provider_repository import ProviderRepository
 from authsome.utils import format_duration, utc_now
-from authsome.identity.principal import PrincipalRole
 from authsome.vault import Vault
 
 _NEAR_EXPIRY_SECONDS = 300

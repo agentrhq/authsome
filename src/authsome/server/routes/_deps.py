@@ -22,6 +22,7 @@ def build_auth_service(
     *,
     identity: str | None,
     principal_id: str | None,
+    principal_role: PrincipalRole = PrincipalRole.USER,
     vault_id: str,
 ) -> AuthService:
     credentials = CredentialRepository(
@@ -35,6 +36,7 @@ def build_auth_service(
         providers=request.app.state.provider_repository,
         identity=identity,
         principal_id=principal_id,
+        principal_role=principal_role,
         vault_id=vault_id,
         deployment_mode=get_deployment_mode(),
     )

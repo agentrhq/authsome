@@ -17,6 +17,7 @@ from authsome.identity.principal import (
     ClaimStatus,
     IdentityClaimRecord,
     PrincipalRecord,
+    PrincipalRole,
 )
 from authsome.identity.registry import IdentityRegistration
 from authsome.server.schemas import PrincipalVaultBindingRecord, VaultRecord

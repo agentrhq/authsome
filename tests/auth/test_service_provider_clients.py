@@ -13,8 +13,8 @@ from authsome.auth.models.provider import OAuthConfig, ProviderDefinition
 from authsome.auth.sessions import AuthSession
 from authsome.errors import OperationNotAllowedError
 from authsome.identity import create_identity
-from authsome.server.credential_repository import CredentialRepository, build_store_key
 from authsome.identity.principal import PrincipalRole
+from authsome.server.credential_repository import CredentialRepository, build_store_key
 from authsome.server.credential_service import AuthService
 from authsome.server.dependencies import (
     create_store,
