@@ -13,7 +13,12 @@ uv run authsome --version
 
 ---
 
-## 1. Initialization
+## 1. Initialization & First-Run Claim
+
+There is a single flow for every deployment (see ADR 0007): the first protected
+command registers your Identity and then **blocks until you claim it in the
+browser** with an email + password account. The first account created on a fresh
+server becomes the **admin** Principal; every later account is a regular user.
 
 ```bash
 # Kill daemon and start fresh (optional — skip to keep existing config)
@@ -22,7 +27,20 @@ kill $(lsof -ti :7998) 2>/dev/null; rm -rf ~/.authsome
 uv run authsome whoami
 ```
 
-**Expected:** Home directory, registered non-default identity handle, principal ID, vault ID, DID, encryption mode, daemon URL, and connected provider count (0).
+**Expected (first run):** the command prints a claim URL to stderr, opens it in a
+browser, and blocks while polling:
+```
+Open this URL in your browser to register and claim this identity:
+  http://127.0.0.1:7998/claim/claim_<token>
+```
+
+**Human action:**
+1. The browser opens the claim page automatically (open the printed URL yourself if it doesn't, e.g. on a headless box).
+2. Register with an email + password — or log in if the account already exists. The first account on a fresh server becomes the **admin** Principal.
+3. Confirm that the displayed identity handle is yours.
+4. The CLI unblocks and `whoami` prints your context. Subsequent commands reuse the accepted claim — no browser step.
+
+**Expected (after claim):** Home directory, registered non-default identity handle, principal ID, vault ID, DID, encryption mode, daemon URL, and connected provider count (0).
 
 ```bash
 uv run authsome whoami --json
@@ -338,7 +356,7 @@ uv run authsome list  # github → not_connected
 uv run authsome daemon status
 ```
 
-**Expected:** JSON showing `running: true`, health checks all `ok`, PID, and log file path. The `health` block includes `version`, `mode`, `encryption_backend`.
+**Expected:** JSON showing `running: true`, health checks all `ok`, PID, and log file path. The `health` block includes `version` and `encryption_backend`.
 
 ```bash
 uv run authsome daemon stop
