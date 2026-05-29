@@ -36,7 +36,6 @@ def build_auth_service(
         principal_id=principal_id,
         principal_role=principal_role,
         vault_id=vault_id,
-        deployment_mode=get_deployment_mode(),
     )
 
 

@@ -18,9 +18,9 @@ from authsome.paths import get_server_home as _get_server_home
 from authsome.paths import get_server_log_path as _get_server_log_path
 from authsome.server.credential_repository import CredentialRepository
 from authsome.server.hosted_auth import HostedAccountService
-from authsome.server.provider_repository import ProviderRepository
 from authsome.server.identity_bootstrap import IdentityBootstrapService
 from authsome.server.ownership import OwnershipResolver
+from authsome.server.provider_repository import ProviderRepository
 from authsome.server.secrets import load_master_secret, load_ui_session_signing_secret
 from authsome.server.store import ServerStore
 from authsome.server.store import create_server_store as _create_server_store

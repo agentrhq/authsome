@@ -8,8 +8,8 @@ import pytest
 from authsome.auth.models.connection import ProviderClientRecord
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.models.provider import ApiKeyConfig, ProviderDefinition
-from authsome.server.credential_repository import CredentialRepository
 from authsome.identity.principal import PrincipalRole
+from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import AuthService
 from authsome.server.provider_repository import ProviderRepository
 from authsome.server.store import create_server_store
