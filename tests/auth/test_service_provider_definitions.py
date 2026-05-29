@@ -8,6 +8,7 @@ import pytest
 from authsome.auth.models.connection import ProviderClientRecord
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.models.provider import ApiKeyConfig, ProviderDefinition
+from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_service import AuthService
 from authsome.server.store import create_server_store
 from authsome.vault import Vault
@@ -31,6 +32,7 @@ async def test_custom_provider_definition_is_stored_in_store_not_vault(tmp_path:
         service = AuthService(
             vault=vault,
             identity="steady-wisely-boldly-0042",
+            principal_role=PrincipalRole.ADMIN,
             vault_id="vault_test",
             provider_definitions=store.provider_definitions,
         )

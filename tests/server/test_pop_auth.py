@@ -2,6 +2,7 @@ import asyncio
 import base64
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi.testclient import TestClient
 
@@ -34,9 +35,30 @@ def _auth_header(
     return {"Authorization": f"PoP {token}"}
 
 
+def register_and_claim_identity(
+    client: TestClient,
+    tmp_path: Path,
+    handle: str = "steady-wisely-boldly-0042",
+    *,
+    email: str = "dev@example.com",
+) -> None:
+    """Register an identity and drive the browser claim flow through to acceptance."""
+    identity = create_identity(tmp_path, handle)
+    response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
+    assert response.status_code == 200
+    claim_path = urlparse(response.json()["claim_url"]).path
+    assert client.get(claim_path).status_code == 200
+    registered = client.post(
+        "/auth/register",
+        data={"email": email, "password": "password-1", "next": claim_path},
+        follow_redirects=False,
+    )
+    assert registered.status_code == 303
+    assert client.post(f"{claim_path}/confirm", follow_redirects=False).status_code == 303
+
+
 def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         response = client.get("/whoami")
@@ -47,15 +69,8 @@ def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
 def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x01" * 32).decode("ascii"))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-
     with TestClient(create_app()) as client:
-        register_response = client.post(
-            "/identities/register",
-            json={"handle": identity.handle, "did": identity.did},
-        )
-        assert register_response.status_code == 200
+        register_and_claim_identity(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.get("/whoami", headers=_auth_header(tmp_path, "GET", "/whoami"))
 
     assert response.status_code == 200
@@ -71,11 +86,9 @@ def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Pat
 def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x02" * 32).decode("ascii"))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
-        client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
+        register_and_claim_identity(client, tmp_path, "steady-wisely-boldly-0042")
         health_response = client.get("/health")
         ready_response = client.get("/ready", headers=_auth_header(tmp_path, "GET", "/ready"))
 
@@ -89,9 +102,8 @@ def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path)
     assert "Argon2id" in ready_response.json()["encryption_backend"]
 
 
-def test_hosted_registration_requires_claim(monkeypatch, tmp_path: Path) -> None:
+def test_registration_requires_claim(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
@@ -104,7 +116,6 @@ def test_hosted_registration_requires_claim(monkeypatch, tmp_path: Path) -> None
 
 def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
@@ -116,7 +127,6 @@ def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
 
 def test_whoami_rejects_unknown_subject(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         response = client.get("/whoami", headers=_auth_header(tmp_path, "GET", "/whoami"))
@@ -126,7 +136,6 @@ def test_whoami_rejects_unknown_subject(monkeypatch, tmp_path: Path) -> None:
 
 def test_whoami_rejects_registered_handle_with_wrong_issuer(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     victim = create_identity(tmp_path, "steady-wisely-boldly-0042")
     attacker = create_identity(tmp_path, "rapid-brightly-firmly-0007")
 
@@ -149,7 +158,6 @@ def test_whoami_rejects_registered_handle_with_wrong_issuer(monkeypatch, tmp_pat
 
 def test_identity_registration_rejects_duplicate_handle_different_did(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     first = create_identity(tmp_path, "steady-wisely-boldly-0042")
     second = create_identity(tmp_path, "rapid-brightly-firmly-0007")
 
@@ -179,11 +187,10 @@ def test_identity_registration_rejects_duplicate_did_different_handle(monkeypatc
 
 def test_ready_uses_active_identity_connections_for_warning_check(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
-        client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
+        register_and_claim_identity(client, tmp_path, identity.handle)
         resolved = asyncio.run(client.app.state.ownership_resolver.resolve(identity=identity.handle))
         key = build_store_key(
             vault=resolved.vault_id,

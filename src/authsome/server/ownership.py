@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from authsome.identity.principal import ClaimStatus, PrincipalRole
@@ -13,8 +12,6 @@ from authsome.server.store.repositories import (
     VaultRegistry,
 )
 
-LOCAL_PRINCIPAL_EMAIL = "local@authsome.internal"
-
 
 @dataclass(frozen=True)
 class ResolvedOwnership:
@@ -24,18 +21,6 @@ class ResolvedOwnership:
     principal_id: str
     vault_id: str
     role: PrincipalRole
-
-
-class OwnershipResolver(ABC):
-    """Resolve principal and vault context for an acting identity."""
-
-    @abstractmethod
-    async def resolve(self, *, identity: str) -> ResolvedOwnership:
-        """Resolve the principal and vault for an identity."""
-
-    async def claim_identity_for_principal(self, *, identity: str, principal_id: str) -> ResolvedOwnership:
-        """Claim an identity for an authenticated principal."""
-        raise NotImplementedError
 
 
 async def ensure_principal_default_vault(
@@ -52,42 +37,14 @@ async def ensure_principal_default_vault(
     return binding.vault_id
 
 
-class LocalOwnershipResolver(OwnershipResolver):
-    """Ownership resolver for local deployments with implicit ownership."""
+class OwnershipResolver:
+    """Resolve principal and vault context for an acting identity.
 
-    def __init__(
-        self,
-        *,
-        principals: PrincipalRegistry,
-        vaults: VaultRegistry,
-        bindings: PrincipalVaultBindingRegistry,
-    ) -> None:
-        self._principals = principals
-        self._vaults = vaults
-        self._bindings = bindings
-
-    async def resolve(self, *, identity: str) -> ResolvedOwnership:
-        principal = await self._principals.get_by_email(LOCAL_PRINCIPAL_EMAIL)
-        if principal is None:
-            principal = await self._principals.create_by_email(LOCAL_PRINCIPAL_EMAIL)
-        vault_id = await ensure_principal_default_vault(
-            principal_id=principal.principal_id,
-            vaults=self._vaults,
-            bindings=self._bindings,
-        )
-        return ResolvedOwnership(
-            identity=identity,
-            principal_id=principal.principal_id,
-            vault_id=vault_id,
-            role=principal.role,
-        )
-
-    async def claim_identity_for_principal(self, *, identity: str, principal_id: str) -> ResolvedOwnership:
-        return await self.resolve(identity=identity)
-
-
-class HostedOwnershipResolver(OwnershipResolver):
-    """Ownership resolver for hosted deployments with explicit claims."""
+    Every identity must be claimed by a principal and the claim accepted before
+    vault access is granted. This is the single resolution path for all
+    deployments — the claiming principal is authenticated out of band (browser
+    email+password), and the first principal created on a server is admin.
+    """
 
     def __init__(
         self,
@@ -120,6 +77,7 @@ class HostedOwnershipResolver(OwnershipResolver):
         )
 
     async def claim_identity_for_principal(self, *, identity: str, principal_id: str) -> ResolvedOwnership:
+        """Claim an identity for an authenticated principal and accept it."""
         vault_id = await ensure_principal_default_vault(
             principal_id=principal_id,
             vaults=self._vaults,

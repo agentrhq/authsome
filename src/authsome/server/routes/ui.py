@@ -24,7 +24,6 @@ from authsome.auth.models.provider import ProviderDefinition
 from authsome.auth.sessions import AuthSession, AuthSessionStore
 from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_service import AuthService
-from authsome.server.dependencies import get_deployment_mode
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
     get_auth_service,
@@ -68,27 +67,20 @@ def _field_payloads(session: AuthSession) -> list[dict[str, Any]]:
     return [dict(field) for field in fields]
 
 
-def _is_hosted_ui() -> bool:
-    return get_deployment_mode() == "hosted"
-
-
 def _ui_cookie_secure(server_base_url: str) -> bool:
     return server_base_url.startswith("https://")
 
 
 def _ui_policy(request: Request, auth: AuthService | None = None) -> dict[str, Any]:
-    hosted = _is_hosted_ui()
     role = auth.principal_role if auth is not None else getattr(request.state, "ui_principal_role", None)
-    show_provider_client_details = not hosted or role == PrincipalRole.ADMIN
+    is_admin = role == PrincipalRole.ADMIN
     return {
-        "ui_mode": "hosted" if hosted else "local",
-        "show_provider_client_details": show_provider_client_details,
-        "provider_management_label": (
-            "OAuth application managed by Authsome"
-            if hosted and not show_provider_client_details
-            else "OAuth Application"
-        ),
-        "show_hosted_identity": hosted,
+        "is_admin": is_admin,
+        "role_label": role.value.title() if role else None,
+        "show_admin_sections": is_admin,
+        "show_provider_client_details": is_admin,
+        "provider_management_label": ("OAuth Application" if is_admin else "OAuth application managed by Authsome"),
+        "show_hosted_identity": True,
     }
 
 
@@ -109,13 +101,10 @@ async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> 
     if auth is not None:
         return auth
 
-    if _is_hosted_ui():
-        target = _hosted_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
-        if request.method == "GET" and request.url.path == "/":
-            raise UiAuthRequiredError(_hosted_auth_page_response(request.app.state.ui_sessions, next_url=target))
-        raise UiAuthRequiredError(RedirectResponse(url=_hosted_auth_entry_url(target), status_code=303))
-
-    raise UiAuthRequiredError(_ui_session_expired_response())
+    target = _hosted_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
+    if request.method == "GET" and request.url.path == "/":
+        raise UiAuthRequiredError(_hosted_auth_page_response(request.app.state.ui_sessions, next_url=target))
+    raise UiAuthRequiredError(RedirectResponse(url=_hosted_auth_entry_url(target), status_code=303))
 
 
 def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitable[AuthService]]:
@@ -225,6 +214,60 @@ def _format_relative(when: datetime | None) -> str | None:
     return f"{direction} {amount} {unit}{plural}" if direction == "in" else f"{amount} {unit}{plural} ago"
 
 
+def _format_audit_time(value: Any) -> str:
+    if not value:
+        return "-"
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return str(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def _humanize_audit_event(value: Any) -> str:
+    event = str(value or "audit_event").replace("_", " ").replace("-", " ").strip()
+    return event[:1].upper() + event[1:] if event else "Audit event"
+
+
+def _audit_event_rows(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    known = {
+        "event_id",
+        "timestamp",
+        "event",
+        "source",
+        "principal_id",
+        "identity",
+        "provider",
+        "connection",
+        "status",
+    }
+    rows: list[dict[str, Any]] = []
+    for entry in entries:
+        provider = entry.get("provider")
+        connection = entry.get("connection")
+        metadata = {key: value for key, value in entry.items() if key not in known and value is not None}
+        target = " / ".join(str(part) for part in (provider, connection) if part) or "Authsome"
+        rows.append(
+            {
+                "event_id": entry.get("event_id") or "-",
+                "time": _format_audit_time(entry.get("timestamp")),
+                "event": _humanize_audit_event(entry.get("event")),
+                "source": entry.get("source") or "internal",
+                "actor": entry.get("identity") or entry.get("principal_id") or "system",
+                "target": target,
+                "status": entry.get("status") or "-",
+                "metadata": metadata,
+            }
+        )
+    return rows
+
+
+def _admin_required_response(title: str, message: str) -> HTMLResponse:
+    return HTMLResponse(pages.message_page(title, message), status_code=403)
+
+
 def _provider_status(provider_name: str, connection_summaries: list[dict[str, Any]]) -> str:
     """Map a connection list to a single status string for the overview cards."""
     if not connection_summaries:
@@ -290,7 +333,6 @@ async def _provider_connection_groups(
             identity=identity,
             principal_id=principal_id,
             vault_id=binding.vault_id,
-            deployment_mode=get_deployment_mode(),
             provider_definitions=request.app.state.provider_definition_repository,
         )
         provider_connections = next(
@@ -503,11 +545,8 @@ async def identity_page(
     request: Request,
     auth: AuthService = Depends(require_ui_auth("/identity")),
 ) -> Response:
-    if _is_hosted_ui():
-        claims = await request.app.state.identity_claim_registry.list_for_principal(request.state.ui_principal_id)
-        identities = [{"handle": claim.identity_handle, "is_active": False} for claim in claims]
-    else:
-        identities = [{"handle": auth.identity, "is_active": True}]
+    claims = await request.app.state.identity_claim_registry.list_for_principal(request.state.ui_principal_id)
+    identities = [{"handle": claim.identity_handle, "is_active": False} for claim in claims]
     return templates.TemplateResponse(
         request,
         "identity.html",
@@ -517,6 +556,32 @@ async def identity_page(
             auth=auth,
             identities=identities,
             principal_id=auth.principal_id,
+        ),
+    )
+
+
+@router.get("/audit", response_class=HTMLResponse)
+async def audit_page(
+    request: Request,
+    auth: AuthService = Depends(require_ui_auth("/audit")),
+) -> Response:
+    if auth.principal_role != PrincipalRole.ADMIN:
+        return _admin_required_response(
+            "Admin access required",
+            "Audit events are available only to administrators.",
+        )
+
+    entries = request.app.state.audit_log.list_events(limit=100)
+    rows = _audit_event_rows(entries)
+    return templates.TemplateResponse(
+        request,
+        "audit.html",
+        _page_context(
+            request,
+            "audit",
+            auth=auth,
+            audit_events=rows,
+            audit_total=len(rows),
         ),
     )
 
@@ -532,7 +597,7 @@ async def app_detail(
     redirect_uri = build_callback_url(server_base_url)
     api_url = _provider_api_url_label(provider)
     policy = _ui_policy(request, auth)
-    if not policy["show_provider_client_details"] and _is_hosted_ui():
+    if not policy["show_provider_client_details"]:
         return templates.TemplateResponse(
             request,
             "app_detail_managed.html",
@@ -643,8 +708,7 @@ async def connect_app(
     session.payload["force"] = force
     session.payload["callback_url_override"] = build_callback_url(server_base_url)
     session.payload["return_url"] = f"{server_base_url.rstrip('/')}/apps/{provider_name}"
-    if _is_hosted_ui():
-        session.payload["ui_session_required"] = True
+    session.payload["ui_session_required"] = True
 
     if not force:
         try:
@@ -690,7 +754,12 @@ async def configure_provider(
     """Open the provider configuration flow for deployment-scoped credentials."""
     provider = await auth.get_provider(provider_name)
     policy = _ui_policy(request, auth)
-    if provider.auth_type != AuthType.OAUTH2 or (not policy["show_provider_client_details"] and _is_hosted_ui()):
+    if not policy["show_provider_client_details"]:
+        return _admin_required_response(
+            "Admin access required",
+            "Provider configuration is available only to administrators.",
+        )
+    if provider.auth_type != AuthType.OAUTH2:
         return _redirect(request, f"/apps/{provider_name}")
 
     session = await sessions.create(
@@ -750,7 +819,7 @@ async def claim_identity_page(
         return _ui_session_expired_response(status_code=404)
 
     await resolve_ui_request_identity(request)
-    if _is_hosted_ui() and getattr(request.state, "ui_principal_id", None) is None:
+    if getattr(request.state, "ui_principal_id", None) is None:
         return HTMLResponse(pages.hosted_claim_auth_page(token=token, identity=pending.identity))
 
     email = getattr(request.state, "ui_email", None) or "this account"

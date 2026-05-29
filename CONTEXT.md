@@ -200,7 +200,7 @@ _Avoid_: vault_name, vault_handle
 
 **VaultHandle**: Human-readable name for a Vault (e.g., `default`). Used in UIs and CLI; the VaultId is authoritative in storage.
 
-**IdentityClaimRecord**: Binding from an Identity (Handle) to a Principal (PrincipalId) with a `ClaimStatus`. Created during `authsome init --email`. Vault access is gated until the claim is accepted.
+**IdentityClaimRecord**: Binding from an Identity (Handle) to a Principal (PrincipalId) with a `ClaimStatus`. Created when an authenticated Principal confirms the browser claim that `authsome init` initiates. Vault access is gated until the claim is accepted.
 _Avoid_: Claim, IdentityRegistration (as claim), join request
 
 **ClaimStatus**: Lifecycle state: `pending` → `accepted` | `rejected`.
@@ -209,9 +209,7 @@ _Avoid_: Claim, IdentityRegistration (as claim), join request
 
 ## Initialization & Claim Flow
 
-**Local mode**: `authsome init` creates an Identity, auto-accepts its claim under the implicit local Principal, and creates the default Vault. No email required.
-
-**Hosted mode**: `authsome init --email manoj@example.com` creates an Identity, creates or finds the Principal by email, and registers an `IdentityClaimRecord` with `claim_status = pending`. A human reviews the claim in the UI and accepts or rejects it. All vault operations return `403` until the claim is accepted.
+There is a single flow for every deployment — no deployment mode (see ADR 0007). `authsome init` creates an Identity and registers it; the daemon returns `registration_status = "claim_required"` with a browser **claim URL**. The user opens the URL and registers (or logs in) with **email + password**: the first Principal created on a server becomes `admin`, all subsequent Principals are `user`. The authenticated Principal then confirms the claim, which binds the Identity to the Principal and creates the Principal's default Vault. Until the claim is `accepted`, all vault operations return `403`. The CLI opens the claim URL automatically and polls for completion (and prints the URL to stderr for headless use).
 
 ---
 

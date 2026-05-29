@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import sys
 import webbrowser
 from collections.abc import Mapping
 from pathlib import Path
@@ -134,7 +135,12 @@ class AuthsomeApiClient:
         return {"Authorization": f"{POP_AUTH_SCHEME} {token}"}
 
     async def ensure_identity_ready(self) -> RuntimeIdentity:
-        """Ensure the acting identity is registered and, in hosted mode, claimed."""
+        """Ensure the acting identity is registered and claimed by a principal.
+
+        A freshly registered identity must be claimed by a principal before it
+        can make authenticated calls; the daemon returns a browser claim URL
+        which is opened here while we poll for completion.
+        """
         runtime = self._runtime_identity()
         if runtime.source is IdentitySource.ENV:
             return await self._ensure_env_identity_ready(runtime)
@@ -159,10 +165,7 @@ class AuthsomeApiClient:
                 status = await self.register_identity(identity.handle, identity.did)
                 claim_url = status.get("claim_url")
             if claim_url:
-                try:
-                    webbrowser.open(claim_url)
-                except Exception:
-                    pass
+                self._open_claim_url(claim_url)
             await self._poll_claim_completion(identity.handle)
             identity = mark_claimed(self._home, identity.handle)
             return self._runtime_for_handle(identity.handle)
@@ -186,12 +189,20 @@ class AuthsomeApiClient:
                 status = await self.register_identity(identity.handle, identity.did)
                 claim_url = status.get("claim_url")
             if claim_url:
-                try:
-                    webbrowser.open(claim_url)
-                except Exception:
-                    pass
+                self._open_claim_url(claim_url)
             await self._poll_claim_completion(identity.handle)
         return identity
+
+    def _open_claim_url(self, claim_url: str) -> None:
+        """Surface the browser claim URL (so headless users can open it) and try to launch it."""
+        print(
+            f"Open this URL in your browser to register and claim this identity:\n  {claim_url}",
+            file=sys.stderr,
+        )
+        try:
+            webbrowser.open(claim_url)
+        except Exception:
+            pass
 
     async def _poll_claim_completion(self, handle: str, *, timeout_seconds: int = 300) -> dict[str, Any]:
         deadline = asyncio.get_running_loop().time() + timeout_seconds

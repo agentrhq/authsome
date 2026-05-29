@@ -5,11 +5,9 @@ from __future__ import annotations
 from fastapi import HTTPException, Request
 
 from authsome.auth.sessions import AuthSessionStore
-from authsome.identity import current_from_home
 from authsome.identity.principal import PrincipalRole
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
 from authsome.server.credential_service import AuthService
-from authsome.server.dependencies import get_deployment_mode
 from authsome.server.store.repositories import VaultRegistry
 from authsome.server.ui_sessions import UiSessionStore
 
@@ -33,7 +31,6 @@ async def get_auth_service(
             principal_id=resolved.principal_id,
             principal_role=resolved.role,
             vault_id=resolved.vault_id,
-            deployment_mode=get_deployment_mode(),
             provider_definitions=request.app.state.provider_definition_repository,
         )
 
@@ -52,7 +49,6 @@ async def get_auth_service(
         principal_id=principal_id,
         principal_role=principal.role,
         vault_id=binding.vault_id,
-        deployment_mode=get_deployment_mode(),
         provider_definitions=request.app.state.provider_definition_repository,
     )
 
@@ -171,19 +167,7 @@ def get_ui_sessions(request: Request) -> UiSessionStore:
 
 
 async def resolve_ui_request_identity(request: Request) -> str | None:
-    """Resolve the identity bound to a browser UI request."""
-    if get_deployment_mode() != "hosted":
-        identity = await current_from_home(request.app.state.store.home)
-        request.state.ui_identity = identity.handle
-        try:
-            resolved = await request.app.state.ownership_resolver.resolve(identity=identity.handle)
-            request.state.ui_principal_id = resolved.principal_id
-            request.state.ui_principal_role = resolved.role
-        except ValueError:
-            request.state.ui_principal_id = None
-            request.state.ui_principal_role = None
-        return identity.handle
-
+    """Resolve the principal bound to a browser UI request via its session cookie."""
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
     if not cookie_value:
         return None
