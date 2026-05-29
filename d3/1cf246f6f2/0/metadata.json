@@ -1,0 +1,103 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "d31cf246f6f2",
+  "session_id": "d2b292a4-f55a-4cfc-a719-caae4690c1b1",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-29T07:48:45.489478Z",
+  "branch": "refactor/unify-deployment-flow",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CONTEXT.md",
+    "docs/adr/0006-principal-roles-admin-user.md",
+    "docs/adr/0007-unified-deployment-flow.md",
+    "src/authsome/cli/client.py",
+    "src/authsome/server/credential_service.py",
+    "src/authsome/server/dependencies.py",
+    "src/authsome/server/identity_bootstrap.py",
+    "src/authsome/server/ownership.py",
+    "src/authsome/server/routes/_deps.py",
+    "src/authsome/server/routes/health.py",
+    "src/authsome/server/routes/ui.py",
+    "src/authsome/server/schemas.py",
+    "tests/auth/test_service_provider_clients.py",
+    "tests/auth/test_service_provider_definitions.py",
+    "tests/server/test_audit_events.py",
+    "tests/server/test_auth_sessions.py",
+    "tests/server/test_identity_bootstrap.py",
+    "tests/server/test_ownership.py",
+    "tests/server/test_pop_auth.py",
+    "tests/server/test_provider_operation_policy.py",
+    "tests/server/test_ui_dashboard.py",
+    "tests/server/test_ui_sessions.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "278d14f4525d",
+  "token_usage": {
+    "input_tokens": 19204,
+    "cache_creation_tokens": 290289,
+    "cache_read_tokens": 25034937,
+    "output_tokens": 96381,
+    "api_call_count": 167
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-29T07:48:45.470387Z",
+    "agent_lines": 188,
+    "agent_removed": 335,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 188,
+    "total_lines_changed": 523,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 3128,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 62,
+        ".claude/skills/integration-fastapi/SKILL.md": 64,
+        ".claude/skills/integration-fastapi/references/EXAMPLE.md": 1583,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.0-begin.md": 46,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.1-edit.md": 37,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.2-revise.md": 22,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.3-conclude.md": 38,
+        ".claude/skills/integration-fastapi/references/identify-users.md": 271,
+        ".claude/skills/integration-fastapi/references/python.md": 869,
+        ".codex/agents/entire-search.toml": 23,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 3101,
+      "user_lines_removed": 0,
+      "agent_lines_added": 215,
+      "agent_lines_removed": 335,
+      "user_added_per_file": {
+        ".claude/agents/entire-search.md": 25,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 62,
+        ".claude/skills/integration-fastapi/SKILL.md": 64,
+        ".claude/skills/integration-fastapi/references/EXAMPLE.md": 1583,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.0-begin.md": 46,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.1-edit.md": 37,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.2-revise.md": 22,
+        ".claude/skills/integration-fastapi/references/basic-integration-1.3-conclude.md": 38,
+        ".claude/skills/integration-fastapi/references/identify-users.md": 271,
+        ".claude/skills/integration-fastapi/references/python.md": 869
+      }
+    }
+  ]
+}

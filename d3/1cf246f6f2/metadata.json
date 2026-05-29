@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "d31cf246f6f2",
+  "strategy": "manual-commit",
+  "branch": "refactor/unify-deployment-flow",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CONTEXT.md",
+    "docs/adr/0006-principal-roles-admin-user.md",
+    "docs/adr/0007-unified-deployment-flow.md",
+    "src/authsome/cli/client.py",
+    "src/authsome/server/credential_service.py",
+    "src/authsome/server/dependencies.py",
+    "src/authsome/server/identity_bootstrap.py",
+    "src/authsome/server/ownership.py",
+    "src/authsome/server/routes/_deps.py",
+    "src/authsome/server/routes/health.py",
+    "src/authsome/server/routes/ui.py",
+    "src/authsome/server/schemas.py",
+    "tests/auth/test_service_provider_clients.py",
+    "tests/auth/test_service_provider_definitions.py",
+    "tests/server/test_audit_events.py",
+    "tests/server/test_auth_sessions.py",
+    "tests/server/test_identity_bootstrap.py",
+    "tests/server/test_ownership.py",
+    "tests/server/test_pop_auth.py",
+    "tests/server/test_provider_operation_policy.py",
+    "tests/server/test_ui_dashboard.py",
+    "tests/server/test_ui_sessions.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d3/1cf246f6f2/0/metadata.json",
+      "transcript": "/d3/1cf246f6f2/0/full.jsonl",
+      "content_hash": "/d3/1cf246f6f2/0/content_hash.txt",
+      "prompt": "/d3/1cf246f6f2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 19204,
+    "cache_creation_tokens": 290289,
+    "cache_read_tokens": 25034937,
+    "output_tokens": 96381,
+    "api_call_count": 167
+  }
+}

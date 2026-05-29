@@ -1,0 +1,5 @@
+Help me improve server, the idea is hosted and local should be same behaviour. In local automatically the local user will become the admin as he will be the first to sign up.
+
+---
+
+Lets walk through that, what are the drawbacks of having different local and hosted login and claim flow, vs a unified flow. I can see 2 different behaviour increases the scope for testing and code bloat, and advantage being its significantly easier for local to work.
