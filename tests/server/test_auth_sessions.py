@@ -9,6 +9,7 @@ from authsome.auth.models.enums import FlowType
 from authsome.identity import create_identity
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
+from tests.server.test_pop_auth import register_and_claim_identity
 
 
 def _auth_header(
@@ -34,7 +35,6 @@ def _auth_header(
 
 def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     owner = create_identity(tmp_path, "steady-wisely-boldly-0042")
     stranger = create_identity(tmp_path, "rapid-brightly-firmly-0007")
     app = create_app()
@@ -42,11 +42,7 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
     with TestClient(app) as client:
         owner_registration = client.post("/identities/register", json={"handle": owner.handle, "did": owner.did})
         assert owner_registration.status_code == 200
-        stranger_registration = client.post(
-            "/identities/register",
-            json={"handle": stranger.handle, "did": stranger.did},
-        )
-        assert stranger_registration.status_code == 200
+        register_and_claim_identity(client, tmp_path, stranger.handle, email="stranger@example.com")
         session = asyncio.run(
             client.app.state.auth_sessions.create(
                 provider="github",
@@ -73,7 +69,6 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
 
 def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     owner = create_identity(tmp_path, "steady-wisely-boldly-0042")
     stranger = create_identity(tmp_path, "rapid-brightly-firmly-0007")
     app = create_app()
@@ -113,13 +108,11 @@ def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> N
 
 def test_sessions_do_not_survive_app_recreation(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
     owner = create_identity(tmp_path, "steady-wisely-boldly-0042")
     session_id = ""
 
     with TestClient(create_app()) as first_client:
-        registration = first_client.post("/identities/register", json={"handle": owner.handle, "did": owner.did})
-        assert registration.status_code == 200
+        register_and_claim_identity(first_client, tmp_path, owner.handle)
         session = asyncio.run(
             first_client.app.state.auth_sessions.create(
                 provider="github",

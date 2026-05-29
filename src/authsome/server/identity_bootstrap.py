@@ -1,8 +1,7 @@
-"""Deployment-specific identity bootstrap behavior."""
+"""Identity bootstrap: register identities and report their claim readiness."""
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from authsome.identity.principal import ClaimStatus
@@ -22,7 +21,7 @@ class IdentityBootstrapStatus:
     claim_url: str = ""
 
     def to_payload(self) -> dict[str, str]:
-        """Serialize a route payload without exposing deployment-specific logic."""
+        """Serialize a route payload."""
         payload = {
             "status": "registered",
             "identity": self.identity,
@@ -36,11 +35,26 @@ class IdentityBootstrapStatus:
         return payload
 
 
-class IdentityBootstrapService(ABC):
-    """Register identities and report their readiness state."""
+class IdentityBootstrapService:
+    """Register identities and report their claim readiness state.
 
-    def __init__(self, *, registry: IdentityRegistry) -> None:
+    Every identity must be claimed by an authenticated principal. A freshly
+    registered identity is reported as ``claim_required`` with a browser claim
+    URL; once a principal claims and accepts it the status becomes ``claimed``.
+    """
+
+    def __init__(
+        self,
+        *,
+        registry: IdentityRegistry,
+        claims: IdentityClaimRegistry,
+        ui_sessions: UiSessionStore,
+        server_base_url: str,
+    ) -> None:
         self._registry = registry
+        self._claims = claims
+        self._ui_sessions = ui_sessions
+        self._server_base_url = server_base_url.rstrip("/")
 
     async def register_identity(self, *, handle: str, did: str) -> IdentityBootstrapStatus:
         registration = await self._registry.register(handle=handle, did=did)
@@ -51,38 +65,6 @@ class IdentityBootstrapService(ABC):
         if registration is None:
             return None
         return await self._build_status(registration)
-
-    @abstractmethod
-    async def _build_status(self, registration: IdentityRegistration) -> IdentityBootstrapStatus:
-        """Return a normalized readiness status for a registered identity."""
-
-
-class LocalIdentityBootstrapService(IdentityBootstrapService):
-    """Bootstrap service for local deployments with implicit ownership."""
-
-    async def _build_status(self, registration: IdentityRegistration) -> IdentityBootstrapStatus:
-        return IdentityBootstrapStatus(
-            identity=registration.handle,
-            did=registration.did,
-            registration_status="registered",
-        )
-
-
-class HostedIdentityBootstrapService(IdentityBootstrapService):
-    """Bootstrap service for hosted deployments requiring explicit claims."""
-
-    def __init__(
-        self,
-        *,
-        registry: IdentityRegistry,
-        claims: IdentityClaimRegistry,
-        ui_sessions: UiSessionStore,
-        server_base_url: str,
-    ) -> None:
-        super().__init__(registry=registry)
-        self._claims = claims
-        self._ui_sessions = ui_sessions
-        self._server_base_url = server_base_url.rstrip("/")
 
     async def _build_status(self, registration: IdentityRegistration) -> IdentityBootstrapStatus:
         claim = await self._claims.resolve(registration.handle)

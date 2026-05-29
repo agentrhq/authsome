@@ -34,7 +34,6 @@ def _register_admin_then_user(client: TestClient, tmp_path: Path, user_handle: s
 
 def test_hosted_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         _register_admin_then_user(client, tmp_path, "steady-wisely-boldly-0042")
@@ -49,7 +48,6 @@ def test_hosted_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:
 
 def test_hosted_remove_is_rejected(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         _register_admin_then_user(client, tmp_path, "steady-wisely-boldly-0042")
@@ -64,7 +62,6 @@ def test_hosted_remove_is_rejected(monkeypatch, tmp_path: Path) -> None:
 
 def test_hosted_register_provider_is_rejected(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
     payload = {
         "definition": {
             "name": "custom-api",
@@ -93,7 +90,6 @@ def test_hosted_register_provider_is_rejected(monkeypatch, tmp_path: Path) -> No
 
 def test_hosted_first_principal_admin_can_register_provider(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
     payload = {
         "definition": {
             "name": "custom-api",

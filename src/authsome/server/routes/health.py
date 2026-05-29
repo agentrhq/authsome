@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Literal, cast
-
 from fastapi import APIRouter, Depends, Request
 
 from authsome import __version__
 from authsome.server.credential_service import AuthService
-from authsome.server.dependencies import get_deployment_mode
 from authsome.server.routes._deps import get_protected_auth_service, get_server_base_url
 from authsome.server.schemas import HealthResponse, ReadyResponse
 from authsome.utils import connection_is_active
@@ -26,13 +23,10 @@ def _describe_vault_encryption(vault) -> tuple[str, str]:
 
 @router.get("/health", response_model=HealthResponse)
 def health(request: Request) -> HealthResponse:
-    mode = get_deployment_mode()
-    response_mode = cast(Literal["local", "hosted"], mode if mode == "hosted" else "local")
     effective_source, backend_description = _describe_vault_encryption(request.app.state.vault)
     return HealthResponse(
         status="ok",
         version=__version__,
-        mode=response_mode,
         configured_encryption_mode=effective_source,
         effective_encryption_source=effective_source,
         encryption_backend=backend_description,

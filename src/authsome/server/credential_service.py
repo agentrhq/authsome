@@ -82,14 +82,12 @@ class AuthService:
         principal_id: str | None = None,
         principal_role: PrincipalRole = PrincipalRole.USER,
         vault_id: str | None = None,
-        deployment_mode: str = "local",
     ) -> None:
         self._vault = vault
         self._identity = identity
         self._principal_id = principal_id
         self._principal_role = principal_role
         self._vault_id = vault_id
-        self._deployment_mode = "hosted" if deployment_mode == "hosted" else "local"
         self._provider_definitions = provider_definitions
         self._bundled: dict[str, ProviderDefinition] = self._load_bundled_providers()
 
@@ -201,22 +199,20 @@ class AuthService:
     def _ensure_admin_operation_allowed(self, operation: str, provider: str) -> None:
         if self._principal_role == PrincipalRole.ADMIN:
             return
-        if self._deployment_mode == "hosted":
-            raise OperationNotAllowedError(
-                operation,
-                f"{operation} is not allowed in hosted deployments",
-                provider=provider,
-            )
+        raise OperationNotAllowedError(
+            operation,
+            f"{operation} requires an admin principal",
+            provider=provider,
+        )
 
     def _ensure_provider_client_mutation_allowed(self, provider: str) -> None:
         if self._principal_role == PrincipalRole.ADMIN:
             return
-        if self._deployment_mode == "hosted":
-            raise OperationNotAllowedError(
-                "login",
-                "provider client configuration is not allowed in hosted deployments",
-                provider=provider,
-            )
+        raise OperationNotAllowedError(
+            "login",
+            "provider client configuration requires an admin principal",
+            provider=provider,
+        )
 
     def _validate_provider(self, definition: ProviderDefinition) -> None:
         if not is_filesystem_safe(definition.name):
@@ -765,7 +761,6 @@ class AuthService:
                 principal_id=self._principal_id,
                 principal_role=self._principal_role,
                 vault_id=vault_id,
-                deployment_mode=self._deployment_mode,
                 provider_definitions=self._provider_definitions,
             )
             meta_key = build_store_key(vault=vault_id, provider=provider, record_type="metadata")

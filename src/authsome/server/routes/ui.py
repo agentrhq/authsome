@@ -24,7 +24,6 @@ from authsome.auth.models.provider import ProviderDefinition
 from authsome.auth.sessions import AuthSession, AuthSessionStore
 from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_service import AuthService
-from authsome.server.dependencies import get_deployment_mode
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
     get_auth_service,
@@ -68,27 +67,19 @@ def _field_payloads(session: AuthSession) -> list[dict[str, Any]]:
     return [dict(field) for field in fields]
 
 
-def _is_hosted_ui() -> bool:
-    return get_deployment_mode() == "hosted"
-
-
 def _ui_cookie_secure(server_base_url: str) -> bool:
     return server_base_url.startswith("https://")
 
 
 def _ui_policy(request: Request, auth: AuthService | None = None) -> dict[str, Any]:
-    hosted = _is_hosted_ui()
     role = auth.principal_role if auth is not None else getattr(request.state, "ui_principal_role", None)
-    show_provider_client_details = not hosted or role == PrincipalRole.ADMIN
+    show_provider_client_details = role == PrincipalRole.ADMIN
     return {
-        "ui_mode": "hosted" if hosted else "local",
         "show_provider_client_details": show_provider_client_details,
         "provider_management_label": (
-            "OAuth application managed by Authsome"
-            if hosted and not show_provider_client_details
-            else "OAuth Application"
+            "OAuth Application" if show_provider_client_details else "OAuth application managed by Authsome"
         ),
-        "show_hosted_identity": hosted,
+        "show_hosted_identity": True,
     }
 
 
@@ -109,13 +100,10 @@ async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> 
     if auth is not None:
         return auth
 
-    if _is_hosted_ui():
-        target = _hosted_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
-        if request.method == "GET" and request.url.path == "/":
-            raise UiAuthRequiredError(_hosted_auth_page_response(request.app.state.ui_sessions, next_url=target))
-        raise UiAuthRequiredError(RedirectResponse(url=_hosted_auth_entry_url(target), status_code=303))
-
-    raise UiAuthRequiredError(_ui_session_expired_response())
+    target = _hosted_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
+    if request.method == "GET" and request.url.path == "/":
+        raise UiAuthRequiredError(_hosted_auth_page_response(request.app.state.ui_sessions, next_url=target))
+    raise UiAuthRequiredError(RedirectResponse(url=_hosted_auth_entry_url(target), status_code=303))
 
 
 def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitable[AuthService]]:
@@ -290,7 +278,6 @@ async def _provider_connection_groups(
             identity=identity,
             principal_id=principal_id,
             vault_id=binding.vault_id,
-            deployment_mode=get_deployment_mode(),
             provider_definitions=request.app.state.provider_definition_repository,
         )
         provider_connections = next(
@@ -503,11 +490,8 @@ async def identity_page(
     request: Request,
     auth: AuthService = Depends(require_ui_auth("/identity")),
 ) -> Response:
-    if _is_hosted_ui():
-        claims = await request.app.state.identity_claim_registry.list_for_principal(request.state.ui_principal_id)
-        identities = [{"handle": claim.identity_handle, "is_active": False} for claim in claims]
-    else:
-        identities = [{"handle": auth.identity, "is_active": True}]
+    claims = await request.app.state.identity_claim_registry.list_for_principal(request.state.ui_principal_id)
+    identities = [{"handle": claim.identity_handle, "is_active": False} for claim in claims]
     return templates.TemplateResponse(
         request,
         "identity.html",
@@ -532,7 +516,7 @@ async def app_detail(
     redirect_uri = build_callback_url(server_base_url)
     api_url = _provider_api_url_label(provider)
     policy = _ui_policy(request, auth)
-    if not policy["show_provider_client_details"] and _is_hosted_ui():
+    if not policy["show_provider_client_details"]:
         return templates.TemplateResponse(
             request,
             "app_detail_managed.html",
@@ -643,8 +627,7 @@ async def connect_app(
     session.payload["force"] = force
     session.payload["callback_url_override"] = build_callback_url(server_base_url)
     session.payload["return_url"] = f"{server_base_url.rstrip('/')}/apps/{provider_name}"
-    if _is_hosted_ui():
-        session.payload["ui_session_required"] = True
+    session.payload["ui_session_required"] = True
 
     if not force:
         try:
@@ -690,7 +673,7 @@ async def configure_provider(
     """Open the provider configuration flow for deployment-scoped credentials."""
     provider = await auth.get_provider(provider_name)
     policy = _ui_policy(request, auth)
-    if provider.auth_type != AuthType.OAUTH2 or (not policy["show_provider_client_details"] and _is_hosted_ui()):
+    if provider.auth_type != AuthType.OAUTH2 or not policy["show_provider_client_details"]:
         return _redirect(request, f"/apps/{provider_name}")
 
     session = await sessions.create(
@@ -750,7 +733,7 @@ async def claim_identity_page(
         return _ui_session_expired_response(status_code=404)
 
     await resolve_ui_request_identity(request)
-    if _is_hosted_ui() and getattr(request.state, "ui_principal_id", None) is None:
+    if getattr(request.state, "ui_principal_id", None) is None:
         return HTMLResponse(pages.hosted_claim_auth_page(token=token, identity=pending.identity))
 
     email = getattr(request.state, "ui_email", None) or "this account"

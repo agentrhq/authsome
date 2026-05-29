@@ -26,17 +26,23 @@ def _auth_header(tmp_path: Path, method: str, path: str, *, handle: str) -> dict
     return {"Authorization": f"PoP {token}"}
 
 
-def _register_identity(client: TestClient, tmp_path: Path, handle: str) -> None:
-    identity = create_identity(tmp_path, handle)
-    response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
-    assert response.status_code == 200
-
-
 def _register_identity_for_claim(client: TestClient, tmp_path: Path, handle: str) -> str:
     identity = create_identity(tmp_path, handle)
     response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == 200
     return urlparse(response.json()["claim_url"]).path
+
+
+def _register_identity(client: TestClient, tmp_path: Path, handle: str, *, email: str = "dev@example.com") -> None:
+    """Register an identity and drive the browser claim flow, leaving the client logged in."""
+    claim_path = _register_identity_for_claim(client, tmp_path, handle)
+    registered = client.post(
+        "/auth/register",
+        data={"email": email, "password": "password-1", "next": claim_path},
+        follow_redirects=False,
+    )
+    assert registered.status_code == 303
+    assert client.post(f"{claim_path}/confirm", follow_redirects=False).status_code == 303
 
 
 def _seed_connection(
@@ -117,7 +123,6 @@ def _seed_provider_client(
 
 def test_overview_navigation_shows_applications_connections_and_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -132,7 +137,6 @@ def test_overview_navigation_shows_applications_connections_and_identity(monkeyp
 
 def test_applications_page_renders_provider_catalog(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -144,7 +148,6 @@ def test_applications_page_renders_provider_catalog(monkeypatch, tmp_path: Path)
 
 def test_applications_page_shows_provider_login_action(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -157,7 +160,6 @@ def test_applications_page_shows_provider_login_action(monkeypatch, tmp_path: Pa
 
 def test_identity_page_renders_informational_identity_view(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -170,7 +172,6 @@ def test_identity_page_renders_informational_identity_view(monkeypatch, tmp_path
 
 def test_hosted_identity_page_lists_all_account_claims(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         first_claim = _register_identity_for_claim(client, tmp_path, "steady-wisely-boldly-0042")
@@ -196,7 +197,6 @@ def test_hosted_identity_page_lists_all_account_claims(monkeypatch, tmp_path: Pa
 
 def test_hosted_applications_redirects_to_ui_login_entry(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         response = client.get("/applications", follow_redirects=False)
@@ -207,7 +207,6 @@ def test_hosted_applications_redirects_to_ui_login_entry(monkeypatch, tmp_path: 
 
 def test_provider_page_shows_provider_configuration_not_connection_tokens(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -228,7 +227,6 @@ def test_provider_page_shows_provider_configuration_not_connection_tokens(monkey
 
 def test_named_connection_detail_route_exists(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -247,7 +245,6 @@ def test_named_connection_detail_route_exists(monkeypatch, tmp_path: Path) -> No
 
 def test_named_connection_detail_page_shows_oauth_tokens(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -273,7 +270,6 @@ def test_named_connection_detail_page_shows_oauth_tokens(monkeypatch, tmp_path: 
 
 def test_named_connection_detail_page_shows_api_key(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -292,7 +288,6 @@ def test_named_connection_detail_page_shows_api_key(monkeypatch, tmp_path: Path)
 
 def test_provider_page_for_api_key_provider_omits_provider_setup_section(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -312,7 +307,6 @@ def test_provider_page_for_api_key_provider_omits_provider_setup_section(monkeyp
 
 def test_provider_page_lists_existing_connections_as_read_only_context(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -332,7 +326,6 @@ def test_provider_page_lists_existing_connections_as_read_only_context(monkeypat
 
 def test_connections_page_renders_connection_rows(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -353,7 +346,6 @@ def test_connections_page_renders_connection_rows(monkeypatch, tmp_path: Path) -
 
 def test_provider_login_modal_copy_is_rendered_when_default_exists(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -373,7 +365,6 @@ def test_provider_login_modal_copy_is_rendered_when_default_exists(monkeypatch, 
 
 def test_connect_app_accepts_connection_name_fallback(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -401,7 +392,6 @@ def test_connect_app_accepts_connection_name_fallback(monkeypatch, tmp_path: Pat
 
 def test_provider_page_shows_configure_action_for_oauth(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -415,7 +405,6 @@ def test_provider_page_shows_configure_action_for_oauth(monkeypatch, tmp_path: P
 
 def test_provider_configure_route_opens_edit_flow_with_existing_values(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -432,7 +421,6 @@ def test_provider_configure_route_opens_edit_flow_with_existing_values(monkeypat
 
 def test_hosted_admin_provider_configure_route_opens_edit_flow(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_DEPLOYMENT_MODE", "hosted")
 
     with TestClient(create_app()) as client:
         claim_path = _register_identity_for_claim(client, tmp_path, "steady-wisely-boldly-0042")
@@ -457,7 +445,6 @@ def test_hosted_admin_provider_configure_route_opens_edit_flow(monkeypatch, tmp_
 
 def test_provider_configure_input_page_shows_revoke_warning(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
@@ -476,7 +463,6 @@ def test_provider_configure_input_page_shows_revoke_warning(monkeypatch, tmp_pat
 
 def test_provider_config_submit_replaces_client_and_revokes_connections(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.delenv("AUTHSOME_DEPLOYMENT_MODE", raising=False)
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
