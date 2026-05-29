@@ -9,18 +9,17 @@ Authsome interacts with environment variables in three roles: **inputs** that ch
 
 | Variable | Purpose |
 |----------|---------|
-| `AUTHSOME_DAEMON_URL` | Client-side daemon URL used by the CLI and proxy helpers. Set this on machines that should talk to a hosted authsome daemon instead of auto-starting a local one. Defaults to `http://127.0.0.1:7998`. |
-| `AUTHSOME_HOME` | Override the default `~/.authsome` directory. Useful for tests, ephemeral environments, and per-project profiles. |
-| `AUTHSOME_SERVER_BASE_URL` | Canonical external base URL for hosted daemon deployments. Authsome uses it to build browser-facing URLs and OAuth callback URLs such as `/auth/callback/oauth`. Set this when the daemon is reached through a private VM, reverse proxy, or internal DNS name instead of localhost. |
+| `AUTHSOME_DAEMON_URL` | Client-side daemon URL used by the CLI and proxy helpers. Set this on machines that should talk to a remote authsome daemon instead of auto-starting a local one. Defaults to `http://127.0.0.1:7998`. |
+| `AUTHSOME_HOME` | Override the default `~/.authsome` directory. Useful for tests, ephemeral environments, and per-project vaults. |
+| `AUTHSOME_SERVER_BASE_URL` | Canonical external base URL for remote daemon deployments. Authsome uses it to build browser-facing URLs and OAuth callback URLs such as `/auth/callback/oauth`. Set this when the daemon is reached through a private VM, reverse proxy, or internal DNS name instead of localhost. |
 | `HTTP_PROXY` / `HTTPS_PROXY` | Honored by authsome's own outbound HTTP requests (token endpoints, device flow polling). The proxy started by `authsome run` is **set** as these variables in the child process; it does not chain through them. |
 
 ### `AUTHSOME_DAEMON_URL` expectations
 
-For hosted clients:
+For remote daemon deployments:
 
-- set `AUTHSOME_DAEMON_URL` to the full hosted daemon URL
-- do not set `AUTHSOME_SERVER_BASE_URL` on the client just to use a hosted daemon
-- when `AUTHSOME_DAEMON_URL` points at a non-local host, the CLI does not auto-start a local daemon
+- set `AUTHSOME_DAEMON_URL` to the full daemon URL
+- when `AUTHSOME_DAEMON_URL` points at a non-local host, the CLI will not attempt to manage daemon state
 
 Example:
 
@@ -29,22 +28,7 @@ export AUTHSOME_DAEMON_URL=https://authsome.internal.example.com
 uv run authsome list
 ```
 
-### `AUTHSOME_SERVER_BASE_URL` expectations
-
-For hosted servers:
-
-- include the full scheme and host, such as `https://authsome.internal.example.com`
-- include a port when it is not the default for the scheme, such as `http://10.10.0.25:7998`
-- use the same public or private URL that the browser and OAuth provider will see
-
-Example:
-
-```bash
-export AUTHSOME_HOME=/var/lib/authsome
-export AUTHSOME_SERVER_BASE_URL=https://authsome.internal.example.com
-```
-
-In a local-only setup, you typically do not need to set either `AUTHSOME_DAEMON_URL` or `AUTHSOME_SERVER_BASE_URL`.
+In a local-only setup, you typically do not need to set `AUTHSOME_DAEMON_URL`.
 
 ### Provider-specific input variables
 

@@ -8,7 +8,7 @@ keywords: ["authsome multiple accounts", "authsome connection flag", "multiple g
 
 A connection is a named credential record within one provider. The default connection is called `default`. You can have as many additional connections as you want, each scoped by name.
 
-This is the right pattern when you want two accounts on the same provider both reachable from the same context. If you want credential sets that never see each other, use profiles instead. The distinction is covered in [Profiles vs connections](/concepts/profiles-vs-connections).
+This is the right pattern when you want two accounts on the same provider both reachable from the same context. If you want credential sets that never see each other, use multiple Vaults or Principals instead. The distinction is covered in [Principal, Vault, and Identity](/concepts/principal-vault-identity).
 
 ## Create a second connection
 
@@ -91,22 +91,21 @@ authsome revoke github                       # all connections + client secrets
 
 `revoke` does not yet target a single connection; it clears the provider entirely. To revoke only one connection at the provider, use the provider's own UI and then `logout` locally.
 
-## When to use connections vs profiles
+## When to use Connections vs Vaults/Principals
 
 | You want | Use |
 |----------|-----|
 | Two accounts on the same provider, both reachable | Connections (`--connection`) |
-| Credential sets that never see each other | Profiles (separate vault files) |
-| Per-agent scoping | Profile per agent |
-| Temporary OAuth client for testing | Throwaway profile |
+| Credential sets that never see each other | Separate Vaults / Principals |
+| Per-agent scoping | Separate Identity / Principal per agent |
 
-The full model is in [Profiles vs connections](/concepts/profiles-vs-connections).
+The full model is in [Principal, Vault, and Identity](/concepts/principal-vault-identity).
 
 ## What's next
 
 <Columns cols={2}>
-  <Card title="Profiles vs connections" icon="users" href="/concepts/profiles-vs-connections">
-    The two namespaces, side by side.
+  <Card title="Principal, Vault, and Identity" icon="users" href="/concepts/principal-vault-identity">
+    The architectural namespaces.
   </Card>
   <Card title="CLI reference" icon="terminal" href="/reference/cli">
     Every command and flag.

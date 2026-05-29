@@ -1,0 +1,38 @@
+---
+title: "Principal, Vault, and Identity"
+sidebarTitle: "Principal, Vault, & Identity"
+description: "How Authsome organizes credentials using Principals, Vaults, and cryptographic Identities."
+icon: "users"
+keywords: ["authsome principal", "authsome vault", "authsome identity", "credential isolation"]
+---
+
+Authsome uses three core concepts to manage and isolate credentials: **Identity**, **Principal**, and **Vault**. This separation ensures that credentials are tied to logical owners (humans or teams) rather than raw cryptographic keys.
+
+## At a glance
+
+| Concept | What it is | Identifiers |
+|---|---|---|
+| **Identity** | The cryptographic agent (Ed25519 key pair) that makes requests. | `Handle` (e.g. `brisk-boldly-clearly`), `did:key` |
+| **Principal** | The logical owner (human or team) of credentials. | `PrincipalId` (opaque string), `PrincipalRole` (`admin` or `user`) |
+| **Vault** | The encrypted credential store owned by a Principal. | `VaultId` (opaque string), `VaultHandle` (display name) |
+
+## The Claim Flow
+
+An **Identity** does not own credentials directly. Instead, an Identity claims a **Principal** through a binding called an **IdentityClaimRecord**. 
+
+Here is how the initialization and claim flow works:
+
+1. **Initialize Identity:** Running `authsome init` creates a new Identity and registers it with the daemon. The daemon returns a claim URL.
+2. **Register/Login Principal:** The user opens the claim URL and signs in (with email and password). The first Principal created becomes the server `admin`, subsequent ones are `user`.
+3. **Accept Claim:** The authenticated Principal confirms the claim, binding the Identity to the Principal and creating the Principal's default Vault.
+4. **Access Granted:** Vault access is granted only after the claim is `accepted`.
+
+## The Vault
+
+A **Vault** is a named credential store owned by exactly one Principal. 
+
+- Multiple Identities may share one Vault by claiming the same Principal.
+- A Vault contains zero or more **Connections**, each scoped to one Provider.
+- **ClientCredentials** (like OAuth client IDs) are server-scoped and shared across all Vaults.
+
+This means that if you want multiple credential sets (e.g., Personal vs. Work) that are completely isolated, you can use separate Vaults or separate Principals. If you just want multiple accounts on the same provider (e.g., two GitHub accounts) in the same context, you use multiple Connections within the same Vault.

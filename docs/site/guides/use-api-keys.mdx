@@ -3,7 +3,7 @@ title: "Use API keys"
 description: "Authenticate with OpenAI, Anthropic, and other API-key providers through a secure browser bridge."
 ---
 
-API-key providers like OpenAI, Anthropic, and SendGrid don't run an OAuth flow, you have one long-lived secret. Authsome captures it through a local browser form so it never appears in shell history or process listings, then stores it encrypted in your profile.
+API-key providers like OpenAI, Anthropic, and SendGrid use one long-lived secret instead of an OAuth flow. Authsome captures this secret through a local browser form so it never appears in shell history or process listings, then stores it encrypted in your Vault.
 
 ## Log in
 

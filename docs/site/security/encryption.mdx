@@ -1,28 +1,27 @@
 ---
 title: "Encryption at rest"
 sidebarTitle: "Encryption at rest"
-description: "How authsome encrypts credentials in the local vault. AES-256-GCM, key wrap, and the two backends."
+description: "How Authsome encrypts credentials in the local vault. Argon2id KEK/DEK model and AES-256-GCM."
 icon: "lock"
-keywords: ["authsome encryption", "AES-256-GCM credentials", "credential vault encryption", "keyring vs file"]
+keywords: ["authsome encryption", "AES-256-GCM credentials", "credential vault encryption", "Argon2id KEK"]
 ---
 
-Authsome encrypts every sensitive credential field in the vault before writing it to disk. The encryption is symmetric, the algorithm is AES-256-GCM, and the master key lives outside the vault file.
+Authsome encrypts every sensitive credential field in the vault before writing it to disk. The encryption is symmetric, using AES-256-GCM, and relies on an Argon2id KEK/DEK model.
 
 ## Parameters
 
 | | |
 |---|---|
 | Algorithm | AES-256-GCM |
-| Master key | 256 bits, generated on first init from `os.urandom` |
+| Vault encryption | Argon2id KEK/DEK model |
 | Nonce | 96 bits, generated per encryption |
 | Tag | 128 bits (GCM authentication tag) |
-| Authenticated data | None in v1 |
 
-The choice of <Tooltip tip="Advanced Encryption Standard with a 256-bit key, in Galois/Counter Mode. AEAD cipher: provides confidentiality and integrity in one pass.">AES-256-GCM</Tooltip> follows the <Tooltip tip="NIST Special Publication 800-38D defines recommended usage of GCM, including IV/nonce uniqueness requirements.">NIST SP 800-38D</Tooltip> recommendation and is the same primitive used by TLS 1.3 and most modern at-rest stores. GCM provides confidentiality and integrity in one pass.
+The choice of AES-256-GCM provides both confidentiality and integrity in one pass. It is the same primitive used by TLS 1.3 and most modern at-rest stores.
 
 ## What gets encrypted
 
-Every field marked `Sensitive` on a `ConnectionRecord` is encrypted before write:
+Every sensitive field on a Connection is encrypted before write:
 
 - `access_token`
 - `refresh_token`
@@ -31,33 +30,17 @@ Every field marked `Sensitive` on a `ConnectionRecord` is encrypted before write
 - `id_token` (when stored)
 - Any provider-issued secret bound to the connection
 
-`client_id`, scopes, expiry timestamps, and `account` metadata are stored plaintext. They are not sensitive on their own and need to be queryable.
+`client_id`, scopes, expiry timestamps, and account metadata are stored in plaintext. They are not sensitive on their own and need to be queryable.
 
-## Wire format
+## The Argon2id KEK/DEK Model
 
-Each encrypted value is stored as a compact dot-separated string:
+Authsome uses a Key Encryption Key (KEK) and Data Encryption Key (DEK) approach.
 
-```text
-base64(nonce) . base64(ciphertext || tag)
-```
+The Master Key (or KEK) wraps the underlying data key (DEK) used for the actual AES-256-GCM encryption. This model separates the key used for bulk encryption from the key used to authorize access to the Vault.
 
-A sample record looks like:
+## Master key sources
 
-```text
-8Tn9Cw7yL2pQ4Vx0.4FzM3KDGbR1X...UC7qE9wA
-```
-
-This is produced by the vault crypto backends in `src/authsome/vault/crypto.py`.
-
-<Note>
-  A future portable spec will define a richer JSON envelope (`{enc, alg, kid, nonce, ciphertext, tag}`) as the cross-language interop target. The Python implementation uses the compact format above; a future release may migrate to the JSON envelope when a second-language port lands.
-</Note>
-
-## Master key backends
-
-The 256-bit master key is resolved according to `config.encryption.mode` in `~/.authsome/config.json`.
-
-### `auto` (default)
+The daemon resolves the Master Key depending on how the Vault was initialized. 
 
 Authsome prefers stronger and more external key sources first:
 
@@ -67,67 +50,11 @@ Authsome prefers stronger and more external key sources first:
 4. A newly created OS keyring entry, when the keyring is available.
 5. A newly created local `~/.authsome/server/master.key` as the final fallback.
 
-```json
-{ "encryption": { "mode": "auto" } }
-```
+`authsome whoami` shows the effective source chosen at runtime.
 
-**Use when.** Most installs. It preserves old local-file setups, but prefers stronger sources on fresh machines and in managed environments.
+### Warning: Key loss
 
-### `local_key`
-
-The master key is stored as base64-encoded JSON in `~/.authsome/server/master.key` with mode `0600`. Filesystem permissions are the only protection at rest.
-
-```json
-{ "encryption": { "mode": "local_key" } }
-```
-
-**Use when.** Single-user laptop, CI runners with isolated file systems, environments where the OS keyring is unavailable.
-
-**Trade-offs.**
-
-| | |
-|---|---|
-| Works without a graphical session | Yes |
-| Survives reboots | Yes |
-| Sharable across users | No (file mode 0600) |
-| Recovery if lost | None. Without `master.key`, encrypted records cannot be decrypted. |
-
-### `keyring`
-
-The master key is stored in the OS keychain via the [`keyring`](https://github.com/jaraco/keyring) library. Implementations:
-
-- macOS: Keychain Access
-- Linux: GNOME Keyring, KWallet, or libsecret
-- Windows: Credential Manager
-
-```json
-{ "encryption": { "mode": "keyring" } }
-```
-
-**Use when.** Desktop machines where the OS keychain is unlocked at login.
-
-**Trade-offs.**
-
-| | |
-|---|---|
-| Stronger than file mode 0600 | Yes (OS-level access control) |
-| Works headless | Sometimes (Linux without a graphical session often fails) |
-| Sharable across users | No |
-| Recovery if lost | Same as `local_key`. Lost key, lost records. |
-
-`authsome doctor` verifies the configured backend is reachable, and `authsome whoami` shows both the configured mode and the effective source chosen at runtime.
-
-## Switching backends
-
-To move from `local_key` to `keyring`, you need to read the current key, migrate it into the keyring, and update the config. This is not yet a built-in command. The migration story is tracked on the roadmap.
-
-In the meantime, the safest path is:
-
-1. Note your active connections (`authsome list`).
-2. `authsome revoke <provider>` for each connection that supports revocation.
-3. `rm -rf ~/.authsome/` (this destroys every stored credential).
-4. Edit a fresh `~/.authsome/config.json` with the desired `encryption.mode`.
-5. Re-run `authsome login <provider>` for each connection.
+There is no recovery if the Master Key is lost. Without `master.key` (or the respective OS keyring entry), the encrypted records cannot be decrypted. Treat your `master.key` and `store.db` backup strategy with the same care you would give raw credentials.
 
 ## What encryption does not do
 
@@ -135,15 +62,13 @@ Encryption protects against **offline disk access**. It does not protect against
 
 - A running process with access to the master key. Once the daemon decrypts a record, the plaintext lives in memory for the duration of the request.
 - Memory inspection via `ptrace` or kernel-level introspection.
-- A backup tool that copies `master.key` and `store.db` together. If both files are in the same backup, the encryption is moot.
+- A backup tool that copies `master.key` and `store.db` together into an insecure location.
 
 The full trust model is in [Threat model](/security/threat-model).
 
 ## Key rotation
 
-Key rotation (replacing the master key without losing records) is not implemented in v1. The vault interface anticipates it: records carry a `kid` field in the JSON envelope spec, and the `Sensitive` annotation makes re-encryption straightforward. The migration command will land when a real reason to rotate exists.
-
-In the meantime, rotation means rotating the records themselves: revoke and re-login on each provider.
+Replacing the master key without losing records is handled via the `authsome admin rekey` command or the daemon API. Records are re-wrapped using the new key without losing the underlying Vault items.
 
 ## What's next
 
@@ -155,3 +80,4 @@ In the meantime, rotation means rotating the records themselves: revoke and re-l
     Storage layout, key namespace, and the three states.
   </Card>
 </Columns>
+

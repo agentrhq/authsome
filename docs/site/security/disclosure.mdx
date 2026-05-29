@@ -1,12 +1,12 @@
 ---
 title: "Responsible disclosure"
 sidebarTitle: "Disclosure"
-description: "How to report a security issue in authsome."
+description: "How to report a security issue in Authsome."
 icon: "envelope"
 keywords: ["authsome security disclosure", "authsome vulnerability report", "responsible disclosure"]
 ---
 
-If you find a security issue in authsome, please tell us privately so we can fix it before it's public.
+If you find a security issue in Authsome, please tell us privately so we can fix it before it is made public.
 
 ## How to report
 
@@ -14,8 +14,8 @@ Open a [private security advisory on GitHub](https://github.com/agentrhq/authsom
 
 - A clear description of the issue and its impact.
 - Steps to reproduce. A minimal proof of concept is ideal.
-- Affected versions if you've narrowed it down (`authsome --version`).
-- Your name and a way to credit you in the fix announcement, if you'd like credit.
+- The affected version (`authsome --version`).
+- Your name and a way to credit you in the fix announcement, if you want credit.
 
 Private advisories are visible only to repository maintainers until coordinated disclosure.
 
@@ -34,22 +34,16 @@ We will keep you in the loop through the fix and credit you in the release notes
 
 In scope:
 
-- The authsome CLI, library, and daemon.
-- Bundled provider definitions under `src/authsome/auth/bundled_providers/`.
+- The Authsome CLI, Python library, and local daemon.
+- Bundled provider definitions.
 - The mitmproxy-based local HTTP proxy.
 - The daemon dashboard UI.
 
 Out of scope:
 
 - Bugs in third-party providers' OAuth implementations. Report those to the provider.
-- Bugs in the dependencies authsome ships. Report those upstream. We will track the relevant CVE and bump our pinned version.
-- Issues that require local root or physical access to the machine. Authsome's threat model assumes the local machine and user account are trusted; see [Threat model](/security/threat-model).
-
-## What we won't do
-
-- We won't pay bounties. Authsome is open source; we credit researchers in release notes.
-- We won't act on unverified reports. We need reproducible steps or a clear theoretical model.
-- We won't publish a fix before triage is complete.
+- Bugs in upstream dependencies. We will track the relevant CVE and bump our pinned version.
+- Issues that require local root or physical access to the machine. Authsome's threat model assumes the local machine and user account are trusted.
 
 ## Public release notes
 

@@ -26,7 +26,6 @@ All commands support `--json` for machine-readable output, `--quiet` to suppress
 | `profile` | Manage local profiles backed by identity keys. |
 | `ui` | Open the dashboard in the browser. |
 | `log` | View structured audit entries. |
-| `daemon <subcommand>` | Manage the local daemon: `serve`, `start`, `stop`, `restart`, `status`, `logs`. |
 
 ## Global flags
 
@@ -210,24 +209,6 @@ authsome ui [--no-browser]
 ```
 
 Opens the daemon dashboard in your default browser at `http://127.0.0.1:7998/ui/`. Pass `--no-browser` to just print the URL.
-
-### `daemon`
-
-Daemon lifecycle management. The CLI normally auto-starts the daemon on first use; these subcommands let you control it explicitly (useful for systemd units, debugging, and CI).
-
-```bash
-authsome daemon serve [--host 127.0.0.1] [--port 7998] [--reload]
-authsome daemon start
-authsome daemon stop
-authsome daemon restart
-authsome daemon status
-authsome daemon logs [-n 100]
-```
-
-- `serve` runs the daemon in the foreground (blocks the terminal).
-- `start` / `stop` / `restart` manage a background daemon.
-- `status` prints health, PID file path, and log file path as JSON.
-- `logs` tails the daemon log file.
 
 ### `logout` / `revoke` / `remove`
 

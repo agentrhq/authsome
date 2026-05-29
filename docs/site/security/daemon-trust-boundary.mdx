@@ -1,94 +1,51 @@
 ---
 title: "Daemon trust boundary"
 sidebarTitle: "Daemon trust boundary"
-description: "What the loopback-only daemon model protects against in v1, and what it doesn't."
+description: "What the loopback-only daemon model protects against, and what it doesn't."
 icon: "shield"
 keywords: ["authsome daemon security", "loopback bind security", "127.0.0.1 trust", "local daemon access control"]
 ---
 
-The authsome daemon binds to `127.0.0.1:7998` and has intentionally minimal hardening in v1. This page makes the model explicit so you can decide whether your deployment shape is inside or outside the trust boundary.
+The Authsome daemon binds to `127.0.0.1:7998`. It uses Proof-of-Possession (PoP) tokens to verify that callers belong to a registered Identity. This page explains what that boundary protects.
 
-## The v1 model
+## The model
 
-The daemon assumes the local machine is trusted. Specifically:
+Authsome assumes the local machine is generally trusted, but adds specific checks to isolate credentials:
 
-- Any process running as the same user can talk to the daemon.
-- The OS enforces loopback binding so only same-host traffic reaches the daemon.
-- The daemon does not authenticate its callers.
-
-This is sufficient for a single-developer laptop. It is not sufficient for shared multi-user machines unless you accept that any user on the host can reach the daemon.
+- The OS enforces loopback binding so only traffic from the same host reaches the daemon.
+- The daemon requires a PoP JWT signed by the agent's cryptographic Identity (Ed25519 key) to authorize credential access.
+- That Identity must be bound to a Principal, which owns the Vault.
 
 ## What the boundary protects against
 
 | Threat | Outcome |
 |--------|---------|
-| Network attackers on the LAN | Cannot connect. Daemon binds to 127.0.0.1 only. |
-| Internet attackers | Cannot connect. Same reason. |
-| Other users' shell sessions on the same host (Unix) | Can connect, but cannot decrypt records they don't have the master key for. Encryption is still doing work. |
+| Network attackers on the LAN | Cannot connect. The daemon binds to 127.0.0.1 only. |
+| Internet attackers | Cannot connect. |
+| Unauthorized agents on the same host | Cannot read credentials. Without the Ed25519 private key to sign the PoP token, the daemon rejects the request. |
 | Tampering with an in-flight OAuth callback | Limited. The callback URL is `127.0.0.1:7998/auth/callback/oauth`. Only same-host traffic can reach it. |
 
 ## What the boundary does not protect against
 
 | Threat | Outcome |
 |--------|---------|
-| A process running as your user | Can call the daemon, including credential-resolution routes. Treat any code you run as having access. |
-| A process running as root | Can read `master.key` directly. The daemon is not the bottleneck. |
+| A process running as root | Can read the `master.key` and the Vault directly. The daemon is not the bottleneck here. |
 | Memory inspection of the daemon process | Can read decrypted credentials held in active sessions or the proxy's request pipeline. |
-| Replay of a browser-bridge form submission | No CSRF token yet. Credentials submitted through the bridge could in principle be replayed by another local process within the session window. |
-| Cross-session leak after a restart | Active auth sessions are in-memory. A daemon crash mid-flow leaves orphaned state at the provider but no credential leak locally. |
-
-## v1 limitations
-
-The daemon ships without these and we plan to add them:
-
-- **No bearer token between the CLI, the proxy, and the daemon.** Loopback binding is the only access control.
-- **No per-session CSRF tokens on browser forms.** The browser bridge is opened by the CLI and closed when the flow ends. The window is small but the protection is absent.
-- **No persistent session store.** A restart loses any login that is mid-flight. The user re-runs the login.
-- **No process-level isolation between the daemon and the proxy.** Both run in the daemon's address space. A bug in one is reachable from the other.
-
-These are tracked on the [roadmap](/roadmap).
-
-## When the model is adequate
-
-| Deployment | Adequate | Why |
-|------------|:--------:|-----|
-| Single developer laptop | Yes | The intended target. All trust assumptions hold. |
-| Single developer over SSH | Yes | The SSH session is the trust boundary, not the daemon. |
-| Shared workstation, single user signed in | Yes | Other users cannot reach 127.0.0.1 from a different account on the same host without privileged operations. |
-| Shared workstation, multiple users signed in | Caveat | Any signed-in user with a process on the host can connect. Their `~/.authsome/` is isolated, but the daemon is shared if there is one running. Run a per-user daemon by setting `AUTHSOME_HOME`. |
-| CI runner | Caveat | OK if the runner is dedicated and torn down after the job. Treat the runner as untrusted afterward. |
-| Hosted shared daemon on a private network | Caveat | Approved only behind VPN/private overlay. See [Hosted deployment model](/security/hosted-deployment). |
-| Public hosted daemon | No | The v1 daemon does not support multi-user. Do not expose to the internet. |
-
-## When the model is not adequate
-
-If you need any of the following, do not run the v1 daemon in that role:
-
-- Per-user authentication inside the daemon.
-- Tenant isolation between users.
-- Hardened browser sessions for internet-facing forms.
-- Auditable, non-repudiable identity tied to each request.
-
-Those capabilities are on the roadmap.
+| Cross-session leak after a restart | Active auth sessions are in-memory. A daemon crash mid-flow leaves orphaned state at the provider, but no credential leak locally. |
 
 ## How to harden inside the boundary
 
-Even within the supported model, you can reduce blast radius:
+You can reduce blast radius even further:
 
-- Use `keyring` mode for the master key on machines with a working OS keychain. See [Encryption at rest](/security/encryption).
-- Run a per-user daemon by setting `AUTHSOME_HOME` to a user-specific path. This isolates vault files across users on the same host.
+- Run a per-user daemon by setting `AUTHSOME_HOME` to a user-specific path. This isolates Vault files across users on the same host.
 - Keep `AUTHSOME_HOME` off shared mounts unless you control every host that mounts it.
-- Rotate any credential exposed to a CI runner after the job. The runner is outside your control.
-- Watch `~/.authsome/audit.log` for unexpected `revoke`, `register`, or `export` events.
+- Watch the Admin Audit Dashboard (at `/audit`) or query `authsome log` for unexpected `revoke`, `register`, or `export` events.
 
 ## What's next
 
 <Columns cols={2}>
   <Card title="Threat model" icon="shield-halved" href="/security/threat-model">
-    The full asset list and the three trust boundaries.
-  </Card>
-  <Card title="Hosted deployment model" icon="cloud" href="/security/hosted-deployment">
-    Running a shared daemon on a trusted private network.
+    The full asset list and trust boundaries.
   </Card>
   <Card title="The local daemon" icon="server" href="/concepts/the-daemon">
     What the daemon does and which routes it exposes.

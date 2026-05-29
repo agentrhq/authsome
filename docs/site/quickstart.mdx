@@ -3,12 +3,12 @@ title: "Quickstart"
 description: "Install authsome, then either drive it from an AI agent via the skill or use the CLI directly to log in and run agents with injected credentials."
 ---
 
-There are two ways to use authsome day-to-day, depending on who's driving:
+There are two ways to use Authsome day-to-day:
 
-- **Agent-driven.** Install the skill and let your coding agent (Claude Code, Cursor, Codex, etc.) call authsome on your behalf.
+- **Agent-driven.** Install the skill and let your coding agent (Claude Code, Cursor, Codex, etc.) call Authsome on your behalf.
 - **CLI-driven.** Run `authsome` commands yourself from your shell or scripts.
 
-This page covers both. Pick the one that matches how you'll actually use authsome.
+This page covers both. Pick the one that matches how you will actually use it.
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ authsome doctor
 
 ## Path 1: Agent-driven (recommended)
 
-Install the authsome skill into your agent. The skill teaches the agent how to call authsome at the right moments: login when a credential is missing, revoke + re-login on 401, `--scopes` on 403, and never asking you for tokens directly.
+Install the Authsome skill into your agent. The skill teaches the agent how to call Authsome when it needs credentials. It handles missing credentials, revokes and re-logs in on 401s, asks for `--scopes` on 403s, and never asks you for tokens directly.
 
 See [Agent integrations](/integrations/agents/index) for per-agent install paths (Claude Code, Codex, Cursor, OpenCode, LangChain, LlamaIndex, OpenAI Agents SDK, Anthropic SDK). The pattern across all of them is the same: drop the skill into the agent's skill / context directory, then ask the agent to perform a task that needs an external service.
 

@@ -1,96 +1,58 @@
 ---
 title: "Threat model"
 sidebarTitle: "Threat model"
-description: "What authsome protects against, what it doesn't, and where the trust boundaries sit."
+description: "What Authsome protects against, what it doesn't, and where the trust boundaries sit."
 icon: "shield-halved"
 keywords: ["authsome threat model", "credential vault security", "agent credential security", "local credential storage"]
 ---
 
-Authsome is a local-first credential broker. It assumes the local machine and user account are trusted relative to the remote services it authenticates against. This page makes that assumption explicit and lists the specific risks authsome addresses, the residual risks it does not, and the deployment shapes where each model applies.
+Authsome is a local-first credential broker. It assumes the local machine and user account are trusted relative to the remote services it authenticates against. This page lists the specific risks Authsome addresses, the residual risks it does not, and the boundaries it enforces.
 
 ## Asset summary
 
 | Asset | Where it lives | At-rest protection |
 |-------|----------------|---------------------|
-| OAuth access tokens | Vault (encrypted SQLite) | AES-256-GCM |
-| OAuth refresh tokens | Vault | AES-256-GCM |
-| API keys | Vault | AES-256-GCM |
-| OAuth `client_secret` | Vault | AES-256-GCM |
-| OAuth `client_id` | Vault | Plaintext (not sensitive) |
-| Provider definitions | Filesystem (`bundled_providers/`, `~/.authsome/providers/`) | None (not sensitive) |
-| Master key | `~/.authsome/server/master.key` (mode 0600) **or** OS keyring | Filesystem permissions or keyring backend |
-| Audit log | `~/.authsome/audit.log` | None (intentionally readable) |
+| OAuth access/refresh tokens | Vault (encrypted SQLite) | AES-256-GCM (Argon2id DEK) |
+| API keys & Client secrets | Vault | AES-256-GCM |
+| OAuth `client_id` | Vault | Plaintext |
+| Provider definitions | Filesystem | None (not sensitive) |
+| Master key | `~/.authsome/server/master.key` **or** OS keyring | Filesystem permissions or keyring |
+| Identity keys | `~/.authsome/identities/<handle>.key` | Filesystem permissions |
+| Audit log | SQLite (daemon-managed) | None (intentionally queryable) |
 | In-flight auth sessions | Daemon memory | Process boundary |
 
-## What authsome protects against
+## What Authsome protects against
 
-**Credential sprawl.** Tokens and API keys live in one encrypted store rather than as plaintext environment variables scattered across every project's `.env`, shell config, and CI secret store.
+**Credential sprawl.** Tokens and API keys live in one encrypted store rather than as plaintext environment variables scattered across every project's `.env`, shell config, or CI secret store.
 
-**Secrets in process listings.** `authsome run` injects credentials at the HTTP proxy layer. The child process never sees the real secret, so it cannot leak through `ps`, `/proc/<pid>/environ`, or subprocess environment inheritance.
+**Secrets in process listings.** `authsome run` injects credentials at the HTTP proxy layer. The child process never sees the real secret, preventing leaks through `ps`, `/proc/<pid>/environ`, or subprocess environment inheritance.
 
-**Secrets in shell history.** `client_secret`, access tokens, refresh tokens, and API keys are never accepted as command-line arguments. They are collected through a local browser bridge or, on headless machines, through masked terminal input via `getpass`.
+**Secrets in shell history.** Tokens and API keys are never accepted as command-line arguments. They are collected through a local browser bridge or masked terminal input.
 
-**Offline disk access.** AES-256-GCM at rest protects against a stolen disk image or another user reading your home directory. An attacker with raw access to the encrypted store cannot decrypt records without the master key, which lives separately under `~/.authsome/server/master.key` (mode 0600) or in the OS keyring.
+**Offline disk access.** AES-256-GCM protects against a stolen disk image or another user reading your home directory. An attacker cannot decrypt records without the master key, which lives separately.
 
-**Stale tokens.** OAuth refresh is automatic. Agents call authsome at runtime, get a fresh token, and never need to handle expiry. There is no long-lived embedded token sitting in a script or CI variable to leak.
+**Stale tokens.** OAuth refresh is automatic. Agents get a fresh token at runtime and never need to handle expiry. There is no long-lived embedded token sitting in a script to leak.
 
-**Cross-profile contamination.** Profiles are independent SQLite stores under `profiles/<name>/store.db`. Credentials in `work` are invisible to `personal`, and vice versa. A profile-level mistake stays in one profile.
+**Cross-tenant contamination.** Vaults belong strictly to a single Principal. Credentials owned by one Principal are invisible and inaccessible to Identities claimed by another Principal.
 
-## What authsome does not protect against
+## What Authsome does not protect against
 
-**A compromised running process.** Once the master key is loaded and a credential is decrypted, anything running as the user on that machine can in principle read the plaintext value. Authsome is a local broker, not a sandbox.
+**A compromised root process.** If an attacker has root access on the machine, they can read the master key and the Vault directly. Authsome is a local broker, not a sandbox.
 
-**Memory inspection.** Resolved credentials are held in the daemon's memory for the lifetime of `authsome run` and briefly in the proxy's request pipeline. A process with `ptrace` or kernel access can read them.
+**Memory inspection.** Resolved credentials are held in the daemon's memory and briefly in the proxy's request pipeline. A process with `ptrace` or kernel access can read them.
 
-**A malicious provider definition.** Custom providers in `~/.authsome/providers/` can declare any `api_url` and any `authorization_url`. Authsome validates schema, not intent. Register only definitions whose endpoints you have verified against the provider's official documentation. The custom-providers guide makes this point explicit; see [Custom providers](/guides/custom-providers).
+**Malicious provider definitions.** Custom providers in `~/.authsome/providers/` can declare any `api_url`. Authsome validates the schema, not the intent. Only register definitions you trust.
 
-**Network attackers on the wire.** Authsome relies on TLS to the provider. The mitmproxy CA it installs is intentionally limited to the local machine and used only for outbound interception from your own subprocesses. Authsome does not validate certificate transparency or pin provider certificates.
-
-**Phishing through a custom OAuth app.** If you register an OAuth app with malicious redirect URIs and then run authsome against it, authsome will dutifully complete the flow. The OAuth model trusts the redirect URI; authsome trusts the OAuth model.
-
-**Hostile shoulder-surfing during the API-key flow.** The masked terminal fallback (`getpass`) hides typed characters but does not protect against an observer reading the screen during paste or against keyloggers on the host.
-
-**Cloud/SaaS-level breaches.** A token authsome stores for a provider is only as strong as the provider's own session revocation. If a provider is breached, refresh tokens authsome holds may already be invalid by the time you find out.
+**Network attackers on the wire.** Authsome relies on TLS to the provider. The mitmproxy CA it installs is limited to the local machine for outbound interception. Authsome does not validate certificate transparency or pin provider certificates.
 
 ## Trust boundaries
-
-Three concentric boundaries:
-
-```text
-┌────────────────────────────────────────────────────────────┐
-│  Network                                                    │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Local machine (the user's account)                  │   │
-│  │  ┌─────────────────────────────────────────────┐    │   │
-│  │  │  Daemon process (in-memory sessions)         │    │   │
-│  │  │  Vault file (encrypted) + master key         │    │   │
-│  │  └─────────────────────────────────────────────┘    │   │
-│  └─────────────────────────────────────────────────────┘   │
-└────────────────────────────────────────────────────────────┘
-```
 
 | Boundary | What's inside is trusted | What's outside is not |
 |----------|---------------------------|------------------------|
 | Network | The daemon at `127.0.0.1:7998`. | Anything else on the LAN or internet. |
-| Local machine | The user's account and processes running under it. | Other user accounts on the same machine, and the network. |
-| Daemon process | Decrypted credentials, in-flight auth sessions. | Other processes on the machine (even under the same user, in practice). |
-
-Hosted mode (a shared daemon on a private network) widens the network boundary. See [Hosted deployment model](/security/hosted-deployment) for the additional caveats.
-
-## Deployment shapes
-
-| Shape | Recommended | Why |
-|-------|:-----------:|-----|
-| Single developer laptop | Yes | The intended model. All trust boundaries hold. |
-| CI runner with pre-seeded `~/.authsome/` | Yes, with care | Treat the runner as untrusted after the job. Rotate any credential exposed to it. |
-| Multi-user workstation | Caveat | Per-user `~/.authsome/` directories are isolated, but a privileged process can read any user's master key. |
-| Private hosted daemon (internal network) | Caveat | Approved only behind VPN or private overlay network. See [Hosted deployment model](/security/hosted-deployment). |
-| Public hosted daemon | No | The v1 daemon has no per-user authentication, no tenant isolation, and no browser-session hardening. Do not expose it to the internet. |
-
-## Known v1 limitations
-
-The local daemon model has known gaps that are explicit tradeoffs for v1. See [Daemon trust boundary](/security/daemon-trust-boundary) for the full list with reasoning.
+| Identity | An agent holding a valid Ed25519 key. | Any caller without a valid PoP token. |
+| Local machine | The user's account and processes running under it. | Other user accounts on the same machine. |
 
 ## Responsible disclosure
 
-If you find a security issue, please follow the process in [Responsible disclosure](/security/disclosure). We accept reports privately and acknowledge within 72 hours.
+If you find a security issue, please follow the process in [Responsible disclosure](/security/disclosure). We accept reports privately and acknowledge them within 72 hours.

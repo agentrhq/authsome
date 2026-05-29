@@ -133,7 +133,7 @@ CRUD for connection records. Behind the scenes, every route goes through the Aut
 
 ## Proxy resolution
 
-These routes back the local HTTP proxy started by `authsome run`. The proxy never holds decryption keys itself; it asks the daemon for fresh credentials per request.
+These routes back the local HTTP proxy started by `authsome run`. The proxy never holds decryption keys. It asks the daemon for fresh credentials on each request.
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -142,15 +142,20 @@ These routes back the local HTTP proxy started by `authsome run`. The proxy neve
 
 ## Dashboard UI
 
-These routes serve HTML. The dashboard is mounted under the `/ui` prefix.
+These routes serve HTML. The dashboard is served at the root prefix.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/ui/` | Dashboard overview. |
-| `GET` | `/ui/connections` | All connections, by provider. |
-| `GET` | `/ui/apps/{provider_name}` | Detail pane for one provider. |
-| `POST` | `/ui/apps/{provider_name}/{connection_name}/disconnect` | Log out from the dashboard UI. |
-| `POST` | `/ui/apps/{provider_name}/connect` | Start a flow from the dashboard UI. |
+| `GET` | `/` | Dashboard overview. |
+| `GET` | `/applications` | Applications / Providers view. |
+| `GET` | `/manage/connections` | All connections, by provider. |
+| `GET` | `/identity` | Identity details. |
+| `GET` | `/audit` | Admin audit dashboard. |
+| `GET` | `/apps/{provider_name}` | Detail pane for one provider. |
+| `GET` | `/apps/{provider_name}/connections/{connection_name}` | Connection detail pane. |
+| `POST` | `/apps/{provider_name}/{connection_name}/disconnect` | Log out from the dashboard UI. |
+| `POST` | `/apps/{provider_name}/connect` | Start a flow from the dashboard UI. |
+
 
 ## Auth
 

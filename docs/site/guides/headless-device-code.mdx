@@ -3,7 +3,7 @@ title: "Headless setup with device code"
 description: "Authenticate over SSH or in CI without a local browser by using the OAuth2 Device Authorization Grant."
 ---
 
-The PKCE flow needs a local browser to receive the OAuth callback. On a remote SSH session, in CI, or on a headless server there's no browser to open. Use the **Device Code flow** instead, you log in on a separate device and authsome polls the token endpoint until you authorize.
+The PKCE flow needs a local browser for the OAuth callback. On a remote SSH session, in CI, or on a headless server, there is no browser available. Use the **Device Code flow** instead: you log in on a separate device, and Authsome polls the token endpoint until you authorize.
 
 ## Prerequisites
 

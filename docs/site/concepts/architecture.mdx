@@ -1,128 +1,28 @@
 ---
 title: "Architecture"
-description: "Five layers · identity, policy, vault, auth, audit · composed by an explicit orchestrator."
+description: "How Authsome separates identity, storage, and authentication."
 ---
 
-Authsome is layered. Each layer has one bounded responsibility. Layers do not reach sideways into other layers. Explicit orchestrators compose them. This makes every layer independently testable and independently swappable.
+Authsome separates credential management into distinct, highly-focused layers. The goal is to provide a unified auth broker for AI agents that cleanly isolates who is acting, how credentials are encrypted, and how OAuth or API flows are executed.
 
-The supported integration mode is the **sidecar**: `authsome run -- python agent.py` spawns the agent as a subprocess of authsome with an HTTP proxy injecting credentials at request time. No auth code in the agent.
+Authsome is primarily consumed as a **sidecar proxy** (via `authsome run`), intercepting the agent's outgoing requests and injecting credentials. Alternatively, it can be embedded as a Python library.
 
-The same layered architecture is also exposed as a Python library (`from authsome.server.dependencies import create_auth_service`) for embedding inside a larger orchestrator. The two modes share the same layers below.
+## The core concepts
 
-Sidecar-mode call graph. Identity and policy gate the vault; the auth layer refreshes when needed; the sidecar writes back, injects the Authorization header, and audits at every step.
+Authsome’s architecture relies on four foundational concepts:
 
-```text
-agent
-  ↓  HTTP request via HTTP_PROXY=localhost:<port>
-[ sidecar ]              proxy-mode orchestrator
-  ↓
-identity     →  signed principal chain (actor=agent, subject=user)
-  ↓
-policy       →  allow / deny
-  ↓
-vault        →  encrypted credential record
-  ↓  if expired:
-auth (low)   →  external token endpoint → fresh credential
-  ↓
-sidecar      →  vault.write(fresh credential)
-  ↓
-sidecar injects Authorization header
-  ↓
-external API
-  ↓
-audit        ←  append-only log entry at every step
-```
+1. **Identity**: The cryptographic agent making the request (using Ed25519 keys and `did:key` DIDs). It proves its identity to the daemon using Proof-of-Possession (PoP) JWTs.
+2. **Principal**: The logical owner (e.g., a human user or team). An identity must claim a principal to access any credentials.
+3. **Vault**: The encrypted storage for credentials, owned by exactly one principal.
+4. **Auth flows**: The stateless execution of OAuth 2.0 (PKCE, Device Code, DCR) or API key collection.
 
-## The five layers
+## Motivation
 
-| Layer | Owns | Does not own |
-|------|------|--------------|
-| Identity | Agent identity, principal chain token | Credentials, access decisions, token expiry |
-| Policy | Access control, allow/deny decisions | Credentials, token refresh, encryption |
-| Vault | Minimal encrypted KV interface (`get`/`put`/`delete`/`list`) | OAuth, providers, expiry, refresh, policy |
-| Auth | Token refresh, OAuth acquisition flows | Persistent storage, access decisions |
-| Audit | Append-only event log | Decisions, credentials, request flow |
+AI agents need external APIs to do their jobs. Historically, giving them access meant one of two bad options:
 
-| Layer | Status |
-|-------|--------|
-| Vault | <Badge color="green">Shipped</Badge> Encrypted SQLite KV store at `~/.authsome/server/kv_store/`. |
-| Auth | <Badge color="green">Shipped</Badge> OAuth2 PKCE / device code / DCR + PKCE, API-key flow, automatic refresh. |
-| Identity | <Badge color="green">Shipped</Badge> Ed25519 keys, `did:key` DIDs, and PoP JWTs validated by the daemon on every protected request. |
-| Audit | <Badge color="green">Shipped</Badge> Append-only structured JSON events in `~/.authsome/audit.log`. |
-| Policy | <Badge color="amber">Planned</Badge> Access control evaluation. See the [roadmap](/roadmap). |
+- Exposing raw API keys in environment variables, which leaks credentials to sub-processes.
+- Building complex OAuth flows directly into the agent's code.
 
-## Vault: minimal storage
+Authsome fixes this by acting as a local credential broker. It handles the whole authentication lifecycle—from browser logins to token refresh—and securely injects those tokens into the agent’s requests via a local proxy. 
 
-The Vault is intentionally small. It exposes a generic encrypted key-value interface and nothing else.
-
-```python
-vault.get(key)
-vault.put(key, value)
-vault.delete(key)
-vault.list(prefix)
-```
-
-Vault does not know about OAuth, providers, token expiry, refresh, policy, audit, or principal-chain semantics. It stores and retrieves credential records by key. Orchestrators decide which keys to read, whether access is allowed, whether a token must be refreshed, and what should be audited.
-
-The local backend uses an encrypted KV store under `~/.authsome/server/kv_store/`. Field-level encryption uses AES-256-GCM with a 256-bit data key and a 96-bit nonce per encryption. The data key is wrapped by either a local file (`~/.authsome/server/master.key`, mode `0600`) or the OS keyring.
-
-See [Credential storage](/concepts/credential-storage) for the storage model and key namespace.
-
-## Auth: two levels
-
-The Auth layer has two intentionally separate surfaces.
-
-**Low level (`auth.flows`).** A pure function. Receives expired credentials and refresh material. Calls the external token endpoint. Returns fresh credentials and updated expiry. No vault access. No side effects. Independently testable.
-
-**High level (`AuthLayer`).** A stateful orchestrator with a vault dependency. Reads the credential from the vault, calls the stateless refresh if expired, writes the result back, returns a usable token. This is what library users call.
-
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-token = auth.get_access_token("github", connection="default")
-```
-
-Acquisition flows shipped today: <Tooltip tip="Proof Key for Code Exchange. RFC 7636. Prevents authorization-code interception by binding the code to a random code verifier the client generated.">PKCE</Tooltip>, <Tooltip tip="Device Authorization Grant. RFC 8628. Headless OAuth flow where the user enters a short code on a separate device.">Device Authorization Grant</Tooltip>, <Tooltip tip="Dynamic Client Registration. The server registers an OAuth client on the fly so the user does not need to pre-register an app.">Dynamic Client Registration</Tooltip> + PKCE, and an API-key flow.
-
-## AuthService: the orchestrator
-
-`AuthService` owns OAuth flows, token refresh, and the login/logout/revoke lifecycle. It receives a `Vault`, a `ProviderRegistry`, and an `AppStore` as dependencies. The daemon assembles one per profile; library callers build one with `create_auth_service()`.
-
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-token = auth.get_access_token("github", connection="default")
-```
-
-`AuthLayer` is a thinner facade exposing the building blocks (`vault()`, `registry()`, `identity()`, `app_store()`) for callers that need them directly. See [Python library](/reference/python-library).
-
-## Proxy: sidecar orchestrator
-
-In sidecar mode, the proxy runner is the orchestrator.
-
-1. Starts the HTTP proxy on a random local port.
-2. Spawns the agent as a subprocess with `HTTP_PROXY` set to the local proxy address.
-3. Intercepts outbound HTTP requests from the agent.
-4. Looks up the matching provider by `api_url`, asks the AuthLayer for fresh credentials, and injects them into the `Authorization` header.
-5. Writes refreshed credentials back to the vault.
-6. Tears down cleanly when the agent exits.
-
-See [Proxy injection](/concepts/proxy-injection) for the routing contract and known limitations.
-
-## Storage layout
-
-State lives under `~/.authsome/`. See [Filesystem layout](/reference/file-layout) for the full tree and per-file reference.
-
-## Standards
-
-| Concern | v1 |
-|---------|-----|
-| Token refresh | OAuth 2.0 (RFC 6749) |
-| Browser-less OAuth | Device Authorization Grant (RFC 8628) |
-| PKCE | RFC 7636 |
-| Encryption at rest | AES-256-GCM, 256-bit key, 96-bit nonce |
-| Agent identity (planned) | Ed25519, `agent://local/<name>` URIs |
-| Principal chain (planned) | Local signed JWT, RFC 8693 later |
-| Policy (planned) | Cedar |
+By separating the Vault (storage), Identity (the acting agent), and Auth logic (how to get tokens), Authsome ensures agents only get the credentials they have permission to use, exactly when they need them, without ever touching the raw secret.

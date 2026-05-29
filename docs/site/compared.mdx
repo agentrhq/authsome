@@ -20,8 +20,8 @@ Authsome is a local credential broker for AI agents. The space it competes with 
 | Multi-account per provider | Yes | No (one env per key) | Sometimes | Build it |
 | Encrypted at rest | Yes (AES-256-GCM) | No (plaintext file) | Yes | Varies |
 | Secrets out of child env | Yes (proxy injection) | No | No | Build it |
-| Per-account scoping (profiles) | Yes | No | Per-tenant | Build it |
-| Auditable action log | Yes (`audit.log`) | No | Yes | Build it |
+| Per-account scoping (vaults) | Yes | No | Per-tenant | Build it |
+| Auditable action log | Yes (SQLite DB) | No | Yes | Build it |
 
 ## Hardcoded environment tokens (`.env`, shell exports)
 

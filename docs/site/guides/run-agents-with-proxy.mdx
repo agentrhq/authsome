@@ -3,7 +3,7 @@ title: "Run agents with the proxy"
 description: "Use `authsome run` to inject auth headers into outbound requests without exposing secrets to the child process."
 ---
 
-`authsome run` is the most secure way to run an agent. Authsome starts a local HTTP proxy, points the child process at it through `HTTP_PROXY`, and injects auth headers into outbound requests at the proxy layer. The child process never sees the real credentials.
+`authsome run` is the most secure way to run an agent. Authsome starts a local HTTP proxy, points the child process at it through `HTTP_PROXY`, and injects auth headers into outbound requests. The child process never sees the real credentials.
 
 ## Prerequisites
 

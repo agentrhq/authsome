@@ -1,125 +1,25 @@
 ---
 title: "The local daemon"
 sidebarTitle: "The local daemon"
-description: "How authsome's local HTTP daemon on port 7998 holds in-memory auth sessions and serves the dashboard."
+description: "Why Authsome runs a persistent background daemon to broker credentials."
 icon: "server"
 keywords: ["authsome daemon", "AUTHSOME_DAEMON_URL", "AUTHSOME_SERVER_BASE_URL", "authsome dashboard"]
 ---
 
-Authsome runs a small HTTP daemon on `127.0.0.1:7998`. The daemon coordinates browser-based flows, holds short-lived auth sessions in memory, and serves the dashboard UI. CLI commands talk to the daemon rather than driving flows themselves.
+Authsome operates as a persistent local daemon (by default running on `127.0.0.1:7998`). The CLI and the injection proxy act as thin clients that communicate with this daemon.
 
-## Why a daemon
+## Concept and motivation
 
-Earlier versions of authsome ran every flow in-process. That made three things awkward:
+Authentication flows hold state. They involve asynchronous steps like browser redirects and callbacks. If Authsome were a short-lived CLI tool, these flows would break:
 
-- **Browser bridges** (the local form used to collect API keys and OAuth client secrets) need a single long-running HTTP listener. Spinning one up per CLI invocation produced port conflicts.
-- **OAuth callbacks** need to land on the same process that started the flow. A short-lived CLI exits before the user can finish authorizing.
-- **Multi-step UIs** like the dashboard need persistent state across requests, which a one-shot CLI can't provide.
+- **OAuth callbacks:** OAuth needs a listening port for the provider's redirect. A CLI exits before you finish logging in.
+- **Session state:** Multi-step operations and token refresh logic need a place to live.
+- **Secure injection:** The proxy needs an isolated component to fetch fresh tokens without exposing the Vault decryption keys to the proxy process itself.
 
-The daemon owns those concerns. The CLI becomes a thin client.
+The daemon solves this. It runs a persistent, in-memory coordinator that manages browser bridges, handles OAuth callbacks, serves the dashboard, and orchestrates the Vault and Auth layers. 
 
-## What runs on 7998
+## Trust boundary and authorization
 
-| Route prefix | Purpose |
-|--------------|---------|
-| `/auth/...` | Browser bridges for OAuth client credentials and API-key collection. OAuth callback handlers. |
-| `/connections/...` | Read and write connection records through the AuthLayer. |
-| `/providers/...` | List, inspect, register, and remove provider definitions. |
-| `/proxy/...` | Per-request credential resolution for the local HTTP proxy started by `authsome run`. |
-| `/health` | Liveness and readiness probes. |
-| `/ui/`, `/ui/connections`, `/ui/apps/...` | The interactive dashboard UI. |
+To ensure that only authorized clients can request credentials from the daemon, Authsome uses **Proof-of-Possession (PoP) JWTs**. 
 
-The daemon binds to `127.0.0.1` only. It is not reachable from other machines on the network.
-
-## Lifecycle
-
-The CLI starts the daemon on demand. If `127.0.0.1:7998` is already in use by another `authsome` process, the CLI reuses it. If the port is held by something else, the command fails with a clear error.
-
-```text
-agent / CLI / dashboard
-        │
-        ▼
-  127.0.0.1:7998   ← daemon (FastAPI)
-        │
-        ├── in-memory: active auth sessions, browser-bridge state
-        └── on-disk:   ~/.authsome/  (vault, providers, audit log)
-```
-
-In-memory state is lost on restart. A login that is mid-flight when the daemon restarts must be re-started.
-
-`authsome run` shares the daemon with the rest of the CLI. The local HTTP proxy started by `run` calls back to the daemon's `/proxy/...` routes to resolve fresh credentials on every intercepted request. This keeps decryption logic in one place and avoids handing the proxy direct vault access.
-
-## Override the daemon URL
-
-Two environment variables control daemon discovery. Both are documented in [Environment variables](/reference/environment-variables).
-
-| Variable | Set on | Purpose |
-|----------|--------|---------|
-| `AUTHSOME_DAEMON_URL` | Client (CLI, proxy) | Point the CLI at a daemon that runs elsewhere. When set to a non-local host, the CLI does not auto-start a local daemon. |
-| `AUTHSOME_SERVER_BASE_URL` | Daemon host | The canonical external URL the daemon advertises. Browser-facing URLs and OAuth callbacks are built from this. |
-
-Local default. Neither variable needs to be set:
-
-```bash
-authsome login github
-```
-
-Hosted shared daemon for an internal team. Set both, on the right side:
-
-```bash
-# on the server running the daemon:
-export AUTHSOME_HOME=/var/lib/authsome
-export AUTHSOME_SERVER_BASE_URL=https://authsome.internal.example.com
-
-# on developer machines:
-export AUTHSOME_DAEMON_URL=https://authsome.internal.example.com
-authsome list
-```
-
-See [Hosted deployment model](/security/hosted-deployment) for the trust caveats. Hosted mode is recommended only on a private network.
-
-## The dashboard
-
-The daemon serves a small interactive dashboard at:
-
-```text
-http://127.0.0.1:7998/ui/
-```
-
-It surfaces:
-
-- All bundled and custom providers with their connection state.
-- Per-provider detail panes for OAuth and API-key connections.
-- Live connection lifecycle actions (log in, log out, revoke, refresh).
-
-The dashboard is convenience UI on top of the same routes the CLI uses. It is not a separate API.
-
-## Limitations in v1
-
-<Warning>
-  Daemon hardening is intentionally minimal in v1. Treat the daemon as trusted infrastructure on the local machine, or a single trusted private network for hosted deployments.
-</Warning>
-
-- The only access control is loopback binding. There is no bearer token between the CLI/proxy and the daemon yet.
-- Browser-rendered forms do not include per-session CSRF tokens yet.
-- Active auth sessions live only in daemon memory. A restart loses any login that is mid-flight.
-- The proxy caches resolved credentials in memory for the lifetime of `authsome run`.
-
-These are tracked for follow-up releases. See [Daemon trust boundary](/security/daemon-trust-boundary) for the full v1 trust model and what it does and does not protect against.
-
-## What's next
-
-<Columns cols={2}>
-  <Card title="Daemon trust boundary" icon="shield-halved" href="/security/daemon-trust-boundary">
-    What the loopback-only model protects against and what it doesn't.
-  </Card>
-  <Card title="Hosted deployment model" icon="cloud" href="/security/hosted-deployment">
-    Running a shared daemon on a trusted private network.
-  </Card>
-  <Card title="HTTP daemon API" icon="code" href="/reference/daemon-api">
-    Every route the daemon exposes.
-  </Card>
-  <Card title="Daemon issues" icon="wrench" href="/troubleshooting/daemon-issues">
-    Port conflicts, restart loses session, and similar.
-  </Card>
-</Columns>
+Every request made by the CLI or the proxy to the daemon carries a short-lived JWT signed by the agent's cryptographic Identity (Ed25519 key). The daemon verifies the signature and ensures the Identity is bound to a valid Principal before serving the credential or performing any Vault operation.

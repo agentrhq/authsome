@@ -3,7 +3,7 @@ title: "Log in with OAuth"
 description: "Use the PKCE browser flow to authenticate with GitHub, Google, Linear, and other OAuth2 providers."
 ---
 
-OAuth2 providers. GitHub, Google, Linear, Slack, Notion, and many of the bundled providers, use a browser-based <Tooltip tip="Proof Key for Code Exchange. RFC 7636. Prevents authorization-code interception by binding the code to a random code verifier the client generated.">PKCE</Tooltip> flow by default. You authenticate once, and authsome takes over token refresh from there.
+OAuth2 providers like GitHub, Google, Linear, Slack, and Notion use a browser-based PKCE flow by default. You authenticate once, and Authsome takes over token refresh from there.
 
 ## When to use this flow
 
@@ -12,7 +12,7 @@ Use the PKCE browser flow when:
 - Your machine has a graphical browser available.
 - You can register an OAuth app with the provider (or the provider supports Dynamic Client Registration, see the note below).
 
-If you are on a remote SSH session, in CI, or on a server without a browser, use the [Device Code flow](/guides/headless-device-code) instead.
+If you are on a remote SSH session, in CI, or on a headless server, use the [Device Code flow](/guides/headless-device-code) instead.
 
 ## Register an OAuth app
 

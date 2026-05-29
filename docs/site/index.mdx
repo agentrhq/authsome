@@ -14,13 +14,13 @@ authsome run -- python my_agent.py
 
 Agents run outside interactive sessions: in CI, over SSH, in cron jobs, in background workers, or in parallel pipelines. They need API access that survives without a human in the loop.
 
-Hardcoded environment tokens leak or go stale. Building auth flow logic, token storage, refresh handling, and per-provider config into every project rebuilds the same plumbing every time.
+Hardcoded environment tokens leak or go stale. Building auth flow logic, token storage, refresh handling, and per-provider config into every project forces you to rebuild the same plumbing every time.
 
-Authsome is the local credential layer agents call at runtime.
+Authsome acts as the local credential layer agents call at runtime.
 
 - **No credential sprawl.** One encrypted store, every provider, every agent, one place.
-- **No SaaS, no privacy trade-off.** Credentials never leave your machine.
-- **No browser required at runtime.** Setup uses browser PKCE, device code, or a browser bridge for secure API key entry. After that, agents run headlessly.
+- **No SaaS dependency.** Credentials never leave your machine.
+- **No browser required at runtime.** You set up once using a browser or terminal prompt. After that, agents run headlessly.
 
 ## How it works
 

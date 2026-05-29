@@ -1,125 +1,65 @@
 ---
-title: "Audit log format"
-sidebarTitle: "Audit log"
-description: "The schema of ~/.authsome/audit.log. One JSON object per line, append-only, written from the CLI and the auth service."
+title: "Audit events"
+sidebarTitle: "Audit events"
+description: "How Authsome records security events using an SQLite-backed storage model."
 icon: "scroll"
-keywords: ["authsome audit log", "audit.log schema", "authsome event log", "credential audit log"]
+keywords: ["authsome audit", "audit events", "authsome event log", "credential audit log", "admin audit dashboard"]
 ---
 
-Authsome writes an append-only event log to `~/.authsome/audit.log`. Every line is a single JSON object. The format is intentionally readable and meant to be tailed, grepped, or forwarded to your existing log pipeline.
+Authsome keeps an append-only event log for sensitive actions. In the current release, it writes audit events to an SQLite-backed storage managed by the local daemon, moving away from the old flat-file `audit.log`.
 
-## File location
+## Overview
 
-```text
-~/.authsome/audit.log
-```
+The Audit log tracks:
+- **External AuditEvents**: Outbound HTTP calls an agent makes through the proxy to a third-party API (for example, `api.github.com`).
+- **Internal AuditEvents**: Credential lifecycle operations (login, logout, token refresh, revocation) and auth flow steps.
 
-Override via `AUTHSOME_HOME` if you keep state elsewhere. See [Filesystem layout](/reference/file-layout).
+**The Server is the Source of Truth:**
+The local Authsome daemon acts as the central source of truth. All proxy instances (sidecars) ship their events asynchronously to the daemon via the `POST /audit/events` endpoint. The proxy itself does not write to local files.
 
-The file is **not** encrypted. It contains no secret values; just event metadata. Treat it like any operational log.
+## Event Schema
 
-## Wire format
+Every `AuditEvent` requires two actor fields:
+- `identity`: The cryptographic agent Handle making the request.
+- `principal_id`: The human or team Principal that owns the Vault.
 
-One JSON object per line, UTF-8, terminated with `\n`. No trailing comma, no top-level array.
+Common fields included:
 
-```json
-{"timestamp": "2026-05-11T14:32:01.482910+00:00", "event": "login", "provider": "github", "connection": "default"}
-{"timestamp": "2026-05-11T14:32:05.913220+00:00", "event": "get", "provider": "github", "connection": "default", "field": "access_token"}
-{"timestamp": "2026-05-11T14:33:18.001456+00:00", "event": "export", "provider": "openai", "connection": "default", "format": "env"}
-```
+| Field | Description |
+|-------|-------------|
+| `timestamp` | ISO-8601 UTC timestamp of the event. |
+| `event` | The event type (`login`, `logout`, `get`, `export`, `proxy_request`, `refresh_failed`, etc.) |
+| `provider` | The external provider involved (e.g., `github`, `openai`). |
+| `connection` | The named connection used. |
+| `identity` | The Identity Handle making the call. |
+| `principal_id` | The PrincipalId resolved by the server. |
 
-Every entry has:
+## Dashboard and Admin Access
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `timestamp` | string (ISO-8601, UTC) | When the event was written. Includes `+00:00` suffix. |
-| `event` | string | One of the event types below. |
+Authsome includes an **Admin Audit Dashboard**, served natively by the daemon (at `/audit`). 
+- Principals with the `admin` role can view all events across the deployment.
+- Principals with the `user` role may only view events relevant to their own PrincipalId.
 
-Each event type may add typed fields. `None` values are stripped before write, so absent fields mean "not applicable".
+## Reading the Log
 
-## Event types
-
-| Event | Written from | Common fields | Notes |
-|-------|--------------|---------------|-------|
-| `login` | CLI | `provider`, `connection`, `profile`, `identity`. On failure also `status: "failure"`. | Successful logins have no `status` field. |
-| `logout` | CLI | `provider`, `connection` | Logical removal of a connection record from the local store. The provider is not contacted. |
-| `revoke` | CLI | `provider`, `connection: "all"` | The provider's revocation endpoint was called (where supported). All connections + client credentials for the provider are cleared. |
-| `remove` | CLI | `provider`, `connection: "all"` | Provider definition is uninstalled (custom) or reset (bundled). All local state for the provider is cleared. |
-| `get` | CLI | `provider`, `connection`, `field` | `field` is the specific field requested, or `"all"` if the user dumped the whole record. The value itself is never logged. |
-| `export` | CLI | `provider`, `connection`, `format` (`env` or `json`) | Logged whenever a secret leaves the vault for use. Secret values are never logged. |
-| `register` | CLI | `provider`, `endpoints` | A custom provider was registered. `endpoints` is a summary of the URLs declared in the JSON. |
-| `scan` | CLI | `provider`, `connection`, `source`, `env_var` | One entry per credential imported via `authsome scan --import`. `source` is `env` or a `.env` file path. |
-| `refresh_failed` | AuthService | `provider`, `connection`, `profile`, `error`, `fallback_available` | Emitted when token refresh fails. Successful refresh is silent. `fallback_available: true` means the still-unexpired cached token was returned. |
-
-The set of events grows over time. Parse defensively: treat unknown `event` values as opaque and skip them rather than failing.
-
-## Read the log
+You can view the audit events directly from the CLI or query the daemon:
 
 ```bash
-authsome log              # last 50 entries, pretty-printed
-authsome log -n 200       # last 200
-authsome log --json       # one JSON object per line, unmodified
+authsome log              # Print recent audit events
+authsome log --json       # Output JSON format
 ```
 
-For programmatic consumption, prefer `--json`. The default output is pretty-printed for terminals and not stable across versions.
+## Privacy and Secrets
 
-## Tail in real time
-
-```bash
-tail -f ~/.authsome/audit.log
-```
-
-Every CLI invocation that mutates state appends. Refresh events from the auth service append too.
-
-## Forwarding
-
-The log file is plain JSON Lines, so any log shipper that handles JSONL works. Vector, Fluent Bit, Promtail, Filebeat, and journald can all tail this file directly.
-
-```yaml
-# Vector example
-sources:
-  authsome:
-    type: file
-    include: ["/home/*/.authsome/audit.log"]
-    encoding:
-      codec: json
-```
-
-## What the log does and doesn't contain
-
-**Contains:**
-
+**What the log contains:**
 - Timestamps for every significant action.
 - Provider and connection names.
-- Event types for login, logout, revoke, remove, get, export, register, and refresh.
-- Outcome metadata (`status: "failure"` on failed logins, refresh outcome strings).
+- Event types, identity handles, and principal IDs.
+- Outcome metadata (like `status: "failure"` on failed logins).
 
-**Does not contain:**
-
-- Access tokens, refresh tokens, API keys, `client_secret`s, or any other secret value.
+**What the log does NOT contain:**
+- Access tokens, refresh tokens, API keys, `client_secret`s, or any other secret values.
 - Decrypted credential records.
-- Browser-bridge form submissions.
-- Network request bodies passed through the proxy.
+- Request payloads passed through the proxy.
 
-If you find a secret in the audit log, that's a bug. Report it through [Responsible disclosure](/security/disclosure).
-
-## Retention
-
-Authsome does not rotate the audit log itself. Use `logrotate`, `journalctl`, or your log shipper's retention policy. Typical entries are 200-400 bytes, so growth is slow but unbounded.
-
-## What's next
-
-<Columns cols={2}>
-  <Card title="CLI reference" icon="terminal" href="/reference/cli">
-    The `log` command and every other CLI surface.
-  </Card>
-  <Card title="Filesystem layout" icon="folder-tree" href="/reference/file-layout">
-    Where the audit log sits and what's around it.
-  </Card>
-  <Card title="Threat model" icon="shield-halved" href="/security/threat-model">
-    How the audit log fits into authsome's overall security posture.
-  </Card>
-  <Card title="HTTP daemon API" icon="server" href="/reference/daemon-api">
-    The daemon routes that emit audit events.
-  </Card>
-</Columns>
+If you ever find a secret in the audit output, that is a bug. Report it through [Responsible disclosure](/security/disclosure).

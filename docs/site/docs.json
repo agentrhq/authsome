@@ -64,7 +64,7 @@
               "concepts/credential-storage",
               "concepts/proxy-injection",
               "concepts/provider-registry",
-              "concepts/profiles-vs-connections",
+              "concepts/principal-vault-identity",
               "concepts/the-daemon"
             ]
           },
@@ -75,7 +75,6 @@
               "security/threat-model",
               "security/encryption",
               "security/daemon-trust-boundary",
-              "security/hosted-deployment",
               "security/disclosure"
             ]
           },
@@ -103,7 +102,6 @@
               "guides/run-agents-with-proxy",
               "guides/headless-device-code",
               "guides/multiple-connections",
-              "guides/profiles",
               "guides/custom-providers"
             ]
           },
@@ -130,10 +128,8 @@
             "icon": "code",
             "pages": [
               "reference/cli",
-              "reference/provider-schema",
               "reference/environment-variables",
               "reference/bundled-providers",
-              "reference/file-layout",
               "reference/python-library",
               "reference/daemon-api",
               "reference/audit-log"
