@@ -1,0 +1,57 @@
+Read the changelog and the context and update the documentation in @docs/site/ . In the concepts section, do not focus on design opr directory layout . Focus on just briefly explaining the concept and motivation. Read the code base and resolve confusion. There are lots and lots of new things added
+
+---
+
+Read the changelog and the context and update the documentation in @docs/site/ . In the concepts section, do not focus on design opr directory layout . Focus on just briefly explaining the concept and motivation. Read the code base and resolve confusion. There are lots and lots of new things added
+
+---
+
+Also, reduce the docs bloat and remove unecessary things that developers or platform engineers don't need to worry about.
+
+---
+
+Read this file: https://github.com/manojbajaj95/claude-gtm-plugin/blob/main/skills/humanizer/SKILL.md and apply the humanizer on all the docs
+
+---
+
+Read this file: https://github.com/manojbajaj95/claude-gtm-plugin/blob/main/skills/humanizer/SKILL.md and apply the humanizer on all the docs
+
+---
+
+Why do we need to mention how the key is structured?
+
+---
+
+Why do we need to mention how the key is structured?
+
+---
+
+The vault keys are still in documentation
+
+---
+
+The vault keys are still in documentation
+
+---
+
+Do mention how the vault is encrypted, and cover that in security as well
+
+---
+
+Do mention how the vault is encrypted, and cover that in security as well
+
+---
+
+Revisit every page in security section and update it.
+
+---
+
+Revisit every page in security section and update it.
+
+---
+
+use the humanizer skill and update all the other pages as well, that have not been visited so far
+
+---
+
+use the humanizer skill and update all the other pages as well, that have not been visited so far

@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "fe02c73a3964",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "docs/site/changelog.mdx",
+    "docs/site/compared.mdx",
+    "docs/site/concepts/architecture.mdx",
+    "docs/site/concepts/credential-storage.mdx",
+    "docs/site/concepts/principal-vault-identity.mdx",
+    "docs/site/concepts/profiles-vs-connections.mdx",
+    "docs/site/concepts/the-daemon.mdx",
+    "docs/site/docs.json",
+    "docs/site/guides/custom-providers.mdx",
+    "docs/site/guides/headless-device-code.mdx",
+    "docs/site/guides/login-with-oauth.mdx",
+    "docs/site/guides/multiple-connections.mdx",
+    "docs/site/guides/profiles.mdx",
+    "docs/site/guides/run-agents-with-proxy.mdx",
+    "docs/site/guides/use-api-keys.mdx",
+    "docs/site/index.mdx",
+    "docs/site/quickstart.mdx",
+    "docs/site/reference/audit-log.mdx",
+    "docs/site/reference/cli.mdx",
+    "docs/site/reference/daemon-api.mdx",
+    "docs/site/reference/environment-variables.mdx",
+    "docs/site/reference/file-layout.mdx",
+    "docs/site/reference/provider-schema.mdx",
+    "docs/site/reference/python-library.mdx",
+    "docs/site/roadmap.mdx",
+    "docs/site/security/daemon-trust-boundary.mdx",
+    "docs/site/security/disclosure.mdx",
+    "docs/site/security/encryption.mdx",
+    "docs/site/security/hosted-deployment.mdx",
+    "docs/site/security/threat-model.mdx",
+    "uv.lock"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fe/02c73a3964/0/metadata.json",
+      "transcript": "/fe/02c73a3964/0/full.jsonl",
+      "content_hash": "/fe/02c73a3964/0/content_hash.txt",
+      "prompt": "/fe/02c73a3964/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
