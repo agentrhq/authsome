@@ -4,13 +4,15 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
+import pytest_asyncio
 
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.errors import RefreshFailedError
-from authsome.server.audit import ServerAuditLog, configure_server_audit_log
 from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import AuthService
+from authsome.server.store import create_server_store
+from authsome.server.store.repositories import ServerAuditLog
 from authsome.utils import utc_now
 
 
@@ -46,11 +48,15 @@ def _credentials(
 class TestAuthServiceRefreshLogs:
     """Tests validating that token refresh failure writes correct logs and audit trails."""
 
-    @pytest.fixture
-    def audit_log(self, tmp_path) -> ServerAuditLog:  # noqa: ANN001
-        log = configure_server_audit_log(tmp_path / "audit.sqlite3")
-        yield log
-        log.shutdown()
+    @pytest_asyncio.fixture
+    async def audit_log(self, tmp_path) -> ServerAuditLog:  # noqa: ANN001
+        store = await create_server_store(home=tmp_path)
+        log = store.audit_events.configure_exporter()
+        try:
+            yield log
+        finally:
+            log.shutdown()
+            await store.close()
 
     @pytest.fixture
     def service(self) -> AuthService:
@@ -97,7 +103,7 @@ class TestAuthServiceRefreshLogs:
                 assert "expires in " in log_msg
 
                 # 3. Audit verified
-                entries = audit_log.list_events()
+                entries = await audit_log.list_events()
                 assert len(entries) == 1
                 entry = entries[0]
                 assert entry["event"] == "refresh_failed"
@@ -136,7 +142,7 @@ class TestAuthServiceRefreshLogs:
                 assert "token expired" in log_msg
 
                 # 2. Audit written
-                entries = audit_log.list_events()
+                entries = await audit_log.list_events()
                 assert len(entries) == 1
                 entry = entries[0]
                 assert entry["event"] == "refresh_failed"

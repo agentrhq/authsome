@@ -235,7 +235,7 @@ class AuthService:
             raise ConnectionNotFoundError(
                 provider=provider,
                 connection=connection,
-                identity=self._identity or self._principal_id or "hosted-ui",
+                identity=self._identity or self._principal_id or "account-ui",
             )
         return record
 
@@ -489,6 +489,14 @@ class AuthService:
 
         await self._save_connection(result.connection)
         await self._update_provider_metadata(provider, connection_name)
+        audit.emit_event(
+            "provider.login",
+            provider=provider,
+            connection=connection_name,
+            identity=self._identity,
+            principal_id=self._principal_id,
+            status="success",
+        )
 
         logger.info(
             "Login successful: provider={} connection={} identity={}",

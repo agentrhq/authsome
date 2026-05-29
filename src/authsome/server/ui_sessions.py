@@ -1,4 +1,4 @@
-"""Hosted browser sessions and pending identity-claim storage."""
+"""Browser sessions and pending identity-claim storage."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from pydantic import BaseModel, Field
 
-from authsome.server.hosted_auth import UI_TOKEN_AUDIENCE
+from authsome.server.account_auth import UI_TOKEN_AUDIENCE
 from authsome.utils import utc_now
 
 DEFAULT_UI_BOOTSTRAP_TTL_SECONDS = 300
@@ -32,8 +32,8 @@ class PendingClaimToken(BaseModel):
         return utc_now() >= self.expires_at
 
 
-class HostedBrowserSession(BaseModel):
-    """Principal-scoped hosted browser session."""
+class BrowserSession(BaseModel):
+    """Principal-scoped browser session."""
 
     principal_id: str
     email: str
@@ -47,7 +47,7 @@ class HostedBrowserSession(BaseModel):
 
 
 class UiSessionStore:
-    """In-memory hosted UI session helper with signed JWT cookies."""
+    """In-memory UI session helper with signed JWT cookies."""
 
     def __init__(self, signing_secret: str | bytes) -> None:
         self._secret = signing_secret.encode("utf-8") if isinstance(signing_secret, str) else signing_secret
@@ -87,7 +87,7 @@ class UiSessionStore:
         principal_id: str,
         email: str,
         ttl_seconds: int = DEFAULT_UI_SESSION_TTL_SECONDS,
-    ) -> HostedBrowserSession:
+    ) -> BrowserSession:
         issued_at = utc_now()
         expires_at = issued_at + timedelta(seconds=ttl_seconds)
         payload = {
@@ -98,7 +98,7 @@ class UiSessionStore:
             "exp": int(expires_at.timestamp()),
         }
         token = jwt.encode(payload, self._secret, algorithm="HS256")
-        return HostedBrowserSession(
+        return BrowserSession(
             principal_id=principal_id,
             email=email,
             token=token,
@@ -106,14 +106,14 @@ class UiSessionStore:
             expires_at=expires_at,
         )
 
-    def get_browser_session(self, cookie_value: str) -> HostedBrowserSession:
+    def get_browser_session(self, cookie_value: str) -> BrowserSession:
         token = self._verify_cookie(cookie_value)
         try:
             claims = jwt.decode(token, self._secret, algorithms=["HS256"], audience=UI_TOKEN_AUDIENCE)
         except jwt.PyJWTError as exc:
-            raise KeyError("Invalid hosted browser session") from exc
+            raise KeyError("Invalid browser session") from exc
         expires_at = datetime.fromtimestamp(int(claims["exp"]), tz=UTC)
-        session = HostedBrowserSession(
+        session = BrowserSession(
             principal_id=str(claims["sub"]),
             email=str(claims["email"]),
             token=token,
@@ -121,7 +121,7 @@ class UiSessionStore:
             expires_at=expires_at,
         )
         if session.is_expired:
-            raise KeyError("Hosted browser session expired")
+            raise KeyError("Browser session expired")
         return session
 
     def build_cookie_value(self, token: str) -> str:

@@ -13,11 +13,10 @@ from key_value.aio.stores.disk import DiskStore
 from authsome.auth.models.config import ServerConfig
 from authsome.identity import current_from_home
 from authsome.paths import get_authsome_home as _get_authsome_home
-from authsome.paths import get_server_audit_db_path as _get_server_audit_db_path
 from authsome.paths import get_server_home as _get_server_home
 from authsome.paths import get_server_log_path as _get_server_log_path
+from authsome.server.account_auth import AccountAuthService
 from authsome.server.credential_repository import CredentialRepository
-from authsome.server.hosted_auth import HostedAccountService
 from authsome.server.identity_bootstrap import IdentityBootstrapService
 from authsome.server.ownership import OwnershipResolver
 from authsome.server.provider_repository import ProviderRepository
@@ -43,11 +42,6 @@ def get_server_home(home: Path | None = None) -> Path:
 def get_server_log_path(home: Path | None = None) -> Path:
     """Return the daemon-owned structured log path."""
     return _get_server_log_path(home)
-
-
-def get_server_audit_db_path(home: Path | None = None) -> Path:
-    """Return the daemon-owned audit event database path."""
-    return _get_server_audit_db_path(home)
 
 
 def get_server_base_url() -> str:
@@ -135,8 +129,8 @@ async def create_auth_service(
     )
 
 
-def create_hosted_account_service(store: ServerStore) -> HostedAccountService:
-    return HostedAccountService(
+def create_account_auth_service(store: ServerStore) -> AccountAuthService:
+    return AccountAuthService(
         principals=store.principals,
         vaults=store.vaults,
         bindings=store.principal_vault_bindings,

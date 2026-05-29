@@ -27,14 +27,14 @@ def message_page(title: str, message: str) -> str:
 </html>"""
 
 
-def hosted_auth_page(
+def account_auth_page(
     *,
     next_url: str,
     active_tab: str = "login",
     identity: str | None = None,
     error: str | None = None,
 ) -> str:
-    """Generate the hosted sign-in/register page."""
+    """Generate the account sign-in/register page."""
     title = "Claim identity" if identity else "Open dashboard"
     subtitle = (
         f"Sign in or create an account to claim <strong>{html.escape(identity)}</strong>."
@@ -157,7 +157,7 @@ def hosted_auth_page(
     <main>
       <section class="auth-shell">
         <header class="auth-header">
-          <p class="auth-kicker">Authsome Hosted</p>
+          <p class="auth-kicker">Authsome Account</p>
           <h1>{title}</h1>
           <p>{subtitle}</p>
         </header>
@@ -199,9 +199,9 @@ def hosted_auth_page(
 </html>"""
 
 
-def hosted_claim_auth_page(*, token: str, identity: str, error: str | None = None, active_tab: str = "login") -> str:
-    """Generate the hosted sign-in/register page for an identity claim."""
-    return hosted_auth_page(
+def account_claim_auth_page(*, token: str, identity: str, error: str | None = None, active_tab: str = "login") -> str:
+    """Generate the account sign-in/register page for an identity claim."""
+    return account_auth_page(
         next_url=f"/claim/{html.escape(token)}",
         active_tab=active_tab,
         identity=identity,
@@ -209,8 +209,8 @@ def hosted_claim_auth_page(*, token: str, identity: str, error: str | None = Non
     )
 
 
-def hosted_claim_confirm_page(*, token: str, identity: str, email: str) -> str:
-    """Generate the hosted identity-claim confirmation page."""
+def account_claim_confirm_page(*, token: str, identity: str, email: str) -> str:
+    """Generate the account identity-claim confirmation page."""
     return f"""<!doctype html>
 <html>
   <head>

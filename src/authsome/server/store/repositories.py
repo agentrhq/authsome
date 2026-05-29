@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import asyncio
 import builtins
+import json
+import threading
 import uuid
+from collections.abc import Sequence
+from concurrent.futures import Future
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
+from opentelemetry._logs import set_logger_provider
+from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor, LogRecordExporter, LogRecordExportResult
+
+from authsome.audit import AuditEvent
 from authsome.auth.models.config import ServerConfig
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.errors import ProviderAlreadyRegisteredError
@@ -39,6 +50,263 @@ def _dump_dt(value: datetime) -> str:
 
 def _bool(value: Any) -> bool:
     return bool(value)
+
+
+@dataclass(frozen=True)
+class AuditEventInsert:
+    """Audit event row prepared for Store persistence."""
+
+    event_id: str
+    timestamp: str
+    event: str
+    source: str
+    principal_id: str | None
+    identity: str | None
+    provider: str | None
+    connection: str | None
+    payload: dict[str, Any]
+
+
+class AuditEventRegistry:
+    """Relational audit event registry."""
+
+    def __init__(self, database: StoreDatabase) -> None:
+        self._db = database
+
+    async def insert_many(self, events: list[AuditEventInsert]) -> None:
+        if not events:
+            return
+        now = _dump_dt(utc_now())
+        for event in events:
+            await self._db.execute(
+                "INSERT INTO audit_events "
+                "(event_id, timestamp, event, source, principal_id, identity, provider, connection, "
+                "payload_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(event_id) DO NOTHING",
+                [
+                    event.event_id,
+                    event.timestamp,
+                    event.event,
+                    event.source,
+                    event.principal_id,
+                    event.identity,
+                    event.provider,
+                    event.connection,
+                    json.dumps(event.payload, separators=(",", ":"), sort_keys=True),
+                    now,
+                ],
+            )
+
+    async def list_recent(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        bounded_limit = min(max(limit, 1), 500)
+        rows = await self._db.fetch_all(
+            "SELECT payload_json FROM audit_events ORDER BY timestamp DESC, event_id DESC LIMIT ?",
+            [bounded_limit],
+        )
+        return [json.loads(row["payload_json"]) for row in rows]
+
+    def configure_exporter(self, loop: asyncio.AbstractEventLoop | None = None) -> ServerAuditLog:
+        """Configure the process OTel logger provider to export audit logs to Store."""
+        global _audit_logger_provider
+
+        exporter = _StoreAuditExporter(self, loop or asyncio.get_running_loop())
+        with _audit_provider_lock:
+            if _audit_logger_provider is None:
+                provider = LoggerProvider()
+                provider.add_log_record_processor(BatchLogRecordProcessor(_delegating_audit_exporter))
+                try:
+                    set_logger_provider(provider)
+                except Exception as exc:  # pragma: no cover - OTel guards against repeated global setup
+                    logger.warning("Could not set OpenTelemetry logger provider: {}", exc)
+                _audit_logger_provider = provider
+            _delegating_audit_exporter.set_active(exporter)
+            return ServerAuditLog(exporter, _audit_logger_provider, self)
+
+
+class _StoreAuditExporter(LogRecordExporter):
+    """Persist Authsome audit OTel log records through AuditEventRegistry."""
+
+    def __init__(self, registry: AuditEventRegistry, loop: asyncio.AbstractEventLoop) -> None:
+        self._registry = registry
+        self._loop = loop
+        self._lock = threading.Lock()
+        self._futures: list[Future[None]] = []
+        self._pending_rows: list[AuditEventInsert] = []
+        self._closed = False
+
+    def export(self, batch: Sequence[Any]) -> LogRecordExportResult:
+        if self._closed:
+            return LogRecordExportResult.FAILURE
+        rows = _rows_from_batch(batch)
+        if not rows:
+            return LogRecordExportResult.SUCCESS
+        try:
+            if self._is_loop_thread():
+                with self._lock:
+                    self._pending_rows.extend(rows)
+                return LogRecordExportResult.SUCCESS
+            future = asyncio.run_coroutine_threadsafe(self._registry.insert_many(rows), self._loop)
+            with self._lock:
+                self._futures.append(future)
+            future.result()
+        except Exception as exc:
+            logger.warning("Could not persist audit events: {}", exc)
+            return LogRecordExportResult.FAILURE
+        finally:
+            self._drop_finished_futures()
+        return LogRecordExportResult.SUCCESS
+
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
+        timeout_seconds = timeout_millis / 1000
+        with self._lock:
+            futures = list(self._futures)
+        ok = True
+        for future in futures:
+            try:
+                future.result(timeout=timeout_seconds)
+            except Exception as exc:
+                logger.warning("Could not flush audit event write: {}", exc)
+                ok = False
+        self._drop_finished_futures()
+        return ok
+
+    async def async_force_flush(self) -> None:
+        pending = self._pop_pending_rows()
+        if pending:
+            await self._registry.insert_many(pending)
+        with self._lock:
+            futures = list(self._futures)
+        for future in futures:
+            await asyncio.wrap_future(future)
+        self._drop_finished_futures()
+
+    def shutdown(self) -> None:
+        self._closed = True
+        self.force_flush()
+
+    def _is_loop_thread(self) -> bool:
+        try:
+            return asyncio.get_running_loop() is self._loop
+        except RuntimeError:
+            return False
+
+    def _pop_pending_rows(self) -> list[AuditEventInsert]:
+        with self._lock:
+            rows = self._pending_rows
+            self._pending_rows = []
+        return rows
+
+    def _drop_finished_futures(self) -> None:
+        with self._lock:
+            self._futures = [future for future in self._futures if not future.done()]
+
+
+class _DelegatingAuditExporter(LogRecordExporter):
+    """Stable global exporter that forwards to the current Store audit exporter."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._active: _StoreAuditExporter | None = None
+
+    def set_active(self, exporter: _StoreAuditExporter | None) -> None:
+        with self._lock:
+            self._active = exporter
+
+    def export(self, batch: Sequence[Any]) -> LogRecordExportResult:
+        with self._lock:
+            exporter = self._active
+        if exporter is None:
+            return LogRecordExportResult.SUCCESS
+        return exporter.export(batch)
+
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
+        with self._lock:
+            exporter = self._active
+        return True if exporter is None else exporter.force_flush(timeout_millis=timeout_millis)
+
+    def shutdown(self) -> None:
+        with self._lock:
+            exporter = self._active
+            self._active = None
+        if exporter is not None:
+            exporter.shutdown()
+
+
+_delegating_audit_exporter = _DelegatingAuditExporter()
+_audit_provider_lock = threading.Lock()
+_audit_logger_provider: LoggerProvider | None = None
+
+
+class ServerAuditLog:
+    """Store registry handle for emitting and querying audit records."""
+
+    def __init__(self, exporter: _StoreAuditExporter, provider: LoggerProvider, registry: AuditEventRegistry) -> None:
+        self._exporter = exporter
+        self._provider = provider
+        self._registry = registry
+
+    def force_flush(self) -> None:
+        self._provider.force_flush()
+        self._exporter.force_flush()
+
+    async def async_force_flush(self) -> None:
+        self._provider.force_flush()
+        await self._exporter.async_force_flush()
+
+    async def list_events(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        await self.async_force_flush()
+        return await self._registry.list_recent(limit=limit)
+
+    def shutdown(self) -> None:
+        self.force_flush()
+        _delegating_audit_exporter.set_active(None)
+        self._exporter.shutdown()
+
+
+def _rows_from_batch(batch: Sequence[Any]) -> list[AuditEventInsert]:
+    rows: list[AuditEventInsert] = []
+    for item in batch:
+        payload = _payload_from_log_record(item)
+        try:
+            event = AuditEvent.model_validate(payload)
+        except ValueError as exc:
+            logger.debug("Skipping non-Authsome OTel log record: {}", exc)
+            continue
+        normalized = event.model_dump(mode="json")
+        stored_payload = _flatten_event_payload(normalized)
+        rows.append(
+            AuditEventInsert(
+                event_id=event.event_id,
+                timestamp=normalized["timestamp"],
+                event=event.event,
+                source=event.source,
+                principal_id=event.principal_id,
+                identity=event.identity,
+                provider=event.provider,
+                connection=event.connection,
+                payload=stored_payload,
+            )
+        )
+    return rows
+
+
+def _payload_from_log_record(item: Any) -> dict[str, Any]:
+    log_record = getattr(item, "log_record", item)
+    attributes = dict(getattr(log_record, "attributes", None) or {})
+    if "event" in attributes:
+        return attributes
+
+    event_name = getattr(log_record, "event_name", None) or getattr(log_record, "body", "audit_event")
+    return AuditEvent(event=str(event_name), timestamp=utc_now()).model_dump(mode="json")
+
+
+def _flatten_event_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    flattened = dict(payload)
+    metadata = flattened.pop("metadata", {})
+    if isinstance(metadata, dict):
+        flattened.update(metadata)
+    return flattened
 
 
 class IdentityRegistry:
@@ -105,7 +373,7 @@ class PrincipalRegistry:
         if await self.get_by_email(normalized) is not None:
             if password_hash is None:
                 raise ValueError(f"Principal '{normalized}' already exists")
-            raise ValueError(f"Hosted account '{normalized}' is already registered")
+            raise ValueError(f"Account '{normalized}' is already registered")
         now = utc_now()
         role = await self._role_for_new_principal()
         record = PrincipalRecord(
@@ -396,6 +664,7 @@ class ServerStore:
     principal_vault_bindings: PrincipalVaultBindingRegistry
     server_config: ServerConfigRepository
     provider_definitions: ProviderDefinitionRepository
+    audit_events: AuditEventRegistry
 
     @property
     def backend(self) -> StoreBackend:

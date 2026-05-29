@@ -32,7 +32,7 @@ def _register_admin_then_user(client: TestClient, tmp_path: Path, user_handle: s
     _register_identity(client, tmp_path, user_handle, email="user@example.com")
 
 
-def test_hosted_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:
+def test_non_admin_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -46,7 +46,7 @@ def test_hosted_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:
     assert response.json()["detail"] == "Admin role required"
 
 
-def test_hosted_remove_is_rejected(monkeypatch, tmp_path: Path) -> None:
+def test_non_admin_remove_is_rejected(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -60,7 +60,7 @@ def test_hosted_remove_is_rejected(monkeypatch, tmp_path: Path) -> None:
     assert response.json()["detail"] == "Admin role required"
 
 
-def test_hosted_register_provider_is_rejected(monkeypatch, tmp_path: Path) -> None:
+def test_non_admin_register_provider_is_rejected(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     payload = {
         "definition": {
@@ -88,7 +88,7 @@ def test_hosted_register_provider_is_rejected(monkeypatch, tmp_path: Path) -> No
     assert response.json()["detail"] == "Admin role required"
 
 
-def test_hosted_first_principal_admin_can_register_provider(monkeypatch, tmp_path: Path) -> None:
+def test_first_principal_admin_can_register_provider(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     payload = {
         "definition": {

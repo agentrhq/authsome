@@ -207,7 +207,7 @@ async def test_update_provider_configuration_persists_submitted_scopes() -> None
 
 
 @pytest.mark.asyncio
-async def test_hosted_admin_provider_config_satisfies_next_identity_login() -> None:
+async def test_admin_provider_config_satisfies_next_identity_login() -> None:
     store: dict[tuple[str, str], str] = {}
     vault = mock.AsyncMock()
 
@@ -316,7 +316,7 @@ async def test_resume_login_flow_saves_dcr_client_record_to_server_scope() -> No
 
 
 @pytest.mark.asyncio
-async def test_hosted_save_inputs_rejects_shared_client_mutation() -> None:
+async def test_non_admin_save_inputs_rejects_shared_client_mutation() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
     service = _service(vault, identity="steady-wisely-boldly-0042")
@@ -330,7 +330,7 @@ async def test_hosted_save_inputs_rejects_shared_client_mutation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hosted_save_inputs_rejects_scopes_only_server_write() -> None:
+async def test_non_admin_save_inputs_rejects_scopes_only_server_write() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
     service = _service(vault, identity="steady-wisely-boldly-0042")
@@ -341,7 +341,7 @@ async def test_hosted_save_inputs_rejects_scopes_only_server_write() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hosted_resume_login_flow_rejects_dcr_client_persistence() -> None:
+async def test_non_admin_resume_login_flow_rejects_dcr_client_persistence() -> None:
     vault = mock.AsyncMock()
     vault.get.return_value = None
     service = _service(vault, identity="steady-wisely-boldly-0042")

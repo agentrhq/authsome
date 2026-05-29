@@ -20,7 +20,7 @@ async def list_audit_events(
     auth: AuthService = Depends(get_admin_auth_service),
 ) -> dict[str, Any]:
     _ = auth
-    return {"entries": request.app.state.audit_log.list_events(limit=limit)}
+    return {"entries": await request.app.state.audit_log.list_events(limit=limit)}
 
 
 @router.post("/events")

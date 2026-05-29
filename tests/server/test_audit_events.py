@@ -82,7 +82,7 @@ def test_external_audit_post_is_enriched_from_pop_identity(monkeypatch, tmp_path
     assert entries[0]["reason"] == "no_match"
 
 
-def test_hosted_user_cannot_query_audit_events(monkeypatch, tmp_path: Path) -> None:
+def test_non_admin_user_cannot_query_audit_events(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:

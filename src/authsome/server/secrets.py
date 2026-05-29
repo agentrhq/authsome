@@ -116,5 +116,5 @@ def load_master_secret(home: Path | None = None) -> str:
 
 
 def load_ui_session_signing_secret(home: Path | None = None) -> str:
-    """Load or create the server-owned hosted UI session signing secret."""
+    """Load or create the server-owned UI session signing secret."""
     return ServerSecretResolver(UI_SESSION_SECRET, home).resolve()

@@ -214,11 +214,11 @@ class TestErrors:
     def test_operation_not_allowed_error_includes_context(self) -> None:
         error = OperationNotAllowedError(
             "revoke",
-            "Hosted deployments cannot revoke providers.",
+            "Only administrators can revoke providers.",
             provider="github",
         )
 
-        assert str(error) == ("OperationNotAllowedError: [github] (revoke) Hosted deployments cannot revoke providers.")
+        assert str(error) == ("OperationNotAllowedError: [github] (revoke) Only administrators can revoke providers.")
 
 
 class TestConnectionRecord:

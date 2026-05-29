@@ -93,12 +93,12 @@ async def require_auth_service(
 async def get_principal_browser_auth_service(request: Request) -> AuthService:
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
     if not cookie_value:
-        raise HTTPException(status_code=401, detail="Missing hosted browser session")
+        raise HTTPException(status_code=401, detail="Missing browser session")
 
     try:
         session = request.app.state.ui_sessions.get_browser_session(cookie_value)
     except KeyError as exc:
-        raise HTTPException(status_code=401, detail="Hosted browser session expired") from exc
+        raise HTTPException(status_code=401, detail="Browser session expired") from exc
 
     auth = await require_auth_service(
         request,

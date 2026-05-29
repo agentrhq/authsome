@@ -51,7 +51,7 @@ def _seed_provider_client(
     )
 
 
-def _claim_identity_via_hosted_ui(client: TestClient, tmp_path: Path, handle: str, email: str) -> None:
+def _claim_identity_via_account_ui(client: TestClient, tmp_path: Path, handle: str, email: str) -> None:
     identity = create_identity(tmp_path, handle)
     response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == 200
@@ -91,7 +91,7 @@ def test_consume_pending_claim_rejects_reuse() -> None:
         raise AssertionError("Expected pending claim token reuse to fail")
 
 
-def test_build_cookie_round_trips_hosted_browser_session() -> None:
+def test_build_cookie_round_trips_browser_session() -> None:
     store = UiSessionStore("test-secret")
 
     session = store.create_browser_session(principal_id="principal_123", email="dev@example.com")
@@ -102,7 +102,7 @@ def test_build_cookie_round_trips_hosted_browser_session() -> None:
     assert parsed.email == "dev@example.com"
 
 
-def test_hosted_ui_homepage_shows_auth_tabs(monkeypatch, tmp_path: Path) -> None:
+def test_account_ui_homepage_shows_auth_tabs(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -114,7 +114,7 @@ def test_hosted_ui_homepage_shows_auth_tabs(monkeypatch, tmp_path: Path) -> None
     assert "Create account" in response.text
 
 
-def test_hosted_claim_page_shows_auth_tabs_for_unauthenticated_users(monkeypatch, tmp_path: Path) -> None:
+def test_account_claim_page_shows_auth_tabs_for_unauthenticated_users(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -130,11 +130,11 @@ def test_hosted_claim_page_shows_auth_tabs_for_unauthenticated_users(monkeypatch
     assert "Create account" in claim_response.text
 
 
-def test_hosted_ui_session_returns_dashboard_url_without_browser_cookie(monkeypatch, tmp_path: Path) -> None:
+def test_account_ui_session_returns_dashboard_url_without_browser_cookie(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
-        _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
+        _claim_identity_via_account_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
         bootstrap_response = client.post(
             "/session",
             headers=_auth_header(tmp_path, "POST", "/session", handle="steady-wisely-boldly-0042"),
@@ -150,7 +150,7 @@ def test_hosted_ui_session_returns_dashboard_url_without_browser_cookie(monkeypa
     assert "Open dashboard" in dashboard_response.text
 
 
-def test_hosted_homepage_registration_redirects_to_dashboard(monkeypatch, tmp_path: Path) -> None:
+def test_account_homepage_registration_redirects_to_dashboard(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -168,12 +168,12 @@ def test_hosted_homepage_registration_redirects_to_dashboard(monkeypatch, tmp_pa
     assert "Signed in as dev@example.com" in dashboard_response.text
 
 
-def test_hosted_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_path: Path) -> None:
+def test_account_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
-        _claim_identity_via_hosted_ui(client, tmp_path, "admin-ready-boldly-0001", "admin@example.com")
-        _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
+        _claim_identity_via_account_ui(client, tmp_path, "admin-ready-boldly-0001", "admin@example.com")
+        _claim_identity_via_account_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
         vault = client.app.state.vault
         key = build_store_key(provider="github", record_type="server")
         record = ProviderClientRecord(provider="github", client_id="cid-123", client_secret="top-secret")
@@ -187,11 +187,11 @@ def test_hosted_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_pa
     assert "Existing connections" not in response.text
 
 
-def test_hosted_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Path) -> None:
+def test_account_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
-        _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
+        _claim_identity_via_account_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="top-secret")
         response = client.get("/apps/github")
 
@@ -202,11 +202,11 @@ def test_hosted_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Pa
     assert 'action="/apps/github/configure"' in response.text
 
 
-def test_hosted_ui_connect_starts_principal_scoped_session_without_pop(monkeypatch, tmp_path: Path) -> None:
+def test_account_ui_connect_starts_principal_scoped_session_without_pop(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
-        _claim_identity_via_hosted_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
+        _claim_identity_via_account_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
 
         response = client.post("/apps/openai/connect", follow_redirects=False)
         session = next(iter(client.app.state.auth_sessions._sessions.values()))
@@ -218,7 +218,7 @@ def test_hosted_ui_connect_starts_principal_scoped_session_without_pop(monkeypat
     assert session.payload["ui_session_required"] is True
 
 
-def test_hosted_auth_rejects_external_next_redirect(monkeypatch, tmp_path: Path) -> None:
+def test_account_auth_rejects_external_next_redirect(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -232,7 +232,7 @@ def test_hosted_auth_rejects_external_next_redirect(monkeypatch, tmp_path: Path)
     assert response.headers["location"] == "/"
 
 
-def test_hosted_homepage_login_error_renders_auth_page(monkeypatch, tmp_path: Path) -> None:
+def test_account_homepage_login_error_renders_auth_page(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -254,7 +254,7 @@ def test_hosted_homepage_login_error_renders_auth_page(monkeypatch, tmp_path: Pa
     assert "Create account" in response.text
 
 
-def test_hosted_ui_auth_input_requires_matching_browser_session(monkeypatch, tmp_path: Path) -> None:
+def test_account_ui_auth_input_requires_matching_browser_session(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     app = create_app()
@@ -276,4 +276,4 @@ def test_hosted_ui_auth_input_requires_matching_browser_session(monkeypatch, tmp
         response = client.get(f"/auth/sessions/{session.session_id}/input")
 
     assert response.status_code == 401
-    assert "hosted dashboard" in response.text
+    assert "dashboard" in response.text
