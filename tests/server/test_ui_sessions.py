@@ -8,8 +8,8 @@ from authsome.auth.models.connection import ProviderClientRecord
 from authsome.identity import create_identity, load_private_key
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
+from authsome.server.credential_repository import build_store_key
 from authsome.server.ui_sessions import UiSessionStore
-from authsome.utils import build_store_key
 
 
 def _auth_header(tmp_path: Path, method: str, path: str, *, handle: str) -> dict[str, str]:

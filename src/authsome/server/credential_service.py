@@ -6,7 +6,6 @@ Lives in server/ because it coordinates auth/ flows with vault/ storage and audi
 
 from __future__ import annotations
 
-import importlib.resources
 import json
 from datetime import timedelta
 from typing import Any
@@ -16,7 +15,6 @@ from loguru import logger
 
 from authsome import audit
 from authsome.auth.flows.api_key import ApiKeyFlow
-from authsome.auth.flows.base import AuthFlow
 from authsome.auth.flows.browser import BrowserFlow
 from authsome.auth.flows.dcr_pkce import DcrPkceFlow
 from authsome.auth.flows.device_code import DeviceCodeFlow
@@ -31,33 +29,32 @@ from authsome.auth.models.connection import (
 from authsome.auth.models.enums import AuthType, ConnectionStatus, ExportFormat, FlowType
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.auth.sessions import AuthSession
-from authsome.auth.utils import export_name_part, normalize_base_url, normalize_scopes
+from authsome.auth.utils import (
+    export_name_part,
+    normalize_base_url,
+    normalize_scopes,
+    required_inputs,
+    validate_provider_definition,
+)
 from authsome.errors import (
-    AuthsomeError,
     ConnectionNotFoundError,
     CredentialMissingError,
     IdentityNotFoundError,
     InvalidProviderSchemaError,
     OperationNotAllowedError,
-    ProviderNotFoundError,
     RefreshFailedError,
     TokenExpiredError,
     UnsupportedFlowError,
 )
 from authsome.identity.principal import PrincipalRole
-from authsome.server.store.repositories import ProviderDefinitionRepository
-from authsome.utils import build_store_key, format_duration, is_filesystem_safe, parse_store_key, utc_now
+from authsome.server.credential_repository import CredentialRepository, parse_store_key
+from authsome.server.provider_repository import ProviderRepository
+from authsome.utils import format_duration, utc_now
 from authsome.vault import Vault
-
-_VALID_FLOWS: dict[AuthType, set[FlowType]] = {
-    AuthType.OAUTH2: {FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE},
-    AuthType.API_KEY: {FlowType.API_KEY},
-    AuthType.BROWSER: {FlowType.BROWSER},
-}
 
 _NEAR_EXPIRY_SECONDS = 300
 
-_FLOW_HANDLERS: dict[FlowType, type[AuthFlow]] = {
+_FLOW_HANDLERS = {
     FlowType.PKCE: PkceFlow,
     FlowType.DEVICE_CODE: DeviceCodeFlow,
     FlowType.DCR_PKCE: DcrPkceFlow,
@@ -70,42 +67,29 @@ class AuthService:
     """
     Authentication and credential lifecycle service.
 
-    All reads and writes go through self._vault.
-    Key construction (vault:<vault_id>:<provider>:...) lives here.
+    Coordinates provider lookup, auth flows, credential persistence, and policy checks.
     """
 
     def __init__(
         self,
-        vault: Vault,
-        provider_definitions: ProviderDefinitionRepository,
+        *,
+        credentials: CredentialRepository,
+        providers: ProviderRepository,
         identity: str | None = None,
         principal_id: str | None = None,
         principal_role: PrincipalRole = PrincipalRole.USER,
         vault_id: str | None = None,
     ) -> None:
-        self._vault = vault
+        self._credentials = credentials
         self._identity = identity
         self._principal_id = principal_id
+        self._vault_id = vault_id or credentials.vault_id
         self._principal_role = principal_role
-        self._vault_id = vault_id
-        self._provider_definitions = provider_definitions
-        self._bundled: dict[str, ProviderDefinition] = self._load_bundled_providers()
-
-    @property
-    def _coll(self) -> str:
-        """Vault collection for the resolved credential scope."""
-        if self._vault_id is None:
-            raise ValueError("AuthService.vault_id is required for vault-scoped operations but was not set")
-        return f"vault:{self._vault_id}"
-
-    @property
-    def _server_coll(self) -> str:
-        """Vault collection for server-scoped provider client records."""
-        return "server"
+        self._providers = providers
 
     @property
     def vault(self) -> Vault:
-        return self._vault
+        return self._credentials.vault
 
     @property
     def identity(self) -> str | None:
@@ -131,46 +115,18 @@ class AuthService:
 
     # ── Provider operations ───────────────────────────────────────────────
 
-    @staticmethod
-    def _load_bundled_providers() -> dict[str, ProviderDefinition]:
-        bundled: dict[str, ProviderDefinition] = {}
-        try:
-            files = importlib.resources.files("authsome.auth.bundled_providers")
-            for file in files.iterdir():
-                if file.name.endswith(".json"):
-                    with file.open("r", encoding="utf-8") as f:
-                        data = json.load(f)
-                        defn = ProviderDefinition.model_validate(data)
-                        bundled[defn.name] = defn
-        except Exception as e:
-            logger.warning("Error loading bundled providers: {}", e)
-        return bundled
-
-    async def _load_custom_providers(self) -> dict[str, ProviderDefinition]:
-        providers = await self._provider_definitions.list()
-        return {provider.name: provider for provider in providers}
-
     async def list_providers(self) -> list[ProviderDefinition]:
-        providers = {**self._bundled, **(await self._load_custom_providers())}
-        return sorted(providers.values(), key=lambda p: p.name)
+        return await self._providers.list()
 
     async def list_providers_by_source(self) -> dict[str, list[ProviderDefinition]]:
-        bundled_list = sorted(self._bundled.values(), key=lambda p: p.name)
-        custom_providers = await self._load_custom_providers()
-        custom_list = sorted(custom_providers.values(), key=lambda p: p.name)
-        return {"bundled": bundled_list, "custom": custom_list}
+        return await self._providers.list_by_source()
 
     async def get_provider(self, provider: str) -> ProviderDefinition:
-        custom = await self._provider_definitions.get(provider)
-        if custom is not None:
-            return custom
-        if provider in self._bundled:
-            return self._bundled[provider]
-        raise ProviderNotFoundError(provider)
+        return await self._providers.get(provider)
 
     async def is_local_provider(self, provider: str) -> bool:
         """Check if a provider is a custom/local provider."""
-        return await self._provider_definitions.get(provider) is not None
+        return await self._providers.is_custom(provider)
 
     async def resolve_credentials(self, **kwargs: Any) -> dict[str, Any]:
         """Resolve credentials for a provider/connection pair."""
@@ -189,12 +145,12 @@ class AuthService:
     async def register_provider(self, definition: ProviderDefinition, *, force: bool = False) -> None:
         self._ensure_admin_operation_allowed("register", definition.name)
         self._validate_provider(definition)
-        await self._provider_definitions.save(definition, force=force)
+        await self._providers.save_custom(definition, force=force)
         logger.info("Registered provider: {}", definition.name)
 
     async def remove_provider(self, name: str) -> bool:
         """Remove a custom provider. Returns True if removed."""
-        return await self._provider_definitions.delete(name)
+        return await self._providers.delete_custom(name)
 
     def _ensure_admin_operation_allowed(self, operation: str, provider: str) -> None:
         if self._principal_role == PrincipalRole.ADMIN:
@@ -215,33 +171,7 @@ class AuthService:
         )
 
     def _validate_provider(self, definition: ProviderDefinition) -> None:
-        if not is_filesystem_safe(definition.name):
-            raise InvalidProviderSchemaError(
-                f"Provider name '{definition.name}' is not filesystem-safe", provider=definition.name
-            )
-        valid_flows = _VALID_FLOWS.get(definition.auth_type)
-        if valid_flows is None:
-            raise InvalidProviderSchemaError(
-                f"Unrecognized auth_type: {definition.auth_type}", provider=definition.name
-            )
-        if definition.flow not in valid_flows:
-            raise InvalidProviderSchemaError(
-                f"Flow '{definition.flow}' is not valid for auth_type '{definition.auth_type}'. "
-                f"Valid flows: {[f.value for f in valid_flows]}",
-                provider=definition.name,
-            )
-        if definition.auth_type == AuthType.OAUTH2 and definition.oauth is None:
-            raise InvalidProviderSchemaError(
-                "auth_type 'oauth2' requires an 'oauth' configuration section", provider=definition.name
-            )
-        if definition.auth_type == AuthType.API_KEY and definition.api_key is None:
-            raise InvalidProviderSchemaError(
-                "auth_type 'api_key' requires an 'api_key' configuration section", provider=definition.name
-            )
-        if definition.auth_type == AuthType.BROWSER and definition.browser is None:
-            raise InvalidProviderSchemaError(
-                "auth_type 'browser' requires a 'browser' configuration section", provider=definition.name
-            )
+        validate_provider_definition(definition)
         if definition.oauth:
             for field_name in ("authorization_url", "token_url"):
                 url = getattr(definition.oauth, field_name, None)
@@ -259,8 +189,7 @@ class AuthService:
     # ── Connection operations ─────────────────────────────────────────────
 
     async def list_connections(self) -> list[dict[str, Any]]:
-        prefix = f"vault:{self._vault_id}:"
-        keys = await self._vault.list(prefix, collection=self._coll)
+        keys = await self._credentials.list_connection_keys()
 
         providers: dict[str, list[dict[str, Any]]] = {}
         defaults: dict[str, str] = {}
@@ -270,33 +199,25 @@ class AuthService:
                 provider_name = parts.provider
                 connection_name = parts.connection
                 if provider_name not in defaults:
-                    meta_key = build_store_key(vault=self._vault_id, provider=provider_name, record_type="metadata")
-                    meta_json = await self._vault.get(meta_key, collection=self._coll)
-                    if meta_json:
-                        defaults[provider_name] = ProviderMetadataRecord.model_validate_json(
-                            meta_json
-                        ).default_connection
-                    else:
-                        defaults[provider_name] = "default"
-                record_json = await self._vault.get(key, collection=self._coll)
-                if record_json:
-                    record = self._load_connection_record(record_json, key)
-                    if record is None:
-                        continue
-                    if provider_name not in providers:
-                        providers[provider_name] = []
-                    providers[provider_name].append(
-                        {
-                            "connection_name": connection_name,
-                            "is_default": connection_name == defaults.get(provider_name, "default"),
-                            "auth_type": record.auth_type.value,
-                            "status": record.status.value,
-                            "scopes": record.scopes,
-                            "base_url": record.base_url,
-                            "api_url": record.api_url,
-                            "expires_at": record.expires_at.isoformat() if record.expires_at else None,
-                        }
-                    )
+                    metadata = await self._credentials.get_provider_metadata(provider_name)
+                    defaults[provider_name] = metadata.default_connection if metadata else "default"
+                record = await self._credentials.get_connection(provider_name, connection_name)
+                if record is None:
+                    continue
+                if provider_name not in providers:
+                    providers[provider_name] = []
+                providers[provider_name].append(
+                    {
+                        "connection_name": connection_name,
+                        "is_default": connection_name == defaults.get(provider_name, "default"),
+                        "auth_type": record.auth_type.value,
+                        "status": record.status.value,
+                        "scopes": record.scopes,
+                        "base_url": record.base_url,
+                        "api_url": record.api_url,
+                        "expires_at": record.expires_at.isoformat() if record.expires_at else None,
+                    }
+                )
 
         return [
             {"name": pname, "default_connection": defaults.get(pname, "default"), "connections": conns}
@@ -309,19 +230,12 @@ class AuthService:
         connection: str = "default",
     ) -> ConnectionRecord:
         connection = await self.resolve_connection_name(provider, connection)
-        key = build_store_key(vault=self._vault_id, provider=provider, record_type="connection", connection=connection)
-        record_json = await self._vault.get(key, collection=self._coll)
-        if not record_json:
+        record = await self._credentials.get_connection(provider, connection)
+        if record is None:
             raise ConnectionNotFoundError(
                 provider=provider,
                 connection=connection,
                 identity=self._identity or self._principal_id or "hosted-ui",
-            )
-        record = self._load_connection_record(record_json, key)
-        if record is None:
-            raise AuthsomeError(
-                f"Stored credentials for '{provider}' use the old v1 format. "
-                "Please run: authsome provider revoke {provider} && authsome login {provider}"
             )
         return record
 
@@ -329,12 +243,8 @@ class AuthService:
         """Resolve an optional connection name to the provider default."""
         if connection:
             return connection
-        meta_key = build_store_key(vault=self._vault_id, provider=provider, record_type="metadata")
-        existing_json = await self._vault.get(meta_key, collection=self._coll)
-        if existing_json:
-            metadata = ProviderMetadataRecord.model_validate_json(existing_json)
-            return metadata.default_connection
-        return "default"
+        metadata = await self._credentials.get_provider_metadata(provider)
+        return metadata.default_connection if metadata else "default"
 
     async def get_provider_client(self, provider: str) -> ProviderClientRecord | None:
         """Return stored client credentials for a provider, or None if absent.
@@ -411,11 +321,8 @@ class AuthService:
     async def set_default_connection(self, provider: str, connection: str) -> None:
         """Set the default connection for a provider."""
         await self.get_connection(provider, connection)
-        meta_key = build_store_key(vault=self._vault_id, provider=provider, record_type="metadata")
-        existing_json = await self._vault.get(meta_key, collection=self._coll)
-        if existing_json:
-            metadata = ProviderMetadataRecord.model_validate_json(existing_json)
-        else:
+        metadata = await self._credentials.get_provider_metadata(provider)
+        if metadata is None:
             metadata = ProviderMetadataRecord(
                 identity=self._identity,
                 principal_id=self._principal_id,
@@ -426,7 +333,7 @@ class AuthService:
             metadata.connection_names.append(connection)
         metadata.default_connection = connection
         metadata.last_used_connection = connection
-        await self._vault.put(meta_key, metadata.model_dump_json(), collection=self._coll)
+        await self._credentials.save_provider_metadata(metadata)
 
     # ── Authentication ────────────────────────────────────────────────────
 
@@ -437,80 +344,17 @@ class AuthService:
         base_url: str | None = None,
     ) -> list[InputField]:
         """Determine what inputs are missing for a given session."""
-        from authsome.auth.input_provider import InputField
-
         provider = session.provider
         definition = await self.get_provider(provider)
-        flow_type = FlowType(session.flow_type)
         client_record = await self._get_provider_client_credentials(provider)
-        provider_config_only = bool(session.payload.get("provider_config_only"))
-
-        flow_base_url = base_url or (client_record.base_url if client_record else None)
-        flow_client_id = client_record.client_id if client_record else None
-        persisted_scopes = client_record.scopes if client_record else None
-
-        fields: list[InputField] = []
-
-        if definition.oauth and definition.oauth.base_url and (provider_config_only or not flow_base_url):
-            fields.append(
-                InputField(
-                    name="base_url",
-                    label="Base URL",
-                    secret=False,
-                    default=flow_base_url or definition.oauth.base_url,
-                )
-            )
-            fields.append(
-                InputField(
-                    name="api_url",
-                    label="API Host URL",
-                    secret=False,
-                    default=(
-                        client_record.api_url
-                        if client_record and client_record.api_url
-                        else definition.primary_api_url() or ""
-                    ),
-                )
-            )
-
-        if flow_type == FlowType.PKCE and (provider_config_only or not flow_client_id):
-            fields.append(
-                InputField(
-                    name="client_id",
-                    label="Client ID",
-                    secret=False,
-                    default=flow_client_id or "",
-                )
-            )
-            fields.append(InputField(name="client_secret", label="Client Secret", secret=True, default=""))
-        elif flow_type == FlowType.DEVICE_CODE and (provider_config_only or not flow_client_id):
-            fields.append(
-                InputField(
-                    name="client_id",
-                    label="Client ID",
-                    secret=False,
-                    default=flow_client_id or "",
-                )
-            )
-            fields.append(InputField(name="client_secret", label="Client Secret (Optional)", secret=True, default=""))
-
-        if flow_type in (FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE):
-            if scopes is None and persisted_scopes is None:
-                default_scopes = (
-                    ",".join(definition.oauth.scopes) if definition.oauth and definition.oauth.scopes else ""
-                )
-                fields.append(
-                    InputField(name="scopes", label="Scopes (comma-separated)", secret=False, default=default_scopes)
-                )
-
-        if flow_type == FlowType.API_KEY:
-            api_key_field = InputField(name="api_key", label="API Key", secret=True)
-            if definition.api_key and definition.api_key.key_pattern:
-                api_key_field.pattern = definition.api_key.key_pattern
-                api_key_field.pattern_hint = definition.api_key.key_pattern_hint
-            fields.append(api_key_field)
-
-        return fields
+        return required_inputs(
+            provider=definition,
+            flow_type=FlowType(session.flow_type),
+            client_record=client_record,
+            scopes=scopes,
+            base_url=base_url,
+            provider_config_only=bool(session.payload.get("provider_config_only")),
+        )
 
     async def save_inputs(self, session: AuthSession, inputs: dict[str, str]) -> None:
         """Save collected inputs to the Vault or session payload."""
@@ -693,17 +537,9 @@ class AuthService:
         """Convert provider docs URL into a bridge instruction block."""
         if not definition.docs_url:
             return []
-
         if flow_type not in (FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE, FlowType.API_KEY):
             return []
-
-        return [
-            {
-                "type": "instructions",
-                "label": "Instructions",
-                "url": definition.docs_url,
-            }
-        ]
+        return [{"type": "instructions", "label": "Instructions", "url": definition.docs_url}]
 
     # ── Token operations ──────────────────────────────────────────────────
 
@@ -741,8 +577,7 @@ class AuthService:
                     client_secret=client_secret,
                 )
 
-        key = build_store_key(vault=self._vault_id, provider=provider, record_type="connection", connection=connection)
-        await self._vault.delete(key, collection=self._coll)
+        await self._credentials.delete_connection(provider, connection)
         await self._remove_from_provider_metadata(provider, connection)
 
     async def revoke(self, provider: str, vault_ids: list[str] | None = None) -> None:
@@ -755,33 +590,36 @@ class AuthService:
         await self.get_provider(provider)
         ids_to_revoke = vault_ids if vault_ids is not None else ([self._vault_id] if self._vault_id else [])
         for vault_id in ids_to_revoke:
+            credentials = CredentialRepository(
+                self.vault,
+                identity=self._identity,
+                principal_id=self._principal_id,
+                vault_id=vault_id,
+            )
             vault_service = AuthService(
-                vault=self._vault,
+                credentials=credentials,
+                providers=self._providers,
                 identity=self._identity,
                 principal_id=self._principal_id,
                 principal_role=self._principal_role,
                 vault_id=vault_id,
-                provider_definitions=self._provider_definitions,
             )
-            meta_key = build_store_key(vault=vault_id, provider=provider, record_type="metadata")
-            existing_json = await self._vault.get(meta_key, collection=vault_service._coll)
-            if not existing_json:
+            metadata = await credentials.get_provider_metadata(provider)
+            if metadata is None:
                 continue
 
-            metadata = ProviderMetadataRecord.model_validate_json(existing_json)
             for conn_name in list(metadata.connection_names):
                 await vault_service.logout(provider, connection=conn_name)
-            await self._vault.delete(meta_key, collection=vault_service._coll)
+            await credentials.delete_provider_metadata(provider)
 
-        client_key = build_store_key(provider=provider, record_type="server")
-        await self._vault.delete(client_key, collection=self._server_coll)
+        await self._credentials.delete_provider_client(provider)
 
     async def remove(self, provider: str) -> None:
         """Revoke all tokens and remove the provider definition if it is local."""
         self._ensure_admin_operation_allowed("remove", provider)
         await self.revoke(provider)
         if await self.is_local_provider(provider):
-            await self._provider_definitions.delete(provider)
+            await self._providers.delete_custom(provider)
             logger.info("Removed local provider definition: {}", provider)
         else:
             logger.info("Revoked bundled provider: {} (definition kept)", provider)
@@ -888,48 +726,18 @@ class AuthService:
 
     # ── Internal helpers ──────────────────────────────────────────────────
 
-    def _load_connection_record(self, record_json: str, key: str) -> ConnectionRecord | None:
-        """Load and validate a connection record, detecting v1 format."""
-        try:
-            data = json.loads(record_json)
-        except json.JSONDecodeError:
-            logger.warning("Corrupt record at key {}", key)
-            return None
-
-        if data.get("schema_version", 1) < 2:
-            return None  # v1 data — caller handles detection
-
-        return ConnectionRecord.model_validate(data)
-
     async def _save_connection(self, record: ConnectionRecord) -> None:
-        record.identity = self._identity
-        record.principal_id = self._principal_id
-        record.vault_id = self._vault_id
-        key = build_store_key(
-            vault=self._vault_id,
-            provider=record.provider,
-            record_type="connection",
-            connection=record.connection_name,
-        )
-        await self._vault.put(key, record.model_dump_json(), collection=self._coll)
+        await self._credentials.save_connection(record)
 
     async def _get_provider_client_credentials(self, provider: str) -> ProviderClientRecord | None:
-        key = build_store_key(provider=provider, record_type="server")
-        record_json = await self._vault.get(key, collection=self._server_coll)
-        if record_json:
-            return ProviderClientRecord.model_validate_json(record_json)
-        return None
+        return await self._credentials.get_provider_client(provider)
 
     async def _save_provider_client_credentials(self, record: ProviderClientRecord) -> None:
-        key = build_store_key(provider=record.provider, record_type="server")
-        await self._vault.put(key, record.model_dump_json(), collection=self._server_coll)
+        await self._credentials.save_provider_client(record)
 
     async def _update_provider_metadata(self, provider: str, connection_name: str) -> None:
-        meta_key = build_store_key(vault=self._vault_id, provider=provider, record_type="metadata")
-        existing_json = await self._vault.get(meta_key, collection=self._coll)
-        if existing_json:
-            metadata = ProviderMetadataRecord.model_validate_json(existing_json)
-        else:
+        metadata = await self._credentials.get_provider_metadata(provider)
+        if metadata is None:
             metadata = ProviderMetadataRecord(
                 identity=self._identity,
                 principal_id=self._principal_id,
@@ -939,18 +747,17 @@ class AuthService:
         if connection_name not in metadata.connection_names:
             metadata.connection_names.append(connection_name)
         metadata.last_used_connection = connection_name
-        await self._vault.put(meta_key, metadata.model_dump_json(), collection=self._coll)
+        await self._credentials.save_provider_metadata(metadata)
 
     async def _remove_from_provider_metadata(self, provider: str, connection_name: str) -> None:
-        meta_key = build_store_key(vault=self._vault_id, provider=provider, record_type="metadata")
-        existing_json = await self._vault.get(meta_key, collection=self._coll)
-        if existing_json:
-            metadata = ProviderMetadataRecord.model_validate_json(existing_json)
-            if connection_name in metadata.connection_names:
-                metadata.connection_names.remove(connection_name)
-            if metadata.last_used_connection == connection_name:
-                metadata.last_used_connection = metadata.connection_names[0] if metadata.connection_names else None
-            await self._vault.put(meta_key, metadata.model_dump_json(), collection=self._coll)
+        metadata = await self._credentials.get_provider_metadata(provider)
+        if metadata is None:
+            return
+        if connection_name in metadata.connection_names:
+            metadata.connection_names.remove(connection_name)
+        if metadata.last_used_connection == connection_name:
+            metadata.last_used_connection = metadata.connection_names[0] if metadata.connection_names else None
+        await self._credentials.save_provider_metadata(metadata)
 
     def _get_api_key(self, record: ConnectionRecord) -> str:
         if record.api_key is None:
@@ -1059,10 +866,9 @@ class AuthService:
         return record
 
     async def _get_or_create_provider_state(self, provider: str) -> ProviderStateRecord:
-        key = build_store_key(vault=self._vault_id, provider=provider, record_type="state")
-        existing = await self._vault.get(key, collection=self._coll)
+        existing = await self._credentials.get_provider_state(provider)
         if existing:
-            return ProviderStateRecord.model_validate_json(existing)
+            return existing
         return ProviderStateRecord(
             provider=provider,
             identity=self._identity,
@@ -1071,11 +877,7 @@ class AuthService:
         )
 
     async def _save_provider_state(self, state: ProviderStateRecord) -> None:
-        state.identity = self._identity
-        state.principal_id = self._principal_id
-        state.vault_id = self._vault_id
-        key = build_store_key(vault=self._vault_id, provider=state.provider, record_type="state")
-        await self._vault.put(key, state.model_dump_json(), collection=self._coll)
+        await self._credentials.save_provider_state(state)
 
     async def _get_access_token_from_record(self, record: ConnectionRecord) -> str:
         if record.auth_type == AuthType.API_KEY:

@@ -11,14 +11,39 @@ from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
 from authsome.auth.models.provider import BrowserConfig, ExtractRule, ProviderDefinition
 from authsome.errors import CredentialMissingError, TokenExpiredError
+from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import AuthService
 from authsome.utils import utc_now
+
+
+class StaticProviders:
+    async def get(self, name: str):  # noqa: ANN001, ANN201
+        return _provider()
+
+    async def list(self):  # noqa: ANN201
+        return [_provider()]
+
+    async def list_by_source(self):  # noqa: ANN201
+        return {"bundled": [_provider()], "custom": []}
+
+    async def save_custom(self, definition, *, force: bool = False) -> None:  # noqa: ANN001
+        raise AssertionError("unexpected provider save")
+
+    async def delete_custom(self, name: str) -> bool:
+        return False
+
+    async def is_custom(self, name: str) -> bool:
+        return False
 
 
 def _svc() -> AuthService:
     vault = MagicMock()
     return AuthService(
-        vault=vault, identity="agent", principal_id="p1", vault_id="v1", provider_definitions=[_provider()]
+        credentials=CredentialRepository(vault, identity="agent", principal_id="p1", vault_id="v1"),
+        providers=StaticProviders(),
+        identity="agent",
+        principal_id="p1",
+        vault_id="v1",
     )
 
 

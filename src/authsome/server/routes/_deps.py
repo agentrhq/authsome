@@ -7,11 +7,36 @@ from fastapi import HTTPException, Request
 from authsome.auth.sessions import AuthSessionStore
 from authsome.identity.principal import PrincipalRole
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
+from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import AuthService
 from authsome.server.store.repositories import VaultRegistry
 from authsome.server.ui_sessions import UiSessionStore
 
 UI_SESSION_COOKIE_NAME = "authsome_ui_session"
+
+
+def build_auth_service(
+    request: Request,
+    *,
+    identity: str | None,
+    principal_id: str | None,
+    principal_role: PrincipalRole = PrincipalRole.USER,
+    vault_id: str,
+) -> AuthService:
+    credentials = CredentialRepository(
+        request.app.state.vault,
+        identity=identity,
+        principal_id=principal_id,
+        vault_id=vault_id,
+    )
+    return AuthService(
+        credentials=credentials,
+        providers=request.app.state.provider_repository,
+        identity=identity,
+        principal_id=principal_id,
+        principal_role=principal_role,
+        vault_id=vault_id,
+    )
 
 
 async def get_auth_service(
@@ -25,13 +50,12 @@ async def get_auth_service(
         if resolved is None:
             resolved = await request.app.state.ownership_resolver.resolve(identity=identity)
             request.app.state.ownership_cache[identity] = resolved
-        return AuthService(
-            vault=request.app.state.vault,
+        return build_auth_service(
+            request,
             identity=identity,
             principal_id=resolved.principal_id,
             principal_role=resolved.role,
             vault_id=resolved.vault_id,
-            provider_definitions=request.app.state.provider_definition_repository,
         )
 
     if principal_id is None:
@@ -43,13 +67,12 @@ async def get_auth_service(
     principal = await request.app.state.store.principals.get(principal_id)
     if principal is None:
         return None
-    return AuthService(
-        vault=request.app.state.vault,
+    return build_auth_service(
+        request,
         identity=None,
         principal_id=principal_id,
         principal_role=principal.role,
         vault_id=binding.vault_id,
-        provider_definitions=request.app.state.provider_definition_repository,
     )
 
 

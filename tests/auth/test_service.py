@@ -9,21 +9,36 @@ from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.errors import RefreshFailedError
 from authsome.server.audit import ServerAuditLog, configure_server_audit_log
+from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import AuthService
 from authsome.utils import utc_now
 
 
-class EmptyProviderDefinitions:
+class EmptyProviders:
     async def get(self, name: str):  # noqa: ANN001, ANN201
-        return None
+        from authsome.errors import ProviderNotFoundError
+
+        raise ProviderNotFoundError(name)
 
     async def list(self):  # noqa: ANN201
         return []
 
-    async def save(self, definition, *, force: bool = False) -> None:  # noqa: ANN001
-        raise AssertionError("unexpected provider definition save")
+    async def list_by_source(self):  # noqa: ANN201
+        return {"bundled": [], "custom": []}
 
-    async def delete(self, name: str) -> bool:
+    async def save_custom(self, definition, *, force: bool = False) -> None:  # noqa: ANN001
+        raise AssertionError("unexpected provider save")
+
+    async def delete_custom(self, name: str) -> bool:
+        return False
+
+
+def _credentials(
+    vault, *, identity: str | None = "agent-a", principal_id: str | None = None, vault_id: str = "vault_default"
+):  # noqa: ANN001
+    return CredentialRepository(vault, identity=identity, principal_id=principal_id, vault_id=vault_id)
+
+    async def is_custom(self, name: str) -> bool:
         return False
 
 
@@ -41,10 +56,10 @@ class TestAuthServiceRefreshLogs:
     def service(self) -> AuthService:
         mock_vault = mock.AsyncMock()
         return AuthService(
-            mock_vault,
+            credentials=_credentials(mock_vault, identity="test-profile", vault_id="test-vault"),
+            providers=EmptyProviders(),
             identity="test-profile",
             vault_id="test-vault",
-            provider_definitions=EmptyProviderDefinitions(),
         )
 
     async def test_refresh_failure_fallback_available(self, audit_log: ServerAuditLog, service: AuthService):
@@ -131,11 +146,11 @@ class TestAuthServiceRefreshLogs:
 def test_auth_service_allows_missing_identity() -> None:
     mock_vault = mock.AsyncMock()
     service = AuthService(
-        mock_vault,
+        credentials=_credentials(mock_vault, identity=None, principal_id="principal_1"),
+        providers=EmptyProviders(),
         identity=None,
         principal_id="principal_1",
         vault_id="vault_default",
-        provider_definitions=EmptyProviderDefinitions(),
     )
     assert service.identity is None
 
@@ -143,10 +158,21 @@ def test_auth_service_allows_missing_identity() -> None:
 def test_auth_service_scopes_collection_by_vault_id() -> None:
     mock_vault = mock.AsyncMock()
     service = AuthService(
-        mock_vault,
+        credentials=_credentials(mock_vault, identity="agent-a", principal_id="principal_1"),
+        providers=EmptyProviders(),
         identity="agent-a",
         principal_id="principal_1",
         vault_id="vault_default",
-        provider_definitions=EmptyProviderDefinitions(),
     )
-    assert service._coll == "vault:vault_default"
+    assert service._credentials.collection == "vault:vault_default"
+
+
+def test_auth_service_requires_providers() -> None:
+    mock_vault = mock.AsyncMock()
+
+    with pytest.raises(TypeError):
+        AuthService(
+            credentials=_credentials(mock_vault, identity="agent-a"),
+            identity="agent-a",
+            vault_id="vault_default",
+        )  # type: ignore[call-arg]

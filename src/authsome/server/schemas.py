@@ -11,6 +11,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
+from authsome.utils import utc_now
+
 
 class HealthResponse(BaseModel):
     status: Literal["ok"]
@@ -105,3 +107,22 @@ class ProviderRoute(BaseModel):
 
 class ProxyRoutesResponse(BaseModel):
     routes: list[ProviderRoute]
+
+
+class VaultRecord(BaseModel):
+    """Vault record owned as a first-class server resource."""
+
+    vault_id: str
+    handle: str = "default"
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class PrincipalVaultBindingRecord(BaseModel):
+    """Server-owned binding from principal to vault."""
+
+    principal_id: str
+    vault_id: str
+    is_default: bool = False
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)

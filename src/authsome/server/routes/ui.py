@@ -26,6 +26,7 @@ from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_service import AuthService
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
+    build_auth_service,
     get_auth_service,
     get_auth_sessions,
     get_protected_auth_service,
@@ -328,12 +329,11 @@ async def _provider_connection_groups(
     groups: list[dict[str, Any]] = []
 
     for binding in await bindings.list_for_principal(principal_id):
-        scoped_auth = AuthService(
-            vault=request.app.state.vault,
+        scoped_auth = build_auth_service(
+            request,
             identity=identity,
             principal_id=principal_id,
             vault_id=binding.vault_id,
-            provider_definitions=request.app.state.provider_definition_repository,
         )
         provider_connections = next(
             (group["connections"] for group in await scoped_auth.list_connections() if group["name"] == provider_name),

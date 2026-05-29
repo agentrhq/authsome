@@ -11,7 +11,8 @@ from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.identity import create_identity, load_private_key
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
-from authsome.utils import build_store_key, utc_now
+from authsome.server.credential_repository import build_store_key
+from authsome.utils import utc_now
 
 
 def _auth_header(tmp_path: Path, method: str, path: str, *, handle: str) -> dict[str, str]:
