@@ -1,0 +1,21 @@
+/simplify @src/authsome/server/ Read server implementation, find opportunities to improve. Reduce code bloat and reuse things. follow best software engineering practies, and prebuilt library like PydanticSetting, instead of reinventing wheel everywhere. Also, work on improving the naming of classes and functions as well. Focus on generating a plan only
+
+---
+
+Also, see why there are so many auth service factories.
+
+---
+
+Use library like deadcode to remove unused code as well
+
+---
+
+Also, rather than using globals like DEFAULT_HOST, DEAFUKT_PORT, they are better of in a config backed by pydantic setting
+
+---
+
+/goal Continue with refactoring all tier 1,2 3 and addendum A,B, C
+
+---
+
+Continue

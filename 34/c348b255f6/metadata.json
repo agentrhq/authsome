@@ -3,7 +3,7 @@
   "checkpoint_id": "34c348b255f6",
   "strategy": "manual-commit",
   "branch": "refactor/simplify-server",
-  "checkpoints_count": 2,
+  "checkpoints_count": 6,
   "files_touched": [
     "AGENTS.md",
     "CONTEXT.md",
@@ -49,13 +49,19 @@
       "transcript": "/34/c348b255f6/1/full.jsonl",
       "content_hash": "/34/c348b255f6/1/content_hash.txt",
       "prompt": "/34/c348b255f6/1/prompt.txt"
+    },
+    {
+      "metadata": "/34/c348b255f6/2/metadata.json",
+      "transcript": "/34/c348b255f6/2/full.jsonl",
+      "content_hash": "/34/c348b255f6/2/content_hash.txt",
+      "prompt": "/34/c348b255f6/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 10672,
-    "cache_creation_tokens": 1505874,
-    "cache_read_tokens": 574514,
-    "output_tokens": 244464,
-    "api_call_count": 11
+    "input_tokens": 35309,
+    "cache_creation_tokens": 2266005,
+    "cache_read_tokens": 39570242,
+    "output_tokens": 399280,
+    "api_call_count": 169
   }
 }
