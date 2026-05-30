@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import uvicorn
 
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 7998
+from authsome.server.settings import get_settings
+
+# Settings-backed defaults, retained as module constants for the CLI daemon command.
+DEFAULT_HOST = get_settings().host
+DEFAULT_PORT = get_settings().port
 
 
 def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, reload: bool = False) -> None:

@@ -1,4 +1,4 @@
-"""Tests for AuthService business logic."""
+"""Tests for CredentialService business logic."""
 
 from datetime import timedelta
 from unittest import mock
@@ -10,7 +10,7 @@ from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.errors import RefreshFailedError
 from authsome.server.credential_repository import CredentialRepository
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.server.store import create_server_store
 from authsome.server.store.repositories import ServerAuditLog
 from authsome.utils import utc_now
@@ -59,16 +59,16 @@ class TestAuthServiceRefreshLogs:
             await store.close()
 
     @pytest.fixture
-    def service(self) -> AuthService:
+    def service(self) -> CredentialService:
         mock_vault = mock.AsyncMock()
-        return AuthService(
+        return CredentialService(
             credentials=_credentials(mock_vault, identity="test-profile", vault_id="test-vault"),
             providers=EmptyProviders(),
             identity="test-profile",
             vault_id="test-vault",
         )
 
-    async def test_refresh_failure_fallback_available(self, audit_log: ServerAuditLog, service: AuthService):
+    async def test_refresh_failure_fallback_available(self, audit_log: ServerAuditLog, service: CredentialService):
         """Verify behavior when refresh fails but current token is valid (close to expiry)."""
         now = utc_now()
         # Close to expiry (<5m) triggers auto-refresh
@@ -110,7 +110,7 @@ class TestAuthServiceRefreshLogs:
                 assert entry["fallback_available"] is True
                 assert "API down" in entry["error"]
 
-    async def test_refresh_failure_expired(self, audit_log: ServerAuditLog, service: AuthService):
+    async def test_refresh_failure_expired(self, audit_log: ServerAuditLog, service: CredentialService):
         """Verify behavior when refresh fails and current token is already expired."""
         now = utc_now()
         # Already expired
@@ -151,7 +151,7 @@ class TestAuthServiceRefreshLogs:
 
 def test_auth_service_allows_missing_identity() -> None:
     mock_vault = mock.AsyncMock()
-    service = AuthService(
+    service = CredentialService(
         credentials=_credentials(mock_vault, identity=None, principal_id="principal_1"),
         providers=EmptyProviders(),
         identity=None,
@@ -163,7 +163,7 @@ def test_auth_service_allows_missing_identity() -> None:
 
 def test_auth_service_scopes_collection_by_vault_id() -> None:
     mock_vault = mock.AsyncMock()
-    service = AuthService(
+    service = CredentialService(
         credentials=_credentials(mock_vault, identity="agent-a", principal_id="principal_1"),
         providers=EmptyProviders(),
         identity="agent-a",
@@ -177,7 +177,7 @@ def test_auth_service_requires_providers() -> None:
     mock_vault = mock.AsyncMock()
 
     with pytest.raises(TypeError):
-        AuthService(
+        CredentialService(
             credentials=_credentials(mock_vault, identity="agent-a"),
             identity="agent-a",
             vault_id="vault_default",

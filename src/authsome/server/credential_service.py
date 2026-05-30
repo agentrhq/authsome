@@ -1,4 +1,4 @@
-"""AuthService — authentication and credential lifecycle service.
+"""CredentialService — authentication and credential lifecycle service.
 
 Owns OAuth flows, token refresh, login/logout/revoke.
 Lives in server/ because it coordinates auth/ flows with vault/ storage and audit/ logging.
@@ -39,7 +39,6 @@ from authsome.auth.utils import (
 from authsome.errors import (
     ConnectionNotFoundError,
     CredentialMissingError,
-    IdentityNotFoundError,
     InvalidProviderSchemaError,
     OperationNotAllowedError,
     RefreshFailedError,
@@ -49,10 +48,9 @@ from authsome.errors import (
 from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_repository import CredentialRepository, parse_store_key
 from authsome.server.provider_repository import ProviderRepository
+from authsome.server.settings import get_settings
 from authsome.utils import format_duration, utc_now
 from authsome.vault import Vault
-
-_NEAR_EXPIRY_SECONDS = 300
 
 _FLOW_HANDLERS = {
     FlowType.PKCE: PkceFlow,
@@ -63,7 +61,7 @@ _FLOW_HANDLERS = {
 }
 
 
-class AuthService:
+class CredentialService:
     """
     Authentication and credential lifecycle service.
 
@@ -98,7 +96,7 @@ class AuthService:
     def require_identity(self) -> str:
         """Return the PoP-authenticated identity handle for identity-scoped routes."""
         if self._identity is None:
-            raise ValueError("AuthService identity is required for this operation")
+            raise ValueError("CredentialService identity is required for this operation")
         return self._identity
 
     @property
@@ -124,14 +122,12 @@ class AuthService:
     async def get_provider(self, provider: str) -> ProviderDefinition:
         return await self._providers.get(provider)
 
-    async def is_local_provider(self, provider: str) -> bool:
+    async def is_custom_provider(self, provider: str) -> bool:
         """Check if a provider is a custom/local provider."""
         return await self._providers.is_custom(provider)
 
-    async def resolve_credentials(self, **kwargs: Any) -> dict[str, Any]:
+    async def resolve_credentials(self, *, provider: str, connection: str | None = None) -> dict[str, Any]:
         """Resolve credentials for a provider/connection pair."""
-        provider = kwargs["provider"]
-        connection = kwargs.get("connection")
         resolved_connection = await self.resolve_connection_name(provider, connection)
         record = await self.get_connection(provider, resolved_connection)
         headers = await self.get_auth_headers(provider, resolved_connection)
@@ -143,32 +139,16 @@ class AuthService:
         }
 
     async def register_provider(self, definition: ProviderDefinition, *, force: bool = False) -> None:
-        self._ensure_admin_operation_allowed("register", definition.name)
+        self._require_admin("register", "register requires an admin principal", definition.name)
         self._validate_provider(definition)
         await self._providers.save_custom(definition, force=force)
         logger.info("Registered provider: {}", definition.name)
 
-    async def remove_provider(self, name: str) -> bool:
-        """Remove a custom provider. Returns True if removed."""
-        return await self._providers.delete_custom(name)
-
-    def _ensure_admin_operation_allowed(self, operation: str, provider: str) -> None:
+    def _require_admin(self, operation: str, message: str, provider: str) -> None:
+        """Allow an operation only for admin principals."""
         if self._principal_role == PrincipalRole.ADMIN:
             return
-        raise OperationNotAllowedError(
-            operation,
-            f"{operation} requires an admin principal",
-            provider=provider,
-        )
-
-    def _ensure_provider_client_mutation_allowed(self, provider: str) -> None:
-        if self._principal_role == PrincipalRole.ADMIN:
-            return
-        raise OperationNotAllowedError(
-            "login",
-            "provider client configuration requires an admin principal",
-            provider=provider,
-        )
+        raise OperationNotAllowedError(operation, message, provider=provider)
 
     def _validate_provider(self, definition: ProviderDefinition) -> None:
         validate_provider_definition(definition)
@@ -252,7 +232,7 @@ class AuthService:
         Public read-only accessor. The secret field is still stored encrypted at rest;
         callers are responsible for redacting before display.
         """
-        return await self._get_provider_client_credentials(provider)
+        return await self._credentials.get_provider_client(provider)
 
     async def update_provider_configuration(
         self,
@@ -262,12 +242,12 @@ class AuthService:
         vault_ids: list[str] | None = None,
     ) -> bool:
         """Replace stored provider credentials and revoke connections when they change."""
-        self._ensure_provider_client_mutation_allowed(provider)
+        self._require_admin("login", "provider client configuration requires an admin principal", provider)
         definition = await self.get_provider(provider)
         if definition.auth_type != AuthType.OAUTH2:
             return False
 
-        existing = await self._get_provider_client_credentials(provider)
+        existing = await self._credentials.get_provider_client(provider)
         refresh_dcr_client = definition.flow == FlowType.DCR_PKCE and existing is not None and "client_id" not in inputs
         updated = ProviderClientRecord(provider=provider)
         updated.client_id = (
@@ -315,7 +295,7 @@ class AuthService:
 
         if existing is not None:
             await self.revoke(provider, vault_ids=vault_ids)
-        await self._save_provider_client_credentials(updated)
+        await self._credentials.save_provider_client(updated)
         return True
 
     async def set_default_connection(self, provider: str, connection: str) -> None:
@@ -346,7 +326,7 @@ class AuthService:
         """Determine what inputs are missing for a given session."""
         provider = session.provider
         definition = await self.get_provider(provider)
-        client_record = await self._get_provider_client_credentials(provider)
+        client_record = await self._credentials.get_provider_client(provider)
         return required_inputs(
             provider=definition,
             flow_type=FlowType(session.flow_type),
@@ -358,15 +338,13 @@ class AuthService:
 
     async def save_inputs(self, session: AuthSession, inputs: dict[str, str]) -> None:
         """Save collected inputs to the Vault or session payload."""
-        from authsome.auth.models.connection import ProviderClientRecord
-
         provider = session.provider
         flow_type = FlowType(session.flow_type)
-        client_record = await self._get_provider_client_credentials(provider)
+        client_record = await self._credentials.get_provider_client(provider)
 
         if flow_type in (FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE):
             if inputs:
-                self._ensure_provider_client_mutation_allowed(provider)
+                self._require_admin("login", "provider client configuration requires an admin principal", provider)
 
             if client_record is None and inputs:
                 client_record = ProviderClientRecord(provider=provider)
@@ -388,7 +366,7 @@ class AuthService:
                     )
 
             if client_record is not None and inputs:
-                await self._save_provider_client_credentials(client_record)
+                await self._credentials.save_provider_client(client_record)
         elif flow_type == FlowType.API_KEY:
             api_key = inputs.get("api_key")
             if api_key:
@@ -412,7 +390,7 @@ class AuthService:
             raise UnsupportedFlowError(flow_type.value, provider=provider)
 
         handler = handler_cls()
-        client_record = await self._get_provider_client_credentials(provider)
+        client_record = await self._credentials.get_provider_client(provider)
 
         flow_client_id = client_record.client_id if client_record else None
         flow_client_secret = client_record.client_secret if client_record else None
@@ -446,15 +424,13 @@ class AuthService:
         connection_name = session.connection_name
         definition = await self.get_provider(provider)
 
-        from authsome.auth.models.enums import FlowType
-
         flow_type = FlowType(session.flow_type)
         handler_cls = _FLOW_HANDLERS.get(flow_type)
         if handler_cls is None:
             raise UnsupportedFlowError(flow_type.value, provider=provider)
 
         handler = handler_cls()
-        client_record = await self._get_provider_client_credentials(provider)
+        client_record = await self._credentials.get_provider_client(provider)
 
         flow_client_id = client_record.client_id if client_record else None
         flow_client_secret = client_record.client_secret if client_record else None
@@ -476,18 +452,18 @@ class AuthService:
             return None
 
         if result.client_record is not None:
-            self._ensure_provider_client_mutation_allowed(provider)
+            self._require_admin("login", "provider client configuration requires an admin principal", provider)
             if client_record is None:
                 client_record = ProviderClientRecord(provider=provider)
             client_record.client_id = result.client_record.client_id
             client_record.client_secret = result.client_record.client_secret
             client_record.base_url = result.client_record.base_url or client_record.base_url
-            await self._save_provider_client_credentials(client_record)
+            await self._credentials.save_provider_client(client_record)
 
         result.connection.base_url = flow_base_url
         result.connection.api_url = client_record.api_url if client_record and client_record.api_url else None
 
-        await self._save_connection(result.connection)
+        await self._credentials.save_connection(result.connection)
         await self._update_provider_metadata(provider, connection_name)
         audit.emit_event(
             "provider.login",
@@ -540,20 +516,19 @@ class AuthService:
             return False
         return True
 
-    @staticmethod
-    def _build_docs_hints(definition: ProviderDefinition, flow_type: FlowType) -> list[dict[str, Any]]:
-        """Convert provider docs URL into a bridge instruction block."""
-        if not definition.docs_url:
-            return []
-        if flow_type not in (FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE, FlowType.API_KEY):
-            return []
-        return [{"type": "instructions", "label": "Instructions", "url": definition.docs_url}]
+    def has_usable_connection(
+        self,
+        record: ConnectionRecord,
+        *,
+        scopes: list[str] | None = None,
+        base_url: str | None = None,
+    ) -> bool:
+        """Whether an existing connection can be reused for the requested context."""
+        return self._connection_is_valid(record) and self._requested_context_matches(
+            record, scopes=scopes, base_url=base_url
+        )
 
     # ── Token operations ──────────────────────────────────────────────────
-
-    async def get_access_token(self, provider: str, connection: str = "default") -> str:
-        record = await self.get_connection(provider, connection)
-        return await self._get_access_token_from_record(record)
 
     async def get_auth_headers(self, provider: str, connection: str = "default") -> dict[str, str]:
         definition = await self.get_provider(provider)
@@ -573,7 +548,7 @@ class AuthService:
             handler_cls = _FLOW_HANDLERS.get(definition.flow)
             if handler_cls:
                 handler = handler_cls()
-                client_record = await self._get_provider_client_credentials(provider)
+                client_record = await self._credentials.get_provider_client(provider)
                 client_id = client_record.client_id if client_record else None
                 client_secret = client_record.client_secret if client_record else None
 
@@ -594,24 +569,12 @@ class AuthService:
         The server layer resolves the full list of vault IDs and passes them in.
         When vault_ids is None, only this service's own vault_id is used.
         """
-        self._ensure_admin_operation_allowed("revoke", provider)
+        self._require_admin("revoke", "revoke requires an admin principal", provider)
         await self.get_provider(provider)
         ids_to_revoke = vault_ids if vault_ids is not None else ([self._vault_id] if self._vault_id else [])
         for vault_id in ids_to_revoke:
-            credentials = CredentialRepository(
-                self.vault,
-                identity=self._identity,
-                principal_id=self._principal_id,
-                vault_id=vault_id,
-            )
-            vault_service = AuthService(
-                credentials=credentials,
-                providers=self._providers,
-                identity=self._identity,
-                principal_id=self._principal_id,
-                principal_role=self._principal_role,
-                vault_id=vault_id,
-            )
+            vault_service = self._for_vault(vault_id)
+            credentials = vault_service._credentials
             metadata = await credentials.get_provider_metadata(provider)
             if metadata is None:
                 continue
@@ -622,11 +585,27 @@ class AuthService:
 
         await self._credentials.delete_provider_client(provider)
 
+    def _for_vault(self, vault_id: str) -> CredentialService:
+        """Return a sibling service scoped to another vault of the same principal."""
+        return CredentialService(
+            credentials=CredentialRepository(
+                self.vault,
+                identity=self._identity,
+                principal_id=self._principal_id,
+                vault_id=vault_id,
+            ),
+            providers=self._providers,
+            identity=self._identity,
+            principal_id=self._principal_id,
+            principal_role=self._principal_role,
+            vault_id=vault_id,
+        )
+
     async def remove(self, provider: str) -> None:
         """Revoke all tokens and remove the provider definition if it is local."""
-        self._ensure_admin_operation_allowed("remove", provider)
+        self._require_admin("remove", "remove requires an admin principal", provider)
         await self.revoke(provider)
-        if await self.is_local_provider(provider):
+        if await self.is_custom_provider(provider):
             await self._providers.delete_custom(provider)
             logger.info("Removed local provider definition: {}", provider)
         else:
@@ -725,23 +704,7 @@ class AuthService:
             counter += 1
         return candidate
 
-    # ── Identity operations ───────────────────────────────────────────────
-
-    async def get_identity(self, name: str) -> str:
-        if name != self._identity:
-            raise IdentityNotFoundError(name)
-        return self.require_identity()
-
     # ── Internal helpers ──────────────────────────────────────────────────
-
-    async def _save_connection(self, record: ConnectionRecord) -> None:
-        await self._credentials.save_connection(record)
-
-    async def _get_provider_client_credentials(self, provider: str) -> ProviderClientRecord | None:
-        return await self._credentials.get_provider_client(provider)
-
-    async def _save_provider_client_credentials(self, record: ProviderClientRecord) -> None:
-        await self._credentials.save_provider_client(record)
 
     async def _update_provider_metadata(self, provider: str, connection_name: str) -> None:
         metadata = await self._credentials.get_provider_metadata(provider)
@@ -778,7 +741,7 @@ class AuthService:
 
         now = utc_now()
         if record.expires_at:
-            near_expiry = record.expires_at - timedelta(seconds=_NEAR_EXPIRY_SECONDS)
+            near_expiry = record.expires_at - timedelta(seconds=get_settings().token_near_expiry_seconds)
             if now < near_expiry:
                 return record.access_token
 
@@ -822,12 +785,12 @@ class AuthService:
                         return record.access_token
 
                     record.status = ConnectionStatus.EXPIRED
-                    await self._save_connection(record)
+                    await self._credentials.save_connection(record)
                     raise
             else:
                 if now >= record.expires_at:
                     record.status = ConnectionStatus.EXPIRED
-                    await self._save_connection(record)
+                    await self._credentials.save_connection(record)
                     raise TokenExpiredError(provider=provider)
                 return record.access_token
         else:
@@ -837,7 +800,7 @@ class AuthService:
         definition = await self.get_provider(provider_name)
         state_record = await self._get_or_create_provider_state(provider_name)
 
-        client_record = await self._get_provider_client_credentials(provider_name)
+        client_record = await self._credentials.get_provider_client(provider_name)
         client_id = client_record.client_id if client_record else None
         client_secret = client_record.client_secret if client_record else None
         base_url = record.base_url or (client_record.base_url if client_record else None)
@@ -858,17 +821,17 @@ class AuthService:
         except Exception as exc:
             state_record.last_refresh_at = utc_now()
             state_record.last_refresh_error = str(exc)
-            await self._save_provider_state(state_record)
+            await self._credentials.save_provider_state(state_record)
             if isinstance(exc, RefreshFailedError):
                 raise
             raise RefreshFailedError(str(exc), provider=provider_name) from exc
 
-        await self._save_connection(record)
+        await self._credentials.save_connection(record)
 
         now = utc_now()
         state_record.last_refresh_at = now
         state_record.last_refresh_error = None
-        await self._save_provider_state(state_record)
+        await self._credentials.save_provider_state(state_record)
 
         logger.info("Token refreshed: provider={}", provider_name)
         return record
@@ -883,9 +846,6 @@ class AuthService:
             principal_id=self._principal_id,
             vault_id=self._vault_id,
         )
-
-    async def _save_provider_state(self, state: ProviderStateRecord) -> None:
-        await self._credentials.save_provider_state(state)
 
     async def _get_access_token_from_record(self, record: ConnectionRecord) -> str:
         if record.auth_type == AuthType.API_KEY:

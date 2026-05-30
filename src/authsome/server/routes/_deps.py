@@ -2,17 +2,30 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from fastapi import HTTPException, Request
 
-from authsome.auth.sessions import AuthSessionStore
+from authsome.auth.sessions import AuthSession, AuthSessionStore
 from authsome.identity.principal import PrincipalRole
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
 from authsome.server.credential_repository import CredentialRepository
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.server.store.repositories import VaultRegistry
 from authsome.server.ui_sessions import UiSessionStore
+from authsome.utils import utc_now
 
 UI_SESSION_COOKIE_NAME = "authsome_ui_session"
+
+
+def update_device_code_expiry(session: AuthSession) -> None:
+    """Set the session expiry from the device-code ``expires_in`` hint, if present."""
+    if "expires_in" not in session.payload:
+        return
+    try:
+        session.expires_at = utc_now() + timedelta(seconds=int(session.payload["expires_in"]))
+    except ValueError:
+        pass
 
 
 def build_auth_service(
@@ -22,14 +35,14 @@ def build_auth_service(
     principal_id: str | None,
     principal_role: PrincipalRole = PrincipalRole.USER,
     vault_id: str,
-) -> AuthService:
+) -> CredentialService:
     credentials = CredentialRepository(
         request.app.state.vault,
         identity=identity,
         principal_id=principal_id,
         vault_id=vault_id,
     )
-    return AuthService(
+    return CredentialService(
         credentials=credentials,
         providers=request.app.state.provider_repository,
         identity=identity,
@@ -44,7 +57,7 @@ async def get_auth_service(
     *,
     identity: str | None = None,
     principal_id: str | None = None,
-) -> AuthService | None:
+) -> CredentialService | None:
     if identity is not None:
         resolved = request.app.state.ownership_cache.get(identity)
         if resolved is None:
@@ -83,38 +96,14 @@ async def require_auth_service(
     principal_id: str | None = None,
     status_code: int = 404,
     detail: str = "Authentication context not found",
-) -> AuthService:
+) -> CredentialService:
     auth = await get_auth_service(request, identity=identity, principal_id=principal_id)
     if auth is None:
         raise HTTPException(status_code=status_code, detail=detail)
     return auth
 
 
-async def get_principal_browser_auth_service(request: Request) -> AuthService:
-    cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
-    if not cookie_value:
-        raise HTTPException(status_code=401, detail="Missing browser session")
-
-    try:
-        session = request.app.state.ui_sessions.get_browser_session(cookie_value)
-    except KeyError as exc:
-        raise HTTPException(status_code=401, detail="Browser session expired") from exc
-
-    auth = await require_auth_service(
-        request,
-        principal_id=session.principal_id,
-        status_code=403,
-        detail="Principal has no default vault",
-    )
-    request.state.ui_identity = None
-    request.state.ui_principal_id = session.principal_id
-    request.state.ui_principal_role = auth.principal_role
-    request.state.ui_email = session.email
-    request.state.ui_session_token = session.token
-    return auth
-
-
-async def get_protected_auth_service(request: Request) -> AuthService:
+async def get_protected_auth_service(request: Request) -> CredentialService:
     authorization = request.headers.get("Authorization")
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing PoP authorization header")
@@ -155,7 +144,6 @@ async def get_protected_auth_service(request: Request) -> AuthService:
     request.state.principal_id = resolved.principal_id
     request.state.vault_id = resolved.vault_id
     request.state.principal_role = resolved.role
-    request.state.ownership = resolved
     request.state.registration_status = "registered"
     request.app.state.ownership_cache[claims.subject] = resolved
     return await require_auth_service(
@@ -166,7 +154,7 @@ async def get_protected_auth_service(request: Request) -> AuthService:
     )
 
 
-async def get_admin_auth_service(request: Request) -> AuthService:
+async def get_admin_auth_service(request: Request) -> CredentialService:
     auth = await get_protected_auth_service(request)
     if auth.principal_role != PrincipalRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin role required")
@@ -205,5 +193,4 @@ async def resolve_ui_request_identity(request: Request) -> str | None:
     principal = await request.app.state.store.principals.get(session.principal_id)
     request.state.ui_principal_role = principal.role if principal else None
     request.state.ui_email = session.email
-    request.state.ui_session_token = session.token
     return None

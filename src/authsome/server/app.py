@@ -21,7 +21,6 @@ from authsome.server.dependencies import (
     create_vault,
     get_server_base_url,
     load_server_config,
-    load_ui_session_signing_secret,
 )
 from authsome.server.provider_repository import ProviderRepository
 from authsome.server.routes.audit import router as audit_router
@@ -33,6 +32,7 @@ from authsome.server.routes.providers import router as providers_router
 from authsome.server.routes.proxy import router as proxy_router
 from authsome.server.routes.ui import UiAuthRequiredError
 from authsome.server.routes.ui import router as ui_router
+from authsome.server.secrets import load_ui_session_signing_secret
 from authsome.server.store.repositories import IdentityRegistrationError
 from authsome.server.ui_sessions import UiSessionStore
 
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
     app.state.identity_claim_registry = app.state.store.identity_claims
     app.state.principal_vault_binding_registry = app.state.store.principal_vault_bindings
     app.state.provider_repository = ProviderRepository(app.state.store.provider_definitions)
-    app.state.account_auth_service = create_account_auth_service(app.state.store)
+    app.state.account_auth_service = create_account_auth_service(app.state.store, app.state.ui_sessions)
     app.state.server_base_url = get_server_base_url()
     init_posthog()
     app.state.identity_bootstrap = create_identity_bootstrap_service(

@@ -2,23 +2,14 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from loguru import logger
 from posthog import Posthog
 
+from authsome.server.settings import get_settings
+
 _client: Posthog | None = None
-_DISABLE_FLAGS: tuple[tuple[str, str], ...] = (
-    ("DO_NOT_TRACK", "1"),
-    ("POSTHOG_DISABLED", "1"),
-    ("AUTHSOME_ANALYTICS", "0"),
-)
-
-
-def get_posthog() -> Posthog | None:
-    """Return the shared PostHog client, or None if not initialised."""
-    return _client
 
 
 def capture_event(identity: str, event: str, properties: dict[str, Any]) -> None:
@@ -41,17 +32,13 @@ def init_posthog() -> Posthog | None:
     """
     global _client
 
-    for env_var_name, disabled_value in _DISABLE_FLAGS:
-        if os.getenv(env_var_name) == disabled_value:
-            _client = None
-            logger.debug("Analytics disabled via {}", env_var_name)
-            return None
-
-    api_key = "phc_sgDwzvbX3TjBoPiWREfyfGs9pwebebKjavHGQChh9BpH"
-    host = "https://us.i.posthog.com"
-    if not api_key or not host:
+    settings = get_settings()
+    if not settings.analytics_enabled:
+        _client = None
+        logger.debug("Analytics disabled via settings")
         return None
-    _client = Posthog(api_key, host=host, enable_exception_autocapture=True)
+
+    _client = Posthog(settings.posthog_api_key, host=settings.posthog_host, enable_exception_autocapture=True)
     return _client
 
 

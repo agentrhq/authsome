@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 
 from authsome.auth.models.enums import ExportFormat
 from authsome.server.analytics import capture_event
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import get_admin_auth_service, get_protected_auth_service, get_vault_registry
 from authsome.server.store.repositories import VaultRegistry
 
@@ -14,7 +14,7 @@ router = APIRouter(tags=["connections"])
 
 
 @router.get("/connections")
-async def list_connections(auth: AuthService = Depends(get_protected_auth_service)):
+async def list_connections(auth: CredentialService = Depends(get_protected_auth_service)):
     by_source = await auth.list_providers_by_source()
     return {
         "connections": await auth.list_connections(),
@@ -26,12 +26,12 @@ async def list_connections(auth: AuthService = Depends(get_protected_auth_servic
 
 
 @router.get("/connections/{provider}/{connection}")
-async def get_connection(provider: str, connection: str, auth: AuthService = Depends(get_protected_auth_service)):
+async def get_connection(provider: str, connection: str, auth: CredentialService = Depends(get_protected_auth_service)):
     return (await auth.get_connection(provider, connection)).model_dump(mode="json")
 
 
 @router.post("/connections/{provider}/{connection}/logout")
-async def logout(provider: str, connection: str, auth: AuthService = Depends(get_protected_auth_service)):
+async def logout(provider: str, connection: str, auth: CredentialService = Depends(get_protected_auth_service)):
     await auth.logout(provider, connection)
     capture_event(
         auth.require_identity(),
@@ -48,7 +48,7 @@ async def logout(provider: str, connection: str, auth: AuthService = Depends(get
 @router.post("/connections/{provider}/revoke")
 async def revoke(
     provider: str,
-    auth: AuthService = Depends(get_admin_auth_service),
+    auth: CredentialService = Depends(get_admin_auth_service),
     vault_registry: VaultRegistry = Depends(get_vault_registry),
 ):
     all_vaults = await vault_registry.list_all()
@@ -69,14 +69,14 @@ async def revoke(
 async def set_default_connection(
     provider: str,
     connection: str,
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_protected_auth_service),
 ):
     await auth.set_default_connection(provider, connection)
     return {"status": "ok", "provider": provider, "default_connection": connection}
 
 
 @router.post("/credentials/export")
-async def export_credentials(body: dict, auth: AuthService = Depends(get_protected_auth_service)):
+async def export_credentials(body: dict, auth: CredentialService = Depends(get_protected_auth_service)):
     provider = body.get("provider")
     connection = body.get("connection", "default")
     export_format = ExportFormat(body.get("format", "env"))

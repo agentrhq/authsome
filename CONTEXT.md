@@ -60,11 +60,9 @@ Think of this as the OAuth 2.0 protocol library. Each flow takes provider config
 
 ### `server/` — CredentialService and application orchestration
 
-`server/` owns `CredentialService` (currently called `AuthService`) — the stateful coordinator that wires `auth/` flows with `vault/` storage and `audit/` logging. It is the only place where flows, storage, and audit are combined.
+`server/` owns `CredentialService` (`server/credential_service.py`) — the stateful coordinator that wires `auth/` flows with `vault/` storage and `audit/` logging. It is the only place where flows, storage, and audit are combined.
 
-`CredentialService` is constructed per-request by the server with `(vault, identity, principal_id, vault_id)` and calls `auth/` flows to execute protocols, `vault/` to persist results, and `audit/` to record events.
-
-> Current state: `AuthService` lives in `auth/` and imports `vault/` and `audit/` directly. Moving it to `server/` (TODOS phase E) makes `auth/` a true leaf.
+`CredentialService` is constructed per-request by the server with keyword-only `(credentials, providers, identity, principal_id, principal_role, vault_id)` and calls `auth/` flows to execute protocols, `vault/` (through the injected `CredentialRepository`) to persist results, and `audit/` to record events.
 
 ---
 
@@ -109,7 +107,7 @@ Think of this as the audit instrumentation layer. Defines what happened; `server
 Think of this as the daemon process. Wires identity + auth + vault + audit together. Owns all server-side persistence.
 
 **Owns:**
-- `server/registries.py` — all filesystem-backed registry implementations:
+- `server/store/repositories.py` — all relational (SQLite/Postgres) registry implementations:
   - `IdentityRegistry` (handle → DID)
   - `PrincipalRegistry` (principal_id → email)
   - `VaultRegistry` (vault_id → handle)
@@ -217,7 +215,7 @@ There is a single flow for every deployment — no deployment mode (see ADR 0007
 
 - An **Identity** is a cryptographic agent. It does not own credentials directly.
 - An **Identity** claims a **Principal** via an **IdentityClaimRecord**. Claim must be `accepted` for vault access.
-- A **Principal** owns one or more **Vaults** via **PrincipalVaultBindingRecords**. The server resolves the default Vault before constructing `AuthService`.
+- A **Principal** owns one or more **Vaults** via **PrincipalVaultBindingRecords**. The server resolves the default Vault before constructing `CredentialService`.
 - A **Vault** contains zero or more **Connections**, each scoped to one **Provider**.
 - Multiple Identities may share one Vault by claiming the same Principal.
 - A **ConnectionRecord** belongs to exactly one Vault. `vault:<vault_id>:...` is the key prefix.
@@ -225,20 +223,28 @@ There is a single flow for every deployment — no deployment mode (see ADR 0007
 
 ---
 
-## AuthService Contract
+## CredentialService Contract
 
-`AuthService` is a per-request credential lifecycle object constructed by the server:
+`CredentialService` is a per-request credential lifecycle object constructed by the server:
 
 ```python
-AuthService(vault=vault, identity=handle, principal_id=pid, vault_id=vid, deployment_mode=mode)
+CredentialService(
+    credentials=CredentialRepository(vault, identity=handle, principal_id=pid, vault_id=vid),
+    providers=provider_repository,
+    identity=handle,
+    principal_id=pid,
+    principal_role=role,
+    vault_id=vid,
+)
 ```
 
 - `identity` — agent Handle, used for audit logging only
 - `principal_id` — resolved by `OwnershipResolver` from the PoP JWT subject
-- `vault_id` — resolved from `PrincipalVaultBindingRegistry` by the server before constructing AuthService
-- `vault` — the encrypted KV store; AuthService reads/writes only through this
+- `principal_role` — the Principal's role (admin/user); gates provider-config and revoke operations
+- `vault_id` — resolved from `PrincipalVaultBindingRegistry` by the server before constructing CredentialService
+- `credentials` — a `CredentialRepository` over the encrypted KV store; CredentialService reads/writes only through this
 
-AuthService does not query registries, does not know about server filesystem paths, and does not build proxy route catalogs.
+CredentialService does not query registries, does not know about server filesystem paths, and does not build proxy route catalogs.
 
 ---
 
@@ -261,5 +267,5 @@ _Avoid_: server event, auth event, lifecycle event
 - **"PrincipalHandle"** — retired. The Principal is now identified by an opaque `PrincipalId`. Do not use PrincipalHandle in new code.
 - **"VaultHandle"** — the human-readable display name. Do not use VaultHandle as a storage key; use VaultId.
 - **"Claim"** — use `IdentityClaimRecord` for the binding object; use "claim" (lowercase) only as a verb.
-- **"identity=server"** — a temporary hack in `app.py` where `AuthService` is instantiated at startup without a real identity. This is a known violation to be removed.
+- **"identity=server"** — retired. Previously a startup hack where the credential service was instantiated without a real identity; `CredentialService` is now built per-request in `routes/_deps.py`.
 - **"credential"** — use **Connection** for the full authenticated session; use **access token** / **API key** for the individual secret.
