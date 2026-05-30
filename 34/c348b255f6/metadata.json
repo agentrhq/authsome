@@ -3,8 +3,38 @@
   "checkpoint_id": "34c348b255f6",
   "strategy": "manual-commit",
   "branch": "refactor/simplify-server",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
+    "AGENTS.md",
+    "CONTEXT.md",
+    "pyproject.toml",
+    "src/authsome/server/account_auth.py",
+    "src/authsome/server/analytics.py",
+    "src/authsome/server/app.py",
+    "src/authsome/server/credential_repository.py",
+    "src/authsome/server/credential_service.py",
+    "src/authsome/server/daemon.py",
+    "src/authsome/server/dependencies.py",
+    "src/authsome/server/proxy_catalog.py",
+    "src/authsome/server/routes/_deps.py",
+    "src/authsome/server/routes/audit.py",
+    "src/authsome/server/routes/auth.py",
+    "src/authsome/server/routes/connections.py",
+    "src/authsome/server/routes/health.py",
+    "src/authsome/server/routes/providers.py",
+    "src/authsome/server/routes/proxy.py",
+    "src/authsome/server/routes/ui.py",
+    "src/authsome/server/store/repositories.py",
+    "src/authsome/server/ui_sessions.py",
+    "src/authsome/server/urls.py",
+    "src/authsome/server/web_pages/web_theme.py",
+    "tests/auth/test_browser_service.py",
+    "tests/auth/test_service.py",
+    "tests/auth/test_service_provider_clients.py",
+    "tests/auth/test_service_provider_definitions.py",
+    "tests/proxy/test_proxy.py",
+    "tests/server/test_account_auth.py",
+    "tests/server/test_credential_repository.py",
     "uv.lock"
   ],
   "sessions": [
@@ -13,13 +43,19 @@
       "transcript": "/34/c348b255f6/0/full.jsonl",
       "content_hash": "/34/c348b255f6/0/content_hash.txt",
       "prompt": "/34/c348b255f6/0/prompt.txt"
+    },
+    {
+      "metadata": "/34/c348b255f6/1/metadata.json",
+      "transcript": "/34/c348b255f6/1/full.jsonl",
+      "content_hash": "/34/c348b255f6/1/content_hash.txt",
+      "prompt": "/34/c348b255f6/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 10672,
+    "cache_creation_tokens": 1505874,
+    "cache_read_tokens": 574514,
+    "output_tokens": 244464,
+    "api_call_count": 11
   }
 }
