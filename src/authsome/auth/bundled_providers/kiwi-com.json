@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "kiwi-com",
+  "display_name": "Kiwi.com",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.kiwi.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "KIWI_COM_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://mcp-install-instructions.alpic.cloud/servers/kiwi-com-flight-search"
+}

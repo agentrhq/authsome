@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "coupler-io",
+  "display_name": "Coupler.io",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.coupler.io",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "COUPLER_IO_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://help.coupler.io/article/592-coupler-local-mcp-server"
+}

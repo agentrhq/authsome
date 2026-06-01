@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "wordpress-com",
+  "display_name": "WordPress.com",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "public-api.wordpress.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "WORDPRESS_COM_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://developer.wordpress.com/docs/mcp/"
+}

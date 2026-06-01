@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "magic-patterns",
+  "display_name": "Magic Patterns",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.magicpatterns.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MAGIC_PATTERNS_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.magicpatterns.com/docs/documentation/features/mcp-server/overview"
+}

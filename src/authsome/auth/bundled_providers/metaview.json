@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "metaview",
+  "display_name": "Metaview",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.metaview.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "METAVIEW_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://support.metaview.ai/integrations/mcp-integration/mcp-overview.mdx"
+}

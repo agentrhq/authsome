@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "gamma",
+  "display_name": "Gamma",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.gamma.app",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "GAMMA_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://gamma.app/docs/Gamma-MCP-Server-Documentation-m6p43kobgzy15zj?mode=doc"
+}

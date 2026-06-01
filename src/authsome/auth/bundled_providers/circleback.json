@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "circleback",
+  "display_name": "Circleback",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "app.circleback.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "CIRCLEBACK_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://circleback.ai/docs/mcp"
+}

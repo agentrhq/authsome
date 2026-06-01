@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "hugging-face",
+  "display_name": "Hugging Face",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "huggingface.co",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "HUGGING_FACE_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://huggingface.co/settings/mcp"
+}

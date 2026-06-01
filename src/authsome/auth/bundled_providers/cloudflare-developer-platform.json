@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "cloudflare-developer-platform",
+  "display_name": "Cloudflare Developer Platform",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "bindings.mcp.cloudflare.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "CLOUDFLARE_DEVELOPER_PLATFORM_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.support.cloudflare.com/"
+}

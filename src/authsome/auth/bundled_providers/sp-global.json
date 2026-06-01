@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "sp-global",
+  "display_name": "S&P Global",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "kfinance.kensho.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "S_P_GLOBAL_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.kensho.com/llmreadyapi/mcp"
+}

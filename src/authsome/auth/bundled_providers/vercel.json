@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "vercel",
+  "display_name": "Vercel",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.vercel.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "VERCEL_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://vercel.com/docs/mcp/vercel-mcp"
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "ticket-tailor",
+  "display_name": "Ticket Tailor",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.tickettailor.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "TICKET_TAILOR_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://help.tickettailor.com/en/articles/11892797-how-to-connect-ticket-tailor-to-your-favourite-ai-agent"
+}

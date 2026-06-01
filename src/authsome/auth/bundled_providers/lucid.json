@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "lucid",
+  "display_name": "Lucid",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.lucid.app",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "LUCID_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://help.lucid.co/hc/en-us/articles/42578801807508-Integrate-Lucid-with-AI-tools-using-the-Lucid-MCP-server"
+}

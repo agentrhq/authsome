@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "intuit-turbotax",
+  "display_name": "Intuit TurboTax",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "ai-inc.turbotax.intuit.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "INTUIT_TURBOTAX_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://ttlc.intuit.com/turbotax-support/en-us/help-article/tax-return/access-turbotax-tools-claude"
+}

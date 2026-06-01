@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "moodys",
+  "display_name": "Moody's",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.moodys.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MOODYS_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.moodys.com/web/en/us/genai/model-context-protocol.html"
+}

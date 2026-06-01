@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "clay",
+  "display_name": "Clay",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.clay.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "CLAY_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.notion.so/clayrun/Clay-Claude-MCP-Server-Documentation-2ef7e66eb01480c9820de48041591aeb?showMoveTo=true&saveParent=true"
+}

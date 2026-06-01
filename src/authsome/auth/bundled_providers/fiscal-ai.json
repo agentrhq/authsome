@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "fiscal-ai",
+  "display_name": "Fiscal.ai",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.fiscal.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "FISCAL_AI_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.fiscal.ai/docs/guides/mcp-integration"
+}

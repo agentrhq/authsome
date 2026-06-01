@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "intuit-quickbooks",
+  "display_name": "Intuit QuickBooks",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "ai-inc.quickbooks.intuit.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "INTUIT_QUICKBOOKS_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://quickbooks.intuit.com/learn-support/en-us/help-article/accounting-bookkeeping/use-quickbooks-connector-claude/L3YBlo6Ht_US_en_US?uid=mmzgz9ag"
+}

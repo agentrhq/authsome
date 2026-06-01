@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "udemy-business",
+  "display_name": "Udemy Business",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.udemy.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "UDEMY_BUSINESS_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://business-support.udemy.com/hc/en-us/articles/34213384429335-How-to-Integrate-the-Udemy-Business-MCP-Server-With-Your-AI-Tool#h_01K9CA42YGCV1AVXPY1RKABKP1"
+}

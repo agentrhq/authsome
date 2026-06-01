@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "enterpret-wisdom",
+  "display_name": "Enterpret Wisdom",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "wisdom-api.enterpret.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "ENTERPRET_WISDOM_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://helpcenter.enterpret.com/en/articles/12665166-wisdom-mcp-server"
+}

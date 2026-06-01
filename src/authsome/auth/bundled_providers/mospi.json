@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "mospi",
+  "display_name": "MoSPI",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.mospi.gov.in",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MOSPI_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.datainnovation.mospi.gov.in/mospi-mcp"
+}

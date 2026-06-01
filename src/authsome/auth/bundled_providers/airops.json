@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "airops",
+  "display_name": "AirOps",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "app.airops.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "AIROPS_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.airops.com/mcp"
+}

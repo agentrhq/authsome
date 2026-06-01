@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "bitly",
+  "display_name": "Bitly",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api-ssl.bitly.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "BITLY_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://dev.bitly.com/bitly-mcp/"
+}

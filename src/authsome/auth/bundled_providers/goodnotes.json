@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "goodnotes",
+  "display_name": "Goodnotes",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "claude-mcp-api.ml.goodnotes.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "GOODNOTES_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.notion.so/goodnotes-team/Goodnotes-MCP-Server-Documentation-320b740273d28187a23ad52780a37620"
+}

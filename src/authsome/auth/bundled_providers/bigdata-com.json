@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "bigdata-com",
+  "display_name": "Bigdata.com",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.bigdata.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "BIGDATA_COM_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.bigdata.com/mcp-reference"
+}

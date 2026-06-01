@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "omni-analytics",
+  "display_name": "Omni Analytics",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "callbacks.omniapp.co",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "OMNI_ANALYTICS_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.omni.co/ai/mcp"
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "clarify",
+  "display_name": "Clarify",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.clarify.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "CLARIFY_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.clarify.ai/en/articles/13367278-clarify-mcp"
+}

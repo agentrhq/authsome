@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "intuit-mailchimp",
+  "display_name": "Intuit Mailchimp",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "ai-inc.mailchimp.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "INTUIT_MAILCHIMP_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://mailchimp.com/help/use-mailchimp-connector-claude"
+}

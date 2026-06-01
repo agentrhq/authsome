@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "jam",
+  "display_name": "Jam",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.jam.dev",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "JAM_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://jam.dev/docs/debug-a-jam/mcp"
+}

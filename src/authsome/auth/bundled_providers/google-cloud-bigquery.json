@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "google-cloud-bigquery",
+  "display_name": "Google Cloud BigQuery",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "bigquery.googleapis.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "GOOGLE_CLOUD_BIGQUERY_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://cloud.google.com/bigquery/docs/use-bigquery-mcp"
+}

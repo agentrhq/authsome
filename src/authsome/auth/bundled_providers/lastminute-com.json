@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "lastminute-com",
+  "display_name": "lastminute.com",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.lastminute.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "LASTMINUTE_COM_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://mcp.lastminute.com/docs"
+}

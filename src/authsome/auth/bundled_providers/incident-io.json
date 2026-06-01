@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "incident-io",
+  "display_name": "incident.io",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.incident.io",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "INCIDENT_IO_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.incident.io/ai/remote-mcp"
+}

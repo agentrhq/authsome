@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "ramp",
+  "display_name": "Ramp",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "ramp-mcp-remote.ramp.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "RAMP_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.ramp.com/developer-api/v1/guides/ramp-mcp-remote"
+}

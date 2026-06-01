@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "windsor-ai",
+  "display_name": "Windsor.ai",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.windsor.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "WINDSOR_AI_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://windsor.ai/introducing-windsor-mcp/#method-1-using-claude-desktop-3"
+}

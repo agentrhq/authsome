@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "microsoft-365",
+  "display_name": "Microsoft 365",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "microsoft365.mcp.claude.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MICROSOFT_365_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://support.claude.com/en/articles/12542951-enabling-and-using-the-microsoft-365-connector"
+}

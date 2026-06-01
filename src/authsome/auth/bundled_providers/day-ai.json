@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "day-ai",
+  "display_name": "Day AI",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "day.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "DAY_AI_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://day.ai/mcp"
+}

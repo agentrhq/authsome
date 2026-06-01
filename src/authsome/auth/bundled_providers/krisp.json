@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "krisp",
+  "display_name": "Krisp",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.krisp.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "KRISP_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://help.krisp.ai/hc/en-us/articles/25416265429660-Krisp-MCP-Supported-tools"
+}

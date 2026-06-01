@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "sprouts-data-intelligence",
+  "display_name": "Sprouts Data Intelligence",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "sprouts-mcp-server.kartikay-dhar.workers.dev",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "SPROUTS_DATA_INTELLIGENCE_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://support.sprouts.ai/en/articles/13384582-sprouts-mcp-server-documentation#h_541c149a52"
+}

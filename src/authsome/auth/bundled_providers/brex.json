@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "brex",
+  "display_name": "Brex",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.brex.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "BREX_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.brex.com/support/using-brex-in-ai-apps"
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "pylon",
+  "display_name": "Pylon",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.usepylon.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "PYLON_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://support.usepylon.com/articles/2407390554-connecting-to-the-pylon-mcp-server?lang=en"
+}

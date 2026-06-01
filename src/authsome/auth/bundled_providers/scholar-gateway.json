@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "scholar-gateway",
+  "display_name": "Scholar Gateway",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "connector.scholargateway.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "SCHOLAR_GATEWAY_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.scholargateway.ai/"
+}

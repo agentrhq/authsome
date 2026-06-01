@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "netlify",
+  "display_name": "Netlify",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "netlify-mcp.netlify.app",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "NETLIFY_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.netlify.com/build/build-with-ai/netlify-mcp-server/"
+}

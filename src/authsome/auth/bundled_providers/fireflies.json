@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "fireflies",
+  "display_name": "Fireflies",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.fireflies.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "FIREFLIES_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://guide.fireflies.ai/articles/8272956938-learn-about-the-fireflies-mcp-server-model-context-protocol"
+}

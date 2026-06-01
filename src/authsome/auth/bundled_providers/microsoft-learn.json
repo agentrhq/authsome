@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "microsoft-learn",
+  "display_name": "Microsoft Learn",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "learn.microsoft.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MICROSOFT_LEARN_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://learn.microsoft.com/en-us/training/support/mcp"
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "learning-commons-knowledge-graph",
+  "display_name": "Learning Commons Knowledge Graph",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "kg.mcp.learningcommons.org",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "LEARNING_COMMONS_KNOWLEDGE_GRAPH_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.learningcommons.org/knowledge-graph/integrations/claude"
+}

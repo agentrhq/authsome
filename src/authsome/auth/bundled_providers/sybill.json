@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "sybill",
+  "display_name": "Sybill",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.sybill.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "SYBILL_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://api.sybill.ai/docs/mcp.html"
+}

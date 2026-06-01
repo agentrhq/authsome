@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "medidata",
+  "display_name": "Medidata",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.imedidata.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MEDIDATA_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://learn.medidata.com/en-US/bundle/mcp-server-documentation/page/medidata_mcp_server_documentation.html"
+}

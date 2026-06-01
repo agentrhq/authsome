@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "motherduck",
+  "display_name": "MotherDuck",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.motherduck.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MOTHERDUCK_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://motherduck.com/docs/sql-reference/mcp/"
+}

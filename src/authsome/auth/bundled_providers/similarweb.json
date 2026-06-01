@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "similarweb",
+  "display_name": "Similarweb",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.similarweb.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "SIMILARWEB_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.similarweb.com/api-v5/mcp/mcp-setup"
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "playmcp",
+  "display_name": "PlayMCP",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "playmcp.kakao.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "PLAYMCP_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.notion.so/2189b97b4888803dbbdcef264e7eff58"
+}

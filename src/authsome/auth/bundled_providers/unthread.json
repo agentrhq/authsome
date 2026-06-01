@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "unthread",
+  "display_name": "Unthread",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "app.unthread.io",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "UNTHREAD_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.unthread.io/docs/unthread-ai/unthread-mcp"
+}

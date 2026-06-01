@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "webflow",
+  "display_name": "Webflow",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.webflow.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "WEBFLOW_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://developers.webflow.com/mcp/v1.0.0/reference/overview"
+}

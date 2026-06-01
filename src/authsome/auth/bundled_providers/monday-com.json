@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "monday-com",
+  "display_name": "monday.com",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.monday.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MONDAY_COM_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://developer.monday.com/apps/docs/mondaycom-mcp-integration"
+}

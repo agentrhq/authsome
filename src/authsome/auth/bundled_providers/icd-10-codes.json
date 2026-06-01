@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "icd-10-codes",
+  "display_name": "ICD-10 Codes",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "hcls.mcp.claude.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "ICD_10_CODES_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://claude.com/resources/tutorials/using-the-icd-10-connector-in-claude"
+}

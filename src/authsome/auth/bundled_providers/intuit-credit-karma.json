@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "intuit-credit-karma",
+  "display_name": "Intuit Credit Karma",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "anthropic.mcp.creditkarma.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "INTUIT_CREDIT_KARMA_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://support.creditkarma.com/s/article/Intuit-Credit-Karma-on-Claude-and-ChatGPT"
+}

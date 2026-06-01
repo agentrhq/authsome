@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "chronograph",
+  "display_name": "Chronograph",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "ai.chronograph.pe",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "CHRONOGRAPH_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://lp-help.chronograph.pe/article/735-chronograph-mcp"
+}

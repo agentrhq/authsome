@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "devrev",
+  "display_name": "DevRev",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.devrev.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "DEVREV_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://support.devrev.ai/en-US/devrev/article/ART-21859-remote-mcp-server"
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "sanity",
+  "display_name": "Sanity",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.sanity.io",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "SANITY_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.sanity.io/docs/ai/mcp-server"
+}

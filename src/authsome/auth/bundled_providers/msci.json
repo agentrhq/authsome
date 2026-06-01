@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "msci",
+  "display_name": "MSCI",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.msci.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MSCI_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.msci.com/downloads/web/msci-com/data-and-analytics/private-asset-solutions/ai-for-private-markets/msci-mcp-msci-connector-user-guide.pdf"
+}

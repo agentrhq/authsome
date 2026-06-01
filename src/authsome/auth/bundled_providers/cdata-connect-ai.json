@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "cdata-connect-ai",
+  "display_name": "CData Connect AI",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.cloud.cdata.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "CDATA_CONNECT_AI_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://cloud.cdata.com/docs/Claude-Client.html"
+}

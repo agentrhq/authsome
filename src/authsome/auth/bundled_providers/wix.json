@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "wix",
+  "display_name": "Wix",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.wix.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "WIX_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://dev.wix.com/docs/sdk/articles/use-the-wix-mcp/about-the-wix-mcp"
+}

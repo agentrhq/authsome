@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "owkin",
+  "display_name": "Owkin",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.k.owkin.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "OWKIN_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.owkin.com/core-features-and-usage"
+}

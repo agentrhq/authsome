@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "make",
+  "display_name": "Make",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.make.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MAKE_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://developers.make.com/mcp-server/"
+}

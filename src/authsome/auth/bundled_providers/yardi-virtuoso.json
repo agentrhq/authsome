@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "yardi-virtuoso",
+  "display_name": "Yardi Virtuoso",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.virtuoso.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "YARDI_VIRTUOSO_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://help.virtuoso.ai/en/articles/13679727-yardi-virtuoso-mcp-technical-documentation-guide"
+}

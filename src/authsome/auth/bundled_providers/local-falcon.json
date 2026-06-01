@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "local-falcon",
+  "display_name": "Local Falcon",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.localfalcon.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "LOCAL_FALCON_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://github.com/local-falcon/mcp"
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "kindora-funder-discovery",
+  "display_name": "Kindora Funder Discovery",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "kindora-mcp.azurewebsites.net",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "KINDORA_FUNDER_DISCOVERY_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://kindora.co/mcp"
+}

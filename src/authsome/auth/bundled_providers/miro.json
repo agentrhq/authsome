@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "miro",
+  "display_name": "Miro",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.miro.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MIRO_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://developers.miro.com/docs/miro-mcp"
+}

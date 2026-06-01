@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "tldraw",
+  "display_name": "tldraw",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "tldraw-mcp-app.tldraw.workers.dev",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "TLDRAW_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://tldraw.notion.site/tldraw-mcp-app"
+}

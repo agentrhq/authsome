@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "zoom-for-claude",
+  "display_name": "Zoom for Claude",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.zoom.us",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "ZOOM_FOR_CLAUDE_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://developers.zoom.us/docs/mcp/zoom/"
+}

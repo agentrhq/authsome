@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "indeed",
+  "display_name": "Indeed",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "mcp.indeed.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "INDEED_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://docs.indeed.com/mcp"
+}

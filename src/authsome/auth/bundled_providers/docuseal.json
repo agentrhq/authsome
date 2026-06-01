@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "docuseal",
+  "display_name": "DocuSeal",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "docuseal.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "DOCUSEAL_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.docuseal.com/guides/integrate-with-ai-agents-using-mcp"
+}
