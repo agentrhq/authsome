@@ -1,9 +1,1 @@
-Review the scan command and improve it , cover all the places people typically keep env keys, i.e. .env, .env.local and so on
-
----
-
-Review the scan command and improve it , cover all the places people typically keep env keys, i.e. .env, .env.local and so on
-
----
-
-why not look in .bashrc, .zshrc and so on
+create push and pr
