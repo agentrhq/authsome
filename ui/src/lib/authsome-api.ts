@@ -1,0 +1,331 @@
+export type DashboardStats = {
+  connected: number;
+  available: number;
+  oauth: number;
+  apiKey: number;
+};
+
+export type ProviderView = {
+  name: string;
+  displayName: string;
+  authType: "oauth2" | "api_key" | string;
+  authTypeLabel: string;
+  apiUrl: string;
+  description: string;
+  source: "bundled" | "custom" | string;
+  logoInitial: string;
+  status: "available" | "connected" | "reauth" | string;
+  scopeCount: number;
+  connectionCount: number;
+  requiresNamedLogin: boolean;
+};
+
+export type ConnectionRow = {
+  providerName: string;
+  providerDisplayName: string;
+  connectionName: string;
+  status: string;
+  authTypeLabel: string;
+  href: string;
+};
+
+export type IdentityRow = {
+  handle: string;
+  isActive: boolean;
+};
+
+export type AuditRow = {
+  eventId: string;
+  time: string;
+  event: string;
+  source: string;
+  actor: string;
+  target: string;
+  status: string;
+  metadata: Record<string, unknown>;
+};
+
+export type DashboardData = {
+  version: string;
+  account: {
+    email: string | null;
+    roleLabel: string | null;
+    isAdmin: boolean;
+    principalId: string | null;
+    identity: string | null;
+  };
+  stats: DashboardStats;
+  lastActivity: string;
+  providers: ProviderView[];
+  connectedProviders: ProviderView[];
+  connections: ConnectionRow[];
+  identities: IdentityRow[];
+  vault: {
+    vaultId: string | null;
+    handle: string;
+    isDefault: boolean;
+  };
+  audit: {
+    canView: boolean;
+    total: number;
+    events: AuditRow[];
+  };
+};
+
+type WhoamiResponse = {
+  version: string;
+  identity?: string;
+  active_identity?: string;
+  principal_id?: string;
+  principal_role?: string;
+  account_email?: string;
+  vault_id?: string;
+};
+
+type ConnectionSummary = {
+  connection_name: string;
+  auth_type?: string;
+  status?: string;
+  scopes?: string[];
+  expires_at?: string | null;
+};
+
+type ProviderResponse = {
+  name: string;
+  display_name?: string;
+  auth_type?: string;
+  api_url?: string | string[] | null;
+  oauth?: {
+    base_url?: string | null;
+  } | null;
+  metadata?: {
+    description?: string;
+  };
+};
+
+type ConnectionsResponse = {
+  connections: Array<{
+    name: string;
+    connections: ConnectionSummary[];
+  }>;
+  by_source: Record<string, ProviderResponse[]>;
+};
+
+type AuditResponse = {
+  entries: Array<Record<string, unknown>>;
+};
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function requestJson<T>(path: string): Promise<T> {
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let message = response.statusText || "Request failed";
+    try {
+      const payload = (await response.json()) as { detail?: string; message?: string };
+      message = payload.detail || payload.message || message;
+    } catch {
+      // Status is sufficient for the UI's failure modes.
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function authTypeLabel(authType?: string): string {
+  return authType === "oauth2" ? "OAuth 2.0" : authType === "api_key" ? "API Key" : authType || "Provider";
+}
+
+function providerApiUrl(provider: ProviderResponse): string {
+  if (Array.isArray(provider.api_url)) {
+    return provider.api_url.filter(Boolean).join(", ") || provider.name;
+  }
+  return provider.api_url || provider.oauth?.base_url || provider.name;
+}
+
+function providerStatus(connections: ConnectionSummary[]): ProviderView["status"] {
+  if (!connections.length) {
+    return "available";
+  }
+  return connections.some((connection) => ["error", "expired"].includes(connection.status || ""))
+    ? "reauth"
+    : "connected";
+}
+
+function providerView(
+  provider: ProviderResponse,
+  source: string,
+  connections: ConnectionSummary[],
+): ProviderView {
+  const displayName = provider.display_name || provider.name;
+  return {
+    name: provider.name,
+    displayName,
+    authType: provider.auth_type || "provider",
+    authTypeLabel: authTypeLabel(provider.auth_type),
+    apiUrl: providerApiUrl(provider),
+    description: provider.metadata?.description || "",
+    source,
+    logoInitial: (displayName[0] || "?").toUpperCase(),
+    status: providerStatus(connections),
+    scopeCount: connections[0]?.scopes?.length || 0,
+    connectionCount: connections.length,
+    requiresNamedLogin: connections.some((connection) => connection.connection_name === "default"),
+  };
+}
+
+function buildProviders(data: ConnectionsResponse): ProviderView[] {
+  const connectionMap = new Map(data.connections.map((group) => [group.name, group.connections]));
+  return Object.entries(data.by_source).flatMap(([source, providers]) =>
+    providers.map((provider) => providerView(provider, source, connectionMap.get(provider.name) || [])),
+  );
+}
+
+function buildConnectionRows(data: ConnectionsResponse, providers: ProviderView[]): ConnectionRow[] {
+  const providerMap = new Map(providers.map((provider) => [provider.name, provider]));
+  return data.connections
+    .flatMap((group) => {
+      const provider = providerMap.get(group.name);
+      return group.connections.map((connection) => ({
+        providerName: group.name,
+        providerDisplayName: provider?.displayName || group.name,
+        connectionName: connection.connection_name,
+        status: connection.status || "unknown",
+        authTypeLabel: authTypeLabel(connection.auth_type || provider?.authType),
+        href: `/apps/${group.name}/connections/${connection.connection_name}`,
+      }));
+    })
+    .sort((a, b) => `${a.providerDisplayName}:${a.connectionName}`.localeCompare(`${b.providerDisplayName}:${b.connectionName}`));
+}
+
+function formatRelative(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) {
+    return null;
+  }
+  const deltaSeconds = Math.round((parsed.valueOf() - Date.now()) / 1000);
+  const absSeconds = Math.abs(deltaSeconds);
+  const direction = deltaSeconds >= 0 ? "in" : "ago";
+  const units: Array<[number, string]> = [
+    [86_400, "day"],
+    [3_600, "hour"],
+    [60, "minute"],
+    [1, "second"],
+  ];
+  const [unitSeconds, unit] = units.find(([seconds]) => absSeconds >= seconds) || [1, "second"];
+  const amount = Math.max(1, Math.floor(absSeconds / unitSeconds));
+  const label = `${amount} ${unit}${amount === 1 ? "" : "s"}`;
+  return direction === "in" ? `in ${label}` : `${label} ago`;
+}
+
+function lastActivity(data: ConnectionsResponse): string {
+  const latest = data.connections
+    .flatMap((group) => group.connections)
+    .map((connection) => connection.expires_at)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => new Date(b).valueOf() - new Date(a).valueOf())[0];
+  return formatRelative(latest) || "-";
+}
+
+function humanize(value: unknown): string {
+  const event = String(value || "audit_event").replaceAll("_", " ").replaceAll("-", " ").trim();
+  return event ? event[0].toUpperCase() + event.slice(1) : "Audit event";
+}
+
+function formatAuditTime(value: unknown): string {
+  if (!value) {
+    return "-";
+  }
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.valueOf())) {
+    return String(value);
+  }
+  return parsed.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+}
+
+function buildAuditRows(entries: AuditResponse["entries"]): AuditRow[] {
+  const known = new Set(["event_id", "timestamp", "event", "source", "principal_id", "identity", "provider", "connection", "status"]);
+  return entries.map((entry, index) => {
+    const provider = entry.provider ? String(entry.provider) : "";
+    const connection = entry.connection ? String(entry.connection) : "";
+    const metadata = Object.fromEntries(Object.entries(entry).filter(([key, value]) => !known.has(key) && value != null));
+    return {
+      eventId: String(entry.event_id || `${entry.timestamp || "event"}-${index}`),
+      time: formatAuditTime(entry.timestamp),
+      event: humanize(entry.event),
+      source: String(entry.source || "internal"),
+      actor: String(entry.identity || entry.principal_id || "system"),
+      target: [provider, connection].filter(Boolean).join(" / ") || "Authsome",
+      status: String(entry.status || "-"),
+      metadata,
+    };
+  });
+}
+
+function roleLabel(role: string | undefined): string | null {
+  if (!role) {
+    return null;
+  }
+  return role.slice(0, 1).toUpperCase() + role.slice(1);
+}
+
+export async function fetchDashboard(): Promise<DashboardData> {
+  const [whoami, connectionsData] = await Promise.all([
+    requestJson<WhoamiResponse>("/whoami"),
+    requestJson<ConnectionsResponse>("/connections"),
+  ]);
+  const isAdmin = whoami.principal_role === "admin";
+  const audit = isAdmin ? await requestJson<AuditResponse>("/audit/events?limit=100") : { entries: [] };
+  const providers = buildProviders(connectionsData);
+  const connections = buildConnectionRows(connectionsData, providers);
+  const connectedProviders = providers.filter((provider) => provider.status !== "available");
+
+  return {
+    version: whoami.version,
+    account: {
+      email: whoami.account_email || null,
+      roleLabel: roleLabel(whoami.principal_role),
+      isAdmin,
+      principalId: whoami.principal_id || null,
+      identity: whoami.identity || whoami.active_identity || null,
+    },
+    stats: {
+      connected: connectedProviders.length,
+      available: providers.length - connectedProviders.length,
+      oauth: connectedProviders.filter((provider) => provider.authType === "oauth2").length,
+      apiKey: connectedProviders.filter((provider) => provider.authType === "api_key").length,
+    },
+    lastActivity: lastActivity(connectionsData),
+    providers,
+    connectedProviders: connectedProviders.slice(0, 6),
+    connections,
+    identities: whoami.identity ? [{ handle: whoami.identity, isActive: true }] : [],
+    vault: {
+      vaultId: whoami.vault_id || null,
+      handle: "default",
+      isDefault: true,
+    },
+    audit: {
+      canView: isAdmin,
+      total: audit.entries.length,
+      events: buildAuditRows(audit.entries),
+    },
+  };
+}

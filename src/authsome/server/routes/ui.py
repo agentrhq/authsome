@@ -451,7 +451,7 @@ def _build_connection_rows(providers: list[dict[str, Any]]) -> list[dict[str, An
     return sorted(rows, key=lambda row: (row["provider_display_name"].lower(), row["connection_name"].lower()))
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/legacy", response_class=HTMLResponse)
 async def overview(
     request: Request,
     auth: AuthService = Depends(require_ui_auth()),
@@ -678,8 +678,10 @@ async def disconnect_app(
     auth: AuthService = Depends(require_ui_auth("/manage/connections")),
 ) -> Response:
     """Disconnect a provider connection from the dashboard."""
+    form = await request.form()
+    return_path = _account_auth_next_url(form.get("return_url") or "/manage/connections")
     await auth.logout(provider_name, connection_name)
-    return _redirect(request, "/manage/connections")
+    return _redirect(request, return_path)
 
 
 @router.post("/apps/{provider_name}/connect")
@@ -695,6 +697,7 @@ async def connect_app(
     form = await request.form()
     connection_name = str(form.get("connection") or form.get("connection_name") or "default")
     force = str(form.get("force", "false")).lower() in {"1", "true", "on", "yes"}
+    return_path = _account_auth_next_url(form.get("return_url") or f"/apps/{provider_name}")
 
     definition = await auth.get_provider(provider_name)
     flow = definition.flow
@@ -707,7 +710,7 @@ async def connect_app(
     )
     session.payload["force"] = force
     session.payload["callback_url_override"] = build_callback_url(server_base_url)
-    session.payload["return_url"] = f"{server_base_url.rstrip('/')}/apps/{provider_name}"
+    session.payload["return_url"] = f"{server_base_url.rstrip('/')}{return_path}"
     session.payload["ui_session_required"] = True
 
     if not force:
@@ -716,7 +719,7 @@ async def connect_app(
             if auth._connection_is_valid(existing):
                 session.status_message = "Already connected"
                 await sessions.save(session)
-                return _redirect(request, f"/apps/{provider_name}")
+                return _redirect(request, return_path)
         except Exception:
             pass
 
@@ -740,7 +743,7 @@ async def connect_app(
         await sessions.save(session)
         return _redirect(request, str(auth_url))
     await sessions.save(session)
-    return _redirect(request, f"/apps/{provider_name}")
+    return _redirect(request, return_path)
 
 
 @router.post("/apps/{provider_name}/configure")
@@ -752,6 +755,8 @@ async def configure_provider(
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
     """Open the provider configuration flow for deployment-scoped credentials."""
+    form = await request.form()
+    return_path = _account_auth_next_url(form.get("return_url") or f"/apps/{provider_name}")
     provider = await auth.get_provider(provider_name)
     policy = _ui_policy(request, auth)
     if not policy["show_provider_client_details"]:
@@ -772,7 +777,7 @@ async def configure_provider(
     session.payload["provider_config_only"] = True
     session.payload["existing_provider_client"] = (await auth.get_provider_client(provider_name)) is not None
     session.payload["callback_url_override"] = build_callback_url(server_base_url)
-    session.payload["return_url"] = f"{server_base_url.rstrip('/')}/apps/{provider_name}"
+    session.payload["return_url"] = f"{server_base_url.rstrip('/')}{return_path}"
     session.payload["input_fields"] = [
         field.model_dump(mode="json", exclude_none=True) for field in await auth.get_required_inputs(session)
     ]
@@ -796,7 +801,8 @@ async def logout_ui_session(
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
 ) -> Response:
     """Clear the dashboard browser session."""
-    response = _redirect(request, "/")
+    form = await request.form()
+    response = _redirect(request, _account_auth_next_url(form.get("return_url") or "/"))
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
     if cookie_value:
         try:

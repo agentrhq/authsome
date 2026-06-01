@@ -22,12 +22,25 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
 
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Enable pnpm
+        run: corepack enable
+
       - name: Compute RC version
         run: |
           CURRENT=$(grep '^version = ' pyproject.toml | sed 's/version = "//;s/"//')
           BASE=$(echo "$CURRENT" | sed 's/rc[0-9]*$//')
           RC_VERSION="${BASE}rc${{ github.run_number }}"
           sed -i "s/^version = \".*\"/version = \"${RC_VERSION}\"/" pyproject.toml
+
+      - name: Build static UI
+        run: ./scripts/build-ui.sh
 
       - name: Build
         run: uv build

@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, Request
 
 from authsome import __version__
 from authsome.server.credential_service import AuthService
-from authsome.server.routes._deps import get_protected_auth_service, get_server_base_url
+from authsome.server.routes._deps import (
+    get_daemon_or_browser_auth_service,
+    get_protected_auth_service,
+    get_server_base_url,
+)
 from authsome.server.schemas import HealthResponse, ReadyResponse
 from authsome.utils import connection_is_active
 
@@ -115,18 +119,20 @@ async def ready(
 @router.get("/whoami")
 async def whoami(
     request: Request,
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: AuthService = Depends(get_daemon_or_browser_auth_service),
     server_base_url: str = Depends(get_server_base_url),
 ) -> dict[str, str]:
     effective_source, backend_description = _describe_vault_encryption(auth.vault)
-    identity = auth.require_identity()
+    identity = auth.identity or getattr(request.state, "ui_identity", "") or ""
     return {
         "version": __version__,
         "home": str(request.app.state.store.home),
         "identity": identity,
         "active_identity": identity,
-        "principal_id": getattr(request.state, "principal_id", ""),
-        "vault_id": getattr(request.state, "vault_id", ""),
+        "principal_id": getattr(request.state, "principal_id", None) or auth.principal_id or "",
+        "vault_id": getattr(request.state, "vault_id", None) or auth.vault_id or "",
+        "principal_role": auth.principal_role.value,
+        "account_email": getattr(request.state, "ui_email", ""),
         "did": getattr(request.state, "did", ""),
         "registration_status": getattr(request.state, "registration_status", "registered"),
         "daemon_url": server_base_url,

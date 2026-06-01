@@ -72,7 +72,7 @@
 {% endblock %}
 
 {% block actions %}
-<form method="post" action="/apps/{{ provider.name }}/connect" hx-post="/apps/{{ provider.name }}/connect" hx-swap="none">
+<form method="post" action="/apps/{{ provider.name }}/connect">
     <input type="hidden" name="connection" value="default">
     <button class="btn btn-primary btn-block" type="submit">Connect</button>
 </form>

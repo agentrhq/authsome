@@ -33,9 +33,7 @@
         </div>
         <form class="inline-action login-action-form"
               method="post"
-              action="/apps/{{ p.name }}/connect"
-              hx-post="/apps/{{ p.name }}/connect"
-              hx-swap="none">
+              action="/apps/{{ p.name }}/connect">
             <input type="hidden" name="connection" value="default">
             {% if p.requires_named_login %}
             <button class="btn btn-secondary btn-sm"

@@ -111,5 +111,7 @@ def create_app() -> FastAPI:
 
     static_dir = files("authsome.ui").joinpath("static")
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="ui-static")
+    ui_dir = files("authsome.ui").joinpath("web")
+    app.mount("/", StaticFiles(directory=str(ui_dir), html=True, check_dir=False), name="ui")
 
     return app

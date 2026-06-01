@@ -128,7 +128,7 @@ def test_overview_navigation_shows_applications_connections_and_identity(monkeyp
 
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        response = client.get("/")
+        response = client.get("/legacy")
 
     assert response.status_code == 200
     assert "Overview" in response.text
@@ -221,6 +221,40 @@ def test_audit_page_renders_recent_events_for_admin(monkeypatch, tmp_path: Path)
     assert "req-123" in response.text
 
 
+def test_browser_session_can_read_existing_daemon_json_routes(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+
+    with TestClient(create_app()) as client:
+        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
+        _seed_connection(
+            client,
+            identity="steady-wisely-boldly-0042",
+            provider="github",
+            auth_type=AuthType.OAUTH2,
+            access_token="gh-access-token",
+            refresh_token="gh-refresh-token",
+        )
+        audit.emit_event(
+            "credentials_exported",
+            source="external",
+            identity="steady-wisely-boldly-0042",
+            provider="github",
+            status="ok",
+            request_id="req-123",
+        )
+        whoami = client.get("/whoami")
+        connections = client.get("/connections")
+        audit_events = client.get("/audit/events?limit=10")
+
+    assert whoami.status_code == 200
+    assert whoami.json()["account_email"] == "dev@example.com"
+    assert whoami.json()["principal_role"] == "admin"
+    assert connections.status_code == 200
+    assert connections.json()["connections"][0]["name"] == "github"
+    assert audit_events.status_code == 200
+    assert audit_events.json()["entries"][0]["provider"] == "github"
+
+
 def test_non_admin_ui_hides_audit_and_provider_configuration(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
@@ -229,7 +263,7 @@ def test_non_admin_ui_hides_audit_and_provider_configuration(monkeypatch, tmp_pa
         _register_identity(client, tmp_path, "user-steadily-surely-0042", email="user@example.com")
         _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
 
-        overview = client.get("/")
+        overview = client.get("/legacy")
         provider = client.get("/apps/github")
         configure = client.post("/apps/github/configure", follow_redirects=False)
         audit_page = client.get("/audit")

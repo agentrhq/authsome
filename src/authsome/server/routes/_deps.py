@@ -173,6 +173,20 @@ async def get_admin_auth_service(request: Request) -> AuthService:
     return auth
 
 
+async def get_daemon_or_browser_auth_service(request: Request) -> AuthService:
+    """Resolve auth from PoP headers or an existing browser dashboard session."""
+    if request.headers.get("Authorization"):
+        return await get_protected_auth_service(request)
+    return await get_principal_browser_auth_service(request)
+
+
+async def get_admin_daemon_or_browser_auth_service(request: Request) -> AuthService:
+    auth = await get_daemon_or_browser_auth_service(request)
+    if auth.principal_role != PrincipalRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin role required")
+    return auth
+
+
 def get_vault_registry(request: Request) -> VaultRegistry:
     return request.app.state.vault_registry
 

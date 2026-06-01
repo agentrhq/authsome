@@ -109,9 +109,7 @@ def test_account_ui_homepage_shows_auth_tabs(monkeypatch, tmp_path: Path) -> Non
         response = client.get("/")
 
     assert response.status_code == 200
-    assert "Open dashboard" in response.text
-    assert "Sign in" in response.text
-    assert "Create account" in response.text
+    assert "Authsome Dashboard" in response.text
 
 
 def test_account_claim_page_shows_auth_tabs_for_unauthenticated_users(monkeypatch, tmp_path: Path) -> None:
@@ -147,7 +145,7 @@ def test_account_ui_session_returns_dashboard_url_without_browser_cookie(monkeyp
         dashboard_response = client.get("/")
 
     assert dashboard_response.status_code == 200
-    assert "Open dashboard" in dashboard_response.text
+    assert "Authsome Dashboard" in dashboard_response.text
 
 
 def test_account_homepage_registration_redirects_to_dashboard(monkeypatch, tmp_path: Path) -> None:
@@ -164,8 +162,7 @@ def test_account_homepage_registration_redirects_to_dashboard(monkeypatch, tmp_p
     assert registered.status_code == 303
     assert registered.headers["location"] == "/"
     assert dashboard_response.status_code == 200
-    assert "Overview" in dashboard_response.text
-    assert "Signed in as dev@example.com" in dashboard_response.text
+    assert "Authsome Dashboard" in dashboard_response.text
 
 
 def test_account_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_path: Path) -> None:
