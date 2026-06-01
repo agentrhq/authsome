@@ -6,14 +6,14 @@ from fastapi import APIRouter, Depends
 
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.server.analytics import capture_event
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import get_admin_auth_service, get_protected_auth_service
 
 router = APIRouter(prefix="/providers", tags=["providers"])
 
 
 @router.get("")
-async def list_providers(auth: AuthService = Depends(get_protected_auth_service)):
+async def list_providers(auth: CredentialService = Depends(get_protected_auth_service)):
     by_source = await auth.list_providers_by_source()
     return {
         source: [provider.model_dump(mode="json") for provider in providers] for source, providers in by_source.items()
@@ -21,12 +21,12 @@ async def list_providers(auth: AuthService = Depends(get_protected_auth_service)
 
 
 @router.get("/{provider}")
-async def get_provider(provider: str, auth: AuthService = Depends(get_protected_auth_service)):
+async def get_provider(provider: str, auth: CredentialService = Depends(get_protected_auth_service)):
     return (await auth.get_provider(provider)).model_dump(mode="json")
 
 
 @router.post("")
-async def register_provider(body: dict, auth: AuthService = Depends(get_admin_auth_service)):
+async def register_provider(body: dict, auth: CredentialService = Depends(get_admin_auth_service)):
     definition_payload = body.get("definition", body)
     definition = ProviderDefinition.model_validate(definition_payload)
     await auth.register_provider(definition, force=bool(body.get("force", False)))
@@ -43,7 +43,7 @@ async def register_provider(body: dict, auth: AuthService = Depends(get_admin_au
 
 
 @router.delete("/{provider}")
-async def delete_provider(provider: str, auth: AuthService = Depends(get_admin_auth_service)):
+async def delete_provider(provider: str, auth: CredentialService = Depends(get_admin_auth_service)):
     await auth.remove(provider)
     capture_event(
         auth.require_identity(),

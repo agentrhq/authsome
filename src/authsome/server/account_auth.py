@@ -2,38 +2,32 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import timedelta
+from typing import TYPE_CHECKING
 
-import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
 
 from authsome.identity.principal import PrincipalRecord
 from authsome.server.ownership import ensure_principal_default_vault
+from authsome.server.settings import get_settings
 from authsome.server.store.repositories import (
     PrincipalRegistry,
     PrincipalVaultBindingRegistry,
     VaultRegistry,
 )
-from authsome.utils import utc_now
+
+if TYPE_CHECKING:
+    from authsome.server.ui_sessions import BrowserSession, UiSessionStore
 
 UI_TOKEN_AUDIENCE = "authsome-ui"
-
-
-@dataclass(frozen=True)
-class AccountSession:
-    """Authenticated browser account session."""
-
-    principal_id: str
-    email: str
-    token: str
 
 
 class AccountAuthService:
     """Register and authenticate browser accounts.
 
     An account is represented by a Principal and can claim one or more identities.
+    Session tokens are minted by the injected ``UiSessionStore``, the single
+    authority for browser-session JWTs.
     """
 
     def __init__(
@@ -42,12 +36,12 @@ class AccountAuthService:
         principals: PrincipalRegistry,
         vaults: VaultRegistry,
         bindings: PrincipalVaultBindingRegistry,
-        jwt_secret: str,
+        sessions: UiSessionStore,
     ) -> None:
         self._principals = principals
         self._vaults = vaults
         self._bindings = bindings
-        self._jwt_secret = jwt_secret
+        self._sessions = sessions
         self._hasher = PasswordHasher()
 
     async def register(self, *, email: str, password: str) -> PrincipalRecord:
@@ -68,15 +62,11 @@ class AccountAuthService:
         )
         return principal
 
-    async def register_and_login(self, *, email: str, password: str) -> AccountSession:
+    async def register_and_login(self, *, email: str, password: str) -> BrowserSession:
         record = await self.register(email=email, password=password)
-        return AccountSession(
-            principal_id=record.principal_id,
-            email=record.email,
-            token=self.issue_token(principal_id=record.principal_id, email=record.email),
-        )
+        return self._sessions.create_browser_session(principal_id=record.principal_id, email=record.email)
 
-    async def login(self, *, email: str, password: str) -> AccountSession:
+    async def login(self, *, email: str, password: str) -> BrowserSession:
         principal = await self._principals.get_by_email(self._normalize_email(email))
         if principal is None or not principal.password_hash:
             raise ValueError("Invalid email or password")
@@ -84,22 +74,7 @@ class AccountAuthService:
             self._hasher.verify(principal.password_hash, password)
         except (VerificationError, VerifyMismatchError) as exc:
             raise ValueError("Invalid email or password") from exc
-        return AccountSession(
-            principal_id=principal.principal_id,
-            email=principal.email,
-            token=self.issue_token(principal_id=principal.principal_id, email=principal.email),
-        )
-
-    def issue_token(self, *, principal_id: str, email: str) -> str:
-        now = utc_now()
-        payload = {
-            "sub": principal_id,
-            "email": self._normalize_email(email),
-            "aud": UI_TOKEN_AUDIENCE,
-            "iat": int(now.timestamp()),
-            "exp": int((now + timedelta(hours=1)).timestamp()),
-        }
-        return jwt.encode(payload, self._jwt_secret, algorithm="HS256")
+        return self._sessions.create_browser_session(principal_id=principal.principal_id, email=principal.email)
 
     @staticmethod
     def _normalize_email(email: str) -> str:
@@ -110,5 +85,6 @@ class AccountAuthService:
 
     @staticmethod
     def _validate_password(password: str) -> None:
-        if len(password) < 8:
-            raise ValueError("Password must be at least 8 characters")
+        min_length = get_settings().min_password_length
+        if len(password) < min_length:
+            raise ValueError(f"Password must be at least {min_length} characters")

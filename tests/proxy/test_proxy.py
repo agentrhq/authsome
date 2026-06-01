@@ -13,14 +13,24 @@ from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.proxy.router import RouteMatch, RouteResolution
 from authsome.proxy.server import AuthProxyAddon, ProxyRouter, _build_proxy_options, _route
-from authsome.server.credential_service import AuthService as AuthLayer
-from authsome.server.dependencies import create_auth_service
+from authsome.server.credential_repository import CredentialRepository
+from authsome.server.credential_service import CredentialService as AuthLayer
+from authsome.server.dependencies import create_store, create_vault
+from authsome.server.provider_repository import ProviderRepository
 from authsome.server.urls import DEFAULT_SERVER_BASE_URL
 
 
 async def _make_auth(tmp_path: Path) -> AuthLayer:
     home = tmp_path / ".authsome"
-    return await create_auth_service(home, identity="steady-wisely-boldly-0042", vault_id="steady-wisely-boldly-0042")
+    identity = "steady-wisely-boldly-0042"
+    store = await create_store(home)
+    vault = await create_vault(store.home)
+    return AuthLayer(
+        credentials=CredentialRepository(vault, identity=identity, principal_id=None, vault_id=identity),
+        providers=ProviderRepository(store.provider_definitions),
+        identity=identity,
+        vault_id=identity,
+    )
 
 
 async def _save_connection_record(
@@ -37,7 +47,7 @@ async def _save_connection_record(
         status=ConnectionStatus.CONNECTED,
         api_key=api_key,
     )
-    await auth._save_connection(record)
+    await auth._credentials.save_connection(record)
     await auth._update_provider_metadata(provider_name, connection_name)
 
 

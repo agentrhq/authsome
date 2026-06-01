@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from datetime import timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -11,8 +10,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from authsome.auth.models.enums import FlowType
-from authsome.auth.sessions import AuthSession, AuthSessionStore
-from authsome.server.credential_service import AuthService
+from authsome.auth.sessions import AuthSessionStore
+from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
     get_auth_service,
@@ -21,12 +20,12 @@ from authsome.server.routes._deps import (
     get_server_base_url,
     get_ui_sessions,
     resolve_ui_request_identity,
+    update_device_code_expiry,
 )
 from authsome.server.schemas import UiBootstrapResponse
 from authsome.server.ui_sessions import UiSessionStore
 from authsome.server.urls import build_auth_input_url, build_callback_url, build_device_url
 from authsome.server.web_pages import pages
-from authsome.utils import utc_now
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
@@ -38,15 +37,6 @@ def _redirect(request: Request, url: str) -> Response:
     return RedirectResponse(url=url, status_code=303)
 
 
-def _update_device_code_expiry(sessions: AuthSessionStore, session: AuthSession) -> None:
-    if "expires_in" not in session.payload:
-        return
-    try:
-        session.expires_at = utc_now() + timedelta(seconds=int(session.payload["expires_in"]))
-    except ValueError:
-        pass
-
-
 class UiAuthRequiredError(Exception):
     """Raised when a UI route needs to return an auth-related response."""
 
@@ -54,7 +44,7 @@ class UiAuthRequiredError(Exception):
         self.response = response
 
 
-async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> AuthService:
+async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> CredentialService:
     identity = await resolve_ui_request_identity(request)
     auth = await get_auth_service(
         request,
@@ -70,8 +60,8 @@ async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> 
     raise UiAuthRequiredError(RedirectResponse(url=_account_auth_entry_url(target), status_code=303))
 
 
-def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitable[AuthService]]:
-    async def dependency(request: Request) -> AuthService:
+def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitable[CredentialService]]:
+    async def dependency(request: Request) -> CredentialService:
         return await _resolve_ui_auth(request, next_url=next_url)
 
     return dependency
@@ -152,7 +142,7 @@ async def connect_provider(
     provider_name: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    auth: AuthService = Depends(require_ui_auth("/")),
+    auth: CredentialService = Depends(require_ui_auth("/")),
     sessions: AuthSessionStore = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
@@ -179,7 +169,7 @@ async def connect_provider(
     if not force:
         try:
             existing = await auth.get_connection(provider_name, connection_name)
-            if auth._connection_is_valid(existing):
+            if auth.has_usable_connection(existing):
                 session.status_message = "Already connected"
                 await sessions.save(session)
                 return _redirect(request, return_path)
@@ -194,7 +184,7 @@ async def connect_provider(
 
     await auth.begin_login_flow(session=session, force=force)
     if flow == FlowType.DEVICE_CODE:
-        _update_device_code_expiry(sessions, session)
+        update_device_code_expiry(session)
         background_tasks.add_task(auth.background_resume, session)
         if session.payload.get("user_code") and session.payload.get("verification_uri"):
             await sessions.save(session)
@@ -211,7 +201,7 @@ async def connect_provider(
 
 @router.post("/session", response_model=UiBootstrapResponse)
 async def start_ui_session(
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_protected_auth_service),
     server_base_url: str = Depends(get_server_base_url),
 ) -> UiBootstrapResponse:
     """Return a browser URL for opening the dashboard."""

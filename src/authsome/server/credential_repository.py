@@ -20,7 +20,6 @@ class StoreKeyParts(NamedTuple):
     """Parsed components of a credential store key."""
 
     vault: str | None = None
-    identity: str | None = None
     provider: str | None = None
     record_type: str | None = None
     connection: str | None = None
@@ -29,7 +28,6 @@ class StoreKeyParts(NamedTuple):
 def build_store_key(
     *,
     vault: str | None = None,
-    identity: str | None = None,
     provider: str | None = None,
     record_type: str | None = None,
     connection: str | None = None,
@@ -50,18 +48,8 @@ def build_store_key(
         if record_type == "client":
             return f"vault:{vault}:{provider}:client"
 
-    if identity and provider:
-        if record_type == "metadata":
-            return f"identity:{identity}:{provider}:metadata"
-        if record_type == "state":
-            return f"identity:{identity}:{provider}:state"
-        if record_type == "connection" and connection:
-            return f"identity:{identity}:{provider}:connection:{connection}"
-        if record_type == "client":
-            return f"identity:{identity}:{provider}:client"
-
     raise ValueError(
-        f"Cannot build store key with vault={vault}, identity={identity}, provider={provider}, "
+        f"Cannot build store key with vault={vault}, provider={provider}, "
         f"record_type={record_type}, connection={connection}"
     )
 
@@ -94,29 +82,6 @@ def parse_store_key(key: str) -> StoreKeyParts:
             provider, _, connection = remainder.partition(":connection:")
             return StoreKeyParts(
                 vault=vault,
-                provider=provider,
-                record_type="connection",
-                connection=connection,
-            )
-
-    if key.startswith("identity:"):
-        parts = key.split(":", 2)
-        if len(parts) < 3:
-            return StoreKeyParts()
-        identity = parts[1]
-        remainder = parts[2]
-
-        if remainder.endswith(":metadata"):
-            return StoreKeyParts(identity=identity, provider=remainder[:-9], record_type="metadata")
-        if remainder.endswith(":state"):
-            return StoreKeyParts(identity=identity, provider=remainder[:-6], record_type="state")
-        if remainder.endswith(":client"):
-            return StoreKeyParts(identity=identity, provider=remainder[:-7], record_type="client")
-
-        if ":connection:" in remainder:
-            provider, _, connection = remainder.partition(":connection:")
-            return StoreKeyParts(
-                identity=identity,
                 provider=provider,
                 record_type="connection",
                 connection=connection,

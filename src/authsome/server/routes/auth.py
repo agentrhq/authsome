@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
@@ -12,13 +11,14 @@ from authsome.auth.input_provider import InputField
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.sessions import AuthSession, AuthSessionStatus, AuthSessionStore
 from authsome.server.analytics import capture_event
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
     get_auth_sessions,
     get_protected_auth_service,
     get_server_base_url,
     require_auth_service,
     resolve_ui_request_identity,
+    update_device_code_expiry,
 )
 from authsome.server.schemas import (
     AuthSessionResponse,
@@ -30,7 +30,6 @@ from authsome.server.schemas import (
 )
 from authsome.server.urls import build_auth_input_url, build_callback_url, build_device_url
 from authsome.server.web_pages import pages
-from authsome.utils import utc_now
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -58,11 +57,36 @@ def _event_actor(session: AuthSession) -> str:
     return session.identity or session.principal_id or "account-ui"
 
 
+def _session_event(session: AuthSession, name: str) -> None:
+    """Emit a PostHog event describing an auth session transition."""
+    capture_event(
+        _event_actor(session),
+        name,
+        {
+            "provider": session.provider,
+            "flow_type": session.flow_type,
+            "principal_id": session.principal_id,
+        },
+    )
+
+
+def _mark_completed(session: AuthSession) -> None:
+    session.state = AuthSessionStatus.COMPLETED
+    session.status_message = "Login successful"
+    _session_event(session, "auth session completed")
+
+
+def _mark_failed(session: AuthSession, error: str) -> None:
+    session.state = AuthSessionStatus.FAILED
+    session.error_message = error
+    _session_event(session, "auth session failed")
+
+
 @router.post("/sessions", response_model=AuthSessionResponse)
 async def start_session(
     body: StartAuthSessionRequest,
     background_tasks: BackgroundTasks,
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_protected_auth_service),
     sessions: AuthSessionStore = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> AuthSessionResponse:
@@ -85,11 +109,7 @@ async def start_session(
     if not body.force:
         try:
             existing = await auth.get_connection(body.provider, body.connection)
-            if auth._connection_is_valid(existing) and auth._requested_context_matches(
-                existing,
-                scopes=body.scopes,
-                base_url=body.base_url,
-            ):
+            if auth.has_usable_connection(existing, scopes=body.scopes, base_url=body.base_url):
                 session.state = AuthSessionStatus.COMPLETED
                 session.status_message = "Already connected"
                 await sessions.save(session)
@@ -111,25 +131,17 @@ async def start_session(
         base_url=body.base_url,
     )
     if FlowType(session.flow_type) == FlowType.DEVICE_CODE:
-        _update_device_code_expiry(sessions, session)
+        update_device_code_expiry(session)
         background_tasks.add_task(auth.background_resume, session)
     await sessions.index_oauth_state(session)
-    capture_event(
-        _event_actor(session),
-        "auth session started",
-        {
-            "provider": session.provider,
-            "flow_type": session.flow_type,
-            "principal_id": session.principal_id,
-        },
-    )
+    _session_event(session, "auth session started")
     return _session_response(session, server_base_url)
 
 
 @router.get("/sessions/{session_id}", response_model=AuthSessionResponse)
 async def get_session(
     session_id: str,
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_protected_auth_service),
     sessions: AuthSessionStore = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> AuthSessionResponse:
@@ -143,7 +155,7 @@ async def get_session(
 async def resume_session(
     session_id: str,
     body: ResumeAuthSessionRequest,
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_protected_auth_service),
     sessions: AuthSessionStore = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> AuthSessionResponse:
@@ -155,31 +167,11 @@ async def resume_session(
         if record is None:
             session.state = AuthSessionStatus.WAITING_FOR_USER
         else:
-            session.state = AuthSessionStatus.COMPLETED
-            session.status_message = "Login successful"
-            capture_event(
-                _event_actor(session),
-                "auth session completed",
-                {
-                    "provider": session.provider,
-                    "flow_type": session.flow_type,
-                    "principal_id": session.principal_id,
-                },
-            )
+            _mark_completed(session)
         await sessions.save(session)
     except Exception as exc:
-        session.state = AuthSessionStatus.FAILED
-        session.error_message = str(exc)
+        _mark_failed(session, str(exc))
         await sessions.save(session)
-        capture_event(
-            _event_actor(session),
-            "auth session failed",
-            {
-                "provider": session.provider,
-                "flow_type": session.flow_type,
-                "principal_id": session.principal_id,
-            },
-        )
         raise
     return _session_response(session, server_base_url)
 
@@ -213,31 +205,11 @@ async def oauth_callback(
     )
     try:
         await auth.resume_login_flow(session, callback_data)
-        session.state = AuthSessionStatus.COMPLETED
-        session.status_message = "Login successful"
+        _mark_completed(session)
         await sessions.save(session)
-        capture_event(
-            _event_actor(session),
-            "auth session completed",
-            {
-                "provider": session.provider,
-                "flow_type": session.flow_type,
-                "principal_id": session.principal_id,
-            },
-        )
     except Exception as exc:
-        session.state = AuthSessionStatus.FAILED
-        session.error_message = str(exc)
+        _mark_failed(session, str(exc))
         await sessions.save(session)
-        capture_event(
-            _event_actor(session),
-            "auth session failed",
-            {
-                "provider": session.provider,
-                "flow_type": session.flow_type,
-                "principal_id": session.principal_id,
-            },
-        )
         return HTMLResponse(pages.message_page("Authentication failed", str(exc)), status_code=400)
     if return_url := session.payload.get("return_url"):
         return RedirectResponse(str(return_url), status_code=303)
@@ -358,7 +330,7 @@ async def submit_input(
     inputs = {key: str(value) for key, value in form.items()}
 
     if session.payload.get("provider_config_only"):
-        all_vaults = await request.app.state.vault_registry.list_all()
+        all_vaults = await request.app.state.store.vaults.list_all()
         vault_ids = [vault.vault_id for vault in all_vaults] or ([auth.vault_id] if auth.vault_id else [])
         await auth.update_provider_configuration(session.provider, inputs, vault_ids=vault_ids)
         session.state = AuthSessionStatus.COMPLETED
@@ -373,18 +345,8 @@ async def submit_input(
     flow = FlowType(session.flow_type)
     if flow == FlowType.API_KEY:
         await auth.resume_login_flow(session, {})
-        session.state = AuthSessionStatus.COMPLETED
-        session.status_message = "Login successful"
+        _mark_completed(session)
         await sessions.save(session)
-        capture_event(
-            _event_actor(session),
-            "auth session completed",
-            {
-                "provider": session.provider,
-                "flow_type": session.flow_type,
-                "principal_id": session.principal_id,
-            },
-        )
         if return_url := session.payload.get("return_url"):
             return RedirectResponse(str(return_url), status_code=303)
         return HTMLResponse(pages.message_page("Authentication successful", "You can close this window."))
@@ -397,7 +359,7 @@ async def submit_input(
         base_url=session.payload.get("base_url"),
     )
     if flow == FlowType.DEVICE_CODE:
-        _update_device_code_expiry(sessions, session)
+        update_device_code_expiry(session)
         background_tasks.add_task(auth.background_resume, session)
         if session.payload.get("user_code") and session.payload.get("verification_uri"):
             await sessions.save(session)
@@ -411,14 +373,6 @@ async def submit_input(
         return RedirectResponse(str(auth_url), status_code=303)
     await sessions.save(session)
     return HTMLResponse(pages.message_page("Authentication started", "Return to your terminal to continue."))
-
-
-def _update_device_code_expiry(sessions: AuthSessionStore, session: AuthSession) -> None:
-    if "expires_in" in session.payload:
-        try:
-            session.expires_at = utc_now() + timedelta(seconds=int(session.payload["expires_in"]))
-        except ValueError:
-            pass
 
 
 def _session_response(session: AuthSession, server_base_url: str) -> AuthSessionResponse:

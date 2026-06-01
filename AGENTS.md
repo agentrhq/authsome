@@ -108,18 +108,18 @@ These rules govern all changes to this codebase — apply them without exception
 
 **Principal & Vault domain models (`src/authsome/identity/principal.py`)** define the two concepts that own credentials. A **Principal** is a non-cryptographic logical partition (human or team) identified by an opaque `PrincipalId`. A **Vault** is a named credential store owned by exactly one Principal and identified by an opaque `VaultId`. Credentials are scoped to a vault: `vault:<vault_id>:...`. An Identity claims membership in a Principal via an `IdentityClaimRecord`; the claim must be accepted before vault access is granted.
 
-**Five server-owned registries** persist in `~/.authsome/server/` and are implemented in `src/authsome/server/registries.py`:
-| Registry | File | Authoritative for |
-|----------|------|-------------------|
-| `IdentityRegistry` | `identity_registry.json` | Handle → DID mapping (PoP JWT validation) |
-| `PrincipalRegistry` | `principal_registry.json` | PrincipalId → email |
-| `VaultRegistry` | `vault_registry.json` | VaultId → VaultHandle |
-| `IdentityClaimRegistry` | `identity_claim_registry.json` | Identity → Principal claim + ClaimStatus |
-| `PrincipalVaultBindingRegistry` | `principal_vault_binding_registry.json` | Principal → default Vault binding |
+**Five server-owned registries** persist in the relational Store (`src/authsome/server/store/repositories.py`), backed by SQLite at `~/.authsome/server/authsome.db` by default (or Postgres via `AUTHSOME_DATABASE_URL`):
+| Registry | Table | Authoritative for |
+|----------|-------|-------------------|
+| `IdentityRegistry` | `identity_registrations` | Handle → DID mapping (PoP JWT validation) |
+| `PrincipalRegistry` | `principals` | PrincipalId → email |
+| `VaultRegistry` | `vaults` | VaultId → VaultHandle |
+| `IdentityClaimRegistry` | `identity_claims` | Identity → Principal claim + ClaimStatus |
+| `PrincipalVaultBindingRegistry` | `principal_vault_bindings` | Principal → default Vault binding |
 
 **PoP Auth (`src/authsome/identity/proof.py`)** implements Proof-of-Possession JWT creation and validation. Every protected daemon request carries `Authorization: PoP <jwt>` signed with the local Ed25519 key. The JWT is bound to the specific HTTP method, path, and body SHA-256. The daemon validates the signature, checks the `jti` replay cache, and confirms `sub` (handle) → `iss` (DID) via the Identity Registry.
 
-**AuthService (`src/authsome/server/credential_service.py`)** is the authentication and credential lifecycle coordinator. It owns OAuth flows, token refresh, login/logout/revoke. Lives in `server/` because it coordinates `auth/` flows with `vault/` storage and `audit/` logging. Constructed with `(vault, identity, principal_id, vault_id)`; all credential store keys are namespaced as `vault:<vault_id>:...`. The caller (server dependency injection) resolves `vault_id` from the `PrincipalVaultBindingRegistry` before constructing `AuthService`.
+**CredentialService (`src/authsome/server/credential_service.py`)** is the authentication and credential lifecycle coordinator. It owns OAuth flows, token refresh, login/logout/revoke. Lives in `server/` because it coordinates `auth/` flows with `vault/` storage and `audit/` logging. Constructed with keyword-only `(credentials, providers, identity, principal_id, principal_role, vault_id)` — a `CredentialRepository` and `ProviderRepository` are injected rather than a raw vault; all credential store keys are namespaced as `vault:<vault_id>:...`. The caller (server dependency injection, `routes/_deps.py`) resolves `vault_id` from the `PrincipalVaultBindingRegistry` before constructing `CredentialService`. Runtime knobs (host, port, base URL, token/session TTLs, analytics) come from `ServerSettings` (`src/authsome/server/settings.py`, a `pydantic-settings` `BaseSettings` read from `AUTHSOME_*`).
 
 **Flows (`src/authsome/auth/flows/`)** implement the `AuthFlow.authenticate()` interface. Each flow returns a `ConnectionRecord`. The `auth/` module is a leaf — it imports nothing from `vault/`, `audit/`, or `server/`.
 
@@ -132,7 +132,7 @@ These rules govern all changes to this codebase — apply them without exception
 
 **Provider Registry** resolves providers in this order: custom providers stored in the vault under the `providers` collection override bundled JSON in `src/authsome/auth/bundled_providers/`. Bundled providers (GitHub, Google, Okta, Linear, OpenAI) are loaded via `importlib.resources`.
 
-**Vault (`src/authsome/vault/`)** is the encrypted KV store. The master key lives at `~/.authsome/server/master.key` (mode `0600`) or in the OS keyring. All credential blobs are encrypted at rest; the AuthService reads and writes plaintext through the Vault without knowing encryption details.
+**Vault (`src/authsome/vault/`)** is the encrypted KV store. The master key lives at `~/.authsome/server/master.key` (mode `0600`) or in the OS keyring. All credential blobs are encrypted at rest; the CredentialService reads and writes plaintext through the Vault without knowing encryption details.
 
 **Storage** uses a DiskStore-backed KV at `~/.authsome/server/kv_store/`. Store keys follow the pattern:
 ```

@@ -15,9 +15,13 @@ from authsome.server.store.repositories import (
 
 @dataclass(frozen=True)
 class ResolvedOwnership:
-    """Resolved runtime context for a protected request."""
+    """Resolved runtime context for a protected request.
 
-    identity: str
+    ``identity`` is None for principal-only callers (UI/account flows that
+    authenticate via email+password rather than a PoP-signed identity key).
+    """
+
+    identity: str | None
     principal_id: str
     vault_id: str
     role: PrincipalRole
@@ -72,6 +76,25 @@ class OwnershipResolver:
         return ResolvedOwnership(
             identity=identity,
             principal_id=claim.principal_id,
+            vault_id=binding.vault_id,
+            role=principal.role,
+        )
+
+    async def resolve_for_principal(self, *, principal_id: str) -> ResolvedOwnership | None:
+        """Resolve vault context for a principal-only caller (UI/account flows).
+
+        Unlike ``resolve``, this path has no identity claim to validate — the
+        caller authenticated via email+password, not a PoP-signed key.
+        """
+        principal = await self._principals.get(principal_id)
+        if principal is None:
+            return None
+        binding = await self._bindings.get_default_vault(principal_id)
+        if binding is None:
+            return None
+        return ResolvedOwnership(
+            identity=None,
+            principal_id=principal_id,
             vault_id=binding.vault_id,
             role=principal.role,
         )

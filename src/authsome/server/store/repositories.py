@@ -348,10 +348,6 @@ class IdentityRegistry:
             updated_at=_dt(row["updated_at"]),
         )
 
-    async def list_handles(self) -> list[str]:
-        rows = await self._db.fetch_all("SELECT handle FROM identity_registrations ORDER BY handle")
-        return [row["handle"] for row in rows]
-
 
 class PrincipalRegistry:
     """Relational principal registry."""
@@ -508,9 +504,6 @@ class IdentityClaimRegistry:
 
     async def accept_claim(self, identity_handle: str) -> IdentityClaimRecord:
         return await self._set_status(identity_handle, ClaimStatus.ACCEPTED)
-
-    async def reject_claim(self, identity_handle: str) -> IdentityClaimRecord:
-        return await self._set_status(identity_handle, ClaimStatus.REJECTED)
 
     async def _set_status(self, identity_handle: str, status: ClaimStatus) -> IdentityClaimRecord:
         existing = await self.resolve(identity_handle)

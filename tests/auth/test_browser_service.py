@@ -12,7 +12,7 @@ from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
 from authsome.auth.models.provider import BrowserConfig, ExtractRule, ProviderDefinition
 from authsome.errors import CredentialMissingError, TokenExpiredError
 from authsome.server.credential_repository import CredentialRepository
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.utils import utc_now
 
 
@@ -36,9 +36,9 @@ class StaticProviders:
         return False
 
 
-def _svc() -> AuthService:
+def _svc() -> CredentialService:
     vault = MagicMock()
-    return AuthService(
+    return CredentialService(
         credentials=CredentialRepository(vault, identity="agent", principal_id="p1", vault_id="v1"),
         providers=StaticProviders(),
         identity="agent",

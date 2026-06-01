@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 
 from authsome import audit
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
     get_admin_daemon_or_browser_auth_service,
     get_protected_auth_service,
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/audit", tags=["audit"])
 async def list_audit_events(
     request: Request,
     limit: int = 50,
-    auth: AuthService = Depends(get_admin_daemon_or_browser_auth_service),
+    auth: CredentialService = Depends(get_admin_daemon_or_browser_auth_service),
 ) -> dict[str, Any]:
     _ = auth
     return {"entries": await request.app.state.audit_log.list_events(limit=limit)}
@@ -29,7 +29,7 @@ async def list_audit_events(
 @router.post("/events")
 async def record_external_audit_event(
     body: dict[str, Any],
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_protected_auth_service),
 ) -> dict[str, str]:
     event_payload = body.get("event", body)
     event = audit.AuditEvent.model_validate(event_payload).model_copy(

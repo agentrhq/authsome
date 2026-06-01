@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from loguru import logger
 
 if TYPE_CHECKING:
-    from authsome.server.credential_service import AuthService
+    from authsome.server.credential_service import CredentialService
 
 
 def _build_route_entry(definition: Any, connection_name: str, api_url: str | list[str] | None) -> dict[str, Any]:
@@ -45,7 +45,7 @@ def _route_entries(definition: Any, connection_name: str, api_url: str | list[st
     return [{**base_entry, "api_url": api_url} for api_url in api_urls]
 
 
-async def build_proxy_routes(auth: AuthService, scope: str = "connected") -> dict[str, Any]:
+async def build_proxy_routes(auth: CredentialService, scope: str = "connected") -> dict[str, Any]:
     """Build the list of routes for proxy routing.
 
     The *scope* argument is supplied by the caller-local proxy addon

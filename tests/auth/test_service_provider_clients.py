@@ -15,7 +15,7 @@ from authsome.errors import OperationNotAllowedError
 from authsome.identity import create_identity
 from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_repository import CredentialRepository, build_store_key
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.server.dependencies import (
     create_store,
     create_vault,
@@ -45,12 +45,12 @@ class EmptyProviders:
         return False
 
 
-def _service(vault, **kwargs) -> AuthService:  # noqa: ANN001, ANN003
+def _service(vault, **kwargs) -> CredentialService:  # noqa: ANN001, ANN003
     identity = kwargs.get("identity")
     principal_id = kwargs.get("principal_id")
     vault_id = kwargs.get("vault_id", "vault_default")
     credentials = CredentialRepository(vault, identity=identity, principal_id=principal_id, vault_id=vault_id)
-    return AuthService(credentials=credentials, providers=EmptyProviders(), **kwargs)
+    return CredentialService(credentials=credentials, providers=EmptyProviders(), **kwargs)
 
 
 def _make_provider(*, flow: FlowType = FlowType.PKCE) -> ProviderDefinition:
@@ -138,8 +138,8 @@ async def test_get_required_inputs_skips_scope_prompt_when_server_scopes_exist()
     session = _make_session(flow_type=FlowType.PKCE)
 
     with mock.patch.object(
-        service,
-        "_get_provider_client_credentials",
+        service._credentials,
+        "get_provider_client",
         new=mock.AsyncMock(
             return_value=ProviderClientRecord(
                 provider="github",
@@ -297,7 +297,7 @@ async def test_resume_login_flow_saves_dcr_client_record_to_server_scope() -> No
     with mock.patch("authsome.server.credential_service._FLOW_HANDLERS", dcr_handlers):
         provider = _make_provider(flow=FlowType.DCR_PKCE)
         with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=provider)):
-            with mock.patch.object(service, "_save_connection", new=mock.AsyncMock()):
+            with mock.patch.object(service._credentials, "save_connection", new=mock.AsyncMock()):
                 with mock.patch.object(service, "_update_provider_metadata", new=mock.AsyncMock()):
                     result = await service.resume_login_flow(session, {"code": "auth-code", "state": "oauth-state"})
 
@@ -383,7 +383,7 @@ async def test_revoke_local_deletes_shared_client_and_all_identity_connections(t
 
     vault = await create_vault(store.home)
     try:
-        service = AuthService(
+        service = CredentialService(
             credentials=CredentialRepository(
                 vault,
                 identity="steady-wisely-boldly-0042",
