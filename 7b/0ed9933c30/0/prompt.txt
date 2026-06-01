@@ -1,0 +1,5 @@
+Review the nextjs ui, @ui/ and improve the overall quality of pages. Clean and minimal aesthetic. Move advanced sections to toggle behind advanced.
+
+---
+
+Review the nextjs ui, @ui/ and improve the overall quality of pages. Clean and minimal aesthetic. Move advanced sections to toggle behind advanced.
