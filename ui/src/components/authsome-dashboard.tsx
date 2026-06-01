@@ -90,7 +90,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function AuthGate() {
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_42%)] px-6 py-10">
+    <main className="min-h-screen bg-slate-50 px-6 py-10 flex items-center">
       <section className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="flex flex-col justify-between rounded-lg border bg-white p-8 shadow-sm">
           <div>
@@ -113,7 +113,7 @@ function AuthGate() {
             </div>
           </div>
         </div>
-        <Card className="shadow-sm">
+        <Card className="shadow-none border-border/50">
           <CardHeader>
             <CardTitle>Open Dashboard</CardTitle>
             <CardDescription>Use your Authsome account to continue.</CardDescription>
@@ -297,7 +297,7 @@ function StatCards({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {stats.map((stat) => (
-        <Card className="shadow-sm" key={stat.label}>
+        <Card className="shadow-none border-border/60" key={stat.label}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardDescription>{stat.label}</CardDescription>
             <span className="text-muted-foreground [&_svg]:size-4">{stat.icon}</span>
@@ -317,7 +317,7 @@ function DashboardView({ data, onViewChange }: { data: DashboardData; onViewChan
     <div className="grid gap-6">
       <StatCards data={data} />
       <section className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
-        <Card className="shadow-sm">
+        <Card className="shadow-none border-border/50">
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
               <CardTitle>Connected Providers</CardTitle>
@@ -339,15 +339,17 @@ function DashboardView({ data, onViewChange }: { data: DashboardData; onViewChan
             )}
           </CardContent>
         </Card>
-        <Card className="shadow-sm">
+        <Card className="shadow-none border-border/50">
           <CardHeader>
             <CardTitle>Vault</CardTitle>
             <CardDescription>Default credential namespace.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <KeyValue label="Handle" value={data.vault.handle} />
-            <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
-            <KeyValue label="Principal" value={data.account.principalId || "-"} />
+            <AdvancedSection>
+              <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
+              <KeyValue label="Principal" value={data.account.principalId || "-"} />
+            </AdvancedSection>
           </CardContent>
         </Card>
       </section>
@@ -357,7 +359,7 @@ function DashboardView({ data, onViewChange }: { data: DashboardData; onViewChan
 
 function ProviderSummary({ provider }: { provider: ProviderView }) {
   return (
-    <div className="rounded-lg border bg-slate-50 p-4">
+    <div className="rounded-lg border border-border/50 bg-slate-50/50 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex size-9 items-center justify-center rounded-lg bg-white font-semibold text-primary shadow-sm">
@@ -418,7 +420,7 @@ function ProvidersView({ providers }: { providers: ProviderView[] }) {
 
 function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; provider: ProviderView }) {
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-none border-border/50">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -525,7 +527,7 @@ function ConnectionsView({ connections }: { connections: DashboardData["connecti
     <div className="grid gap-5">
       <SectionHeader description="Named connections in the current vault." title="Connections" />
       <SearchInput onChange={setQuery} placeholder="Search connections..." value={query} />
-      <Card className="shadow-sm">
+      <Card className="shadow-none border-border/50">
         <CardContent className="p-0">
           {filteredConnections.length ? (
             <Table>
@@ -564,7 +566,7 @@ function VaultView({ data }: { data: DashboardData }) {
     <div className="grid gap-5">
       <SectionHeader description="Credential namespace and claimed identities." title="Vault" />
       <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card className="shadow-sm">
+        <Card className="shadow-none border-border/50">
           <CardHeader>
             <CardTitle>Default Vault</CardTitle>
             <CardDescription>{data.vault.isDefault ? "Active for this account" : "Vault binding"}</CardDescription>
@@ -574,7 +576,7 @@ function VaultView({ data }: { data: DashboardData }) {
             <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
           </CardContent>
         </Card>
-        <Card className="shadow-sm">
+        <Card className="shadow-none border-border/50">
           <CardHeader>
             <CardTitle>Identities</CardTitle>
             <CardDescription>Claims accepted for this account.</CardDescription>
@@ -600,7 +602,7 @@ function AuditView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Recent administrative and credential events." title="Audit Log" />
-      <Card className="shadow-sm">
+      <Card className="shadow-none border-border/50">
         <CardContent className="p-0">
           {data.audit.events.length ? (
             <Table>
@@ -639,26 +641,49 @@ function SettingsView({ data }: { data: DashboardData }) {
     <div className="grid gap-5">
       <SectionHeader description="Local daemon and package context." title="Settings" />
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-sm">
+        <Card className="shadow-none border-border/50">
           <CardHeader>
             <CardTitle>Account</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <KeyValue label="Email" value={data.account.email || "-"} />
             <KeyValue label="Role" value={data.account.roleLabel || "-"} />
-            <KeyValue label="Principal ID" value={data.account.principalId || "-"} />
+            <AdvancedSection>
+              <KeyValue label="Principal ID" value={data.account.principalId || "-"} />
+            </AdvancedSection>
           </CardContent>
         </Card>
-        <Card className="shadow-sm">
+        <Card className="shadow-none border-border/50">
           <CardHeader>
             <CardTitle>Daemon</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <KeyValue label="Version" value={data.version} />
-            <KeyValue label="UI Path" value="/" />
+            <AdvancedSection>
+              <KeyValue label="UI Path" value="/" />
+            </AdvancedSection>
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+
+function AdvancedSection({ children }: { children: ReactNode }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="grid gap-2 mt-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setShow(!show)}
+        className="w-max -ml-2 h-8 text-xs text-muted-foreground"
+        type="button"
+      >
+        {show ? "Hide advanced" : "Show advanced"}
+      </Button>
+      {show && <div className="grid gap-4 animate-in fade-in slide-in-from-top-1">{children}</div>}
     </div>
   );
 }
