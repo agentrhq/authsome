@@ -2,6 +2,10 @@
 
 authsome is the local auth layer for AI agents — it answers which agent, acting on behalf of whom, accessed what credential, and was that allowed.
 
+## Tenancy Model
+
+**authsome is single-tenant by design.** There is no concept of an organisation, team, or multi-tenant namespace. A `Principal` represents a single human or agent identity, not a group. Features that require shared vaults, org-level permissions, or team credential distribution are outside the current architecture and would require introducing multi-tenancy as a first-class primitive before they could be built.
+
 ## Module Responsibilities
 
 Each module has one job. `identity/`, `auth/`, `vault/`, and `audit/` are **leaf modules** — they import nothing from this codebase and can be used and tested in isolation. `server/` is the only composition root.
