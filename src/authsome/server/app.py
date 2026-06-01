@@ -47,16 +47,12 @@ async def lifespan(app: FastAPI):
     app.state.auth_sessions = AuthSessionStore()
     app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.store.home))
     app.state.proof_replay_cache = ReplayCache()
-    app.state.identity_registry = app.state.store.identity_registry
-    app.state.vault_registry = app.state.store.vaults
-    app.state.identity_claim_registry = app.state.store.identity_claims
-    app.state.principal_vault_binding_registry = app.state.store.principal_vault_bindings
     app.state.provider_repository = ProviderRepository(app.state.store.provider_definitions)
     app.state.account_auth_service = create_account_auth_service(app.state.store, app.state.ui_sessions)
     app.state.server_base_url = get_server_base_url()
     init_posthog()
     app.state.identity_bootstrap = create_identity_bootstrap_service(
-        app.state.identity_registry,
+        app.state.store.identity_registry,
         app.state.ui_sessions,
         store=app.state.store,
         server_base_url=app.state.server_base_url,

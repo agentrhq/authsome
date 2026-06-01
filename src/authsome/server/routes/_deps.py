@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request
 
 from authsome.auth.sessions import AuthSession, AuthSessionStore
 from authsome.identity.principal import PrincipalRole
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
 from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import CredentialService
+from authsome.server.ownership import ResolvedOwnership
 from authsome.server.store.repositories import VaultRegistry
 from authsome.server.ui_sessions import UiSessionStore
 from authsome.utils import utc_now
@@ -36,6 +37,12 @@ def build_auth_service(
     principal_role: PrincipalRole = PrincipalRole.USER,
     vault_id: str,
 ) -> CredentialService:
+    """Construct a CredentialService with explicit, pre-resolved context.
+
+    Use this when vault_id is explicitly chosen (e.g. multi-vault UI traversal).
+    For standard request auth, prefer ``_build_service`` which accepts a
+    ``ResolvedOwnership`` produced by the ownership resolver.
+    """
     credentials = CredentialRepository(
         request.app.state.vault,
         identity=identity,
@@ -52,6 +59,26 @@ def build_auth_service(
     )
 
 
+def _build_service(request: Request, ownership: ResolvedOwnership) -> CredentialService:
+    """Construct a CredentialService from a fully resolved ownership context."""
+    return build_auth_service(
+        request,
+        identity=ownership.identity,
+        principal_id=ownership.principal_id,
+        principal_role=ownership.role,
+        vault_id=ownership.vault_id,
+    )
+
+
+async def _resolve_identity_ownership(request: Request, identity: str) -> ResolvedOwnership:
+    """Resolve and cache ownership for an identity handle."""
+    resolved = request.app.state.ownership_cache.get(identity)
+    if resolved is None:
+        resolved = await request.app.state.ownership_resolver.resolve(identity=identity)
+        request.app.state.ownership_cache[identity] = resolved
+    return resolved
+
+
 async def get_auth_service(
     request: Request,
     *,
@@ -59,34 +86,16 @@ async def get_auth_service(
     principal_id: str | None = None,
 ) -> CredentialService | None:
     if identity is not None:
-        resolved = request.app.state.ownership_cache.get(identity)
-        if resolved is None:
-            resolved = await request.app.state.ownership_resolver.resolve(identity=identity)
-            request.app.state.ownership_cache[identity] = resolved
-        return build_auth_service(
-            request,
-            identity=identity,
-            principal_id=resolved.principal_id,
-            principal_role=resolved.role,
-            vault_id=resolved.vault_id,
-        )
+        resolved = await _resolve_identity_ownership(request, identity)
+        return _build_service(request, resolved)
 
     if principal_id is None:
         return None
 
-    binding = await request.app.state.principal_vault_binding_registry.get_default_vault(principal_id)
-    if binding is None:
+    resolved = await request.app.state.ownership_resolver.resolve_for_principal(principal_id=principal_id)
+    if resolved is None:
         return None
-    principal = await request.app.state.store.principals.get(principal_id)
-    if principal is None:
-        return None
-    return build_auth_service(
-        request,
-        identity=None,
-        principal_id=principal_id,
-        principal_role=principal.role,
-        vault_id=binding.vault_id,
-    )
+    return _build_service(request, resolved)
 
 
 async def require_auth_service(
@@ -103,7 +112,13 @@ async def require_auth_service(
     return auth
 
 
-async def get_protected_auth_service(request: Request) -> CredentialService:
+async def verify_pop_caller(request: Request) -> ResolvedOwnership:
+    """Validate the PoP JWT and return the caller's resolved ownership context.
+
+    Layer 1 (caller identification): parse and validate the PoP JWT, confirm the
+    identity handle is registered, and resolve its principal + vault via the
+    ownership resolver. Populates ``request.state`` for downstream handlers.
+    """
     authorization = request.headers.get("Authorization")
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing PoP authorization header")
@@ -128,14 +143,14 @@ async def get_protected_auth_service(request: Request) -> CredentialService:
     except (ProofValidationError, ValueError) as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
-    registration = await request.app.state.identity_registry.resolve(claims.subject)
+    registration = await request.app.state.store.identity_registry.resolve(claims.subject)
     if registration is None:
         raise HTTPException(status_code=401, detail="Unknown identity handle")
     if registration.did != claims.issuer:
         raise HTTPException(status_code=401, detail="Identity issuer does not match registered DID")
 
     try:
-        resolved = await request.app.state.ownership_resolver.resolve(identity=claims.subject)
+        resolved = await _resolve_identity_ownership(request, claims.subject)
     except ValueError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
@@ -145,24 +160,27 @@ async def get_protected_auth_service(request: Request) -> CredentialService:
     request.state.vault_id = resolved.vault_id
     request.state.principal_role = resolved.role
     request.state.registration_status = "registered"
-    request.app.state.ownership_cache[claims.subject] = resolved
-    return await require_auth_service(
-        request,
-        identity=claims.subject,
-        status_code=500,
-        detail="Ownership context not resolved",
-    )
+    return resolved
 
 
-async def get_admin_auth_service(request: Request) -> CredentialService:
-    auth = await get_protected_auth_service(request)
+async def get_protected_auth_service(
+    request: Request,
+    ownership: ResolvedOwnership = Depends(verify_pop_caller),
+) -> CredentialService:
+    """Layer 2 (service construction): build CredentialService for a PoP-verified caller."""
+    return _build_service(request, ownership)
+
+
+async def get_admin_auth_service(
+    auth: CredentialService = Depends(get_protected_auth_service),
+) -> CredentialService:
     if auth.principal_role != PrincipalRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin role required")
     return auth
 
 
 def get_vault_registry(request: Request) -> VaultRegistry:
-    return request.app.state.vault_registry
+    return request.app.state.store.vaults
 
 
 def get_auth_sessions(request: Request) -> AuthSessionStore:
@@ -177,20 +195,19 @@ def get_ui_sessions(request: Request) -> UiSessionStore:
     return request.app.state.ui_sessions
 
 
-async def resolve_ui_request_identity(request: Request) -> str | None:
-    """Resolve the principal bound to a browser UI request via its session cookie."""
+async def resolve_ui_request_identity(request: Request) -> None:
+    """Populate request.state with the principal bound to a browser UI session cookie."""
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
     if not cookie_value:
-        return None
+        return
 
     try:
         session = request.app.state.ui_sessions.get_browser_session(cookie_value)
     except KeyError:
-        return None
+        return
 
     request.state.ui_identity = None
     request.state.ui_principal_id = session.principal_id
     principal = await request.app.state.store.principals.get(session.principal_id)
     request.state.ui_principal_role = principal.role if principal else None
     request.state.ui_email = session.email
-    return None

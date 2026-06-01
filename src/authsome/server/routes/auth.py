@@ -330,7 +330,7 @@ async def submit_input(
     inputs = {key: str(value) for key, value in form.items()}
 
     if session.payload.get("provider_config_only"):
-        all_vaults = await request.app.state.vault_registry.list_all()
+        all_vaults = await request.app.state.store.vaults.list_all()
         vault_ids = [vault.vault_id for vault in all_vaults] or ([auth.vault_id] if auth.vault_id else [])
         await auth.update_provider_configuration(session.provider, inputs, vault_ids=vault_ids)
         session.state = AuthSessionStatus.COMPLETED

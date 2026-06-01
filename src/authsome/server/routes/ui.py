@@ -79,10 +79,9 @@ class UiAuthRequiredError(Exception):
 
 
 async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> CredentialService:
-    identity = await resolve_ui_request_identity(request)
+    await resolve_ui_request_identity(request)
     auth = await get_auth_service(
         request,
-        identity=identity,
         principal_id=getattr(request.state, "ui_principal_id", None),
     )
     if auth is not None:
@@ -533,7 +532,7 @@ async def identity_page(
     request: Request,
     auth: CredentialService = Depends(require_ui_auth("/identity")),
 ) -> Response:
-    claims = await request.app.state.identity_claim_registry.list_for_principal(request.state.ui_principal_id)
+    claims = await request.app.state.store.identity_claims.list_for_principal(request.state.ui_principal_id)
     identities = [{"handle": claim.identity_handle, "is_active": False} for claim in claims]
     return templates.TemplateResponse(
         request,
