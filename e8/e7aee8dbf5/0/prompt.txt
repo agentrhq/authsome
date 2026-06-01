@@ -1,0 +1,5 @@
+Scrape the list from the following URL of the MCV servers https://platform.claude.com/docs/en/agents-and-tools/remote-mcp-servers , Add them to the bundle provider section.Ensure that no dupe tickets are created. Ignore the ones that are enterprise only. Work in a branch. Ensure all fields are set appropriately
+
+---
+
+Scrape the list from the following URL of the MCV servers https://platform.claude.com/docs/en/agents-and-tools/remote-mcp-servers , Add them to the bundle provider section.Ensure that no dupe tickets are created. Ignore the ones that are enterprise only. Work in a branch. Ensure all fields are set appropriately
