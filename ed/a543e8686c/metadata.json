@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.6.1",
+  "checkpoint_id": "eda543e8686c",
+  "strategy": "manual-commit",
+  "branch": "refactor/simplify-server",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/authsome/server/app.py",
+    "src/authsome/server/ownership.py",
+    "src/authsome/server/routes/_deps.py",
+    "src/authsome/server/routes/auth.py",
+    "src/authsome/server/routes/ui.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ed/a543e8686c/0/metadata.json",
+      "transcript": "/ed/a543e8686c/0/full.jsonl",
+      "content_hash": "/ed/a543e8686c/0/content_hash.txt",
+      "prompt": "/ed/a543e8686c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 29,
+    "cache_creation_tokens": 70855,
+    "cache_read_tokens": 1507068,
+    "output_tokens": 23382,
+    "api_call_count": 25
+  }
+}
