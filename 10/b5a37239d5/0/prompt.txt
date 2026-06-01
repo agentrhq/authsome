@@ -1,0 +1,41 @@
+Create a pr to add and scrape all MCP providers from other official MCP listings.
+
+---
+
+Just create an issue for now. Mention official MCP servers only
+
+---
+
+Use gh here
+
+---
+
+Create an issue to say, simplify migration from local to hosted version. Use the same identity in case
+
+---
+
+Create an issue to classify providers, into mcp servers, llms , apps
+
+---
+
+Create an issue of sharing credentials across the team.
+
+---
+
+Create an issue to improve UI via migrating to nextjs static export as an app
+
+---
+
+Check in context if it says, that this app is designed to be single tenant only
+
+---
+
+The entire app is architected to be a single tenant. There is no concept of organization.
+
+---
+
+Create an issue to have one default vault for entire org, not per identity. The connections then become named connections per identity. In server we maintain a record of connections to identities and so on
+
+---
+
+Create an issue to make self deployment easy, add dokerfile and dockercompose for the guide.
