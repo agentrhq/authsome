@@ -557,7 +557,7 @@ class TestAuthProxyAddon:
         body = flow.response.content.decode("utf-8")
         assert "openai" in body
         assert "authsome login openai" in body
-        assert f"{DEFAULT_SERVER_BASE_URL}/apps/openai" in body
+        assert f"{DEFAULT_SERVER_BASE_URL}/" in body
         events = [call.args[0] for call in auth.record_audit_event.await_args_list]
         assert {
             "event": "proxy_no_credentials",

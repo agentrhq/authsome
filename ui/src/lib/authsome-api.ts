@@ -26,7 +26,6 @@ export type ConnectionRow = {
   connectionName: string;
   status: string;
   authTypeLabel: string;
-  href: string;
 };
 
 export type IdentityRow = {
@@ -206,7 +205,6 @@ function buildConnectionRows(data: ConnectionsResponse, providers: ProviderView[
         connectionName: connection.connection_name,
         status: connection.status || "unknown",
         authTypeLabel: authTypeLabel(connection.auth_type || provider?.authType),
-        href: `/apps/${group.name}/connections/${connection.connection_name}`,
       }));
     })
     .sort((a, b) => `${a.providerDisplayName}:${a.connectionName}`.localeCompare(`${b.providerDisplayName}:${b.connectionName}`));

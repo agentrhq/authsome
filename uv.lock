@@ -162,7 +162,7 @@ wheels = [
 
 [[package]]
 name = "authsome"
-version = "0.4.2"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
@@ -173,7 +173,6 @@ dependencies = [
     { name = "click" },
     { name = "cryptography" },
     { name = "fastapi" },
-    { name = "jinja2" },
     { name = "keyring" },
     { name = "loguru" },
     { name = "mitmproxy" },
@@ -210,7 +209,6 @@ requires-dist = [
     { name = "cryptography", specifier = ">=41.0" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
-    { name = "jinja2", specifier = ">=3.1" },
     { name = "keyring", specifier = ">=24.0" },
     { name = "loguru", specifier = ">=0.7" },
     { name = "mitmproxy", specifier = ">=11.0" },

@@ -34,7 +34,6 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn>=0.30",
     "python-multipart>=0.0.27",
-    "jinja2>=3.1",
     "py-key-value-aio[disk]",
     "aiosqlite>=0.20",
     "asyncpg>=0.30",

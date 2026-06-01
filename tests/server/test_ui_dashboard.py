@@ -6,26 +6,12 @@ from urllib.parse import urlparse
 from fastapi.testclient import TestClient
 
 from authsome import audit
-from authsome.auth.models.connection import ConnectionRecord, ProviderClientRecord, ProviderMetadataRecord
+from authsome.auth.models.connection import ConnectionRecord, ProviderMetadataRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
-from authsome.identity import create_identity, load_private_key
-from authsome.identity.proof import create_proof_jwt
+from authsome.identity import create_identity
 from authsome.server.app import create_app
 from authsome.server.credential_repository import build_store_key
 from authsome.utils import utc_now
-
-
-def _auth_header(tmp_path: Path, method: str, path: str, *, handle: str) -> dict[str, str]:
-    identity = create_identity(tmp_path, handle)
-    token = create_proof_jwt(
-        private_key=load_private_key(tmp_path, identity.handle),
-        issuer=identity.did,
-        subject=identity.handle,
-        method=method,
-        path_query=path,
-        body=b"",
-    )
-    return {"Authorization": f"PoP {token}"}
 
 
 def _register_identity_for_claim(client: TestClient, tmp_path: Path, handle: str) -> str:
@@ -101,124 +87,34 @@ def _seed_connection(
     )
 
 
-def _seed_provider_client(
-    client: TestClient,
-    *,
-    provider: str,
-    client_id: str,
-    client_secret: str | None = None,
-) -> None:
-    from authsome.auth.models.connection import ProviderClientRecord
-
-    asyncio.run(
-        client.app.state.vault.put(
-            build_store_key(provider=provider, record_type="server"),
-            ProviderClientRecord(
-                provider=provider,
-                client_id=client_id,
-                client_secret=client_secret,
-            ).model_dump_json(),
-            collection="server",
-        )
-    )
-
-
-def test_overview_navigation_shows_applications_connections_and_identity(monkeypatch, tmp_path: Path) -> None:
+def test_legacy_server_rendered_routes_are_removed(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        response = client.get("/legacy")
+        responses = {
+            path: client.get(path, follow_redirects=False)
+            for path in (
+                "/legacy",
+                "/applications",
+                "/manage/connections",
+                "/identity",
+                "/audit",
+                "/apps/github",
+                "/apps/github/connections/default",
+                "/static/style.css",
+            )
+        }
 
-    assert response.status_code == 200
-    assert "Overview" in response.text
-    assert "Applications" in response.text
-    assert "Connections" in response.text
-    assert "Identity" in response.text
-    assert 'href="/audit"' in response.text
-
-
-def test_applications_page_renders_provider_catalog(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        response = client.get("/applications")
-
-    assert response.status_code == 200
-    assert "Applications" in response.text
-
-
-def test_applications_page_shows_provider_login_action(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        response = client.get("/applications")
-
-    assert response.status_code == 200
-    assert 'action="/apps/github/connect"' in response.text
-    assert "Login" in response.text
-
-
-def test_identity_page_renders_informational_identity_view(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        response = client.get("/identity")
-
-    assert response.status_code == 200
-    assert "Identity" in response.text
-    assert "steady-wisely-boldly-0042" in response.text
-
-
-def test_account_identity_page_lists_all_account_claims(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        first_claim = _register_identity_for_claim(client, tmp_path, "steady-wisely-boldly-0042")
-        registered = client.post(
-            "/auth/register",
-            data={"email": "dev@example.com", "password": "password-1", "next": first_claim},
-            follow_redirects=False,
-        )
-        assert registered.status_code == 303
-        assert client.post(f"{first_claim}/confirm", follow_redirects=False).status_code == 303
-
-        second_claim = _register_identity_for_claim(client, tmp_path, "brave-softly-surely-0043")
-        assert "dev@example.com" in client.get(second_claim).text
-        assert client.post(f"{second_claim}/confirm", follow_redirects=False).status_code == 303
-
-        response = client.get("/identity")
-
-    assert response.status_code == 200
-    assert "Signed in as dev@example.com" in response.text
-    assert "steady-wisely-boldly-0042" in response.text
-    assert "brave-softly-surely-0043" in response.text
-
-
-def test_audit_page_renders_recent_events_for_admin(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        audit.emit_event(
-            "credentials_exported",
-            source="external",
-            identity="steady-wisely-boldly-0042",
-            provider="github",
-            status="ok",
-            request_id="req-123",
-        )
-        response = client.get("/audit")
-
-    assert response.status_code == 200
-    assert "Audit Log" in response.text
-    assert "Credentials exported" in response.text
-    assert "steady-wisely-boldly-0042" in response.text
-    assert "github" in response.text
-    assert "req-123" in response.text
+    assert {path: response.status_code for path, response in responses.items()} == {
+        "/legacy": 404,
+        "/applications": 404,
+        "/manage/connections": 404,
+        "/identity": 404,
+        "/audit": 404,
+        "/apps/github": 404,
+        "/apps/github/connections/default": 404,
+        "/static/style.css": 404,
+    }
 
 
 def test_browser_session_can_read_existing_daemon_json_routes(monkeypatch, tmp_path: Path) -> None:
@@ -255,199 +151,7 @@ def test_browser_session_can_read_existing_daemon_json_routes(monkeypatch, tmp_p
     assert audit_events.json()["entries"][0]["provider"] == "github"
 
 
-def test_non_admin_ui_hides_audit_and_provider_configuration(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "admin-steadily-surely-0041", email="admin@example.com")
-        _register_identity(client, tmp_path, "user-steadily-surely-0042", email="user@example.com")
-        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-
-        overview = client.get("/legacy")
-        provider = client.get("/apps/github")
-        configure = client.post("/apps/github/configure", follow_redirects=False)
-        audit_page = client.get("/audit")
-
-    assert overview.status_code == 200
-    assert 'href="/audit"' not in overview.text
-    assert provider.status_code == 200
-    assert 'action="/apps/github/configure"' not in provider.text
-    assert "Client ID" not in provider.text
-    assert configure.status_code == 403
-    assert "Provider configuration is available only to administrators." in configure.text
-    assert audit_page.status_code == 403
-    assert "Audit events are available only to administrators." in audit_page.text
-
-
-def test_account_applications_redirects_to_ui_login_entry(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        response = client.get("/applications", follow_redirects=False)
-
-    assert response.status_code == 303
-    assert response.headers["location"] == "/?next=%2Fapplications"
-
-
-def test_provider_page_shows_provider_configuration_not_connection_tokens(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_connection(
-            client,
-            identity="steady-wisely-boldly-0042",
-            provider="github",
-            auth_type=AuthType.OAUTH2,
-            access_token="gh-access-token",
-            refresh_token="gh-refresh-token",
-        )
-        response = client.get("/apps/github")
-
-    assert response.status_code == 200
-    assert "OAuth Application" in response.text or "Managed by Authsome" in response.text
-    assert "Access Token" not in response.text
-
-
-def test_named_connection_detail_route_exists(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_connection(
-            client,
-            identity="steady-wisely-boldly-0042",
-            provider="github",
-            auth_type=AuthType.OAUTH2,
-            access_token="gh-access-token",
-            refresh_token="gh-refresh-token",
-        )
-        response = client.get("/apps/github/connections/default")
-
-    assert response.status_code == 200
-
-
-def test_named_connection_detail_page_shows_oauth_tokens(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_connection(
-            client,
-            identity="steady-wisely-boldly-0042",
-            provider="github",
-            auth_type=AuthType.OAUTH2,
-            access_token="gh-access-token",
-            refresh_token="gh-refresh-token",
-        )
-        response = client.get("/apps/github/connections/default")
-
-    assert response.status_code == 200
-    assert "Access Token" in response.text
-    assert "Refresh Token" in response.text
-    assert "Client ID" not in response.text
-    assert "Client Secret" not in response.text
-    assert "Redirect URI" not in response.text
-    assert "Authorization URL" not in response.text
-    assert "Token URL" not in response.text
-
-
-def test_named_connection_detail_page_shows_api_key(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_connection(
-            client,
-            identity="steady-wisely-boldly-0042",
-            provider="openai",
-            auth_type=AuthType.API_KEY,
-            api_key="sk-test-key",
-        )
-        response = client.get("/apps/openai/connections/default")
-
-    assert response.status_code == 200
-    assert "API Credentials" in response.text
-
-
-def test_provider_page_for_api_key_provider_omits_provider_setup_section(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_connection(
-            client,
-            identity="steady-wisely-boldly-0042",
-            provider="openai",
-            auth_type=AuthType.API_KEY,
-            api_key="sk-test-key",
-        )
-        response = client.get("/apps/openai")
-
-    assert response.status_code == 200
-    assert "OAuth Application" not in response.text
-    assert "API Credentials" not in response.text
-
-
-def test_provider_page_lists_existing_connections_as_read_only_context(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_connection(
-            client,
-            identity="steady-wisely-boldly-0042",
-            provider="github",
-            auth_type=AuthType.OAUTH2,
-            access_token="gh-access-token",
-            refresh_token="gh-refresh-token",
-        )
-        response = client.get("/apps/github")
-
-    assert response.status_code == 200
-    assert "Existing connections" in response.text
-
-
-def test_connections_page_renders_connection_rows(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_connection(
-            client,
-            identity="steady-wisely-boldly-0042",
-            provider="github",
-            auth_type=AuthType.OAUTH2,
-            access_token="gh-access-token",
-            refresh_token="gh-refresh-token",
-        )
-        response = client.get("/manage/connections")
-
-    assert response.status_code == 200
-    assert "Add new connection" in response.text
-    assert "connection-row" in response.text
-
-
-def test_provider_login_modal_copy_is_rendered_when_default_exists(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_connection(
-            client,
-            identity="steady-wisely-boldly-0042",
-            provider="github",
-            auth_type=AuthType.OAUTH2,
-            access_token="gh-access-token",
-            refresh_token="gh-refresh-token",
-        )
-        response = client.get("/applications")
-
-    assert response.status_code == 200
-    assert "Connection name" in response.text
-
-
-def test_connect_app_accepts_connection_name_fallback(monkeypatch, tmp_path: Path) -> None:
+def test_connect_provider_accepts_connection_name_fallback(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -461,91 +165,22 @@ def test_connect_app_accepts_connection_name_fallback(monkeypatch, tmp_path: Pat
             refresh_token="gh-refresh-token",
         )
         response = client.post(
-            "/apps/github/connect",
+            "/auth/providers/github/connect",
             data={"connection_name": "work"},
             follow_redirects=False,
         )
-
-    assert response.status_code == 303
-    assert "/auth/sessions/" in response.headers["location"]
-    assert any(
-        session.provider == "github" and session.connection_name == "work"
-        for session in client.app.state.auth_sessions._sessions.values()
-    )
-
-
-def test_provider_page_shows_configure_action_for_oauth(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-        response = client.get("/apps/github")
-
-    assert response.status_code == 200
-    assert 'action="/apps/github/configure"' in response.text
-    assert "Replace" in response.text
-
-
-def test_provider_configure_route_opens_edit_flow_with_existing_values(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-        response = client.post("/apps/github/configure", follow_redirects=False)
-
-    assert response.status_code == 303
-    assert "/auth/sessions/" in response.headers["location"]
-    session = next(iter(client.app.state.auth_sessions._sessions.values()))
-    assert session.payload["provider_config_only"] is True
-    fields = session.payload["input_fields"]
-    assert any(field["name"] == "client_id" and field["default"] == "cid-123" for field in fields)
-
-
-def test_account_admin_provider_configure_route_opens_edit_flow(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        claim_path = _register_identity_for_claim(client, tmp_path, "steady-wisely-boldly-0042")
-        registered = client.post(
-            "/auth/register",
-            data={"email": "dev@example.com", "password": "password-1", "next": claim_path},
-            follow_redirects=False,
+        session = next(
+            session
+            for session in client.app.state.auth_sessions._sessions.values()
+            if session.provider == "github" and session.connection_name == "work"
         )
-        assert registered.status_code == 303
-        assert client.post(f"{claim_path}/confirm", follow_redirects=False).status_code == 303
-
-        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-        response = client.post("/apps/github/configure", follow_redirects=False)
 
     assert response.status_code == 303
     assert "/auth/sessions/" in response.headers["location"]
-    session = next(iter(client.app.state.auth_sessions._sessions.values()))
-    assert session.payload["provider_config_only"] is True
-    fields = session.payload["input_fields"]
-    assert any(field["name"] == "client_id" and field["default"] == "cid-123" for field in fields)
+    assert session.payload["return_url"].endswith("/")
 
 
-def test_provider_configure_input_page_shows_revoke_warning(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
-        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-        configure = client.post("/apps/github/configure", follow_redirects=False)
-        response = client.get(configure.headers["location"])
-
-    assert response.status_code == 200
-    assert "Changing these credentials will revoke existing connections for this provider." in response.text
-    client_id_position = response.text.index('for="client_id">Client ID')
-    client_secret_position = response.text.index('for="client_secret">Client Secret')
-    advanced_position = response.text.index("<details><summary>Advanced options</summary>")
-    assert client_id_position < client_secret_position < advanced_position
-    assert "Client Secret (Optional)" not in response.text
-
-
-def test_provider_config_submit_replaces_client_and_revokes_connections(monkeypatch, tmp_path: Path) -> None:
+def test_connect_provider_redirects_to_root_for_existing_connection(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
@@ -558,25 +193,7 @@ def test_provider_config_submit_replaces_client_and_revokes_connections(monkeypa
             access_token="gh-access-token",
             refresh_token="gh-refresh-token",
         )
-        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="secret-123")
-
-        configure = client.post("/apps/github/configure", follow_redirects=False)
-        session_id = configure.headers["location"].rstrip("/").split("/")[-2]
-        response = client.post(
-            f"/auth/sessions/{session_id}/input",
-            data={"client_id": "cid-456", "client_secret": "secret-456"},
-            follow_redirects=False,
-        )
-
-        provider_client = asyncio.run(
-            client.app.state.vault.get(build_store_key(provider="github", record_type="server"), collection="server")
-        )
-        connections_page = client.get("/manage/connections")
+        response = client.post("/auth/providers/github/connect", follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"].endswith("/apps/github")
-    assert provider_client is not None
-    provider_client_record = ProviderClientRecord.model_validate_json(provider_client)
-    assert provider_client_record.client_id == "cid-456"
-    assert provider_client_record.scopes == ["repo", "read:user"]
-    assert "No connections yet" in connections_page.text
+    assert response.headers["location"] == "/"

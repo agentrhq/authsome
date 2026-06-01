@@ -446,7 +446,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
             Login
           </Button>
         ) : (
-          <form action={`/apps/${provider.name}/connect`} method="post">
+          <form action={`/auth/providers/${provider.name}/connect`} method="post">
             <input name="connection" type="hidden" value="default" />
             <input name="return_url" type="hidden" value={NEXT_URL} />
             <Button className="w-full" type="submit" variant="secondary">
@@ -482,7 +482,12 @@ function NamedConnectionDialog({
           <DialogTitle>Connection name</DialogTitle>
           <DialogDescription>{provider?.displayName} already has a default connection.</DialogDescription>
         </DialogHeader>
-        <form action={provider ? `/apps/${provider.name}/connect` : "#"} className="grid gap-4" method="post" onSubmit={handleSubmit}>
+        <form
+          action={provider ? `/auth/providers/${provider.name}/connect` : "#"}
+          className="grid gap-4"
+          method="post"
+          onSubmit={handleSubmit}
+        >
           <input name="return_url" type="hidden" value={NEXT_URL} />
           <label className="grid gap-2 text-sm">
             <span className="text-muted-foreground">Connection name</span>

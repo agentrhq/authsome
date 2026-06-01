@@ -4,11 +4,9 @@ from urllib.parse import urlparse
 
 from fastapi.testclient import TestClient
 
-from authsome.auth.models.connection import ProviderClientRecord
 from authsome.identity import create_identity, load_private_key
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
-from authsome.server.credential_repository import build_store_key
 from authsome.server.ui_sessions import UiSessionStore
 
 
@@ -29,26 +27,6 @@ def _register_identity(client: TestClient, tmp_path: Path, handle: str) -> None:
     identity = create_identity(tmp_path, handle)
     response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == 200
-
-
-def _seed_provider_client(
-    client: TestClient,
-    *,
-    provider: str,
-    client_id: str,
-    client_secret: str | None = None,
-) -> None:
-    asyncio.run(
-        client.app.state.vault.put(
-            build_store_key(provider=provider, record_type="server"),
-            ProviderClientRecord(
-                provider=provider,
-                client_id=client_id,
-                client_secret=client_secret,
-            ).model_dump_json(),
-            collection="server",
-        )
-    )
 
 
 def _claim_identity_via_account_ui(client: TestClient, tmp_path: Path, handle: str, email: str) -> None:
@@ -165,47 +143,13 @@ def test_account_homepage_registration_redirects_to_dashboard(monkeypatch, tmp_p
     assert "Authsome Dashboard" in dashboard_response.text
 
 
-def test_account_ui_hides_server_managed_oauth_client_details(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _claim_identity_via_account_ui(client, tmp_path, "admin-ready-boldly-0001", "admin@example.com")
-        _claim_identity_via_account_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
-        vault = client.app.state.vault
-        key = build_store_key(provider="github", record_type="server")
-        record = ProviderClientRecord(provider="github", client_id="cid-123", client_secret="top-secret")
-        asyncio.run(vault.put(key, record.model_dump_json(), collection="server"))
-
-        response = client.get("/apps/github")
-
-    assert response.status_code == 200
-    assert "cid-123" not in response.text
-    assert "manages the OAuth application" in response.text
-    assert "Existing connections" not in response.text
-
-
-def test_account_admin_ui_shows_provider_client_details(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-
-    with TestClient(create_app()) as client:
-        _claim_identity_via_account_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
-        _seed_provider_client(client, provider="github", client_id="cid-123", client_secret="top-secret")
-        response = client.get("/apps/github")
-
-    assert response.status_code == 200
-    assert "cid-123" in response.text
-    assert "Existing connections" in response.text
-    assert "manages the OAuth application" not in response.text
-    assert 'action="/apps/github/configure"' in response.text
-
-
 def test_account_ui_connect_starts_principal_scoped_session_without_pop(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
         _claim_identity_via_account_ui(client, tmp_path, "steady-wisely-boldly-0042", "dev@example.com")
 
-        response = client.post("/apps/openai/connect", follow_redirects=False)
+        response = client.post("/auth/providers/openai/connect", follow_redirects=False)
         session = next(iter(client.app.state.auth_sessions._sessions.values()))
 
     assert response.status_code == 303
@@ -213,6 +157,7 @@ def test_account_ui_connect_starts_principal_scoped_session_without_pop(monkeypa
     assert session.identity is None
     assert session.principal_id is not None
     assert session.payload["ui_session_required"] is True
+    assert session.payload["return_url"].endswith("/")
 
 
 def test_account_auth_rejects_external_next_redirect(monkeypatch, tmp_path: Path) -> None:
