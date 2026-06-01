@@ -5,6 +5,7 @@ import pytest
 
 from authsome.server.account_auth import UI_TOKEN_AUDIENCE, AccountAuthService
 from authsome.server.store import ServerStore, create_server_store
+from authsome.server.ui_sessions import UiSessionStore
 
 
 async def _service(tmp_path: Path) -> tuple[AccountAuthService, ServerStore]:
@@ -14,7 +15,7 @@ async def _service(tmp_path: Path) -> tuple[AccountAuthService, ServerStore]:
             principals=store.principals,
             vaults=store.vaults,
             bindings=store.principal_vault_bindings,
-            jwt_secret="test-secret",
+            sessions=UiSessionStore("test-secret"),
         ),
         store,
     )

@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-import os
-from collections.abc import Mapping
+from authsome.server.settings import get_settings
 
-DEFAULT_SERVER_BASE_URL = "http://127.0.0.1:7998"
+# Invariant: must match the OAuth callback route declared in routes/auth.py.
 DEFAULT_CALLBACK_PATH = "/auth/callback/oauth"
 
+# Retained for external importers (proxy, CLI); resolved from server settings.
+DEFAULT_SERVER_BASE_URL = get_settings().resolved_base_url
 
-def build_server_base_url(env: Mapping[str, str] | None = None) -> str:
+
+def build_server_base_url() -> str:
     """Return the canonical external base URL for the daemon."""
-    values = env if env is not None else os.environ
-    raw = values.get("AUTHSOME_SERVER_BASE_URL", DEFAULT_SERVER_BASE_URL).strip()
-    return raw.rstrip("/") or DEFAULT_SERVER_BASE_URL
+    return get_settings().resolved_base_url
 
 
 def build_callback_url(base_url: str) -> str:

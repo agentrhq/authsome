@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from authsome import __version__
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import get_protected_auth_service, get_server_base_url
 from authsome.server.schemas import HealthResponse, ReadyResponse
 from authsome.utils import connection_is_active
@@ -37,7 +37,7 @@ def health(request: Request) -> HealthResponse:
 @router.get("/ready", response_model=ReadyResponse)
 async def ready(
     request: Request,
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_protected_auth_service),
 ) -> ReadyResponse:
     checks: dict[str, str] = {}
     issues: list[str] = []
@@ -115,7 +115,7 @@ async def ready(
 @router.get("/whoami")
 async def whoami(
     request: Request,
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_protected_auth_service),
     server_base_url: str = Depends(get_server_base_url),
 ) -> dict[str, str]:
     effective_source, backend_description = _describe_vault_encryption(auth.vault)

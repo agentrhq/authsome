@@ -106,38 +106,33 @@ def test_build_store_key() -> None:
     assert build_store_key(vault="vault_default", provider="github", record_type="metadata") == (
         "vault:vault_default:github:metadata"
     )
-    assert (
-        build_store_key(identity="default", provider="github", record_type="metadata")
-        == "identity:default:github:metadata"
-    )
-    assert (
-        build_store_key(identity="default", provider="github", record_type="state") == "identity:default:github:state"
+    assert build_store_key(vault="vault_default", provider="github", record_type="state") == (
+        "vault:vault_default:github:state"
     )
     assert (
         build_store_key(
-            identity="default",
+            vault="vault_default",
             provider="github",
             record_type="connection",
             connection="personal",
         )
-        == "identity:default:github:connection:personal"
+        == "vault:vault_default:github:connection:personal"
     )
-    assert (
-        build_store_key(identity="default", provider="github", record_type="client") == "identity:default:github:client"
+    assert build_store_key(vault="vault_default", provider="github", record_type="client") == (
+        "vault:vault_default:github:client"
     )
     assert build_store_key(provider="github", record_type="server") == "server:provider:github:client"
 
     with pytest.raises(ValueError):
-        build_store_key(identity="default", provider="github", record_type="unknown")
+        build_store_key(vault="vault_default", provider="github", record_type="unknown")
 
     with pytest.raises(ValueError):
-        build_store_key(identity="default", record_type="metadata")
+        build_store_key(record_type="metadata")
 
 
 def test_parse_store_key_server() -> None:
     assert parse_store_key("server:provider:github:client") == StoreKeyParts(
         vault=None,
-        identity=None,
         provider="github",
         record_type="server",
         connection=None,

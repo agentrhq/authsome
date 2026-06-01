@@ -8,7 +8,7 @@ and avoids a separate static server.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from importlib.resources import files
 from typing import Any
 from urllib.parse import urlencode
@@ -21,9 +21,9 @@ from authsome import __version__
 from authsome.auth.models.connection import ConnectionRecord, ProviderClientRecord
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.models.provider import ProviderDefinition
-from authsome.auth.sessions import AuthSession, AuthSessionStore
+from authsome.auth.sessions import AuthSessionStore
 from authsome.identity.principal import PrincipalRole
-from authsome.server.credential_service import AuthService
+from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
     build_auth_service,
@@ -33,12 +33,12 @@ from authsome.server.routes._deps import (
     get_server_base_url,
     get_ui_sessions,
     resolve_ui_request_identity,
+    update_device_code_expiry,
 )
 from authsome.server.schemas import UiBootstrapResponse
 from authsome.server.ui_sessions import UiSessionStore
 from authsome.server.urls import build_auth_input_url, build_callback_url, build_device_url
 from authsome.server.web_pages import pages
-from authsome.utils import utc_now
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
@@ -54,25 +54,11 @@ def _redirect(request: Request, url: str) -> Response:
     return RedirectResponse(url=url, status_code=303)
 
 
-def _update_device_code_expiry(sessions: AuthSessionStore, session: AuthSession) -> None:
-    if "expires_in" not in session.payload:
-        return
-    try:
-        session.expires_at = utc_now() + timedelta(seconds=int(session.payload["expires_in"]))
-    except ValueError:
-        pass
-
-
-def _field_payloads(session: AuthSession) -> list[dict[str, Any]]:
-    fields = session.payload.get("input_fields", [])
-    return [dict(field) for field in fields]
-
-
 def _ui_cookie_secure(server_base_url: str) -> bool:
     return server_base_url.startswith("https://")
 
 
-def _ui_policy(request: Request, auth: AuthService | None = None) -> dict[str, Any]:
+def _ui_policy(request: Request, auth: CredentialService | None = None) -> dict[str, Any]:
     role = auth.principal_role if auth is not None else getattr(request.state, "ui_principal_role", None)
     is_admin = role == PrincipalRole.ADMIN
     return {
@@ -92,11 +78,10 @@ class UiAuthRequiredError(Exception):
         self.response = response
 
 
-async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> AuthService:
-    identity = await resolve_ui_request_identity(request)
+async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> CredentialService:
+    await resolve_ui_request_identity(request)
     auth = await get_auth_service(
         request,
-        identity=identity,
         principal_id=getattr(request.state, "ui_principal_id", None),
     )
     if auth is not None:
@@ -108,8 +93,8 @@ async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> 
     raise UiAuthRequiredError(RedirectResponse(url=_account_auth_entry_url(target), status_code=303))
 
 
-def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitable[AuthService]]:
-    async def dependency(request: Request) -> AuthService:
+def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitable[CredentialService]]:
+    async def dependency(request: Request) -> CredentialService:
         return await _resolve_ui_auth(request, next_url=next_url)
 
     return dependency
@@ -181,7 +166,9 @@ def _account_auth_page_response(
     return HTMLResponse(page, status_code=400 if error else 200)
 
 
-def _page_context(request: Request, page: str, *, auth: AuthService | None = None, **kwargs: Any) -> dict[str, Any]:
+def _page_context(
+    request: Request, page: str, *, auth: CredentialService | None = None, **kwargs: Any
+) -> dict[str, Any]:
     return {
         "page": page,
         "version": __version__,
@@ -367,7 +354,7 @@ async def _provider_connection_groups(
 
 def _provider_page_context(
     request: Request,
-    auth: AuthService,
+    auth: CredentialService,
     provider: ProviderDefinition,
     api_url: str,
     *,
@@ -405,7 +392,7 @@ def _provider_page_context(
 
 def _connection_detail_context(
     request: Request,
-    auth: AuthService,
+    auth: CredentialService,
     provider: ProviderDefinition,
     connection_record: ConnectionRecord,
     api_url: str,
@@ -424,7 +411,7 @@ def _connection_detail_context(
     )
 
 
-async def _all_provider_views(auth: AuthService) -> list[dict[str, Any]]:
+async def _all_provider_views(auth: CredentialService) -> list[dict[str, Any]]:
     by_source = await auth.list_providers_by_source()
     connections_by_provider = {group["name"]: group["connections"] for group in await auth.list_connections()}
     views: list[dict[str, Any]] = []
@@ -454,7 +441,7 @@ def _build_connection_rows(providers: list[dict[str, Any]]) -> list[dict[str, An
 @router.get("/", response_class=HTMLResponse)
 async def overview(
     request: Request,
-    auth: AuthService = Depends(require_ui_auth()),
+    auth: CredentialService = Depends(require_ui_auth()),
 ) -> HTMLResponse:
     providers = await _all_provider_views(auth)
     connected = [p for p in providers if p["status"] != "available"]
@@ -502,7 +489,7 @@ async def overview(
 @router.get("/applications", response_class=HTMLResponse)
 async def applications(
     request: Request,
-    auth: AuthService = Depends(require_ui_auth("/applications")),
+    auth: CredentialService = Depends(require_ui_auth("/applications")),
 ) -> Response:
     providers = [
         {
@@ -523,7 +510,7 @@ async def applications(
 @router.get("/manage/connections", response_class=HTMLResponse)
 async def connections(
     request: Request,
-    auth: AuthService = Depends(require_ui_auth("/manage/connections")),
+    auth: CredentialService = Depends(require_ui_auth("/manage/connections")),
 ) -> Response:
     providers = await _all_provider_views(auth)
     rows = _build_connection_rows(providers)
@@ -543,9 +530,9 @@ async def connections(
 @router.get("/identity", response_class=HTMLResponse)
 async def identity_page(
     request: Request,
-    auth: AuthService = Depends(require_ui_auth("/identity")),
+    auth: CredentialService = Depends(require_ui_auth("/identity")),
 ) -> Response:
-    claims = await request.app.state.identity_claim_registry.list_for_principal(request.state.ui_principal_id)
+    claims = await request.app.state.store.identity_claims.list_for_principal(request.state.ui_principal_id)
     identities = [{"handle": claim.identity_handle, "is_active": False} for claim in claims]
     return templates.TemplateResponse(
         request,
@@ -563,7 +550,7 @@ async def identity_page(
 @router.get("/audit", response_class=HTMLResponse)
 async def audit_page(
     request: Request,
-    auth: AuthService = Depends(require_ui_auth("/audit")),
+    auth: CredentialService = Depends(require_ui_auth("/audit")),
 ) -> Response:
     if auth.principal_role != PrincipalRole.ADMIN:
         return _admin_required_response(
@@ -590,7 +577,7 @@ async def audit_page(
 async def app_detail(
     provider_name: str,
     request: Request,
-    auth: AuthService = Depends(require_ui_auth()),
+    auth: CredentialService = Depends(require_ui_auth()),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
     provider = await auth.get_provider(provider_name)
@@ -639,7 +626,7 @@ async def connection_detail(
     provider_name: str,
     connection_name: str,
     request: Request,
-    auth: AuthService = Depends(require_ui_auth()),
+    auth: CredentialService = Depends(require_ui_auth()),
 ) -> Response:
     provider = await auth.get_provider(provider_name)
     connection_record = await auth.get_connection(provider_name, connection_name)
@@ -675,7 +662,7 @@ async def disconnect_app(
     provider_name: str,
     connection_name: str,
     request: Request,
-    auth: AuthService = Depends(require_ui_auth("/manage/connections")),
+    auth: CredentialService = Depends(require_ui_auth("/manage/connections")),
 ) -> Response:
     """Disconnect a provider connection from the dashboard."""
     await auth.logout(provider_name, connection_name)
@@ -687,7 +674,7 @@ async def connect_app(
     provider_name: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    auth: AuthService = Depends(require_ui_auth()),
+    auth: CredentialService = Depends(require_ui_auth()),
     sessions: AuthSessionStore = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
@@ -713,7 +700,7 @@ async def connect_app(
     if not force:
         try:
             existing = await auth.get_connection(provider_name, connection_name)
-            if auth._connection_is_valid(existing):
+            if auth.has_usable_connection(existing):
                 session.status_message = "Already connected"
                 await sessions.save(session)
                 return _redirect(request, f"/apps/{provider_name}")
@@ -728,7 +715,7 @@ async def connect_app(
 
     await auth.begin_login_flow(session=session, force=force)
     if flow == FlowType.DEVICE_CODE:
-        _update_device_code_expiry(sessions, session)
+        update_device_code_expiry(session)
         background_tasks.add_task(auth.background_resume, session)
         if session.payload.get("user_code") and session.payload.get("verification_uri"):
             await sessions.save(session)
@@ -747,7 +734,7 @@ async def connect_app(
 async def configure_provider(
     provider_name: str,
     request: Request,
-    auth: AuthService = Depends(require_ui_auth()),
+    auth: CredentialService = Depends(require_ui_auth()),
     sessions: AuthSessionStore = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
@@ -782,7 +769,7 @@ async def configure_provider(
 
 @router.post("/session", response_model=UiBootstrapResponse)
 async def start_ui_session(
-    auth: AuthService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_protected_auth_service),
     server_base_url: str = Depends(get_server_base_url),
 ) -> UiBootstrapResponse:
     """Return a browser URL for opening the dashboard."""
