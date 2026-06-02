@@ -1,0 +1,38 @@
+# Version control
+.git
+.gitignore
+
+# Python build artefacts
+__pycache__
+*.py[cod]
+*.egg-info
+dist/
+.venv/
+.uv/
+
+# Node build artefacts
+ui/node_modules/
+ui/.next/
+ui/out/
+
+# Generated UI assets (rebuilt inside the Docker build)
+src/authsome/ui/web/
+
+# Tests and CI
+tests/
+.github/
+.pre-commit-config.yaml
+
+# Docs and assets
+docs/
+assets/
+*.md
+!README.md
+
+# Editor / tooling
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.vscode/
+.idea/
+*.egg
