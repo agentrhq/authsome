@@ -11,13 +11,13 @@
   <a href="https://pypi.org/project/authsome/"><img src="https://img.shields.io/pypi/pyversions/authsome.svg" alt="Python 3.13+"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://pypi.org/project/authsome/"><img src="https://img.shields.io/pypi/dm/authsome.svg" alt="PyPI downloads"></a>
-  <a href="https://github.com/agentrhq/authsome/actions/workflows/test.yml"><img src="https://github.com/agentrhq/authsome/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/agentrhq/authsome/actions/workflows/python-test.yml"><img src="https://github.com/agentrhq/authsome/actions/workflows/python-test.yml/badge.svg" alt="Tests"></a>
   <a href="https://codecov.io/gh/agentrhq/authsome"><img src="https://codecov.io/gh/agentrhq/authsome/branch/main/graph/badge.svg" alt="codecov"></a>
   <a href="https://discord.gg/9YP2C9tvMp"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
 <p align="center">
-  <b>Local-first credential broker and vault for AI Agents</b>
+  <b>Credential broker and vault for AI Agents</b>
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@
 
 An open-source credential broker that sits between your agents and the services they call. Instead of sharing credentials with every agent, log in once via OAuth2 or API keys. Authsome stores credentials securely and injects them via an HTTP proxy. You get one place to manage access, rotate keys, and see what every agent is doing.
 
-**45 bundled providers** out of the box: 14 OAuth2 and 31 API key. [See the full list](https://authsome.ai/docs/reference/bundled-providers).
+Bundled providers out of the box — OAuth2 and API key. [See the full list](https://authsome.ai/docs/reference/bundled-providers).
 
 ---
 
@@ -50,7 +50,7 @@ Hardcoded environment tokens leak or go stale, and building auth flow logic, tok
 Authsome is the local credential layer agents call at runtime.
 
 - **No credential sprawl.** One encrypted store. Every provider, every agent, one place.
-- **No SaaS, no privacy trade-off.** Credentials never leave your machine. Eliminates credential exfiltration risks as agents never see them.
+- **Agents never see credentials.** Auth is handled outside the agent process — no exfiltration risk, no secrets in environment variables.
 - **No browser required at runtime.** Setup can use browser PKCE, device code, or a browser bridge for secure API key entry. After that, agents run headlessly.
 
 ---
@@ -83,7 +83,7 @@ authsome run -- curl -s "https://api.github.com/user/repos?per_page=10"
 # matched automatically via provider api_url (e.g. api.openai.com)
 ```
 
-Credentials are stored locally, encrypted at rest, and refreshed before expiry. No server. No account. No cloud.
+Credentials are encrypted at rest and refreshed before expiry.
 
 ---
 
@@ -94,9 +94,9 @@ Credentials are stored locally, encrypted at rest, and refreshed before expiry. 
 | Automatic token refresh | ✅ | ❌ | build it |
 | OAuth2 + API keys | ✅ | ❌ | build it |
 | Runtime headless use | ✅ | ✅ | varies |
-| Local, no SaaS dependency | ✅ | ✅ | ✅ |
 | Built-in providers, zero config | ✅ | ❌ | ❌ |
 | Multi-account per provider | ✅ | ❌ | build it |
+| Agents never see credentials | ✅ | ❌ | build it |
 
 Authsome gives agents one command for a valid token, without scattering long-lived secrets across every project.
 
@@ -158,42 +158,10 @@ Authsome ships with adapters for the most common agent frameworks and CLIs:
 
 Full list at [authsome.ai/docs/integrations](https://authsome.ai/docs/integrations/agents/index).
 
-## Docs
-
-Full documentation lives at **[authsome.ai/docs](https://authsome.ai/docs)**.
-
-- [Quickstart](https://authsome.ai/docs/quickstart)
-- [CLI reference](https://authsome.ai/docs/reference/cli)
-- [Architecture](https://authsome.ai/docs/concepts/architecture)
-- [Custom providers](https://authsome.ai/docs/guides/custom-providers)
-- [Troubleshooting](https://authsome.ai/docs/troubleshooting/doctor)
-
-To preview the docs site locally:
-
-```bash
-cd docs/site
-npm i -g mint   # requires Node.js >= 20.17.0
-mint dev
-```
-
-## Telemetry
-
-Authsome's daemon can emit product analytics through PostHog. You can disable telemetry with any of these environment variables:
-
-- `DO_NOT_TRACK=1` disables analytics using the standard opt-out convention.
-- `POSTHOG_DISABLED=1` disables analytics using PostHog's recommended kill switch.
-- `AUTHSOME_ANALYTICS=0` disables analytics with an Authsome-specific override.
-
 ## Community
 
 - **[Discord](https://discord.gg/9YP2C9tvMp)** for questions, help, and showing what you're building.
 - **[GitHub Issues](https://github.com/agentrhq/authsome/issues)** for bugs and feature requests.
-
-## Security
-
-Authsome is a credential tool. If you find a vulnerability, please do **not** open a public GitHub issue.
-
-See the [responsible disclosure policy](https://authsome.ai/docs/security/disclosure) for how to report it privately.
 
 ## Roadmap
 

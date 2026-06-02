@@ -450,7 +450,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
         ) : (
           <form action={`/auth/providers/${provider.name}/connect`} method="post">
             <input name="connection" type="hidden" value="default" />
-            <input name="return_url" type="hidden" value={NEXT_URL} />
+            <input name="return_url" type="hidden" value={`/?view=connections&provider=${provider.name}`} />
             <Button className="w-full" type="submit" variant="secondary">
               <LogIn />
               Login
@@ -490,7 +490,7 @@ function NamedConnectionDialog({
           method="post"
           onSubmit={handleSubmit}
         >
-          <input name="return_url" type="hidden" value={NEXT_URL} />
+          <input name="return_url" type="hidden" value={provider ? `/?view=connections&provider=${provider.name}` : NEXT_URL} />
           <label className="grid gap-2 text-sm">
             <span className="text-muted-foreground">Connection name</span>
             <Input
@@ -511,8 +511,14 @@ function NamedConnectionDialog({
   );
 }
 
-function ConnectionsView({ connections }: { connections: DashboardData["connections"] }) {
-  const [query, setQuery] = useState("");
+function ConnectionsView({
+  connections,
+  initialFilter,
+}: {
+  connections: DashboardData["connections"];
+  initialFilter?: string;
+}) {
+  const [query, setQuery] = useState(initialFilter ?? "");
   const filteredConnections = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) {
@@ -729,10 +735,12 @@ function SearchInput({
 }
 
 function ActiveView({
+  connectionFilter,
   data,
   onViewChange,
   view,
 }: {
+  connectionFilter?: string;
   data: DashboardData;
   onViewChange: (view: View) => void;
   view: View;
@@ -741,7 +749,7 @@ function ActiveView({
     return <ProvidersView providers={data.providers} />;
   }
   if (view === "connections") {
-    return <ConnectionsView connections={data.connections} />;
+    return <ConnectionsView connections={data.connections} initialFilter={connectionFilter} />;
   }
   if (view === "vault") {
     return <VaultView data={data} />;
@@ -756,7 +764,18 @@ function ActiveView({
 }
 
 export function AuthsomeDashboard() {
-  const [activeView, setActiveView] = useState<View>("dashboard");
+  const [activeView, setActiveView] = useState<View>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get("view") as View | null;
+    return view && NAV_ITEMS.some((item) => item.id === view) ? view : "dashboard";
+  });
+  const [connectionFilter, setConnectionFilter] = useState<string | undefined>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("view") === "connections") {
+      return params.get("provider") ?? undefined;
+    }
+    return undefined;
+  });
   const { data, error, mutate } = useSWR("authsome-dashboard", fetchDashboard, {
     dedupingInterval: 10_000,
     revalidateOnFocus: true,
@@ -790,7 +809,7 @@ export function AuthsomeDashboard() {
               </Button>
             </div>
             <Separator />
-            <ActiveView data={data} onViewChange={setActiveView} view={activeView} />
+            <ActiveView connectionFilter={connectionFilter} data={data} onViewChange={setActiveView} view={activeView} />
           </div>
         </section>
       </div>
