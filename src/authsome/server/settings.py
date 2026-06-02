@@ -41,7 +41,7 @@ class ServerSettings(BaseSettings):
 
     # ── Analytics ────────────────────────────────────────────────────────
     analytics: bool = True  # AUTHSOME_ANALYTICS=0 disables
-    posthog_api_key: str = "phc_sgDwzvbX3TjBoPiWREfyfGs9pwebebKjavHGQChh9BpH"
+    posthog_api_key: str = "YOUR_API_KEY_HERE"
     posthog_host: str = "https://us.i.posthog.com"
     # Industry-standard, non-prefixed opt-out flags.
     do_not_track: bool = Field(default=False, validation_alias=AliasChoices("DO_NOT_TRACK"))

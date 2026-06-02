@@ -29,7 +29,6 @@ auth.create_profile("pr-bot", description="Auto-PR agent")
 auth.create_profile("reviewer", description="Code review agent")
 ```
 
-See [Profiles](/guides/profiles) and [Profiles vs connections](/concepts/profiles-vs-connections).
 
 ## Run each agent under its own proxy
 
@@ -56,13 +55,3 @@ Each agent's HTTP_PROXY points at a different daemon instance, each backed by a 
 | Two agents accidentally share credentials | They're using the same `AUTHSOME_HOME`. Split them. |
 | Port 7998 conflicts | Each `AUTHSOME_HOME` starts its own daemon on its own ephemeral port. Confirm with `lsof -i`. |
 
-## What's next
-
-<Columns cols={2}>
-  <Card title="Profiles" icon="layer-group" href="/guides/profiles">
-    How profiles work and how to create them.
-  </Card>
-  <Card title="Profiles vs connections" icon="users" href="/concepts/profiles-vs-connections">
-    Pick the right isolation level.
-  </Card>
-</Columns>

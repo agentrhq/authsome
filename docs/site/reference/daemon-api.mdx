@@ -127,7 +127,7 @@ CRUD for connection records. Behind the scenes, every route goes through the Aut
 |--------|------|---------|
 | `GET` | `/providers` | List every bundled and custom provider with auth type, flow, and source. |
 | `GET` | `/providers/{provider}` | Full provider definition. |
-| `POST` | `/providers` | Register a custom provider definition (the body is the JSON in [Provider schema](/reference/provider-schema)). |
+| `POST` | `/providers` | Register a custom provider definition. |
 | `DELETE` | `/providers/{provider}` | Remove a custom provider or reset a bundled one to its shipped form. |
 
 ## Proxy resolution
@@ -141,19 +141,18 @@ These routes back the local HTTP proxy started by `authsome run`. The proxy neve
 
 ## Dashboard UI
 
-These routes serve HTML. The dashboard is served at the root prefix.
+The Next.js dashboard is served as a static export at the daemon root. Browser-only form routes remain for account sessions and provider login starts.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/` | Dashboard overview. |
-| `GET` | `/applications` | Applications / Providers view. |
-| `GET` | `/manage/connections` | All connections, by provider. |
-| `GET` | `/identity` | Identity details. |
-| `GET` | `/audit` | Admin audit dashboard. |
-| `GET` | `/apps/{provider_name}` | Detail pane for one provider. |
-| `GET` | `/apps/{provider_name}/connections/{connection_name}` | Connection detail pane. |
-| `POST` | `/apps/{provider_name}/{connection_name}/disconnect` | Log out from the dashboard UI. |
-| `POST` | `/apps/{provider_name}/connect` | Start a flow from the dashboard UI. |
+| `GET` | `/` | Static dashboard shell. |
+| `POST` | `/session` | Return the dashboard URL for a PoP-authenticated local client. |
+| `POST` | `/auth/login` | Create a browser dashboard session. |
+| `POST` | `/auth/register` | Register an account and create a browser dashboard session. |
+| `POST` | `/logout` | Clear the browser dashboard session. |
+| `GET` | `/claim/{token}` | Render the account claim confirmation page. |
+| `POST` | `/claim/{token}/confirm` | Attach a local identity to the signed-in account. |
+| `POST` | `/auth/providers/{provider_name}/connect` | Start a provider login flow from the dashboard. |
 
 
 ## Auth

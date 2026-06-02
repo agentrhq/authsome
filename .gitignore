@@ -15,6 +15,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!ui/src/lib/
+!ui/src/lib/**
 lib64/
 parts/
 sdist/
@@ -204,6 +206,10 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# Generated static dashboard bundle
+src/authsome/ui/web/*
+!src/authsome/ui/web/.gitkeep
+
 # PyPI configuration file
 .pypirc
 
@@ -253,3 +259,6 @@ docs/superpowers/
 
 # Authsome skill (generated at eval time)
 .claude/skills/authsome/
+
+/tmp
+/results

@@ -179,6 +179,29 @@ async def get_admin_auth_service(
     return auth
 
 
+async def get_daemon_or_browser_auth_service(request: Request) -> CredentialService:
+    """Resolve auth from PoP headers or an existing browser dashboard session."""
+    if request.headers.get("Authorization"):
+        ownership = await verify_pop_caller(request)
+        return _build_service(request, ownership)
+
+    await resolve_ui_request_identity(request)
+    auth = await get_auth_service(
+        request,
+        principal_id=getattr(request.state, "ui_principal_id", None),
+    )
+    if auth is None:
+        raise HTTPException(status_code=401, detail="Missing or invalid browser session")
+    return auth
+
+
+async def get_admin_daemon_or_browser_auth_service(request: Request) -> CredentialService:
+    auth = await get_daemon_or_browser_auth_service(request)
+    if auth.principal_role != PrincipalRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin role required")
+    return auth
+
+
 def get_vault_registry(request: Request) -> VaultRegistry:
     return request.app.state.store.vaults
 

@@ -1,32 +1,19 @@
-"""HTML routes that render the Authsome local dashboard.
-
-The UI is intentionally server-rendered against the same FastAPI app that
-serves the JSON daemon API. This keeps it a single process on port 7998
-and avoids a separate static server.
-"""
+"""Browser-session routes for the Authsome local dashboard."""
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
-from importlib.resources import files
 from typing import Any
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 
-from authsome import __version__
-from authsome.auth.models.connection import ConnectionRecord, ProviderClientRecord
-from authsome.auth.models.enums import AuthType, FlowType
-from authsome.auth.models.provider import ProviderDefinition
+from authsome.auth.models.enums import FlowType
 from authsome.auth.sessions import AuthSessionStore
-from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
-    build_auth_service,
     get_auth_service,
     get_auth_sessions,
     get_protected_auth_service,
@@ -42,33 +29,12 @@ from authsome.server.web_pages import pages
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
-# Templates ship inside the installed package alongside the code.
-_TEMPLATES_DIR = files("authsome.ui").joinpath("templates")
-templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
-
 
 def _redirect(request: Request, url: str) -> Response:
-    """Redirect normally, or via htmx full-page redirect for boosted forms."""
+    """Redirect normally, or via htmx full-page redirect for form compatibility."""
     if request.headers.get("HX-Request") == "true":
         return Response(status_code=204, headers={"HX-Redirect": url})
     return RedirectResponse(url=url, status_code=303)
-
-
-def _ui_cookie_secure(server_base_url: str) -> bool:
-    return server_base_url.startswith("https://")
-
-
-def _ui_policy(request: Request, auth: CredentialService | None = None) -> dict[str, Any]:
-    role = auth.principal_role if auth is not None else getattr(request.state, "ui_principal_role", None)
-    is_admin = role == PrincipalRole.ADMIN
-    return {
-        "is_admin": is_admin,
-        "role_label": role.value.title() if role else None,
-        "show_admin_sections": is_admin,
-        "show_provider_client_details": is_admin,
-        "provider_management_label": ("OAuth Application" if is_admin else "OAuth application managed by Authsome"),
-        "show_identity": True,
-    }
 
 
 class UiAuthRequiredError(Exception):
@@ -79,17 +45,16 @@ class UiAuthRequiredError(Exception):
 
 
 async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> CredentialService:
-    await resolve_ui_request_identity(request)
+    identity = await resolve_ui_request_identity(request)
     auth = await get_auth_service(
         request,
+        identity=identity,
         principal_id=getattr(request.state, "ui_principal_id", None),
     )
     if auth is not None:
         return auth
 
     target = _account_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
-    if request.method == "GET" and request.url.path == "/":
-        raise UiAuthRequiredError(_account_auth_page_response(request.app.state.ui_sessions, next_url=target))
     raise UiAuthRequiredError(RedirectResponse(url=_account_auth_entry_url(target), status_code=303))
 
 
@@ -109,6 +74,10 @@ def _ui_session_expired_response(status_code: int = 401) -> HTMLResponse:
 
 def _account_auth_entry_url(next_url: str = "/") -> str:
     return f"/?{urlencode({'next': _account_auth_next_url(next_url)})}"
+
+
+def _ui_cookie_secure(server_base_url: str) -> bool:
+    return server_base_url.startswith("https://")
 
 
 def _set_ui_session_cookie(
@@ -166,522 +135,20 @@ def _account_auth_page_response(
     return HTMLResponse(page, status_code=400 if error else 200)
 
 
-def _page_context(
-    request: Request, page: str, *, auth: CredentialService | None = None, **kwargs: Any
-) -> dict[str, Any]:
-    return {
-        "page": page,
-        "version": __version__,
-        "ui_identity": getattr(request.state, "ui_identity", None),
-        "ui_email": getattr(request.state, "ui_email", None),
-        **_ui_policy(request, auth),
-        **kwargs,
-    }
-
-
-def _format_relative(when: datetime | None) -> str | None:
-    """Return a compact "in 47 minutes" / "2 days ago" label."""
-    if when is None:
-        return None
-    if when.tzinfo is None:
-        when = when.replace(tzinfo=UTC)
-    delta_seconds = int((when - datetime.now(UTC)).total_seconds())
-    abs_seconds = abs(delta_seconds)
-    direction = "in" if delta_seconds >= 0 else "ago"
-
-    if abs_seconds < 60:
-        amount, unit = abs_seconds, "second"
-    elif abs_seconds < 3600:
-        amount, unit = abs_seconds // 60, "minute"
-    elif abs_seconds < 86400:
-        amount, unit = abs_seconds // 3600, "hour"
-    else:
-        amount, unit = abs_seconds // 86400, "day"
-
-    plural = "" if amount == 1 else "s"
-    return f"{direction} {amount} {unit}{plural}" if direction == "in" else f"{amount} {unit}{plural} ago"
-
-
-def _format_audit_time(value: Any) -> str:
-    if not value:
-        return "-"
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return str(value)
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=UTC)
-    return parsed.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
-
-
-def _humanize_audit_event(value: Any) -> str:
-    event = str(value or "audit_event").replace("_", " ").replace("-", " ").strip()
-    return event[:1].upper() + event[1:] if event else "Audit event"
-
-
-def _audit_event_rows(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    known = {
-        "event_id",
-        "timestamp",
-        "event",
-        "source",
-        "principal_id",
-        "identity",
-        "provider",
-        "connection",
-        "status",
-    }
-    rows: list[dict[str, Any]] = []
-    for entry in entries:
-        provider = entry.get("provider")
-        connection = entry.get("connection")
-        metadata = {key: value for key, value in entry.items() if key not in known and value is not None}
-        target = " / ".join(str(part) for part in (provider, connection) if part) or "Authsome"
-        rows.append(
-            {
-                "event_id": entry.get("event_id") or "-",
-                "time": _format_audit_time(entry.get("timestamp")),
-                "event": _humanize_audit_event(entry.get("event")),
-                "source": entry.get("source") or "internal",
-                "actor": entry.get("identity") or entry.get("principal_id") or "system",
-                "target": target,
-                "status": entry.get("status") or "-",
-                "metadata": metadata,
-            }
-        )
-    return rows
-
-
-def _admin_required_response(title: str, message: str) -> HTMLResponse:
-    return HTMLResponse(pages.message_page(title, message), status_code=403)
-
-
-def _provider_status(provider_name: str, connection_summaries: list[dict[str, Any]]) -> str:
-    """Map a connection list to a single status string for the overview cards."""
-    if not connection_summaries:
-        return "available"
-    statuses = {c.get("status") for c in connection_summaries}
-    if "error" in statuses or "expired" in statuses:
-        return "reauth"
-    return "connected"
-
-
-def _logo_initial(name: str) -> str:
-    return (name[:1] or "?").upper()
-
-
-def _provider_api_url_label(provider: ProviderDefinition) -> str:
-    urls = provider.api_urls()
-    if urls:
-        return ", ".join(urls)
-    return (provider.oauth.base_url if provider.oauth else None) or provider.name
-
-
-def _provider_primary_api_url(provider: ProviderDefinition) -> str:
-    return provider.primary_api_url() or (provider.oauth.base_url if provider.oauth else None) or provider.name
-
-
-def _build_provider_view(
-    provider: ProviderDefinition,
-    source: str,
-    connections: list[dict[str, Any]],
-) -> dict[str, Any]:
-    return {
-        "name": provider.name,
-        "display_name": provider.display_name,
-        "auth_type": provider.auth_type.value,
-        "auth_type_label": "OAuth 2.0" if provider.auth_type == AuthType.OAUTH2 else "API Key",
-        "api_url": _provider_api_url_label(provider),
-        "description": (provider.metadata or {}).get("description", ""),
-        "source": source,
-        "logo_initial": _logo_initial(provider.display_name or provider.name),
-        "status": _provider_status(provider.name, connections),
-        "connections": connections,
-        "scope_count": len(connections[0].get("scopes") or []) if connections else 0,
-    }
-
-
-async def _provider_connection_groups(
-    request: Request,
-    *,
-    identity: str | None,
-    principal_id: str | None,
-    provider_name: str,
-) -> list[dict[str, Any]]:
-    if not principal_id:
-        return []
-
-    bindings = request.app.state.store.principal_vault_bindings
-    vaults = request.app.state.store.vaults
-    groups: list[dict[str, Any]] = []
-
-    for binding in await bindings.list_for_principal(principal_id):
-        scoped_auth = build_auth_service(
-            request,
-            identity=identity,
-            principal_id=principal_id,
-            vault_id=binding.vault_id,
-        )
-        provider_connections = next(
-            (group["connections"] for group in await scoped_auth.list_connections() if group["name"] == provider_name),
-            [],
-        )
-        if not provider_connections:
-            continue
-
-        vault_record = await vaults.get(binding.vault_id)
-        group_items: list[dict[str, Any]] = []
-        for connection in provider_connections:
-            record = await scoped_auth.get_connection(provider_name, connection["connection_name"])
-            group_items.append(
-                {
-                    "connection_name": connection["connection_name"],
-                    "identity": record.identity,
-                    "status": connection["status"],
-                    "href": f"/apps/{provider_name}/connections/{connection['connection_name']}",
-                }
-            )
-
-        groups.append(
-            {
-                "vault_label": (vault_record.handle if vault_record else "default").replace("-", " ").title(),
-                "connections": group_items,
-            }
-        )
-
-    return groups
-
-
-def _provider_page_context(
-    request: Request,
-    auth: CredentialService,
-    provider: ProviderDefinition,
-    api_url: str,
-    *,
-    grouped_connections: list[dict[str, Any]],
-    provider_client: ProviderClientRecord | None,
-    redirect_uri: str,
-    auth_url: str | None,
-    token_url: str | None,
-) -> dict[str, Any]:
-    policy = _ui_policy(request, auth)
-    return _page_context(
-        request,
-        "applications",
-        auth=auth,
-        provider=provider,
-        connection=None,
-        grouped_connections=grouped_connections,
-        logo_initial=_logo_initial(provider.display_name or provider.name),
-        api_url=api_url,
-        auth_type_label="OAuth 2.0" if provider.auth_type == AuthType.OAUTH2 else "API Key",
-        client_id=provider_client.client_id if provider_client and policy["show_provider_client_details"] else None,
-        has_client_secret=bool(
-            provider_client and provider_client.client_secret and policy["show_provider_client_details"]
-        ),
-        redirect_uri=redirect_uri,
-        auth_url=auth_url,
-        token_url=token_url,
-        requires_named_login=any(
-            connection["connection_name"] == "default"
-            for group in grouped_connections
-            for connection in group["connections"]
-        ),
-    )
-
-
-def _connection_detail_context(
-    request: Request,
-    auth: CredentialService,
-    provider: ProviderDefinition,
-    connection_record: ConnectionRecord,
-    api_url: str,
-) -> dict[str, Any]:
-    return _page_context(
-        request,
-        "connections",
-        auth=auth,
-        provider=provider,
-        connection=connection_record,
-        logo_initial=_logo_initial(provider.display_name or provider.name),
-        api_url=api_url,
-        expires_label=_format_relative(connection_record.expires_at),
-        obtained_label=_format_relative(connection_record.obtained_at),
-        scopes=connection_record.scopes or [],
-    )
-
-
-async def _all_provider_views(auth: CredentialService) -> list[dict[str, Any]]:
-    by_source = await auth.list_providers_by_source()
-    connections_by_provider = {group["name"]: group["connections"] for group in await auth.list_connections()}
-    views: list[dict[str, Any]] = []
-    for source in ("bundled", "custom"):
-        for provider in by_source.get(source, []):
-            views.append(_build_provider_view(provider, source, connections_by_provider.get(provider.name, [])))
-    return views
-
-
-def _build_connection_rows(providers: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for provider in providers:
-        for connection in provider["connections"]:
-            rows.append(
-                {
-                    "provider_name": provider["name"],
-                    "provider_display_name": provider["display_name"],
-                    "connection_name": connection["connection_name"],
-                    "status": connection["status"],
-                    "auth_type_label": provider["auth_type_label"],
-                    "href": f"/apps/{provider['name']}/connections/{connection['connection_name']}",
-                }
-            )
-    return sorted(rows, key=lambda row: (row["provider_display_name"].lower(), row["connection_name"].lower()))
-
-
-@router.get("/", response_class=HTMLResponse)
-async def overview(
-    request: Request,
-    auth: CredentialService = Depends(require_ui_auth()),
-) -> HTMLResponse:
-    providers = await _all_provider_views(auth)
-    connected = [p for p in providers if p["status"] != "available"]
-    available_count = len(providers) - len(connected)
-    oauth_count = sum(1 for p in connected if p["auth_type"] == AuthType.OAUTH2.value)
-    apikey_count = sum(1 for p in connected if p["auth_type"] == AuthType.API_KEY.value)
-
-    # "Last activity" ~ most recent token issue/refresh time across connections.
-    last_activity_label: str | None = None
-    most_recent: datetime | None = None
-    for view in connected:
-        for conn in view["connections"]:
-            for ts_field in ("expires_at",):
-                ts = conn.get(ts_field)
-                if not ts:
-                    continue
-                try:
-                    parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                except (TypeError, ValueError):
-                    continue
-                if most_recent is None or parsed > most_recent:
-                    most_recent = parsed
-    if most_recent is not None:
-        last_activity_label = _format_relative(most_recent)
-
-    return templates.TemplateResponse(
-        request,
-        "overview.html",
-        _page_context(
-            request,
-            "overview",
-            auth=auth,
-            stats={
-                "connected": len(connected),
-                "available": available_count,
-                "oauth": oauth_count,
-                "api_key": apikey_count,
-            },
-            last_activity=last_activity_label or "—",
-            connected_providers=connected[:6],
-        ),
-    )
-
-
-@router.get("/applications", response_class=HTMLResponse)
-async def applications(
-    request: Request,
-    auth: CredentialService = Depends(require_ui_auth("/applications")),
-) -> Response:
-    providers = [
-        {
-            **provider,
-            "requires_named_login": any(
-                connection["connection_name"] == "default" for connection in provider["connections"]
-            ),
-        }
-        for provider in await _all_provider_views(auth)
-    ]
-    return templates.TemplateResponse(
-        request,
-        "applications.html",
-        _page_context(request, "applications", auth=auth, providers=providers),
-    )
-
-
-@router.get("/manage/connections", response_class=HTMLResponse)
-async def connections(
-    request: Request,
-    auth: CredentialService = Depends(require_ui_auth("/manage/connections")),
-) -> Response:
-    providers = await _all_provider_views(auth)
-    rows = _build_connection_rows(providers)
-    return templates.TemplateResponse(
-        request,
-        "connections.html",
-        _page_context(
-            request,
-            "connections",
-            auth=auth,
-            connection_rows=rows,
-            total_connections=len(rows),
-        ),
-    )
-
-
-@router.get("/identity", response_class=HTMLResponse)
-async def identity_page(
-    request: Request,
-    auth: CredentialService = Depends(require_ui_auth("/identity")),
-) -> Response:
-    claims = await request.app.state.store.identity_claims.list_for_principal(request.state.ui_principal_id)
-    identities = [{"handle": claim.identity_handle, "is_active": False} for claim in claims]
-    return templates.TemplateResponse(
-        request,
-        "identity.html",
-        _page_context(
-            request,
-            "identity",
-            auth=auth,
-            identities=identities,
-            principal_id=auth.principal_id,
-        ),
-    )
-
-
-@router.get("/audit", response_class=HTMLResponse)
-async def audit_page(
-    request: Request,
-    auth: CredentialService = Depends(require_ui_auth("/audit")),
-) -> Response:
-    if auth.principal_role != PrincipalRole.ADMIN:
-        return _admin_required_response(
-            "Admin access required",
-            "Audit events are available only to administrators.",
-        )
-
-    entries = await request.app.state.audit_log.list_events(limit=100)
-    rows = _audit_event_rows(entries)
-    return templates.TemplateResponse(
-        request,
-        "audit.html",
-        _page_context(
-            request,
-            "audit",
-            auth=auth,
-            audit_events=rows,
-            audit_total=len(rows),
-        ),
-    )
-
-
-@router.get("/apps/{provider_name}", response_class=HTMLResponse)
-async def app_detail(
-    provider_name: str,
-    request: Request,
-    auth: CredentialService = Depends(require_ui_auth()),
-    server_base_url: str = Depends(get_server_base_url),
-) -> Response:
-    provider = await auth.get_provider(provider_name)
-    redirect_uri = build_callback_url(server_base_url)
-    api_url = _provider_api_url_label(provider)
-    policy = _ui_policy(request, auth)
-    if not policy["show_provider_client_details"]:
-        return templates.TemplateResponse(
-            request,
-            "app_detail_managed.html",
-            _page_context(
-                request,
-                "applications",
-                auth=auth,
-                provider=provider,
-                logo_initial=_logo_initial(provider.display_name or provider.name),
-            ),
-        )
-
-    client_record = await auth.get_provider_client(provider_name)
-    grouped_connections = await _provider_connection_groups(
-        request,
-        identity=auth.identity,
-        principal_id=auth.principal_id,
-        provider_name=provider_name,
-    )
-    return templates.TemplateResponse(
-        request,
-        "app_provider.html",
-        _provider_page_context(
-            request,
-            auth,
-            provider,
-            api_url,
-            grouped_connections=grouped_connections,
-            provider_client=client_record,
-            redirect_uri=redirect_uri,
-            auth_url=provider.oauth.authorization_url if provider.oauth else None,
-            token_url=provider.oauth.token_url if provider.oauth else None,
-        ),
-    )
-
-
-@router.get("/apps/{provider_name}/connections/{connection_name}", response_class=HTMLResponse)
-async def connection_detail(
-    provider_name: str,
-    connection_name: str,
-    request: Request,
-    auth: CredentialService = Depends(require_ui_auth()),
-) -> Response:
-    provider = await auth.get_provider(provider_name)
-    connection_record = await auth.get_connection(provider_name, connection_name)
-    api_url = _provider_api_url_label(provider)
-    common = _connection_detail_context(request, auth, provider, connection_record, api_url)
-
-    if provider.auth_type == AuthType.OAUTH2:
-        return templates.TemplateResponse(
-            request,
-            "app_detail_oauth.html",
-            {
-                **common,
-                "access_token": connection_record.access_token,
-                "refresh_token": connection_record.refresh_token,
-            },
-        )
-
-    return templates.TemplateResponse(
-        request,
-        "app_detail_apikey.html",
-        {
-            **common,
-            "api_key": connection_record.api_key,
-            "base_url": connection_record.base_url
-            or (provider.oauth.base_url if provider.oauth else None)
-            or _provider_primary_api_url(provider),
-        },
-    )
-
-
-@router.post("/apps/{provider_name}/{connection_name}/disconnect")
-async def disconnect_app(
-    provider_name: str,
-    connection_name: str,
-    request: Request,
-    auth: CredentialService = Depends(require_ui_auth("/manage/connections")),
-) -> Response:
-    """Disconnect a provider connection from the dashboard."""
-    await auth.logout(provider_name, connection_name)
-    return _redirect(request, "/manage/connections")
-
-
-@router.post("/apps/{provider_name}/connect")
-async def connect_app(
+@router.post("/auth/providers/{provider_name}/connect", include_in_schema=False)
+async def connect_provider(
     provider_name: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    auth: CredentialService = Depends(require_ui_auth()),
+    auth: CredentialService = Depends(require_ui_auth("/")),
     sessions: AuthSessionStore = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
-    """Start a provider connection from the dashboard."""
+    """Start a provider connection from the static dashboard."""
     form = await request.form()
     connection_name = str(form.get("connection") or form.get("connection_name") or "default")
     force = str(form.get("force", "false")).lower() in {"1", "true", "on", "yes"}
+    return_path = _account_auth_next_url(form.get("return_url") or "/")
 
     definition = await auth.get_provider(provider_name)
     flow = definition.flow
@@ -694,7 +161,7 @@ async def connect_app(
     )
     session.payload["force"] = force
     session.payload["callback_url_override"] = build_callback_url(server_base_url)
-    session.payload["return_url"] = f"{server_base_url.rstrip('/')}/apps/{provider_name}"
+    session.payload["return_url"] = f"{server_base_url.rstrip('/')}{return_path}"
     session.payload["ui_session_required"] = True
 
     if not force:
@@ -703,7 +170,7 @@ async def connect_app(
             if auth.has_usable_connection(existing):
                 session.status_message = "Already connected"
                 await sessions.save(session)
-                return _redirect(request, f"/apps/{provider_name}")
+                return _redirect(request, return_path)
         except Exception:
             pass
 
@@ -727,44 +194,7 @@ async def connect_app(
         await sessions.save(session)
         return _redirect(request, str(auth_url))
     await sessions.save(session)
-    return _redirect(request, f"/apps/{provider_name}")
-
-
-@router.post("/apps/{provider_name}/configure")
-async def configure_provider(
-    provider_name: str,
-    request: Request,
-    auth: CredentialService = Depends(require_ui_auth()),
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
-    server_base_url: str = Depends(get_server_base_url),
-) -> Response:
-    """Open the provider configuration flow for deployment-scoped credentials."""
-    provider = await auth.get_provider(provider_name)
-    policy = _ui_policy(request, auth)
-    if not policy["show_provider_client_details"]:
-        return _admin_required_response(
-            "Admin access required",
-            "Provider configuration is available only to administrators.",
-        )
-    if provider.auth_type != AuthType.OAUTH2:
-        return _redirect(request, f"/apps/{provider_name}")
-
-    session = await sessions.create(
-        provider=provider_name,
-        identity=auth.identity,
-        principal_id=auth.principal_id,
-        connection_name="default",
-        flow_type=provider.flow.value,
-    )
-    session.payload["provider_config_only"] = True
-    session.payload["existing_provider_client"] = (await auth.get_provider_client(provider_name)) is not None
-    session.payload["callback_url_override"] = build_callback_url(server_base_url)
-    session.payload["return_url"] = f"{server_base_url.rstrip('/')}/apps/{provider_name}"
-    session.payload["input_fields"] = [
-        field.model_dump(mode="json", exclude_none=True) for field in await auth.get_required_inputs(session)
-    ]
-    await sessions.save(session)
-    return _redirect(request, build_auth_input_url(server_base_url, session.session_id))
+    return _redirect(request, return_path)
 
 
 @router.post("/session", response_model=UiBootstrapResponse)
@@ -783,7 +213,8 @@ async def logout_ui_session(
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
 ) -> Response:
     """Clear the dashboard browser session."""
-    response = _redirect(request, "/")
+    form = await request.form()
+    response = _redirect(request, _account_auth_next_url(form.get("return_url") or "/"))
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
     if cookie_value:
         try:

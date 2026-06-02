@@ -1,4 +1,8 @@
-"""HTML page generators for the Authsome server."""
+"""HTML page generators for the Authsome server.
+
+Design: Authsome Secure Console (see src/authsome/ui/DESIGN.md).
+All pages follow the dark-first, developer-focused design system.
+"""
 
 from __future__ import annotations
 
@@ -7,24 +11,51 @@ from typing import Any
 
 from authsome.server.web_pages.web_theme import DARK_THEME_CSS, DEVICE_BRIDGE_STYLE
 
+_BRAND = '<span class="brand-name">Authsome</span><span class="brand-dot">.</span>'
 
-def message_page(title: str, message: str) -> str:
-    """Generate a simple message page."""
+
+def _page_shell(title: str, head_extra: str, body: str) -> str:
     return f"""<!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{html.escape(title)}</title>
-    <style>{DARK_THEME_CSS}</style>
+    <style>{DARK_THEME_CSS}
+
+      /* Brand */
+      .brand-name {{ font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+                     letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted-hi); }}
+      .brand-dot  {{ color: var(--accent); }}
+
+    </style>
+    {head_extra}
   </head>
   <body>
-    <main>
-      <h1>{html.escape(title)}</h1>
-      <p>{html.escape(message)}</p>
-    </main>
+    {body}
   </body>
 </html>"""
+
+
+def message_page(title: str, message: str) -> str:
+    """Generate a simple message/error page."""
+    body = f"""
+    <main style="
+      width: 100%; max-width: 440px; margin: 0 auto;
+      padding: 32px 24px;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+    ">
+      <div class="panel" style="width: 100%; padding: 28px;">
+        <div style="margin-bottom: 20px;">{_BRAND}</div>
+        <h1 style="font-size: 18px; font-weight: 600; letter-spacing: -0.01em;
+                   margin-bottom: 10px;">{html.escape(title)}</h1>
+        <p style="color: var(--muted); font-size: 14px; line-height: 1.6;">
+          {html.escape(message)}
+        </p>
+      </div>
+    </main>"""
+    return _page_shell(f"Authsome — {title}", "", body)
 
 
 def account_auth_page(
@@ -35,168 +66,165 @@ def account_auth_page(
     error: str | None = None,
 ) -> str:
     """Generate the account sign-in/register page."""
-    title = "Claim identity" if identity else "Open dashboard"
+    page_title = "Claim identity" if identity else "Authsome Dashboard"
     subtitle = (
-        f"Sign in or create an account to claim <strong>{html.escape(identity)}</strong>."
+        f"Sign in to claim <strong style='color:var(--text);font-weight:500'>"
+        f"{html.escape(identity)}</strong> to your account."
         if identity
-        else "Sign in or create an account to open your Authsome dashboard."
+        else "Sign in or create an account to open your dashboard."
     )
-    error_block = f'<p style="color:#ff7b72;margin:0 0 16px;">{html.escape(error)}</p>' if error else ""
-    register_hidden = "hidden" if active_tab == "login" else ""
-    login_hidden = "hidden" if active_tab == "register" else ""
-    login_active = "is-active" if active_tab == "login" else ""
-    register_active = "is-active" if active_tab == "register" else ""
-    auth_tabs = f"""
-        <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
-          <button
-            class="auth-tab {login_active}"
-            type="button"
-            data-auth-tab="login"
-            role="tab"
-            aria-selected="{"true" if active_tab == "login" else "false"}"
-          >
-            Sign in
-          </button>
-          <button
-            class="auth-tab {register_active}"
-            type="button"
-            data-auth-tab="register"
-            role="tab"
-            aria-selected="{"true" if active_tab == "register" else "false"}"
-          >
-            Create account
-          </button>
-        </div>"""
-    register_panel = f"""
-        <div class="auth-panel" data-auth-panel="register" {register_hidden}>
-          <h2>Create account</h2>
-          {error_block if active_tab == "register" else ""}
-          <form method="post" action="/auth/register">
-            <input type="hidden" name="next" value="{html.escape(next_url)}">
-            <label for="register-email">Email</label>
-            <input id="register-email" type="email" name="email" required>
-            <label for="register-password">Password</label>
-            <input id="register-password" type="password" name="password" required>
-            <button type="submit">Create account</button>
-          </form>
-        </div>"""
-    return f"""<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Authsome - {title}</title>
-    <style>{DARK_THEME_CSS}
-      :root {{ color-scheme: dark; }}
-      body {{
-        min-height: 100vh;
-        margin: 0;
-        background:
-          radial-gradient(circle at top, rgba(34, 197, 94, 0.18), transparent 34%),
-          linear-gradient(180deg, #031006 0%, #000 42%);
-      }}
-      main {{
-        max-width: 460px;
-        margin: 0 auto;
-        padding: 48px 20px;
-      }}
-      .auth-shell {{
-        border: 1px solid rgba(34, 197, 94, 0.25);
-        border-radius: 18px;
-        background: rgba(0, 0, 0, 0.92);
-        box-shadow: 0 28px 60px rgba(0, 0, 0, 0.55);
-        overflow: hidden;
-      }}
-      .auth-header {{
-        padding: 28px 28px 18px;
-        border-bottom: 1px solid rgba(34, 197, 94, 0.18);
-      }}
-      .auth-kicker {{
-        margin: 0 0 10px;
-        color: var(--accent);
-        font-size: 12px;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-      }}
-      .auth-header h1 {{ margin: 0 0 10px; }}
-      .auth-header p {{ margin: 0; color: var(--muted); }}
-      .auth-tabs {{
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        padding: 18px 28px 0;
-      }}
-      .auth-tab {{
-        appearance: none;
-        border: 1px solid rgba(34, 197, 94, 0.18);
-        border-radius: 999px;
-        background: rgba(8, 20, 10, 0.84);
-        color: var(--muted);
-        cursor: pointer;
-        font: inherit;
-        font-weight: 600;
-        padding: 12px 16px;
-        transition: 140ms ease;
-      }}
-      .auth-tab:hover {{ border-color: rgba(34, 197, 94, 0.34); color: var(--text); }}
-      .auth-tab.is-active {{
-        background: linear-gradient(180deg, rgba(34, 197, 94, 0.18), rgba(10, 26, 12, 0.96));
-        border-color: rgba(34, 197, 94, 0.58);
-        color: #d3f9dd;
-        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.18);
-      }}
-      .auth-panel {{
-        padding: 24px 28px 28px;
-      }}
-      .auth-panel h2 {{ margin: 0 0 16px; font-size: 15px; font-weight: 600; }}
-      .auth-panel[hidden] {{ display: none; }}
-      .auth-panel button[type="submit"] {{ margin-top: 18px; width: 100%; }}
-    </style>
-  </head>
-  <body>
-    <main>
-      <section class="auth-shell">
-        <header class="auth-header">
-          <p class="auth-kicker">Authsome Account</p>
-          <h1>{title}</h1>
-          <p>{subtitle}</p>
-        </header>
-        {auth_tabs}
-        <div class="auth-panel" data-auth-panel="login" {login_hidden}>
-          <h2>Welcome back</h2>
+
+    error_block = ""
+    if error:
+        error_block = f"""
+        <div style="
+          margin-bottom: 16px; padding: 10px 14px;
+          background: var(--error-bg); border: 1px solid var(--error-border);
+          border-radius: var(--radius); color: var(--error); font-size: 13px;
+        ">{html.escape(error)}</div>"""
+
+    login_hidden = " hidden" if active_tab != "login" else ""
+    register_hidden = " hidden" if active_tab != "register" else ""
+    login_active = " tab-active" if active_tab == "login" else ""
+    register_active = " tab-active" if active_tab == "register" else ""
+
+    body = f"""
+    <main style="
+      width: 100%; max-width: 420px; margin: 0 auto;
+      padding: 48px 20px 32px;
+    ">
+      <!-- Brand -->
+      <div style="text-align: center; margin-bottom: 28px;">{_BRAND}</div>
+
+      <!-- Auth Card -->
+      <div class="panel">
+        <!-- Header -->
+        <div class="panel-header" style="text-align: center;">
+          <h1 style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;
+                     margin-bottom: 6px;">{html.escape(page_title)}</h1>
+          <p style="color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0;">
+            {subtitle}
+          </p>
+        </div>
+
+        <!-- Tab switcher -->
+        <div style="
+          display: grid; grid-template-columns: 1fr 1fr;
+          gap: 6px; padding: 14px 20px; border-bottom: 1px solid var(--line);
+        " role="tablist">
+          <button class="tab-btn{login_active}" type="button"
+            data-tab="login"
+            role="tab" aria-selected="{"true" if active_tab == "login" else "false"}"
+          >Sign in</button>
+          <button class="tab-btn{register_active}" type="button"
+            data-tab="register"
+            role="tab" aria-selected="{"true" if active_tab == "register" else "false"}"
+          >Create account</button>
+        </div>
+
+        <!-- Login panel -->
+        <div id="panel-login" data-panel="login" class="panel-body"{login_hidden}>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 18px; line-height: 1.4;">
+            Welcome back.
+          </p>
           {error_block if active_tab == "login" else ""}
           <form method="post" action="/auth/login">
             <input type="hidden" name="next" value="{html.escape(next_url)}">
-            <label for="login-email">Email</label>
-            <input id="login-email" type="email" name="email" required>
-            <label for="login-password">Password</label>
-            <input id="login-password" type="password" name="password" required>
-            <button type="submit">Sign in</button>
+            <div class="field-group">
+              <label for="login-email">Email</label>
+              <input id="login-email" type="email" name="email"
+                     placeholder="you@example.com" required autocomplete="email">
+            </div>
+            <div class="field-group" style="margin-bottom: 20px;">
+              <label for="login-password">Password</label>
+              <input id="login-password" type="password" name="password"
+                     placeholder="••••••••" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary">Sign in</button>
           </form>
         </div>
-        {register_panel}
-      </section>
+
+        <!-- Register panel -->
+        <div id="panel-register" data-panel="register" class="panel-body"{register_hidden}>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 18px; line-height: 1.4;">
+            Get started in seconds — no billing information required.
+          </p>
+          {error_block if active_tab == "register" else ""}
+          <form method="post" action="/auth/register">
+            <input type="hidden" name="next" value="{html.escape(next_url)}">
+            <div class="field-group">
+              <label for="reg-email">Email</label>
+              <input id="reg-email" type="email" name="email"
+                     placeholder="you@example.com" required autocomplete="email">
+            </div>
+            <div class="field-group" style="margin-bottom: 20px;">
+              <label for="reg-password">Password</label>
+              <input id="reg-password" type="password" name="password"
+                     placeholder="••••••••" required autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary">Create account</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <p style="text-align: center; color: var(--muted); font-size: 12px;
+                margin-top: 20px; line-height: 1.5;">
+        Local credential manager &mdash; your data stays on this machine.
+      </p>
     </main>
+
+    <style>
+      body {{ display: block; padding: 0; }}
+
+      /* Tab buttons */
+      .tab-btn {{
+        font-family: var(--font-ui);
+        font-size: 13px;
+        font-weight: 500;
+        padding: 8px 14px;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+        width: 100%;
+      }}
+      .tab-btn:hover {{
+        color: var(--text);
+        border-color: var(--line-accent);
+        background: var(--accent-glow-sm);
+      }}
+      .tab-btn.tab-active {{
+        color: var(--accent-dim);
+        border-color: var(--accent);
+        background: var(--accent-glow-sm);
+        box-shadow: 0 0 0 1px var(--accent-glow);
+      }}
+      [hidden] {{ display: none !important; }}
+    </style>
+
     <script>
-      const tabs = document.querySelectorAll("[data-auth-tab]");
-      const panels = document.querySelectorAll("[data-auth-panel]");
+      const tabs = document.querySelectorAll("[data-tab]");
+      const panels = document.querySelectorAll("[data-panel]");
+
       function setTab(name) {{
-        tabs.forEach((tab) => {{
-          const active = tab.dataset.authTab === name;
-          tab.classList.toggle("is-active", active);
-          tab.setAttribute("aria-selected", active ? "true" : "false");
+        tabs.forEach(t => {{
+          const active = t.dataset.tab === name;
+          t.classList.toggle("tab-active", active);
+          t.setAttribute("aria-selected", active ? "true" : "false");
         }});
-        panels.forEach((panel) => {{
-          panel.hidden = panel.dataset.authPanel !== name;
+        panels.forEach(p => {{
+          p.hidden = p.dataset.panel !== name;
         }});
       }}
-      tabs.forEach((tab) => {{
-        tab.addEventListener("click", () => setTab(tab.dataset.authTab));
-      }});
+
+      tabs.forEach(t => t.addEventListener("click", () => setTab(t.dataset.tab)));
       setTab("{"register" if active_tab == "register" else "login"}");
-    </script>
-  </body>
-</html>"""
+    </script>"""
+
+    return _page_shell(f"Authsome — {page_title}", "", body)
 
 
 def account_claim_auth_page(*, token: str, identity: str, error: str | None = None, active_tab: str = "login") -> str:
@@ -210,25 +238,66 @@ def account_claim_auth_page(*, token: str, identity: str, error: str | None = No
 
 
 def account_claim_confirm_page(*, token: str, identity: str, email: str) -> str:
-    """Generate the account identity-claim confirmation page."""
-    return f"""<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Authsome - Claim identity</title>
-    <style>{DARK_THEME_CSS}</style>
-  </head>
-  <body>
-    <main>
-      <h1>Claim identity</h1>
-      <p>Confirm claiming <strong>{html.escape(identity)}</strong> to <strong>{html.escape(email)}</strong>.</p>
-      <form method="post" action="/claim/{html.escape(token)}/confirm">
-        <button type="submit">Claim identity</button>
-      </form>
+    """Generate the identity-claim confirmation page."""
+    body = f"""
+    <main style="
+      width: 100%; max-width: 420px; margin: 0 auto;
+      padding: 48px 20px 32px;
+    ">
+      <div style="text-align: center; margin-bottom: 28px;">{_BRAND}</div>
+
+      <div class="panel">
+        <div class="panel-header" style="text-align: center;">
+          <h1 style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;
+                     margin-bottom: 6px;">Claim identity</h1>
+          <p style="color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0;">
+            Review and confirm before linking.
+          </p>
+        </div>
+
+        <div class="panel-body">
+          <!-- Identity row -->
+          <div style="
+            background: var(--surface-dim); border: 1px solid var(--line);
+            border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px;
+          ">
+            <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+                        text-transform: uppercase; letter-spacing: 0.08em;
+                        color: var(--muted); margin-bottom: 6px;">Identity</div>
+            <div style="font-family: var(--font-mono); font-size: 13px;
+                        color: var(--accent-dim); word-break: break-all;">
+              {html.escape(identity)}
+            </div>
+          </div>
+
+          <!-- Account row -->
+          <div style="
+            background: var(--surface-dim); border: 1px solid var(--line);
+            border-radius: var(--radius); padding: 12px 14px; margin-bottom: 20px;
+          ">
+            <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+                        text-transform: uppercase; letter-spacing: 0.08em;
+                        color: var(--muted); margin-bottom: 6px;">Account</div>
+            <div style="font-size: 13px; color: var(--text);">
+              {html.escape(email)}
+            </div>
+          </div>
+
+          <form method="post" action="/claim/{html.escape(token)}/confirm">
+            <button type="submit" class="btn btn-primary">Confirm &amp; claim identity</button>
+          </form>
+        </div>
+      </div>
+
+      <p style="text-align: center; color: var(--muted); font-size: 12px;
+                margin-top: 20px;">
+        This links your local key to your account permanently.
+      </p>
     </main>
-  </body>
-</html>"""
+
+    <style>body {{ display: block; padding: 0; }}</style>"""
+
+    return _page_shell("Authsome — Claim identity", "", body)
 
 
 def input_page(
@@ -240,8 +309,8 @@ def input_page(
     warning_message: str | None = None,
 ) -> str:
     """Generate a dynamic input form for provider credentials."""
-    required_rows = []
-    optional_rows = []
+    required_rows: list[str] = []
+    optional_rows: list[str] = []
     for field in fields:
         row = _field_row(field)
         if field.get("default") is None or field.get("name") in {"client_id", "client_secret"}:
@@ -249,109 +318,143 @@ def input_page(
         else:
             optional_rows.append(row)
 
-    docs = (
-        f'<p><a href="{html.escape(docs_url)}" target="_blank" rel="noreferrer">Provider documentation</a></p>'
-        if docs_url
-        else ""
-    )
+    docs = ""
+    if docs_url:
+        docs = f"""
+        <a href="{html.escape(docs_url)}" target="_blank" rel="noreferrer"
+           style="font-size: 13px; color: var(--accent); display: inline-flex;
+                  align-items: center; gap: 4px; margin-bottom: 20px;">
+          Provider documentation ↗
+        </a>"""
 
-    callback_hint = ""
+    callback_block = ""
     if callback_url:
-        callback_hint = f"""
-        <div style="margin: 16px 0 24px;">
-          <label style="font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block;">
-            OAuth Redirect URI
+        callback_block = f"""
+        <div style="margin-bottom: 20px;">
+          <label style="font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+                        text-transform: uppercase; letter-spacing: 0.08em;
+                        color: var(--muted); margin-bottom: 8px; display: block;">
+            OAuth redirect URI
           </label>
           <div style="display: flex; gap: 6px; align-items: stretch;">
-            <input type="text" id="cb-uri" value="{html.escape(callback_url)}" readonly style="
-              flex: 1;
-              min-width: 0;
-              font-family: ui-monospace, monospace;
-              font-size: 13px;
-              background: #111;
-              color: var(--accent);
-              padding: 8px 10px;
-              border: 1px solid var(--line);
-              border-radius: 6px;
-            ">
-            <button type="button" onclick="copyUri(this)" style="
-              width: auto;
-              margin: 0;
-              padding: 0 14px;
-              font-size: 13px;
-              font-weight: 500;
-              background: var(--panel);
-              border: 1px solid var(--line);
-              color: var(--text);
-              border-radius: 6px;
-              cursor: pointer;
-              white-space: nowrap;
-            ">Copy</button>
+            <input type="text" id="cb-uri" value="{html.escape(callback_url)}" readonly>
+            <button type="button" onclick="copyUri(this)" class="btn btn-outline"
+              style="width: auto; margin: 0; padding: 0 14px; font-size: 13px;
+                     white-space: nowrap;">Copy</button>
           </div>
-        </div>
-        """
+        </div>"""
 
-    optional = ""
-    if optional_rows:
-        optional = f"<details><summary>Advanced options</summary>{''.join(optional_rows)}</details>"
-
-    warning = ""
+    warning_block = ""
     if warning_message:
-        warning = f"""
+        warning_block = f"""
         <div style="
-          margin: 16px 0 24px;
-          padding: 12px 14px;
-          border: 1px solid #6b4f1d;
-          border-radius: 8px;
-          background: rgba(245, 158, 11, 0.12);
-          color: #f7d08a;
+          margin-bottom: 20px; padding: 12px 14px;
+          border: 1px solid rgba(107,79,29,0.6); border-radius: var(--radius);
+          background: rgba(245,158,11,0.08); color: #f7d08a;
         ">
-          <strong style="display: block; margin-bottom: 4px;">Warning</strong>
-          <span>{html.escape(warning_message)}</span>
-        </div>
-        """
+          <div style="font-size: 12px; font-weight: 600; text-transform: uppercase;
+                      letter-spacing: 0.06em; margin-bottom: 4px; color: #f7d08a;">Warning</div>
+          <span style="font-size: 13px;">{html.escape(warning_message)}</span>
+        </div>"""
 
-    script = ""
-    if callback_url:
-        script = """
-    <script>
+    optional_block = ""
+    if optional_rows:
+        optional_block = f"""
+        <details>
+          <summary>Advanced options</summary>
+          {"".join(optional_rows)}
+        </details>"""
+
+    body = f"""
+    <main style="
+      width: 100%; max-width: 480px; margin: 0 auto;
+      padding: 48px 20px 32px;
+    ">
+      <div style="margin-bottom: 24px;">{_BRAND}</div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h1 style="font-size: 18px; font-weight: 600; letter-spacing: -0.01em;
+                     margin-bottom: 4px;">{html.escape(display_name)}</h1>
+          <p style="color: var(--muted); font-size: 13px; margin: 0;">
+            Enter the required credentials to continue.
+          </p>
+        </div>
+
+        <div class="panel-body">
+          {docs}
+          {callback_block}
+          {warning_block}
+
+          <form method="post" action="/auth/sessions/{html.escape(session_id)}/input">
+            {"".join(required_rows)}
+            {optional_block}
+            <div style="margin-top: 8px;">
+              <button type="submit" class="btn btn-primary">Continue</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <style>body {{ display: block; padding: 0; }}</style>
+
+    {"_copy_uri_script(callback_url)" if callback_url else ""}"""
+
+    script = _copy_uri_script() if callback_url else ""
+
+    body = f"""
+    <main style="
+      width: 100%; max-width: 480px; margin: 0 auto;
+      padding: 48px 20px 32px;
+    ">
+      <div style="margin-bottom: 24px;">{_BRAND}</div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h1 style="font-size: 18px; font-weight: 600; letter-spacing: -0.01em;
+                     margin-bottom: 4px;">{html.escape(display_name)}</h1>
+          <p style="color: var(--muted); font-size: 13px; margin: 0;">
+            Enter the required credentials to continue.
+          </p>
+        </div>
+
+        <div class="panel-body">
+          {docs}
+          {callback_block}
+          {warning_block}
+
+          <form method="post" action="/auth/sessions/{html.escape(session_id)}/input">
+            {"".join(required_rows)}
+            {optional_block}
+            <div style="margin-top: 8px;">
+              <button type="submit" class="btn btn-primary">Continue</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <style>body {{ display: block; padding: 0; }}</style>
+    {script}"""
+
+    return _page_shell(f"Authsome — {html.escape(display_name)}", "", body)
+
+
+def _copy_uri_script() -> str:
+    return """<script>
       function copyUri(btn) {
         var el = document.getElementById("cb-uri");
-        el.select();
-        el.setSelectionRange(0, 99999);
-        navigator.clipboard.writeText(el.value);
+        el.select(); el.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(el.value).catch(() => {
+          document.execCommand("copy");
+        });
         var orig = btn.innerText;
         btn.innerText = "Copied!";
         btn.style.borderColor = "var(--accent)";
-        setTimeout(function() {
-          btn.innerText = orig;
-          btn.style.borderColor = "var(--line)";
-        }, 2000);
+        setTimeout(() => { btn.innerText = orig; btn.style.borderColor = ""; }, 2000);
       }
     </script>"""
-
-    return f"""<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Authsome - {html.escape(display_name)}</title>
-    <style>{DARK_THEME_CSS}</style>
-  </head>
-  <body>
-    <main>
-      <h1>{html.escape(display_name)}</h1>
-      {docs}
-      {callback_hint}
-      {warning}
-      <form method="post" action="/auth/sessions/{html.escape(session_id)}/input">
-        {"".join(required_rows)}
-        {optional}
-        <button type="submit">Continue</button>
-      </form>
-    </main>{script}
-  </body>
-</html>"""
 
 
 def _field_row(field: dict[str, Any]) -> str:
@@ -361,11 +464,14 @@ def _field_row(field: dict[str, Any]) -> str:
     value = html.escape(str(field.get("default") or ""))
     required = " required" if field.get("default") is None else ""
     pattern = f' pattern="{html.escape(str(field["pattern"]))}"' if field.get("pattern") else ""
-    hint = f"<small>{html.escape(str(field['pattern_hint']))}</small>" if field.get("pattern_hint") else ""
+    hint = ""
+    if field.get("pattern_hint"):
+        hint = f"<small>{html.escape(str(field['pattern_hint']))}</small>"
     return (
         f'<div class="field-group">'
         f'<label for="{name}">{label}</label>'
-        f'<input id="{name}" type="{input_type}" name="{name}" value="{value}"{required}{pattern}>'
+        f'<input id="{name}" type="{input_type}" name="{name}"'
+        f' value="{value}"{required}{pattern}>'
         f"{hint}</div>"
     )
 
@@ -376,85 +482,54 @@ def device_code_page(
     verification_uri: str,
     verification_uri_complete: str | None,
 ) -> str:
-    """Generate a device code verification page with a premium theme."""
+    """Generate a device code verification page."""
     link = verification_uri_complete or verification_uri
     return f"""<!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Authsome - Device Login</title>
+    <title>Authsome — Device login</title>
     {DEVICE_BRIDGE_STYLE}
   </head>
   <body>
-    <div class="brand">Authsome</div>
+    <div class="brand">Authsome<span>.</span></div>
     <h2>{html.escape(display_name)}</h2>
-    <p class="subtitle">Enter the following code on your device to complete the login.</p>
-    
+    <p class="subtitle">Enter this code on the login page to complete authentication.</p>
+
     <div class="code-wrap">
-      <input type="text" id="user-code" value="{html.escape(user_code)}" readonly>
+      <input type="text" id="user-code" value="{html.escape(user_code)}" readonly
+             aria-label="Device code">
       <button type="button" class="copybtn" onclick="copyCode(this)">Copy</button>
     </div>
-    
-    <a href="{html.escape(link)}" target="_blank" class="verify">Open Login Page</a>
-    
-    <p class="note">
-      After completing the login on your device, return to your terminal.
-    </p>
+
+    <a href="{html.escape(link)}" target="_blank" class="verify">
+      Open login page ↗
+    </a>
+
+    <p class="note">After completing login in your browser, return to your terminal.</p>
 
     <script>
       function legacyCopy(text) {{
-        var textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.setAttribute("readonly", "");
-        textarea.style.position = "fixed";
-        textarea.style.top = "-9999px";
-        textarea.style.left = "-9999px";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        textarea.setSelectionRange(0, textarea.value.length);
-
-        var copied = false;
-        try {{
-          copied = document.execCommand("copy");
-        }} catch (err) {{
-          copied = false;
-        }}
-
-        document.body.removeChild(textarea);
-        return copied;
+        var ta = document.createElement("textarea");
+        ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        var ok = false;
+        try {{ ok = document.execCommand("copy"); }} catch(e) {{}}
+        document.body.removeChild(ta);
+        return ok;
       }}
-
       async function copyCode(btn) {{
-        var copyText = document.getElementById("user-code");
-        var value = copyText.value;
-
-        var copied = legacyCopy(value);
-        if (!copied && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {{
-          try {{
-            await navigator.clipboard.writeText(value);
-            copied = true;
-          }} catch (err) {{
-            copied = false;
-          }}
+        var val = document.getElementById("user-code").value;
+        var ok = false;
+        if (navigator.clipboard) {{
+          try {{ await navigator.clipboard.writeText(val); ok = true; }} catch(e) {{}}
         }}
-
-        if (!copied) {{
-          copyText.focus();
-          copyText.select();
-          copyText.setSelectionRange(0, copyText.value.length);
-        }}
-
-        const originalText = btn.innerText;
-        btn.innerText = copied ? 'Copied!' : 'Press Cmd+C';
-        if (!copied) {{
-          window.prompt("Copy this code:", value);
-        }}
-        setTimeout(() => {{
-          btn.innerText = originalText;
-        }}, 2000);
+        if (!ok) ok = legacyCopy(val);
+        var orig = btn.innerText;
+        btn.innerText = ok ? "Copied!" : "Press Cmd+C";
+        if (!ok) window.prompt("Copy this code:", val);
+        setTimeout(() => {{ btn.innerText = orig; }}, 2000);
       }}
     </script>
   </body>

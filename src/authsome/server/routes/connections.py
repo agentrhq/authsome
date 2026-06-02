@@ -7,14 +7,19 @@ from fastapi import APIRouter, Depends
 from authsome.auth.models.enums import ExportFormat
 from authsome.server.analytics import capture_event
 from authsome.server.credential_service import CredentialService
-from authsome.server.routes._deps import get_admin_auth_service, get_protected_auth_service, get_vault_registry
+from authsome.server.routes._deps import (
+    get_admin_auth_service,
+    get_daemon_or_browser_auth_service,
+    get_protected_auth_service,
+    get_vault_registry,
+)
 from authsome.server.store.repositories import VaultRegistry
 
 router = APIRouter(tags=["connections"])
 
 
 @router.get("/connections")
-async def list_connections(auth: CredentialService = Depends(get_protected_auth_service)):
+async def list_connections(auth: CredentialService = Depends(get_daemon_or_browser_auth_service)):
     by_source = await auth.list_providers_by_source()
     return {
         "connections": await auth.list_connections(),

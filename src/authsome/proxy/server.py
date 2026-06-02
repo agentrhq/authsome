@@ -520,15 +520,14 @@ def _deny_body(reason: str, match: RouteMatch | None) -> str:
     and a dashboard URL so the agent (or human) can recover; other
     reasons fall back to a generic message.
 
-    The dashboard URL uses ``DEFAULT_SERVER_BASE_URL``. It still requires an active dashboard session
-    to land on the connect screen directly.
+    The dashboard URL uses ``DEFAULT_SERVER_BASE_URL`` and still requires an active browser session.
     """
     if reason == "no_credentials" and match is not None:
         provider = match.provider
         return (
             f"Forbidden: provider '{provider}' is configured but has no "
             f"active connection. Run `authsome login {provider}` to connect, "
-            f"or visit {DEFAULT_SERVER_BASE_URL}/apps/{provider}."
+            f"or open the dashboard at {DEFAULT_SERVER_BASE_URL}/."
         )
     return "Forbidden by Authsome proxy policy"
 

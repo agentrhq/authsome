@@ -9,19 +9,27 @@
   "favicon": "/favicon.svg",
   "description": "Local credential broker for AI agents. Log in once via OAuth2 or API key. Authsome keeps tokens fresh and injects them at runtime.",
   "colors": {
-    "primary": "#83CA16",
-    "light": "#A3E635",
-    "dark": "#65A30D"
+    "primary": "#10B981",
+    "light": "#4EDEA3",
+    "dark": "#059669"
   },
   "background": {
     "color": {
       "light": "#FFFFFF",
-      "dark": "#0A0A0A"
+      "dark": "#09090B"
     }
   },
   "appearance": {
     "default": "dark",
     "strict": false
+  },
+  "font": {
+    "headings": {
+      "family": "Hanken Grotesk"
+    },
+    "body": {
+      "family": "Hanken Grotesk"
+    }
   },
   "banner": {
     "content": "Authsome is in active development. [Star us on GitHub](https://github.com/agentrhq/authsome) to follow along.",
