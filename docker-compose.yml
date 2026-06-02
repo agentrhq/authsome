@@ -1,0 +1,28 @@
+services:
+  authsome:
+    build: .
+    image: authsome:latest
+    restart: unless-stopped
+    ports:
+      - "7998:7998"
+    volumes:
+      - authsome-data:/data/authsome
+    environment:
+      AUTHSOME_HOME: /data/authsome
+      # Set this to the public URL of this server so OAuth callbacks resolve correctly.
+      # Example: AUTHSOME_SERVER_BASE_URL: https://auth.example.com
+      AUTHSOME_SERVER_BASE_URL: ""
+      # Encryption mode: "local_key" (default) or "keyring"
+      AUTHSOME_ENCRYPTION_MODE: local_key
+      AUTHSOME_LOG_LEVEL: info
+    # Uncomment to use a pre-built image from a registry instead of building locally:
+    # image: ghcr.io/agentrhq/authsome:latest
+
+    # ── Optional: Caddy reverse proxy for TLS ─────────────────────────
+    # Uncomment the block below and add a caddy service to terminate TLS.
+    # labels:
+    #   caddy: auth.example.com
+    #   caddy.reverse_proxy: "{{upstreams 7998}}"
+
+volumes:
+  authsome-data:
