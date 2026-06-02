@@ -153,13 +153,12 @@ Claude runs:
 authsome get github --connection work --field access_token --show-secret
 ```
 
-For the underlying model, see [Profiles vs connections](/concepts/profiles-vs-connections).
 
 ## What the skill cannot do
 
 - **It cannot type a `client_secret` for you.** Authsome refuses sensitive values as command-line arguments. The browser bridge is the only path.
 - **It cannot bypass the proxy CA requirement.** HTTPS interception needs the mitmproxy CA trusted on the machine. The first `authsome run` writes the CA to `~/.mitmproxy/`. See [Proxy networking](/troubleshooting/proxy-networking).
-- **It cannot share the vault across machines.** Claude Code on a second machine has its own `~/.authsome/`. Re-run logins there, or use a hosted daemon (see [Hosted deployment model](/security/hosted-deployment)).
+- **It cannot share the vault across machines.** Claude Code on a second machine has its own `~/.authsome/`. Re-run logins there.
 
 ## Troubleshooting
 

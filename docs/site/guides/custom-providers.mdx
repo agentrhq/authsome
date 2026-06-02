@@ -139,7 +139,7 @@ Pick a template based on the auth type.
 | `device_code` | Headless OAuth2. User enters a code on a separate device. Needs `client_id`. |
 | `api_key` | Single secret with a header. Optional `env_var` for scripted setup. |
 
-For the full schema with every supported field, see the [Provider schema reference](/reference/provider-schema).
+Every supported field is listed in the JSON templates above.
 
 ## Step 4: Register the provider
 
@@ -198,9 +198,6 @@ authsome list   # github now shows source=custom
 ## What's next
 
 <Columns cols={2}>
-  <Card title="Provider schema" icon="file-code" href="/reference/provider-schema">
-    Every field in a provider definition.
-  </Card>
   <Card title="Provider registry" icon="folder-tree" href="/concepts/provider-registry">
     How resolution and overrides work.
   </Card>
