@@ -110,6 +110,17 @@ Requires Python 3.13+.
 uv tool install authsome
 ```
 
+## Self-hosting
+
+Run a persistent daemon in Docker — no Python required on the host:
+
+```bash
+docker compose up -d
+export AUTHSOME_DAEMON_URL=http://localhost:7998
+```
+
+See the [self-hosting guide](docs/guides/self-hosting.md) for volume backup, TLS termination, and environment variable reference.
+
 ## Quick Start
 
 Add the authsome skill to your agent (claude, codex, cursor, hermes, etc.):
