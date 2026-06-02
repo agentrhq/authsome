@@ -24,8 +24,8 @@ class ClientConfig(BaseModel):
     The proxy_mode field lives here (not in ServerConfig) because the
     mitmproxy addon runs inside the CLI process per `authsome run`
     invocation. The daemon never acts on the mode itself; only the
-    caller-local proxy does. Users can change the mode by editing this
-    file directly — there is no CLI command for it today (YAGNI).
+    caller-local proxy does. Use `authsome config get/set proxy-mode`
+    to read or change the mode without hand-editing the file.
     """
 
     version: str = __version__

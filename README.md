@@ -143,6 +143,29 @@ Check my stripe balance
 
 The agent will use authsome to login into external services and perform the task.
 
+## Proxy Policy
+
+By default, `authsome run` injects credentials for connected providers and lets requests to unrecognised hosts pass through (`connected_allow`). You can tighten or loosen this behaviour with the proxy-mode setting.
+
+```bash
+# Read current mode
+authsome config get proxy-mode
+
+# Set mode
+authsome config set proxy-mode connected_deny
+```
+
+| Mode | Scope | Unmatched requests |
+|------|-------|--------------------|
+| `connected_allow` | connected providers only | pass through (**default**) |
+| `connected_deny` | connected providers only | blocked with 403 |
+| `configured_allow` | all configured providers (including disconnected) | pass through |
+| `configured_deny` | all configured providers | blocked with 403 |
+
+The mode is caller-local — it lives in `~/.authsome/config.json` and applies per `authsome run` invocation. The daemon never sees or acts on it.
+
+---
+
 ## Agent Integrations
 
 Authsome ships with adapters for the most common agent frameworks and CLIs:

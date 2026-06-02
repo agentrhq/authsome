@@ -517,6 +517,62 @@ async def init(ctx_obj: ContextObj) -> None:
     ctx_obj.print_json(data)
 
 
+_VALID_PROXY_MODES = ("connected_allow", "connected_deny", "configured_allow", "configured_deny")
+
+
+@cli.group(name="config")
+def config_group() -> None:
+    """Read and write caller-local configuration."""
+
+
+@config_group.command(name="get")
+@click.argument("key")
+@auth_command
+def config_get(ctx_obj: ContextObj, key: str) -> None:
+    """Read a caller-local configuration value.
+
+    Supported keys: proxy-mode
+    """
+    from authsome.cli.client_config import load_client_config
+
+    if key != "proxy-mode":
+        ctx_obj.print_json({"error": "UnknownConfigKey", "message": f"Unknown key '{key}'. Valid keys: proxy-mode"})
+        sys.exit(1)
+
+    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    config = load_client_config(home)
+    ctx_obj.print_json({"proxy_mode": config.proxy_mode})
+
+
+@config_group.command(name="set")
+@click.argument("key")
+@click.argument("value")
+@auth_command
+def config_set(ctx_obj: ContextObj, key: str, value: str) -> None:
+    """Write a caller-local configuration value.
+
+    Supported keys: proxy-mode
+    Valid proxy-mode values: connected_allow, connected_deny, configured_allow, configured_deny
+    """
+    from authsome.cli.client_config import load_client_config, save_client_config
+
+    if key != "proxy-mode":
+        ctx_obj.print_json({"error": "UnknownConfigKey", "message": f"Unknown key '{key}'. Valid keys: proxy-mode"})
+        sys.exit(1)
+
+    if value not in _VALID_PROXY_MODES:
+        modes_str = ", ".join(_VALID_PROXY_MODES)
+        ctx_obj.print_json(
+            {"error": "InvalidProxyMode", "message": f"Invalid proxy mode '{value}'. Valid modes: {modes_str}"}
+        )
+        sys.exit(1)
+
+    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    updated = load_client_config(home).model_copy(update={"proxy_mode": value})
+    save_client_config(home, updated)
+    ctx_obj.print_json({"proxy_mode": updated.proxy_mode, "status": "ok"})
+
+
 @cli.group(name="profile")
 def profile() -> None:
     """Manage local profiles backed by identity keys."""
