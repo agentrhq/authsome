@@ -145,13 +145,26 @@ def _load_dotenv(path: Path) -> dict[str, str]:
 
 
 def _scan_env_sources() -> dict[str, tuple[str, str]]:
-    """Return env values from .env, .env.prod, and process env."""
+    """Return env values from common dotenv files and process env."""
     scanned: dict[str, tuple[str, str]] = {}
 
-    for key, value in _load_dotenv(Path(".env")).items():
-        scanned[key] = (value, ".env")
-    for key, value in _load_dotenv(Path(".env.prod")).items():
-        scanned[key] = (value, ".env.prod")
+    env_files = [
+        ".env",
+        ".env.local",
+        ".env.development",
+        ".env.development.local",
+        ".env.test",
+        ".env.test.local",
+        ".env.production",
+        ".env.production.local",
+        ".env.prod",
+        ".env.prod.local",
+    ]
+
+    for env_file in env_files:
+        for key, value in _load_dotenv(Path(env_file)).items():
+            scanned[key] = (value, env_file)
+
     for key, value in os.environ.items():
         scanned[key] = (value, "environment")
 
