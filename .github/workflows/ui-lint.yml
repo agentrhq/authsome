@@ -1,11 +1,9 @@
 name: UI Lint
 
 on:
-  push:
-    paths:
-      - 'ui/**'
-      - '.github/workflows/ui-lint.yml'
   pull_request:
+    branches:
+      - main
     paths:
       - 'ui/**'
       - '.github/workflows/ui-lint.yml'
