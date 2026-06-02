@@ -71,7 +71,7 @@ function isUnauthorized(error: unknown): boolean {
 function StatusBadge({ status }: { status: string }) {
   if (status === "connected") {
     return (
-      <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700" variant="outline">
+      <Badge className="border-emerald-800 bg-emerald-950/50 text-emerald-400" variant="outline">
         <CheckCircle2 />
         Connected
       </Badge>
@@ -79,7 +79,7 @@ function StatusBadge({ status }: { status: string }) {
   }
   if (status === "reauth" || status === "expired" || status === "error") {
     return (
-      <Badge className="border-amber-200 bg-amber-50 text-amber-800" variant="outline">
+      <Badge className="border-amber-800 bg-amber-950/50 text-amber-400" variant="outline">
         <CircleAlert />
         Re-auth
       </Badge>
@@ -90,24 +90,24 @@ function StatusBadge({ status }: { status: string }) {
 
 function AuthGate() {
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-10 flex items-center">
+    <main className="min-h-screen bg-background px-6 py-10 flex items-center">
       <section className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="flex flex-col justify-between rounded-lg border bg-white p-8 shadow-sm">
+        <div className="flex flex-col justify-between rounded-lg border bg-card p-8">
           <div>
             <div className="mb-5 inline-flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <ShieldCheck className="size-5" />
             </div>
-            <h1 className="text-3xl font-semibold leading-tight text-slate-950">Authsome</h1>
+            <h1 className="text-3xl font-semibold leading-tight text-foreground">Authsome</h1>
             <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
               Local credential access for identities, vaults, providers, and audit history.
             </p>
           </div>
           <div className="mt-10 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-lg border bg-slate-50 p-3">
+            <div className="rounded-lg border bg-muted p-3">
               <div className="font-medium">Local daemon</div>
               <div className="mt-1 text-muted-foreground">127.0.0.1:7998</div>
             </div>
-            <div className="rounded-lg border bg-slate-50 p-3">
+            <div className="rounded-lg border bg-muted p-3">
               <div className="font-medium">Browser session</div>
               <div className="mt-1 text-muted-foreground">HttpOnly cookie</div>
             </div>
@@ -159,8 +159,8 @@ function AccountForm({
 
 function LoadingScreen() {
   return (
-    <main className="grid min-h-screen grid-cols-1 bg-slate-50 md:grid-cols-[240px_1fr]">
-      <aside className="hidden border-r bg-white p-5 md:block">
+    <main className="grid min-h-screen grid-cols-1 bg-background md:grid-cols-[240px_1fr]">
+      <aside className="hidden border-r bg-card p-5 md:block">
         <Skeleton className="h-9 w-32" />
         <div className="mt-8 grid gap-3">
           {Array.from({ length: 6 }).map((_, index) => (
@@ -182,7 +182,7 @@ function LoadingScreen() {
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+    <main className="flex min-h-screen items-center justify-center bg-background p-6">
       <Card className="max-w-md shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -214,7 +214,7 @@ function Sidebar({
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || data.account.isAdmin);
 
   return (
-    <aside className="flex border-r bg-white md:min-h-screen md:w-64 md:flex-col">
+    <aside className="flex border-r bg-sidebar md:min-h-screen md:w-64 md:flex-col">
       <div className="hidden border-b px-5 py-5 md:block">
         <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -245,7 +245,7 @@ function Sidebar({
         </nav>
       </ScrollArea>
       <div className="hidden border-t p-4 md:block">
-        <div className="rounded-lg border bg-slate-50 p-3">
+        <div className="rounded-lg border bg-muted p-3">
           <div className="text-xs font-medium uppercase text-muted-foreground">Signed in</div>
           <div className="mt-1 truncate text-sm font-medium">{data.account.email || data.account.identity}</div>
           {data.account.roleLabel ? (
@@ -261,7 +261,7 @@ function Sidebar({
 
 function Topbar() {
   return (
-    <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b bg-white px-4 py-3 md:px-6">
+    <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-3 md:px-6">
       <div>
         <div className="text-xs font-medium uppercase text-muted-foreground">Local Dashboard</div>
         <div className="text-lg font-semibold leading-tight">Workspace Status</div>
@@ -303,7 +303,7 @@ function StatCards({ data }: { data: DashboardData }) {
             <span className="text-muted-foreground [&_svg]:size-4">{stat.icon}</span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold text-slate-950">{stat.value}</div>
+            <div className="text-2xl font-semibold text-foreground">{stat.value}</div>
             <p className="mt-1 text-sm text-muted-foreground">{stat.foot}</p>
           </CardContent>
         </Card>
@@ -359,10 +359,10 @@ function DashboardView({ data, onViewChange }: { data: DashboardData; onViewChan
 
 function ProviderSummary({ provider }: { provider: ProviderView }) {
   return (
-    <div className="rounded-lg border border-border/50 bg-slate-50/50 p-4">
+    <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-white font-semibold text-primary shadow-sm">
+          <span className="flex size-9 items-center justify-center rounded-lg bg-muted font-semibold text-primary">
             {provider.logoInitial}
           </span>
           <div>
@@ -379,7 +379,7 @@ function ProviderSummary({ provider }: { provider: ProviderView }) {
 
 function EmptyBlock({ actionLabel, onAction, title }: { actionLabel: string; onAction: () => void; title: string }) {
   return (
-    <div className="rounded-lg border border-dashed bg-slate-50 p-6 text-center">
+    <div className="rounded-lg border border-dashed bg-muted/50 p-6 text-center">
       <div className="font-medium">{title}</div>
       <Button className="mt-4" onClick={onAction} size="sm" type="button">
         <Plus />
@@ -412,7 +412,7 @@ function ProvidersView({ providers }: { providers: ProviderView[] }) {
           <ProviderCard key={provider.name} onNamedLogin={() => setDialogProvider(provider)} provider={provider} />
         ))}
       </div>
-      {!filteredProviders.length ? <div className="rounded-lg border bg-white p-8 text-center text-muted-foreground">No providers found.</div> : null}
+      {!filteredProviders.length ? <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">No providers found.</div> : null}
       <NamedConnectionDialog onOpenChange={setDialogProvider} provider={dialogProvider} />
     </div>
   );
@@ -424,7 +424,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-slate-100 font-semibold text-primary">
+            <span className="flex size-10 items-center justify-center rounded-lg bg-muted font-semibold text-primary">
               {provider.logoInitial}
             </span>
             <div>
@@ -583,7 +583,7 @@ function VaultView({ data }: { data: DashboardData }) {
           </CardHeader>
           <CardContent className="grid gap-3">
             {data.identities.map((identity) => (
-              <div className="flex items-center justify-between rounded-lg border bg-slate-50 p-3" key={identity.handle}>
+              <div className="flex items-center justify-between rounded-lg border bg-muted p-3" key={identity.handle}>
                 <div className="flex items-center gap-3">
                   <UserRound className="size-4 text-muted-foreground" />
                   <span className="font-medium">{identity.handle}</span>
@@ -693,7 +693,7 @@ function KeyValue({ label, value }: { label: string; value: string }) {
     <div className="grid gap-1">
       <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
       <Tooltip>
-        <TooltipTrigger render={<div className="truncate rounded-lg border bg-slate-50 px-3 py-2 font-mono text-sm" />}>
+        <TooltipTrigger render={<div className="truncate rounded-lg border bg-muted px-3 py-2 font-mono text-sm" />}>
           {value}
         </TooltipTrigger>
         <TooltipContent>{value}</TooltipContent>
@@ -705,7 +705,7 @@ function KeyValue({ label, value }: { label: string; value: string }) {
 function SectionHeader({ description, title }: { description: string; title: string }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold leading-tight text-slate-950">{title}</h1>
+      <h1 className="text-2xl font-semibold leading-tight text-foreground">{title}</h1>
       <p className="mt-1 text-sm text-muted-foreground">{description}</p>
     </div>
   );
@@ -773,7 +773,7 @@ export function AuthsomeDashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-background">
       <div className="md:grid md:grid-cols-[256px_1fr]">
         <Sidebar activeView={activeView} data={data} onChange={setActiveView} />
         <section className="min-w-0">

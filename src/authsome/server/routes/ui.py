@@ -55,8 +55,6 @@ async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> 
         return auth
 
     target = _account_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
-    if request.method == "GET" and request.url.path == "/":
-        raise UiAuthRequiredError(_account_auth_page_response(request.app.state.ui_sessions, next_url=target))
     raise UiAuthRequiredError(RedirectResponse(url=_account_auth_entry_url(target), status_code=303))
 
 
