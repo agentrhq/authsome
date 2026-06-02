@@ -2,6 +2,8 @@ name: Python Tests
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'src/**'
       - 'tests/**'
@@ -9,6 +11,8 @@ on:
       - 'uv.lock'
       - '.github/workflows/python-test.yml'
   pull_request:
+    branches:
+      - main
     paths:
       - 'src/**'
       - 'tests/**'

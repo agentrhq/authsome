@@ -20,7 +20,7 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useMemo, useState } from "react";
 import useSWR from "swr";
 
 import { ApiError, DashboardData, ProviderView, fetchDashboard } from "@/lib/authsome-api";
@@ -764,23 +764,22 @@ function ActiveView({
 }
 
 export function AuthsomeDashboard() {
-  const [activeView, setActiveView] = useState<View>("dashboard");
-  const [connectionFilter, setConnectionFilter] = useState<string | undefined>(undefined);
+  const [activeView, setActiveView] = useState<View>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get("view") as View | null;
+    return view && NAV_ITEMS.some((item) => item.id === view) ? view : "dashboard";
+  });
+  const [connectionFilter, setConnectionFilter] = useState<string | undefined>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("view") === "connections") {
+      return params.get("provider") ?? undefined;
+    }
+    return undefined;
+  });
   const { data, error, mutate } = useSWR("authsome-dashboard", fetchDashboard, {
     dedupingInterval: 10_000,
     revalidateOnFocus: true,
   });
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const view = params.get("view") as View | null;
-    if (view && NAV_ITEMS.some((item) => item.id === view)) {
-      setActiveView(view);
-      if (view === "connections") {
-        setConnectionFilter(params.get("provider") ?? undefined);
-      }
-    }
-  }, []);
 
   if (isUnauthorized(error)) {
     return <AuthGate />;
