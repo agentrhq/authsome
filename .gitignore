@@ -259,3 +259,6 @@ docs/superpowers/
 
 # Authsome skill (generated at eval time)
 .claude/skills/authsome/
+
+/tmp
+/results
