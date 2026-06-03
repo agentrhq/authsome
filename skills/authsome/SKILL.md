@@ -91,7 +91,6 @@ If you are unsure of the correct command syntax, need to check available flags, 
 authsome --help
 authsome provider --help
 authsome connections --help
-authsome admin --help
 authsome run --help
 ```
 
@@ -107,8 +106,8 @@ authsome run --help
 - **Never** suggest the user open Gmail/Calendar/GitHub in their browser
   when they ask you to read or interact with those services. You have API
   access. Use it.
-- **Never** use `authsome export`, `--show-secret`, or any workflow that prints
-  tokens or API keys to the terminal. Use `authsome run -- ...` instead.
+- **Never** use any workflow that prints tokens or API keys to the terminal.
+  Use `authsome run -- ...` instead.
 - If the gateway returns a policy error (403 with a JSON body), respect
   the block. Do not retry or circumvent it.
 - If the skill fails, the goal took too many steps, the CLI behaved unexpectedly,
