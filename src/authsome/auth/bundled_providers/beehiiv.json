@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "beehiiv",
   "display_name": "Beehiiv",
+  "description": "Newsletter publishing, subscribers, and audience growth automation.",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.beehiiv.com",

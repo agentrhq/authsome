@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "buffer",
   "display_name": "Buffer",
+  "description": "Social scheduling and publishing workflows for connected channels.",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.bufferapp.com",

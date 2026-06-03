@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "calendly",
   "display_name": "Calendly",
+  "description": "Scheduling links, events, invitees, and calendar booking automation.",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.calendly.com",

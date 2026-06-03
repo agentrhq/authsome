@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "atlassian",
   "display_name": "Atlassian",
+  "description": "Jira and Atlassian workspace APIs for project and issue management.",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "api.atlassian.com",

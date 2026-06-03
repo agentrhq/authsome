@@ -91,6 +91,8 @@ class ProviderDefinition(BaseModel):
     schema_version: int = 1
     name: str
     display_name: str
+    logo: str | None = None
+    description: str | None = None
     auth_type: AuthType
     flow: FlowType
 

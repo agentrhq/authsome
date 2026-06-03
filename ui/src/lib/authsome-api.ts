@@ -13,6 +13,7 @@ export type ProviderView = {
   apiUrl: string;
   description: string;
   source: "bundled" | "custom" | string;
+  logo: string | null;
   logoInitial: string;
   status: "available" | "connected" | "reauth" | string;
   scopeCount: number;
@@ -99,6 +100,8 @@ type ConnectionSummary = {
 type ProviderResponse = {
   name: string;
   display_name?: string;
+  logo?: string | null;
+  description?: string | null;
   auth_type?: string;
   api_url?: string | string[] | null;
   oauth?: {
@@ -228,8 +231,9 @@ function providerView(
     authType: provider.auth_type || "provider",
     authTypeLabel: authTypeLabel(provider.auth_type),
     apiUrl: providerApiUrl(provider),
-    description: provider.metadata?.description || "",
+    description: provider.description || provider.metadata?.description || "",
     source,
+    logo: provider.logo || null,
     logoInitial: (displayName[0] || "?").toUpperCase(),
     status: providerStatus(connections),
     scopeCount: connections[0]?.scopes?.length || 0,

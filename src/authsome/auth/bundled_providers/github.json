@@ -2,6 +2,8 @@
   "schema_version": 1,
   "name": "github",
   "display_name": "GitHub",
+  "logo": "img.logo.dev/name/github",
+  "description": "Connect GitHub to manage repositories, pull requests, users, and developer automation with vault-backed credentials.",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": [

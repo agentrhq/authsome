@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "lemlist",
   "display_name": "Lemlist",
+  "description": "Cold outreach campaigns, leads, and email engagement workflows.",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.lemlist.com",

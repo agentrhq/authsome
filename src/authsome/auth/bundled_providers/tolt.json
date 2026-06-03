@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "tolt",
   "display_name": "Tolt",
+  "description": "Affiliate tracking, partner data, and referral program automation.",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.tolt.com",

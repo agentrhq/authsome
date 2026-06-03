@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "klaviyo",
   "display_name": "Klaviyo",
+  "description": "Klaviyo profiles, campaigns, and marketing automation API access.",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "a.klaviyo.com",

@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "resend",
   "display_name": "Resend",
+  "description": "Email sending, domains, audiences, and Resend API automation.",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.resend.com",

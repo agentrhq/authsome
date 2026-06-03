@@ -108,6 +108,8 @@ class TestProviderDefinition:
         provider = ProviderDefinition(
             name="test",
             display_name="Test",
+            logo="https://example.com/logo.svg",
+            description="Example provider for model tests.",
             auth_type=AuthType.API_KEY,
             flow=FlowType.API_KEY,
             api_key=ApiKeyConfig(),
@@ -115,6 +117,8 @@ class TestProviderDefinition:
         json_str = provider.model_dump_json()
         restored = ProviderDefinition.model_validate_json(json_str)
         assert restored.name == "test"
+        assert restored.logo == "https://example.com/logo.svg"
+        assert restored.description == "Example provider for model tests."
 
     def test_docs_field_is_optional_and_parsed(self) -> None:
         provider = ProviderDefinition.model_validate(

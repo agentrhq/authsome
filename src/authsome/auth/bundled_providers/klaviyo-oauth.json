@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "klaviyo-oauth",
   "display_name": "Klaviyo (OAuth)",
+  "description": "OAuth access for Klaviyo app integrations and account APIs.",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "a.klaviyo.com",

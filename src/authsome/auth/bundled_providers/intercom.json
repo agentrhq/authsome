@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "intercom",
   "display_name": "Intercom",
+  "description": "Customer conversations, contacts, and support automation APIs.",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.intercom.io",

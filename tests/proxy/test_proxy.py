@@ -782,6 +782,16 @@ class TestProviderProxyMetadata:
         provider = await auth.get_provider("github")
         assert provider.api_url == ["api.github.com", r"regex:.*githubusercontent\.com$"]
 
+    @pytest.mark.asyncio
+    async def test_github_provider_has_dashboard_metadata(self, tmp_path: Path) -> None:
+        auth = await _make_auth(tmp_path)
+        provider = await auth.get_provider("github")
+        assert provider.logo == "img.logo.dev/name/github"
+        assert provider.description == (
+            "Connect GitHub to manage repositories, pull requests, users, and developer automation "
+            "with vault-backed credentials."
+        )
+
 
 # ── CLI tests ────────────────────────────────────────────────────────────
 

@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "notion_dcr",
   "display_name": "Notion (DCR)",
+  "description": "Notion MCP OAuth access using dynamic client registration.",
   "auth_type": "oauth2",
   "flow": "dcr_pkce",
   "api_url": "mcp.notion.com",

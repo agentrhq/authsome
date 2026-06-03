@@ -76,48 +76,48 @@ const NAV_ITEMS: NavItem[] = [
 
 const NEXT_URL = "/";
 const ADVANCED_SESSION_FIELD_NAMES = new Set(["host_url", "base_url", "api_url", "scopes"]);
+const LOGO_DEV_TOKEN = "pk_BhJg_kBbQPqNGuuWcNs9Cg";
 
 function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
 }
 
-function extractDomain(apiUrl: string): string | null {
-  try {
-    const url = apiUrl.startsWith("http") ? apiUrl : `https://${apiUrl}`;
-    return new URL(url).hostname;
-  } catch {
-    return null;
-  }
-}
-
 function ProviderLogo({
-  apiUrl,
   initial,
+  logo,
   className,
 }: {
-  apiUrl: string;
   initial: string;
+  logo: string | null;
   className?: string;
 }) {
   const [err, setErr] = useState(false);
-  const domain = extractDomain(apiUrl);
-  const faviconUrl = domain && !err ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
+  const logoUrl = logo && !err ? providerLogoUrl(logo) : null;
 
   return (
     <span
       className={cn(
-        "flex items-center justify-center rounded-lg bg-muted",
-        !faviconUrl && "font-semibold text-primary",
+        "flex items-center justify-center rounded-lg border border-border/60 bg-muted text-sm font-semibold text-primary",
         className,
       )}
     >
-      {faviconUrl ? (
-        <img alt="" className="size-5" onError={() => setErr(true)} src={faviconUrl} />
+      {logoUrl ? (
+        <img alt="" className="size-5 object-contain" onError={() => setErr(true)} src={logoUrl} />
       ) : (
         initial
       )}
     </span>
   );
+}
+
+function providerLogoUrl(logo: string): string {
+  if (logo.startsWith("http")) {
+    return logo;
+  }
+  if (logo.startsWith("img.logo.dev")) {
+    return `https://${logo}?token=${LOGO_DEV_TOKEN}`;
+  }
+  return logo;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -813,7 +813,7 @@ function ProviderSummary({ provider }: { provider: ProviderView }) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
       <div className="flex items-center gap-3">
-        <ProviderLogo apiUrl={provider.apiUrl} className="size-8" initial={provider.logoInitial} />
+        <ProviderLogo className="size-8" initial={provider.logoInitial} logo={provider.logo} />
         <div>
           <div className="text-sm font-medium">{provider.displayName}</div>
           <div className="text-xs text-muted-foreground">{provider.authTypeLabel}</div>
@@ -842,9 +842,17 @@ function ProvidersView({ providers }: { providers: ProviderView[] }) {
 
   const filteredProviders = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return providers;
-    return providers.filter((provider) =>
-      `${provider.displayName} ${provider.name} ${provider.authTypeLabel}`.toLowerCase().includes(normalized),
+    const matches = normalized
+      ? providers.filter((provider) =>
+          `${provider.displayName} ${provider.name} ${provider.authTypeLabel} ${provider.description}`
+            .toLowerCase()
+            .includes(normalized),
+        )
+      : providers;
+
+    return [...matches].sort((a, b) =>
+      providerSortRank(a) - providerSortRank(b)
+      || a.displayName.localeCompare(b.displayName),
     );
   }, [providers, query]);
 
@@ -865,40 +873,51 @@ function ProvidersView({ providers }: { providers: ProviderView[] }) {
   );
 }
 
+function providerSortRank(provider: ProviderView): number {
+  return provider.status === "available" ? 1 : 0;
+}
+
 function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; provider: ProviderView }) {
   return (
-    <Card className="shadow-none border-border/50">
-      <CardHeader>
+    <Card className="flex h-full flex-col border-border/50 shadow-none transition-colors hover:border-border">
+      <CardHeader className="gap-4 pb-4">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <ProviderLogo apiUrl={provider.apiUrl} className="size-10" initial={provider.logoInitial} />
-            <div>
-              <CardTitle className="text-base">{provider.displayName}</CardTitle>
-              <CardDescription className="text-xs">{provider.authTypeLabel}</CardDescription>
+          <div className="min-w-0 flex items-center gap-3">
+            <ProviderLogo className="size-10" initial={provider.logoInitial} logo={provider.logo} />
+            <div className="min-w-0">
+              <CardTitle className="truncate text-base">{provider.displayName}</CardTitle>
+              <CardDescription className="truncate text-xs">
+                {provider.source === "custom" ? "Custom provider" : "Bundled provider"}
+              </CardDescription>
             </div>
           </div>
           <StatusBadge status={provider.status} />
         </div>
       </CardHeader>
-      <CardContent className="grid gap-4">
-        {provider.description ? (
-          <p className="min-h-8 text-sm text-muted-foreground">{provider.description}</p>
-        ) : null}
-        {provider.connectionCount ? (
-          <Badge className="w-max" variant="outline">{provider.connectionCount} connection{provider.connectionCount !== 1 ? "s" : ""}</Badge>
-        ) : null}
+      <CardContent className="flex flex-1 flex-col gap-4">
+        <p className="min-h-12 text-sm leading-6 text-muted-foreground">
+          {provider.description || "Connect this provider to store and inject credentials from your Authsome vault."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">{provider.authTypeLabel}</Badge>
+          {provider.connectionCount ? (
+            <Badge variant="outline">
+              {provider.connectionCount} connection{provider.connectionCount !== 1 ? "s" : ""}
+            </Badge>
+          ) : null}
+        </div>
         {provider.requiresNamedLogin ? (
-          <Button className="w-full" onClick={onNamedLogin} type="button">
+          <Button className="mt-auto w-full" onClick={onNamedLogin} type="button">
             <LogIn />
-            Login
+            Connect
           </Button>
         ) : (
-          <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
+          <form action={`/api/auth/providers/${provider.name}/connect`} className="mt-auto" method="post">
             <input name="connection" type="hidden" value="default" />
             <input name="return_url" type="hidden" value={`/connections?provider=${provider.name}`} />
             <Button className="w-full" type="submit">
               <LogIn />
-              Login
+              Connect
             </Button>
           </form>
         )}
