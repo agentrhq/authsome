@@ -49,6 +49,16 @@ def test_mark_registered_persists_identity_state(tmp_path: Path) -> None:
     assert updated.claimed is False
 
 
+def test_mark_registered_tracks_server_registration(tmp_path: Path) -> None:
+    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+
+    updated = mark_registered(tmp_path, identity.handle, server_url="http://127.0.0.1:7998/")
+
+    assert updated.registered_for("http://127.0.0.1:7998") is True
+    assert updated.registered_for("http://127.0.0.1:8998") is False
+    assert updated.registered_servers == ["http://127.0.0.1:7998"]
+
+
 def test_mark_claimed_persists_identity_state(tmp_path: Path) -> None:
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
 

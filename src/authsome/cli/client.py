@@ -17,7 +17,6 @@ import requests
 from authsome.identity import (
     IdentitySource,
     load_runtime_identity,
-    mark_claimed,
     mark_registered,
 )
 from authsome.identity.local import RuntimeIdentity, load_identity
@@ -146,34 +145,12 @@ class AuthsomeApiClient:
         if runtime.source is IdentitySource.ENV:
             return await self._ensure_env_identity_ready(runtime)
 
-        status: dict[str, Any] | None = None
         identity = load_identity(self._home, runtime.handle)
-        if not identity.registered:
-            status = await self.register_identity(identity.handle, identity.did)
-            identity = mark_registered(self._home, identity.handle)
-        elif identity.claimed:
-            return runtime
+        if not identity.registered_for(self._base_url):
+            await self.register_identity(identity.handle, identity.did)
+            identity = mark_registered(self._home, identity.handle, server_url=self._base_url)
         else:
-            try:
-                status = await self.get_identity_status(identity.handle)
-            except Exception:
-                status = await self.register_identity(identity.handle, identity.did)
-
-        registration_status = status.get("registration_status", "registered") if status else "registered"
-        if registration_status == "claim_required":
-            claim_url = status.get("claim_url")
-            if not claim_url:
-                status = await self.register_identity(identity.handle, identity.did)
-                claim_url = status.get("claim_url")
-            if claim_url:
-                self._open_claim_url(claim_url)
-            await self._poll_claim_completion(identity.handle)
-            identity = mark_claimed(self._home, identity.handle)
-            return self._runtime_for_handle(identity.handle)
-
-        if registration_status in {"claimed", "registered"}:
-            identity = mark_claimed(self._home, identity.handle)
-            return self._runtime_for_handle(identity.handle)
+            return runtime
 
         return self._runtime_for_handle(identity.handle)
 
@@ -184,14 +161,8 @@ class AuthsomeApiClient:
             status = await self.register_identity(identity.handle, identity.did)
 
         registration_status = status.get("registration_status", "registered")
-        if registration_status == "claim_required":
-            claim_url = status.get("claim_url")
-            if not claim_url:
-                status = await self.register_identity(identity.handle, identity.did)
-                claim_url = status.get("claim_url")
-            if claim_url:
-                self._open_claim_url(claim_url)
-            await self._poll_claim_completion(identity.handle)
+        if registration_status == "unknown":
+            await self.register_identity(identity.handle, identity.did)
         return identity
 
     def _open_claim_url(self, claim_url: str) -> None:

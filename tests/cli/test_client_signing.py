@@ -6,7 +6,7 @@ import pytest
 
 from authsome.cli.client import AuthsomeApiClient
 from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
-from authsome.identity import create_identity, mark_claimed, mark_registered
+from authsome.identity import create_identity, mark_registered
 from authsome.identity.local import identity_key_path, load_runtime_identity
 
 
@@ -118,9 +118,9 @@ async def test_resolve_credentials_request_is_signed(monkeypatch, tmp_path: Path
 @pytest.mark.asyncio
 async def test_registered_identity_skips_reregister_roundtrip(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    base_url = "http://127.0.0.1:7998"
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    mark_registered(tmp_path, identity.handle)
-    mark_claimed(tmp_path, identity.handle)
+    mark_registered(tmp_path, identity.handle, server_url=base_url)
     save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
     calls: list[tuple[str, str]] = []
 
@@ -133,9 +133,46 @@ async def test_registered_identity_skips_reregister_roundtrip(monkeypatch, tmp_p
 
     monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
 
-    await AuthsomeApiClient("http://127.0.0.1:7998").list_connections()
+    await AuthsomeApiClient(base_url).list_connections()
 
-    assert calls == [("GET", "http://127.0.0.1:7998/connections")]
+    assert calls == [("GET", "http://127.0.0.1:7998/api/connections")]
+
+
+@pytest.mark.asyncio
+async def test_registered_identity_registers_again_for_new_server(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    first_server = "http://127.0.0.1:7998"
+    second_server = "http://127.0.0.1:8998"
+    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    mark_registered(tmp_path, identity.handle, server_url=first_server)
+    save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
+    calls: list[tuple[str, str]] = []
+
+    def fake_request(method, url, data=None, headers=None, timeout=None):
+        calls.append((method, url))
+        response = Mock()
+        response.raise_for_status.return_value = None
+        if url.endswith("/api/identities/register"):
+            response.json.return_value = {
+                "identity": identity.handle,
+                "did": identity.did,
+                "registration_status": "claim_required",
+                "claim_url": f"{second_server}/claim?token=claim_123",
+            }
+        else:
+            response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
+        return response
+
+    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+
+    await AuthsomeApiClient(second_server).list_connections()
+    await AuthsomeApiClient(second_server).list_connections()
+
+    assert calls == [
+        ("POST", "http://127.0.0.1:8998/api/identities/register"),
+        ("GET", "http://127.0.0.1:8998/api/connections"),
+        ("GET", "http://127.0.0.1:8998/api/connections"),
+    ]
 
 
 @pytest.mark.asyncio
@@ -162,13 +199,13 @@ async def test_bootstrapped_identity_is_saved_as_active_profile(monkeypatch, tmp
 async def test_identity_env_override_wins_over_active_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
+    base_url = "http://127.0.0.1:7998"
     create_identity(tmp_path, "steady-wisely-boldly-0042")
     override_identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
-    mark_registered(tmp_path, override_identity.handle)
-    mark_claimed(tmp_path, override_identity.handle)
+    mark_registered(tmp_path, override_identity.handle, server_url=base_url)
     save_client_config(tmp_path, ClientConfig(active_identity="steady-wisely-boldly-0042"))
 
-    client = AuthsomeApiClient("http://127.0.0.1:7998")
+    client = AuthsomeApiClient(base_url)
     identity = await client.ensure_identity_ready()
 
     assert identity.handle == "rapid-brightly-firmly-0007"
@@ -243,7 +280,7 @@ async def test_start_login_bootstraps_identity_readiness(monkeypatch, tmp_path: 
     result = await client.start_login(provider="github")
 
     client.ensure_identity_ready.assert_not_awaited()
-    client._post.assert_awaited_once_with("/auth/sessions", {"provider": "github"})  # type: ignore[attr-defined]
+    client._post.assert_awaited_once_with("/api/auth/sessions", {"provider": "github"})  # type: ignore[attr-defined]
     assert result["id"] == "sess-123"
 
 
@@ -274,10 +311,11 @@ async def test_protected_request_bootstraps_identity_readiness(monkeypatch, tmp_
 
 
 @pytest.mark.asyncio
-async def test_status_check_marks_identity_claimed_and_skips_future_roundtrip(monkeypatch, tmp_path: Path) -> None:
+async def test_registered_server_cache_skips_future_registration_roundtrip(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    base_url = "http://127.0.0.1:7998"
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    mark_registered(tmp_path, identity.handle)
+    mark_registered(tmp_path, identity.handle, server_url=base_url)
     save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
     calls: list[tuple[str, str]] = []
 
@@ -285,25 +323,16 @@ async def test_status_check_marks_identity_claimed_and_skips_future_roundtrip(mo
         calls.append((method, url))
         response = Mock()
         response.raise_for_status.return_value = None
-        if url.endswith(f"/identities/{identity.handle}"):
-            response.json.return_value = {
-                "identity": identity.handle,
-                "did": identity.did,
-                "registration_status": "claimed",
-                "principal_id": "principal_123",
-            }
-        else:
-            response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
+        response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
     monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
 
-    client = AuthsomeApiClient("http://127.0.0.1:7998")
+    client = AuthsomeApiClient(base_url)
     await client.list_connections()
     await client.list_connections()
 
     assert calls == [
-        ("GET", f"http://127.0.0.1:7998/identities/{identity.handle}"),
-        ("GET", "http://127.0.0.1:7998/connections"),
-        ("GET", "http://127.0.0.1:7998/connections"),
+        ("GET", "http://127.0.0.1:7998/api/connections"),
+        ("GET", "http://127.0.0.1:7998/api/connections"),
     ]

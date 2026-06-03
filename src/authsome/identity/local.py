@@ -69,6 +69,7 @@ class IdentityMetadata(BaseModel):
     handle: str
     did: str
     identity_status: IdentityStatus = IdentityStatus.UNREGISTERED
+    registered_servers: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -79,6 +80,9 @@ class IdentityMetadata(BaseModel):
     @property
     def claimed(self) -> bool:
         return self.identity_status == IdentityStatus.CLAIMED
+
+    def registered_for(self, server_url: str) -> bool:
+        return normalize_server_url(server_url) in self.registered_servers
 
 
 # TODO: Storage of identities should be server property. The identities module should be stateless
@@ -129,6 +133,11 @@ def validate_handle(handle: str) -> str:
     if not _HANDLE_RE.match(handle):
         raise ValueError(f"Invalid identity handle: {handle}")
     return handle
+
+
+def normalize_server_url(server_url: str) -> str:
+    """Normalize daemon URLs before using them as local identity status keys."""
+    return server_url.rstrip("/") or server_url
 
 
 def public_key_to_did_key(public_key: Ed25519PublicKey) -> str:
@@ -281,13 +290,30 @@ def remove_legacy_default_identity(home: Path) -> None:
             pass
 
 
-def mark_registered(home: Path, handle: str) -> IdentityMetadata:
+def mark_registered(home: Path, handle: str, *, server_url: str | None = None) -> IdentityMetadata:
     """Persist a registered state for a local identity after daemon registration."""
     metadata = load_identity(home, handle)
+    registered_servers = list(metadata.registered_servers)
+    if server_url is not None:
+        normalized_server_url = normalize_server_url(server_url)
+        if normalized_server_url not in registered_servers:
+            registered_servers.append(normalized_server_url)
     if metadata.identity_status == IdentityStatus.CLAIMED:
-        return metadata
+        if registered_servers == metadata.registered_servers:
+            return metadata
+        updated = metadata.model_copy(
+            update={"registered_servers": registered_servers, "updated_at": datetime.now(UTC)}
+        )
+        identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
+        return updated
+    if server_url is None:
+        registered_servers = metadata.registered_servers
     updated = metadata.model_copy(
-        update={"identity_status": IdentityStatus.REGISTERED, "updated_at": datetime.now(UTC)}
+        update={
+            "identity_status": IdentityStatus.REGISTERED,
+            "registered_servers": registered_servers,
+            "updated_at": datetime.now(UTC),
+        }
     )
     identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
     return updated
