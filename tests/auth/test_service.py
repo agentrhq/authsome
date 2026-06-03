@@ -106,7 +106,7 @@ class TestAuthServiceRefreshLogs:
                 entries = await audit_log.list_events()
                 assert len(entries) == 1
                 entry = entries[0]
-                assert entry["event"] == "refresh_failed"
+                assert entry["event"] == "provider.refresh_failed"
                 assert entry["fallback_available"] is True
                 assert "API down" in entry["error"]
 
@@ -145,7 +145,7 @@ class TestAuthServiceRefreshLogs:
                 entries = await audit_log.list_events()
                 assert len(entries) == 1
                 entry = entries[0]
-                assert entry["event"] == "refresh_failed"
+                assert entry["event"] == "provider.refresh_failed"
                 assert entry["fallback_available"] is False
 
 

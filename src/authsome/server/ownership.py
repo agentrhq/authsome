@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from authsome import audit
 from authsome.identity.principal import ClaimStatus, PrincipalRole
 from authsome.server.store.repositories import (
     IdentityClaimRegistry,
@@ -111,4 +112,10 @@ class OwnershipResolver:
         principal = await self._principals.get(principal_id)
         if principal is None:
             raise ValueError(f"Principal '{principal_id}' not found")
+        audit.emit_event(
+            "identity.claimed",
+            identity=identity,
+            principal_id=principal_id,
+            status="success",
+        )
         return ResolvedOwnership(identity=identity, principal_id=principal_id, vault_id=vault_id, role=principal.role)

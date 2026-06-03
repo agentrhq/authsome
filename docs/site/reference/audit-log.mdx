@@ -28,7 +28,7 @@ Common fields included:
 | Field | Description |
 |-------|-------------|
 | `timestamp` | ISO-8601 UTC timestamp of the event. |
-| `event` | The event type (`login`, `logout`, `get`, `export`, `proxy_request`, `refresh_failed`, etc.) |
+| `event` | The event type (`provider.login`, `provider.login_failed`, `provider.refresh_failed`, `provider.revoked`, `identity.claimed`, etc.) |
 | `provider` | The external provider involved (e.g., `github`, `openai`). |
 | `connection` | The named connection used. |
 | `identity` | The Identity Handle making the call. |

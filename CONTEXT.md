@@ -124,7 +124,7 @@ Think of this as the daemon process. Wires identity + auth + vault + audit toget
 - `server/routes/` — HTTP API surface
 - `server/schemas.py` — API response schemas
 - `server/audit_store.py` — `SQLiteLogExporter` (OTel `LogExporter` impl) + `AuditStore` query interface; `LoggerProvider` lifecycle (setup at startup, shutdown at teardown)
-- `server/routes/audit.py` — `GET /audit/events` (filtered, paginated admin read)
+- `server/routes/audit.py` — `GET /audit/events` (admins see all events; other principals see only their own PrincipalId)
 - `POST /audit/events` — ingest endpoint for proxy-side external AuditEvents; server enriches `principal_id` from PoP JWT
 
 **All filesystem interaction for server-owned state lives here.** No other module writes to server-owned paths.

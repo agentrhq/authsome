@@ -40,7 +40,7 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
     app = create_app()
 
     with TestClient(app) as client:
-        owner_registration = client.post("/identities/register", json={"handle": owner.handle, "did": owner.did})
+        owner_registration = client.post("/api/identities/register", json={"handle": owner.handle, "did": owner.did})
         assert owner_registration.status_code == 200
         register_and_claim_identity(client, tmp_path, stranger.handle, email="stranger@example.com")
         session = asyncio.run(
@@ -54,11 +54,11 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
         )
 
         response = client.get(
-            f"/auth/sessions/{session.session_id}",
+            f"/api/auth/sessions/{session.session_id}",
             headers=_auth_header(
                 tmp_path,
                 "GET",
-                f"/auth/sessions/{session.session_id}",
+                f"/api/auth/sessions/{session.session_id}",
                 handle=stranger.handle,
             ),
         )
@@ -74,10 +74,10 @@ def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> N
     app = create_app()
 
     with TestClient(app) as client:
-        owner_registration = client.post("/identities/register", json={"handle": owner.handle, "did": owner.did})
+        owner_registration = client.post("/api/identities/register", json={"handle": owner.handle, "did": owner.did})
         assert owner_registration.status_code == 200
         stranger_registration = client.post(
-            "/identities/register",
+            "/api/identities/register",
             json={"handle": stranger.handle, "did": stranger.did},
         )
         assert stranger_registration.status_code == 200
@@ -92,12 +92,12 @@ def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> N
         )
 
         response = client.post(
-            f"/auth/sessions/{session.session_id}/resume",
+            f"/api/auth/sessions/{session.session_id}/resume",
             json={"data": {}},
             headers=_auth_header(
                 tmp_path,
                 "POST",
-                f"/auth/sessions/{session.session_id}/resume",
+                f"/api/auth/sessions/{session.session_id}/resume",
                 handle=stranger.handle,
             ),
         )
@@ -126,8 +126,8 @@ def test_sessions_do_not_survive_app_recreation(monkeypatch, tmp_path: Path) -> 
 
     with TestClient(create_app()) as second_client:
         response = second_client.get(
-            f"/auth/sessions/{session_id}",
-            headers=_auth_header(tmp_path, "GET", f"/auth/sessions/{session_id}", handle=owner.handle),
+            f"/api/auth/sessions/{session_id}",
+            headers=_auth_header(tmp_path, "GET", f"/api/auth/sessions/{session_id}", handle=owner.handle),
         )
 
     assert response.status_code == 404

@@ -98,12 +98,20 @@ class AuditEventRegistry:
                 ],
             )
 
-    async def list_recent(self, *, limit: int = 50) -> list[dict[str, Any]]:
+    async def list_recent(self, *, limit: int = 50, principal_id: str | None = None) -> list[dict[str, Any]]:
         bounded_limit = min(max(limit, 1), 500)
-        rows = await self._db.fetch_all(
-            "SELECT payload_json FROM audit_events ORDER BY timestamp DESC, event_id DESC LIMIT ?",
-            [bounded_limit],
-        )
+        if principal_id is None:
+            rows = await self._db.fetch_all(
+                "SELECT payload_json FROM audit_events ORDER BY timestamp DESC, event_id DESC LIMIT ?",
+                [bounded_limit],
+            )
+        else:
+            rows = await self._db.fetch_all(
+                "SELECT payload_json FROM audit_events "
+                "WHERE principal_id = ? "
+                "ORDER BY timestamp DESC, event_id DESC LIMIT ?",
+                [principal_id, bounded_limit],
+            )
         return [json.loads(row["payload_json"]) for row in rows]
 
     def configure_exporter(self, loop: asyncio.AbstractEventLoop | None = None) -> ServerAuditLog:
@@ -254,9 +262,9 @@ class ServerAuditLog:
         self._provider.force_flush()
         await self._exporter.async_force_flush()
 
-    async def list_events(self, *, limit: int = 50) -> list[dict[str, Any]]:
+    async def list_events(self, *, limit: int = 50, principal_id: str | None = None) -> list[dict[str, Any]]:
         await self.async_force_flush()
-        return await self._registry.list_recent(limit=limit)
+        return await self._registry.list_recent(limit=limit, principal_id=principal_id)
 
     def shutdown(self) -> None:
         self.force_flush()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from authsome import audit
 from authsome.identity.principal import ClaimStatus
 from authsome.identity.registry import IdentityRegistration
 from authsome.server.store.repositories import IdentityClaimRegistry, IdentityRegistry
@@ -58,7 +59,14 @@ class IdentityBootstrapService:
 
     async def register_identity(self, *, handle: str, did: str) -> IdentityBootstrapStatus:
         registration = await self._registry.register(handle=handle, did=did)
-        return await self._build_status(registration)
+        status = await self._build_status(registration)
+        audit.emit_event(
+            "identity.created",
+            identity=registration.handle,
+            principal_id=status.principal_id or None,
+            status=status.registration_status,
+        )
+        return status
 
     async def get_identity_status(self, *, handle: str) -> IdentityBootstrapStatus | None:
         registration = await self._registry.resolve(handle)

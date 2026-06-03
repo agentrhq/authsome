@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
 
@@ -14,11 +14,13 @@ from tests.server.test_pop_auth import _auth_header
 
 def _claim_identity(client: TestClient, tmp_path: Path, handle: str, *, email: str) -> None:
     identity = create_identity(tmp_path, handle)
-    response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
+    response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == 200
-    claim_path = urlparse(response.json()["claim_url"]).path
+    claim_url = urlparse(response.json()["claim_url"])
+    token = parse_qs(claim_url.query)["token"][0]
+    claim_path = f"/api/claim/{token}"
     registered = client.post(
-        "/auth/register",
+        "/api/auth/register",
         data={"email": email, "password": "password-1", "next": claim_path},
         follow_redirects=False,
     )
@@ -31,7 +33,7 @@ def test_audit_events_endpoint_returns_internal_events_for_admin(monkeypatch, tm
 
     with TestClient(create_app()) as client:
         _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="dev@example.com")
-        whoami = client.get("/whoami", headers=_auth_header(tmp_path, "GET", "/whoami")).json()
+        whoami = client.get("/api/whoami", headers=_auth_header(tmp_path, "GET", "/api/whoami")).json()
         emit_event(
             "login",
             identity="steady-wisely-boldly-0042",
@@ -40,8 +42,8 @@ def test_audit_events_endpoint_returns_internal_events_for_admin(monkeypatch, tm
         )
 
         response = client.get(
-            "/audit/events?limit=10",
-            headers=_auth_header(tmp_path, "GET", "/audit/events?limit=10"),
+            "/api/audit/events?limit=10",
+            headers=_auth_header(tmp_path, "GET", "/api/audit/events?limit=10"),
         )
 
     assert response.status_code == 200
@@ -60,16 +62,16 @@ def test_external_audit_post_is_enriched_from_pop_identity(monkeypatch, tmp_path
     with TestClient(create_app()) as client:
         _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="dev@example.com")
         posted = client.post(
-            "/audit/events",
+            "/api/audit/events",
             content=body,
             headers={
-                **_auth_header(tmp_path, "POST", "/audit/events", body=body),
+                **_auth_header(tmp_path, "POST", "/api/audit/events", body=body),
                 "Content-Type": "application/json",
             },
         )
         response = client.get(
-            "/audit/events?limit=10",
-            headers=_auth_header(tmp_path, "GET", "/audit/events?limit=10"),
+            "/api/audit/events?limit=10",
+            headers=_auth_header(tmp_path, "GET", "/api/audit/events?limit=10"),
         )
 
     assert posted.status_code == 200
@@ -82,16 +84,45 @@ def test_external_audit_post_is_enriched_from_pop_identity(monkeypatch, tmp_path
     assert entries[0]["reason"] == "no_match"
 
 
-def test_non_admin_user_cannot_query_audit_events(monkeypatch, tmp_path: Path) -> None:
+def test_admin_sees_all_audit_events_and_user_sees_only_own_principal(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with TestClient(create_app()) as client:
         _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
-        response = client.get(
-            "/audit/events",
-            headers=_auth_header(tmp_path, "GET", "/audit/events"),
+        admin_whoami = client.get(
+            "/api/whoami",
+            headers=_auth_header(tmp_path, "GET", "/api/whoami", handle="admin-ready-boldly-0001"),
+        ).json()
+        user_whoami = client.get("/api/whoami", headers=_auth_header(tmp_path, "GET", "/api/whoami")).json()
+        emit_event(
+            "admin_event",
+            identity="admin-ready-boldly-0001",
+            principal_id=admin_whoami["principal_id"],
+            provider="github",
+        )
+        emit_event(
+            "user_event",
+            identity="steady-wisely-boldly-0042",
+            principal_id=user_whoami["principal_id"],
+            provider="linear",
         )
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Admin role required"
+        admin_response = client.get(
+            "/api/audit/events?limit=20",
+            headers=_auth_header(tmp_path, "GET", "/api/audit/events?limit=20", handle="admin-ready-boldly-0001"),
+        )
+        user_response = client.get(
+            "/api/audit/events",
+            headers=_auth_header(tmp_path, "GET", "/api/audit/events"),
+        )
+
+    assert admin_response.status_code == 200
+    admin_events = {entry["event"] for entry in admin_response.json()["entries"]}
+    assert {"admin_event", "user_event"}.issubset(admin_events)
+
+    assert user_response.status_code == 200
+    user_entries = user_response.json()["entries"]
+    assert "user_event" in {entry["event"] for entry in user_entries}
+    assert "admin_event" not in {entry["event"] for entry in user_entries}
+    assert all(entry["principal_id"] == user_whoami["principal_id"] for entry in user_entries)

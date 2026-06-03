@@ -142,6 +142,15 @@ class CredentialService:
         self._require_admin("register", "register requires an admin principal", definition.name)
         self._validate_provider(definition)
         await self._providers.save_custom(definition, force=force)
+        audit.emit_event(
+            "provider.registered",
+            provider=definition.name,
+            identity=self._identity,
+            principal_id=self._principal_id,
+            status="success",
+            auth_type=definition.auth_type.value if definition.auth_type else None,
+            force=force,
+        )
         logger.info("Registered provider: {}", definition.name)
 
     def _require_admin(self, operation: str, message: str, provider: str) -> None:
@@ -296,6 +305,20 @@ class CredentialService:
         if existing is not None:
             await self.revoke(provider, vault_ids=vault_ids)
         await self._credentials.save_provider_client(updated)
+        audit.emit_event(
+            "provider.client_configured",
+            provider=provider,
+            identity=self._identity,
+            principal_id=self._principal_id,
+            status="success",
+            client_id_added=bool(updated.client_id and (existing is None or not existing.client_id)),
+            client_secret_added=bool(updated.client_secret and (existing is None or not existing.client_secret)),
+            client_id_changed=bool(existing is not None and existing.client_id != updated.client_id),
+            client_secret_changed=bool(existing is not None and existing.client_secret != updated.client_secret),
+            base_url_changed=bool(existing is not None and existing.base_url != updated.base_url),
+            api_url_changed=bool(existing is not None and existing.api_url != updated.api_url),
+            scopes_changed=bool(existing is not None and existing.scopes != updated.scopes),
+        )
         return True
 
     async def set_default_connection(self, provider: str, connection: str) -> None:
@@ -367,6 +390,18 @@ class CredentialService:
 
             if client_record is not None and inputs:
                 await self._credentials.save_provider_client(client_record)
+                audit.emit_event(
+                    "provider.client_configured",
+                    provider=provider,
+                    identity=self._identity,
+                    principal_id=self._principal_id,
+                    status="success",
+                    client_id_added=bool(inputs.get("client_id")),
+                    client_secret_added=bool(inputs.get("client_secret")),
+                    base_url_added=bool(inputs.get("base_url")),
+                    api_url_added=bool(inputs.get("api_url")),
+                    scopes_added="scopes" in inputs,
+                )
         elif flow_type == FlowType.API_KEY:
             api_key = inputs.get("api_key")
             if api_key:
@@ -438,15 +473,27 @@ class CredentialService:
         flow_base_url = session.payload.get("base_url") or (client_record.base_url if client_record else None)
         resolved_definition = definition.resolve_urls(flow_base_url)
 
-        result = await handler.resume(
-            provider=resolved_definition,
-            identity=self._identity,
-            connection_name=connection_name,
-            runtime_session=session,
-            callback_data=callback_data,
-            client_id=flow_client_id,
-            client_secret=flow_client_secret,
-        )
+        try:
+            result = await handler.resume(
+                provider=resolved_definition,
+                identity=self._identity,
+                connection_name=connection_name,
+                runtime_session=session,
+                callback_data=callback_data,
+                client_id=flow_client_id,
+                client_secret=flow_client_secret,
+            )
+        except Exception as exc:
+            audit.emit_event(
+                "provider.login_failed",
+                provider=provider,
+                connection=connection_name,
+                identity=self._identity,
+                principal_id=self._principal_id,
+                status="failure",
+                error=str(exc),
+            )
+            raise
 
         if result is None or result.connection is None:
             return None
@@ -459,6 +506,16 @@ class CredentialService:
             client_record.client_secret = result.client_record.client_secret
             client_record.base_url = result.client_record.base_url or client_record.base_url
             await self._credentials.save_provider_client(client_record)
+            audit.emit_event(
+                "provider.client_configured",
+                provider=provider,
+                identity=self._identity,
+                principal_id=self._principal_id,
+                status="success",
+                client_id_added=bool(result.client_record.client_id),
+                client_secret_added=bool(result.client_record.client_secret),
+                source_flow=flow_type.value,
+            )
 
         result.connection.base_url = flow_base_url
         result.connection.api_url = client_record.api_url if client_record and client_record.api_url else None
@@ -572,6 +629,7 @@ class CredentialService:
         self._require_admin("revoke", "revoke requires an admin principal", provider)
         await self.get_provider(provider)
         ids_to_revoke = vault_ids if vault_ids is not None else ([self._vault_id] if self._vault_id else [])
+        revoked_connections = 0
         for vault_id in ids_to_revoke:
             vault_service = self._for_vault(vault_id)
             credentials = vault_service._credentials
@@ -579,11 +637,22 @@ class CredentialService:
             if metadata is None:
                 continue
 
-            for conn_name in list(metadata.connection_names):
+            connection_names = list(metadata.connection_names)
+            for conn_name in connection_names:
                 await vault_service.logout(provider, connection=conn_name)
+            revoked_connections += len(connection_names)
             await credentials.delete_provider_metadata(provider)
 
         await self._credentials.delete_provider_client(provider)
+        audit.emit_event(
+            "provider.revoked",
+            provider=provider,
+            identity=self._identity,
+            principal_id=self._principal_id,
+            status="success",
+            vault_count=len(ids_to_revoke),
+            connection_count=revoked_connections,
+        )
 
     def _for_vault(self, vault_id: str) -> CredentialService:
         """Return a sibling service scoped to another vault of the same principal."""
@@ -754,11 +823,12 @@ class CredentialService:
                 except RefreshFailedError as exc:
                     fallback_available = record.expires_at and now < record.expires_at
                     audit.emit_event(
-                        "refresh_failed",
+                        "provider.refresh_failed",
                         provider=provider,
                         connection=connection,
                         identity=self._identity,
                         principal_id=self._principal_id,
+                        status="failure",
                         error=str(exc),
                         fallback_available=bool(fallback_available),
                     )

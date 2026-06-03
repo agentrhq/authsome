@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
 
@@ -11,14 +11,16 @@ from tests.server.test_pop_auth import _auth_header
 
 def _register_identity(client: TestClient, tmp_path: Path, handle: str, *, email: str = "dev@example.com") -> None:
     identity = create_identity(tmp_path, handle)
-    response = client.post("/identities/register", json={"handle": identity.handle, "did": identity.did})
+    response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == 200
     claim_url = response.json().get("claim_url")
     if claim_url:
-        claim_path = urlparse(claim_url).path
+        parsed = urlparse(claim_url)
+        token = parse_qs(parsed.query)["token"][0]
+        claim_path = f"/api/claim/{token}"
         assert client.get(claim_path).status_code == 200
         registered = client.post(
-            "/auth/register",
+            "/api/auth/register",
             data={"email": email, "password": "password-1", "next": claim_path},
             follow_redirects=False,
         )
@@ -38,8 +40,8 @@ def test_non_admin_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:
     with TestClient(create_app()) as client:
         _register_admin_then_user(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.post(
-            "/connections/github/revoke",
-            headers=_auth_header(tmp_path, "POST", "/connections/github/revoke"),
+            "/api/connections/github/revoke",
+            headers=_auth_header(tmp_path, "POST", "/api/connections/github/revoke"),
         )
 
     assert response.status_code == 403
@@ -52,8 +54,8 @@ def test_non_admin_remove_is_rejected(monkeypatch, tmp_path: Path) -> None:
     with TestClient(create_app()) as client:
         _register_admin_then_user(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.delete(
-            "/providers/github",
-            headers=_auth_header(tmp_path, "DELETE", "/providers/github"),
+            "/api/providers/github",
+            headers=_auth_header(tmp_path, "DELETE", "/api/providers/github"),
         )
 
     assert response.status_code == 403
@@ -76,10 +78,10 @@ def test_non_admin_register_provider_is_rejected(monkeypatch, tmp_path: Path) ->
     with TestClient(create_app()) as client:
         _register_admin_then_user(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.post(
-            "/providers",
+            "/api/providers",
             content=body,
             headers={
-                **_auth_header(tmp_path, "POST", "/providers", body=body),
+                **_auth_header(tmp_path, "POST", "/api/providers", body=body),
                 "Content-Type": "application/json",
             },
         )
@@ -104,10 +106,10 @@ def test_first_principal_admin_can_register_provider(monkeypatch, tmp_path: Path
     with TestClient(create_app()) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.post(
-            "/providers",
+            "/api/providers",
             content=body,
             headers={
-                **_auth_header(tmp_path, "POST", "/providers", body=body),
+                **_auth_header(tmp_path, "POST", "/api/providers", body=body),
                 "Content-Type": "application/json",
             },
         )

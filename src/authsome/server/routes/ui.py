@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from fastapi.responses import RedirectResponse
 
+from authsome import audit
 from authsome.auth.models.enums import FlowType
 from authsome.auth.sessions import AuthSessionStore
 from authsome.server.analytics import capture_event
@@ -259,11 +260,13 @@ async def login_account(
     try:
         session = await request.app.state.account_auth_service.login(email=email, password=password)
     except ValueError as exc:
+        audit.emit_event("account.login_failed", status="failure", reason="invalid_credentials")
         return RedirectResponse(
             url=f"/login?{urlencode({'next': next_url, 'error': str(exc), 'tab': 'login'})}",
             status_code=303,
         )
 
+    audit.emit_event("account.login", principal_id=session.principal_id, status="success")
     capture_event(session.email, "account_logged_in", {"principal_id": session.principal_id})
     response = RedirectResponse(url=next_url, status_code=303)
     _set_ui_session_cookie(response, session.token, ui_sessions, server_base_url)
