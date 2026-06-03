@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from authsome.server.analytics import capture_event
+from authsome.server.credential_service import CredentialService
+from authsome.server.routes._deps import get_daemon_or_browser_auth_service
 from authsome.server.store.repositories import IdentityRegistrationError
 
 router = APIRouter(prefix="/identities", tags=["identities"])
@@ -14,6 +16,24 @@ router = APIRouter(prefix="/identities", tags=["identities"])
 class RegisterIdentityRequest(BaseModel):
     handle: str
     did: str
+
+
+@router.get("")
+@router.get("/")
+async def list_identities(
+    request: Request,
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
+) -> dict[str, list[dict[str, str]]]:
+    claims = await request.app.state.store.identity_claims.list_for_principal(auth.principal_id)
+    return {
+        "identities": [
+            {
+                "handle": claim.identity_handle,
+                "status": claim.claim_status.value,
+            }
+            for claim in claims
+        ]
+    }
 
 
 @router.post("/register")

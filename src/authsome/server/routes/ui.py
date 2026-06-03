@@ -7,10 +7,11 @@ from typing import Any
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 
 from authsome.auth.models.enums import FlowType
 from authsome.auth.sessions import AuthSessionStore
+from authsome.server.analytics import capture_event
 from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
@@ -25,7 +26,6 @@ from authsome.server.routes._deps import (
 from authsome.server.schemas import UiBootstrapResponse
 from authsome.server.ui_sessions import UiSessionStore
 from authsome.server.urls import build_auth_input_url, build_callback_url, build_device_url
-from authsome.server.web_pages import pages
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
@@ -65,15 +65,8 @@ def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitabl
     return dependency
 
 
-def _ui_session_expired_response(status_code: int = 401) -> HTMLResponse:
-    return HTMLResponse(
-        pages.message_page("Dashboard session expired", "Open the dashboard again to continue."),
-        status_code=status_code,
-    )
-
-
 def _account_auth_entry_url(next_url: str = "/") -> str:
-    return f"/?{urlencode({'next': _account_auth_next_url(next_url)})}"
+    return f"/login?{urlencode({'next': _account_auth_next_url(next_url)})}"
 
 
 def _ui_cookie_secure(server_base_url: str) -> bool:
@@ -105,34 +98,6 @@ def _account_auth_next_url(value: Any) -> str:
     if not next_url.startswith("/") or next_url.startswith("//"):
         return "/"
     return next_url
-
-
-def _pending_claim_for_next_url(ui_sessions: UiSessionStore, next_url: str):
-    if not next_url.startswith("/claim/"):
-        raise KeyError("Account auth request is not tied to a pending claim")
-    token = next_url.rstrip("/").rsplit("/", 1)[-1]
-    return ui_sessions.get_pending_claim(token)
-
-
-def _account_auth_page_response(
-    ui_sessions: UiSessionStore,
-    *,
-    next_url: str,
-    error: str | None = None,
-    active_tab: str = "login",
-) -> HTMLResponse:
-    next_url = _account_auth_next_url(next_url)
-    if next_url.startswith("/claim/"):
-        pending = _pending_claim_for_next_url(ui_sessions, next_url)
-        page = pages.account_claim_auth_page(
-            token=pending.token,
-            identity=pending.identity,
-            error=error,
-            active_tab=active_tab,
-        )
-    else:
-        page = pages.account_auth_page(next_url=next_url, error=error, active_tab=active_tab)
-    return HTMLResponse(page, status_code=400 if error else 200)
 
 
 @router.post("/auth/providers/{provider_name}/connect", include_in_schema=False)
@@ -218,6 +183,15 @@ async def logout_ui_session(
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
     if cookie_value:
         try:
+            browser_session = ui_sessions.get_browser_session(cookie_value)
+            capture_event(
+                browser_session.email,
+                "account_logged_out",
+                {"principal_id": browser_session.principal_id},
+            )
+        except KeyError:
+            pass
+        try:
             ui_sessions.delete_browser_session(cookie_value)
         except KeyError:
             pass
@@ -225,23 +199,25 @@ async def logout_ui_session(
     return response
 
 
-@router.get("/claim/{token}", include_in_schema=False, response_class=HTMLResponse)
+@router.get("/claim/{token}", include_in_schema=False)
 async def claim_identity_page(
     token: str,
     request: Request,
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
-) -> HTMLResponse:
+) -> dict[str, str | bool]:
     try:
         pending = ui_sessions.get_pending_claim(token)
     except KeyError:
-        return _ui_session_expired_response(status_code=404)
+        return {"token": token, "identity": "", "authenticated": False, "expired": True}
 
     await resolve_ui_request_identity(request)
-    if getattr(request.state, "ui_principal_id", None) is None:
-        return HTMLResponse(pages.account_claim_auth_page(token=token, identity=pending.identity))
-
-    email = getattr(request.state, "ui_email", None) or "this account"
-    return HTMLResponse(pages.account_claim_confirm_page(token=token, identity=pending.identity, email=email))
+    return {
+        "token": token,
+        "identity": pending.identity,
+        "authenticated": getattr(request.state, "ui_principal_id", None) is not None,
+        "email": getattr(request.state, "ui_email", None) or "",
+        "expired": False,
+    }
 
 
 @router.post("/auth/register", include_in_schema=False)
@@ -258,11 +234,12 @@ async def register_account(
     try:
         session = await request.app.state.account_auth_service.register_and_login(email=email, password=password)
     except ValueError as exc:
-        try:
-            return _account_auth_page_response(ui_sessions, next_url=next_url, error=str(exc), active_tab="register")
-        except KeyError:
-            return _ui_session_expired_response(status_code=404)
+        return RedirectResponse(
+            url=f"/login?{urlencode({'next': next_url, 'error': str(exc), 'tab': 'register'})}",
+            status_code=303,
+        )
 
+    capture_event(session.email, "account_registered", {"principal_id": session.principal_id})
     response = RedirectResponse(url=next_url, status_code=303)
     _set_ui_session_cookie(response, session.token, ui_sessions, server_base_url)
     return response
@@ -282,11 +259,12 @@ async def login_account(
     try:
         session = await request.app.state.account_auth_service.login(email=email, password=password)
     except ValueError as exc:
-        try:
-            return _account_auth_page_response(ui_sessions, next_url=next_url, error=str(exc), active_tab="login")
-        except KeyError:
-            return _ui_session_expired_response(status_code=404)
+        return RedirectResponse(
+            url=f"/login?{urlencode({'next': next_url, 'error': str(exc), 'tab': 'login'})}",
+            status_code=303,
+        )
 
+    capture_event(session.email, "account_logged_in", {"principal_id": session.principal_id})
     response = RedirectResponse(url=next_url, status_code=303)
     _set_ui_session_cookie(response, session.token, ui_sessions, server_base_url)
     return response
@@ -301,12 +279,12 @@ async def claim_identity_confirm(
     try:
         pending = ui_sessions.get_pending_claim(token)
     except KeyError:
-        return _ui_session_expired_response(status_code=404)
+        return RedirectResponse(url=f"/claim?{urlencode({'token': token, 'error': 'expired'})}", status_code=303)
 
     await resolve_ui_request_identity(request)
     principal_id = getattr(request.state, "ui_principal_id", None)
     if not principal_id:
-        return _ui_session_expired_response(status_code=401)
+        return RedirectResponse(url=f"/login?{urlencode({'next': f'/claim?token={token}'})}", status_code=303)
 
     pending = ui_sessions.consume_pending_claim(token)
     await request.app.state.ownership_resolver.claim_identity_for_principal(
@@ -314,4 +292,5 @@ async def claim_identity_confirm(
         principal_id=principal_id,
     )
     request.app.state.ownership_cache.pop(pending.identity, None)
+    capture_event(pending.identity, "identity_claimed", {"principal_id": principal_id})
     return RedirectResponse(url="/", status_code=303)

@@ -81,6 +81,13 @@ type WhoamiResponse = {
   vault_id?: string;
 };
 
+type IdentitiesResponse = {
+  identities: Array<{
+    handle: string;
+    status?: string;
+  }>;
+};
+
 type ConnectionSummary = {
   connection_name: string;
   auth_type?: string;
@@ -112,6 +119,50 @@ type ConnectionsResponse = {
 
 type AuditResponse = {
   entries: Array<Record<string, unknown>>;
+};
+
+export type ClaimStatus = {
+  token: string;
+  identity: string;
+  authenticated: boolean;
+  email?: string;
+  expired: boolean;
+};
+
+export type SessionInputField = {
+  name: string;
+  label: string;
+  secret: boolean;
+  default?: string | null;
+  pattern?: string | null;
+  pattern_hint?: string | null;
+};
+
+export type SessionInputData = {
+  session_id: string;
+  provider: string;
+  display_name: string;
+  docs_url?: string | null;
+  fields: SessionInputField[];
+  callback_url?: string | null;
+  warning?: string | null;
+};
+
+export type SessionDeviceData = {
+  session_id: string;
+  display_name: string;
+  user_code: string;
+  verification_uri: string;
+  verification_uri_complete?: string | null;
+};
+
+export type AuthSessionStatus = {
+  id: string;
+  provider: string;
+  connection: string;
+  status: string;
+  message?: string | null;
+  error?: string | null;
 };
 
 export class ApiError extends Error {
@@ -285,15 +336,21 @@ function roleLabel(role: string | undefined): string | null {
 }
 
 export async function fetchDashboard(): Promise<DashboardData> {
-  const [whoami, connectionsData] = await Promise.all([
-    requestJson<WhoamiResponse>("/whoami"),
-    requestJson<ConnectionsResponse>("/connections"),
+  const [whoami, identitiesData, connectionsData] = await Promise.all([
+    requestJson<WhoamiResponse>("/api/whoami"),
+    requestJson<IdentitiesResponse>("/api/identities"),
+    requestJson<ConnectionsResponse>("/api/connections"),
   ]);
   const isAdmin = whoami.principal_role === "admin";
-  const audit = isAdmin ? await requestJson<AuditResponse>("/audit/events?limit=100") : { entries: [] };
+  const audit = isAdmin ? await requestJson<AuditResponse>("/api/audit/events?limit=100") : { entries: [] };
   const providers = buildProviders(connectionsData);
   const connections = buildConnectionRows(connectionsData, providers);
   const connectedProviders = providers.filter((provider) => provider.status !== "available");
+  const activeIdentity = whoami.identity || whoami.active_identity || null;
+  const identityHandles = new Set(identitiesData.identities.map((identity) => identity.handle));
+  if (activeIdentity) {
+    identityHandles.add(activeIdentity);
+  }
 
   return {
     version: whoami.version,
@@ -302,7 +359,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
       roleLabel: roleLabel(whoami.principal_role),
       isAdmin,
       principalId: whoami.principal_id || null,
-      identity: whoami.identity || whoami.active_identity || null,
+      identity: activeIdentity,
     },
     stats: {
       connected: connectedProviders.length,
@@ -314,7 +371,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
     providers,
     connectedProviders: connectedProviders.slice(0, 6),
     connections,
-    identities: whoami.identity ? [{ handle: whoami.identity, isActive: true }] : [],
+    identities: Array.from(identityHandles, (handle) => ({ handle, isActive: handle === activeIdentity })),
     vault: {
       vaultId: whoami.vault_id || null,
       handle: "default",
@@ -326,4 +383,20 @@ export async function fetchDashboard(): Promise<DashboardData> {
       events: buildAuditRows(audit.entries),
     },
   };
+}
+
+export async function fetchClaimStatus(token: string): Promise<ClaimStatus> {
+  return requestJson<ClaimStatus>(`/api/claim/${encodeURIComponent(token)}`);
+}
+
+export async function fetchSessionInput(sessionId: string): Promise<SessionInputData> {
+  return requestJson<SessionInputData>(`/api/auth/sessions/${encodeURIComponent(sessionId)}/input`);
+}
+
+export async function fetchSessionDevice(sessionId: string): Promise<SessionDeviceData> {
+  return requestJson<SessionDeviceData>(`/api/auth/sessions/${encodeURIComponent(sessionId)}/device`);
+}
+
+export async function fetchAuthSessionStatus(sessionId: string): Promise<AuthSessionStatus> {
+  return requestJson<AuthSessionStatus>(`/api/auth/sessions/${encodeURIComponent(sessionId)}/status`);
 }

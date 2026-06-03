@@ -1,0 +1,35 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#0A0A0A"/>
+  <path
+    fill="url(#authsome-logo-grad)"
+    d="
+      M 114.111 343.245
+      L 211 164
+      A 42 42 0 0 1 228 148
+      L 273 128
+      A 19 19 0 0 1 298 137
+      L 399 349
+      A 6 6 0 0 1 394 357
+      L 385 357
+      C 360 357 337 356 324.934 337
+      L 263 207
+      A 8 8 0 0 0 249 207
+      L 219.731 261.147
+      A 6 6 0 0 0 225.01 270
+      L 254 270
+      A 8 8 0 0 1 262 277
+      L 262 290
+      A 17 17 0 0 1 253 304
+      L 176 350
+      A 58 22 0 0 1 140 358
+      L 122.908 358
+      A 10 10 0 0 1 114.111 343.245
+      Z"
+  />
+  <defs>
+    <linearGradient id="authsome-logo-grad" x1="255" y1="127" x2="255" y2="358" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E1FB64"/>
+      <stop offset="1" stop-color="#7CA750"/>
+    </linearGradient>
+  </defs>
+</svg>

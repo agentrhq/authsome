@@ -26,6 +26,7 @@ from authsome.server.urls import DEFAULT_SERVER_BASE_URL
 
 DEFAULT_DAEMON_URL = DEFAULT_SERVER_BASE_URL
 IDENTITY_OVERRIDE_ENV = "AUTHSOME_IDENTITY"
+API_PREFIX = "/api"
 
 
 def resolve_daemon_url(env: Mapping[str, str] | None = None) -> str:
@@ -224,62 +225,62 @@ class AuthsomeApiClient:
         return await self._request("DELETE", path, timeout=30, protected=protected)
 
     async def health(self) -> dict[str, Any]:
-        return await self._get("/health", protected=False)
+        return await self._get(f"{API_PREFIX}/health", protected=False)
 
     async def ready(self) -> dict[str, Any]:
-        return await self._get("/ready")
+        return await self._get(f"{API_PREFIX}/ready")
 
     async def start_login(self, **kwargs: Any) -> dict[str, Any]:
-        return await self._post("/auth/sessions", kwargs)
+        return await self._post(f"{API_PREFIX}/auth/sessions", kwargs)
 
     async def get_session(self, session_id: str) -> dict[str, Any]:
-        return await self._get(f"/auth/sessions/{session_id}")
+        return await self._get(f"{API_PREFIX}/auth/sessions/{session_id}")
 
     async def resume_login_session(self, session_id: str, **kwargs: Any) -> dict[str, Any]:
-        return await self._post(f"/auth/sessions/{session_id}/resume", {"data": kwargs})
+        return await self._post(f"{API_PREFIX}/auth/sessions/{session_id}/resume", {"data": kwargs})
 
     async def list_connections(self) -> dict[str, Any]:
-        return await self._get("/connections")
+        return await self._get(f"{API_PREFIX}/connections")
 
     async def get_connection(self, provider: str, connection_name: str = "default") -> dict[str, Any]:
-        return await self._get(f"/connections/{provider}/{connection_name}")
+        return await self._get(f"{API_PREFIX}/connections/{provider}/{connection_name}")
 
     async def logout(self, provider: str, connection_name: str = "default") -> None:
-        await self._post(f"/connections/{provider}/{connection_name}/logout")
+        await self._post(f"{API_PREFIX}/connections/{provider}/{connection_name}/logout")
 
     async def revoke(self, provider: str) -> None:
-        await self._post(f"/connections/{provider}/revoke")
+        await self._post(f"{API_PREFIX}/connections/{provider}/revoke")
 
     async def set_default_connection(self, provider: str, connection_name: str) -> None:
-        await self._post(f"/connections/{provider}/{connection_name}/default")
+        await self._post(f"{API_PREFIX}/connections/{provider}/{connection_name}/default")
 
     async def get_provider(self, provider: str) -> dict[str, Any]:
-        return await self._get(f"/providers/{provider}")
+        return await self._get(f"{API_PREFIX}/providers/{provider}")
 
     async def register_provider(self, definition_dict: dict[str, Any], force: bool = False) -> None:
-        await self._post("/providers", {"definition": definition_dict, "force": force})
+        await self._post(f"{API_PREFIX}/providers", {"definition": definition_dict, "force": force})
 
     async def list_audit_events(self, *, limit: int = 50) -> dict[str, Any]:
-        return await self._get(f"/audit/events?limit={limit}")
+        return await self._get(f"{API_PREFIX}/audit/events?limit={limit}")
 
     async def record_audit_event(self, event: dict[str, Any]) -> None:
-        await self._post("/audit/events", {"event": event})
+        await self._post(f"{API_PREFIX}/audit/events", {"event": event})
 
     async def register_identity(self, handle: str, did: str) -> dict[str, Any]:
-        return await self._post("/identities/register", {"handle": handle, "did": did}, protected=False)
+        return await self._post(f"{API_PREFIX}/identities/register", {"handle": handle, "did": did}, protected=False)
 
     async def get_identity_status(self, handle: str) -> dict[str, Any]:
-        return await self._get(f"/identities/{handle}", protected=False)
+        return await self._get(f"{API_PREFIX}/identities/{handle}", protected=False)
 
     async def remove(self, provider: str) -> None:
-        await self._delete(f"/providers/{provider}")
+        await self._delete(f"{API_PREFIX}/providers/{provider}")
 
     async def list_providers_by_source(self) -> dict[str, Any]:
-        return await self._get("/providers")
+        return await self._get(f"{API_PREFIX}/providers")
 
     async def export(self, provider: str | None = None, connection_name: str = "default", format: str = "env") -> str:
         result = await self._post(
-            "/credentials/export",
+            f"{API_PREFIX}/credentials/export",
             {"provider": provider, "connection": connection_name, "format": format},
         )
         return result["output"]
@@ -291,17 +292,17 @@ class AuthsomeApiClient:
         the daemon merely projects its connections/providers into the
         requested view.
         """
-        return await self._get(f"/proxy/routes?scope={scope}")
+        return await self._get(f"{API_PREFIX}/proxy/routes?scope={scope}")
 
     async def resolve_credentials(self, **kwargs: Any) -> dict[str, Any]:
         """Resolve proxy credentials from a PoP-protected daemon endpoint."""
-        return await self._post("/credentials/resolve", kwargs)
+        return await self._post(f"{API_PREFIX}/credentials/resolve", kwargs)
 
     async def whoami(self) -> dict[str, Any]:
-        return await self._get("/whoami")
+        return await self._get(f"{API_PREFIX}/whoami")
 
     async def doctor(self) -> dict[str, Any]:
         return await self.ready()
 
     async def start_ui_session(self) -> dict[str, Any]:
-        return await self._post("/session")
+        return await self._post(f"{API_PREFIX}/session")

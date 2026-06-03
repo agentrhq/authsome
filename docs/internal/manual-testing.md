@@ -1,6 +1,6 @@
 # Manual Testing Guide
 
-This guide walks through the full CLI surface. Run these after any significant change to verify that commands, flows, and output work end-to-end.
+This guide walks through the full CLI and UI surface. Run these after any significant change to verify that commands, flows, and output work end-to-end.
 
 > **Output is always JSON.** Every command prints a JSON object wrapped as `{"v": 1, ...}` to stdout. There is no `--json` flag and no human-readable table mode. `--quiet` suppresses non-essential stderr messages only; it does not change the JSON on stdout.
 
@@ -10,6 +10,13 @@ This guide walks through the full CLI surface. Run these after any significant c
 uv pip install -e ".[dev]"
 uv run authsome --version
 ```
+
+> **Always point at localhost with an isolated home.** Every command in this guide must run against the local daemon and use a throwaway home directory so tests never touch your real credentials:
+>
+> ```bash
+> export AUTHSOME_HOME=/tmp/authsome-test
+> export AUTHSOME_DAEMON_URL=http://127.0.0.1:7998
+> ```
 
 > **Note on reset:** `rm -rf ~/.authsome` clears local state but does **not** stop a running daemon. If you reset while the daemon is running, `daemon stop` will say "No managed daemon record was found" and leave the process alive. Kill it manually first: `kill $(lsof -ti :7998)`, then reset.
 
@@ -67,7 +74,7 @@ uv run authsome login resend
 **Human action:**
 1. Open the printed `auth_url` in a browser (it opens automatically if a browser is available)
 2. Paste your Resend API key into the field and click **Submit**
-3. The browser confirms success
+3. The browser confirms success and redirects to the connections page
 
 ```bash
 uv run authsome provider list
@@ -101,7 +108,25 @@ uv run authsome provider list
 
 ---
 
-## 4. Login — Device Code (headless)
+## 4. Login — OAuth2 DCR-PKCE (Notion)
+
+**Prerequisite (human):** A Notion account.
+
+```bash
+uv run authsome login notion_dcr
+```
+
+**Expected:** JSON with `status: "started"` and an `auth_url`. The URL opens in a browser automatically. The flow performs Dynamic Client Registration before the OAuth redirect.
+
+```bash
+uv run authsome provider list
+```
+
+**Expected:** `notion_dcr` shows a connection with `status: "connected"`.
+
+---
+
+## 5. Login — Device Code (headless)
 
 **Prerequisite (human):** A GitHub account. No OAuth App needed — uses GitHub's public device code flow.
 
@@ -125,7 +150,25 @@ uv run authsome provider list
 
 ---
 
-## 5. Provider List
+## 6. Login — Browser Cookie Flow (LinkedIn)
+
+**Prerequisite (human):** A LinkedIn account already logged in to Chrome.
+
+```bash
+uv run authsome login linkedin-browser
+```
+
+**Expected:** The CLI reads Chrome's cookie database. If valid session cookies are found, login completes without opening a browser; otherwise a browser window opens to the LinkedIn login page and the CLI polls until cookies appear.
+
+```bash
+uv run authsome provider list
+```
+
+**Expected:** `linkedin-browser` shows a connection with `status: "connected"`.
+
+---
+
+## 7. Provider List
 
 ```bash
 uv run authsome provider list
@@ -135,7 +178,7 @@ uv run authsome provider list
 
 ---
 
-## 6. Connection Inspect
+## 8. Connection Inspect
 
 ```bash
 uv run authsome connections inspect github
@@ -163,7 +206,7 @@ uv run authsome connections inspect github --connection default
 
 ---
 
-## 7. Provider Inspect
+## 9. Provider Inspect
 
 ```bash
 uv run authsome provider inspect github
@@ -179,7 +222,7 @@ uv run authsome provider inspect resend
 
 ---
 
-## 8. Proxy Run
+## 10. Proxy Run
 
 **Prerequisite:** `github` must be connected (complete §3 first).
 
@@ -192,29 +235,17 @@ uv run authsome run --quiet curl -s https://api.github.com/user
 
 ---
 
-## 9. Log
+## 11. Log
 
 ```bash
 uv run authsome log
 ```
 
-**Expected:** JSON with `v`, `log_file` path, and an `entries` array of parsed audit event objects (each with `timestamp`, `event`, `provider`, `status`). Empty `entries` on a fresh install.
-
-```bash
-uv run authsome log -n 5
-```
-
-**Expected:** Same shape, limited to the last 5 audit entries.
-
-```bash
-uv run authsome log --raw -n 10
-```
-
-**Expected:** JSON with `log_file` and an `entries` array containing the last 10 raw client debug log lines (loguru format).
+**Expected:** JSON with `v`, `log_file` path, and an `entries` array of parsed audit event objects (each with `timestamp`, `event`, `provider`, `status`). The audit log is backed by SQLite. Empty `entries` on a fresh install.
 
 ---
 
-## 10. Connection Management
+## 12. Connection Management
 
 ```bash
 uv run authsome connections set-default github default
@@ -224,7 +255,7 @@ uv run authsome connections set-default github default
 
 ---
 
-## 11. Custom Provider Registration
+## 13. Custom Provider Registration
 
 ```bash
 cat > /tmp/test-provider.json << 'EOF'
@@ -257,13 +288,6 @@ uv run authsome provider list   # then look for the test-custom entry under "cus
 **Expected:** `test-custom` appears in the `custom` array with an empty `connections` array.
 
 ```bash
-# Register again with --force to overwrite, and --yes to skip the confirmation prompt
-uv run authsome provider register /tmp/test-provider.json --force --yes
-```
-
-**Expected:** Re-registers without error; `status: "registered"`.
-
-```bash
 uv run authsome provider remove test-custom
 ```
 
@@ -277,7 +301,7 @@ uv run authsome provider list   # confirm test-custom is gone from "custom"
 
 ---
 
-## 12. Logout and Revoke
+## 14. Logout and Revoke
 
 ```bash
 # Logout removes the local connection record only
@@ -296,25 +320,7 @@ uv run authsome provider list   # github connection gone
 
 ---
 
-## 13. Scan (env import)
-
-```bash
-# Report drift between env vars and stored connections (does not modify state)
-uv run authsome scan
-```
-
-**Expected:** JSON with `connection`, `import: false`, `configured_count`, `imported_count: 0`, and a `results` array describing per-provider drift status (`env_only`, `authsome_only`, `env_and_authsome_match`, `both_missing`, etc.). `scan` rejects `--quiet`.
-
-```bash
-# Import detected API keys from env without prompting
-uv run authsome scan --import
-```
-
-**Expected:** `import: true` with `imported_count` reflecting newly imported keys; matching keys are reported as `skipped_unchanged`.
-
----
-
-## 14. Profiles
+## 15. Profiles
 
 ```bash
 uv run authsome profile create --handle work
@@ -331,7 +337,7 @@ uv run authsome whoami   # profile reflects "work" (claim required on first use)
 
 ---
 
-## 15. Daemon
+## 16. Daemon
 
 ```bash
 uv run authsome daemon status
@@ -362,9 +368,50 @@ uv run authsome daemon logs -n 20
 
 **Expected:** `restart` → `{"status": "restarted", ...}`; `logs` → JSON with `log_file` and the last 20 daemon log lines.
 
+```bash
+# Foreground mode — use a separate terminal; Ctrl-C to stop
+uv run authsome daemon serve
+```
+
+**Expected:** The daemon starts in the foreground; log lines stream to stdout. No JSON response.
+
+### Idempotency
+
+```bash
+# Starting an already-running daemon
+uv run authsome daemon start
+```
+
+**Expected:** `{"status": "already_running", "message": "..."}` — no second process spawned.
+
+```bash
+# Stopping when nothing is running
+uv run authsome daemon stop
+uv run authsome daemon stop
+```
+
+**Expected (second stop):** `{"status": "not_stopped", "message": "..."}` — no error.
+
 ---
 
-## 16. Global Flags
+## 17. Dashboard UI
+
+The dashboard is a Next.js static app served by the daemon at `http://127.0.0.1:7998/`.
+
+Open `http://127.0.0.1:7998/` in a browser.
+
+**Human action:**
+1. Register with a new email + password (the first account becomes admin) or log in with an existing account.
+2. Connect a provider using the **Connect** button:
+   - API-key provider: paste the key and submit — should land on the connections page showing `connected`
+   - OAuth provider: complete the browser redirect — on callback the UI should redirect back to the connections page
+   - Device-code provider: the device code page shows the user code and verification URL
+3. Verify the post-login redirect: after any successful connect the browser lands on the connections page (not the success message page).
+4. Click **Logout** — the UI redirects back to the login page and the session cookie is cleared.
+
+---
+
+## 18. Global Flags
 
 ```bash
 # Quiet: suppress non-essential stderr messages (JSON stdout unchanged)
@@ -389,7 +436,7 @@ uv run authsome --verbose connections inspect github
 
 ---
 
-## 17. Error Handling
+## 19. Error Handling
 
 ```bash
 # Non-existent provider
@@ -415,7 +462,7 @@ uv run authsome logout doesnotexist 2>&1; echo "exit: $?"
 uv run authsome connections inspect 2>&1; echo "exit: $?"
 ```
 
-**Expected:** Usage error, exit code `2`.
+**Expected:** Click usage error, exit code `2`.
 
 ```bash
 # Inspect a disconnected provider
@@ -424,6 +471,20 @@ uv run authsome connections inspect resend 2>&1; echo "exit: $?"
 ```
 
 **Expected:** `ConnectionNotFoundError`, exit code `3`.
+
+### Exit code reference
+
+| Code | Exception |
+|------|-----------|
+| 1 | Generic / unclassified error |
+| 2 | `AuthenticationFailedError`, `InputCancelledError` |
+| 3 | `ConnectionNotFoundError` |
+| 4 | `ProviderNotFoundError`, `OperationNotAllowedError` |
+| 5 | `CredentialMissingError`, `TokenExpiredError`, `RefreshFailedError` |
+| 6 | `ConnectionAlreadyExistsError` |
+| 7 | `ProviderAlreadyRegisteredError` |
+| 8 | `EndpointUnreachableError` |
+| 9 | `DaemonUnavailableError` |
 
 ---
 

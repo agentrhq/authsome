@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from importlib.resources import files
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from authsome.auth.sessions import AuthSessionStore
@@ -24,6 +24,7 @@ from authsome.server.dependencies import (
 )
 from authsome.server.provider_repository import ProviderRepository
 from authsome.server.routes.audit import router as audit_router
+from authsome.server.routes.auth import browser_router as auth_browser_router
 from authsome.server.routes.auth import router as auth_router
 from authsome.server.routes.connections import router as connections_router
 from authsome.server.routes.health import router as health_router
@@ -96,14 +97,19 @@ def create_app() -> FastAPI:
     def ui_auth_required_handler(request: Request, exc: UiAuthRequiredError):
         return exc.response
 
-    app.include_router(health_router)
-    app.include_router(identities_router)
-    app.include_router(audit_router)
-    app.include_router(auth_router)
-    app.include_router(connections_router)
-    app.include_router(providers_router)
-    app.include_router(proxy_router)
-    app.include_router(ui_router)
+    @app.get("/claim/{token}", include_in_schema=False)
+    def claim_page_redirect(token: str) -> RedirectResponse:
+        return RedirectResponse(url=f"/claim?token={token}", status_code=307)
+
+    app.include_router(auth_browser_router)
+    app.include_router(health_router, prefix="/api")
+    app.include_router(identities_router, prefix="/api")
+    app.include_router(audit_router, prefix="/api")
+    app.include_router(auth_router, prefix="/api")
+    app.include_router(connections_router, prefix="/api")
+    app.include_router(providers_router, prefix="/api")
+    app.include_router(proxy_router, prefix="/api")
+    app.include_router(ui_router, prefix="/api")
 
     ui_dir = files("authsome.ui").joinpath("web")
     app.mount("/", StaticFiles(directory=str(ui_dir), html=True, check_dir=False), name="ui")

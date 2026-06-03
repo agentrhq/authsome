@@ -74,7 +74,7 @@ class IdentityBootstrapService:
                 identity=registration.handle,
                 did=registration.did,
                 registration_status="claim_required",
-                claim_url=f"{self._server_base_url}/claim/{pending.token}",
+                claim_url=f"{self._server_base_url}/claim?token={pending.token}",
             )
         if claim.claim_status == ClaimStatus.ACCEPTED:
             return IdentityBootstrapStatus(

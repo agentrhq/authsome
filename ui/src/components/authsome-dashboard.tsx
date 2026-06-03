@@ -2,28 +2,38 @@
 
 import {
   AppWindow,
+  BookOpen,
   CheckCircle2,
   CircleAlert,
   ClipboardList,
   Database,
-  ExternalLink,
   GitBranch,
   KeyRound,
-  LayoutDashboard,
+  LifeBuoy,
   Link2,
   LogIn,
   LogOut,
   Plus,
-  RefreshCw,
   Search,
   Settings,
-  ShieldCheck,
   UserRound,
 } from "lucide-react";
-import { FormEvent, ReactNode, useMemo, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
-import { ApiError, DashboardData, ProviderView, fetchDashboard } from "@/lib/authsome-api";
+import {
+  ApiError,
+  DashboardData,
+  ProviderView,
+  SessionInputField,
+  fetchAuthSessionStatus,
+  fetchClaimStatus,
+  fetchDashboard,
+  fetchSessionDevice,
+  fetchSessionInput,
+} from "@/lib/authsome-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,34 +48,76 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-type View = "dashboard" | "providers" | "connections" | "vault" | "audit" | "settings";
+type View = "dashboard" | "providers" | "connections" | "identities" | "vault" | "audit" | "settings";
 
 type NavItem = {
   id: View;
+  href: string;
   label: string;
   icon: ReactNode;
   adminOnly?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard /> },
-  { id: "providers", label: "Providers", icon: <AppWindow /> },
-  { id: "connections", label: "Connections", icon: <Link2 /> },
-  { id: "vault", label: "Vault", icon: <Database /> },
-  { id: "audit", label: "Audit Log", icon: <ClipboardList />, adminOnly: true },
-  { id: "settings", label: "Settings", icon: <Settings /> },
+  { id: "dashboard", href: "/", label: "Dashboard", icon: <AppWindow /> },
+  { id: "providers", href: "/providers", label: "Providers", icon: <KeyRound /> },
+  { id: "connections", href: "/connections", label: "Connections", icon: <Link2 /> },
+  { id: "identities", href: "/identities", label: "Identities", icon: <UserRound /> },
+  { id: "vault", href: "/vault", label: "Vault", icon: <Database /> },
+  { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList />, adminOnly: true },
+  { id: "settings", href: "/settings", label: "Settings", icon: <Settings /> },
 ];
 
 const NEXT_URL = "/";
+const ADVANCED_SESSION_FIELD_NAMES = new Set(["host_url", "base_url", "api_url", "scopes"]);
 
 function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
+}
+
+function extractDomain(apiUrl: string): string | null {
+  try {
+    const url = apiUrl.startsWith("http") ? apiUrl : `https://${apiUrl}`;
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function ProviderLogo({
+  apiUrl,
+  initial,
+  className,
+}: {
+  apiUrl: string;
+  initial: string;
+  className?: string;
+}) {
+  const [err, setErr] = useState(false);
+  const domain = extractDomain(apiUrl);
+  const faviconUrl = domain && !err ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
+
+  return (
+    <span
+      className={cn(
+        "flex items-center justify-center rounded-lg bg-muted",
+        !faviconUrl && "font-semibold text-primary",
+        className,
+      )}
+    >
+      {faviconUrl ? (
+        <img alt="" className="size-5" onError={() => setErr(true)} src={faviconUrl} />
+      ) : (
+        initial
+      )}
+    </span>
+  );
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -85,43 +137,423 @@ function StatusBadge({ status }: { status: string }) {
       </Badge>
     );
   }
-  return <Badge variant="secondary">Available</Badge>;
+  return null;
 }
 
-function AuthGate() {
+function currentBrowserPath(fallback: string): string {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+  return `${window.location.pathname}${window.location.search}`;
+}
+
+export function AuthsomeLogin({ nextPath = NEXT_URL }: { nextPath?: string }) {
+  const [safeNextPath] = useState(() => {
+    if (typeof window === "undefined") {
+      return nextPath;
+    }
+    const next = new URLSearchParams(window.location.search).get("next") || nextPath;
+    return next.startsWith("/") && !next.startsWith("//") ? next : NEXT_URL;
+  });
+
   return (
-    <main className="min-h-screen bg-background px-6 py-10 flex items-center">
-      <section className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="flex flex-col justify-between rounded-lg border bg-card p-8">
+    <main className="flex min-h-screen items-center bg-background px-4 py-8 sm:px-6 lg:px-10">
+      <section className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+        <div className="max-w-md">
           <div>
-            <div className="mb-5 inline-flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <ShieldCheck className="size-5" />
-            </div>
-            <h1 className="text-3xl font-semibold leading-tight text-foreground">Authsome</h1>
-            <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
-              Local credential access for identities, vaults, providers, and audit history.
+            <img alt="Authsome" className="mb-8 size-11" src="/logo.svg" />
+            <h1 className="text-4xl font-semibold leading-tight text-foreground">
+              Authsome
+            </h1>
+            <p className="mt-4 text-base leading-7 text-muted-foreground">
+              Sign in to manage account access, connected providers, and credential vaults.
             </p>
           </div>
-          <div className="mt-10 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-lg border bg-muted p-3">
-              <div className="font-medium">Local daemon</div>
-              <div className="mt-1 text-muted-foreground">127.0.0.1:7998</div>
+        </div>
+
+        <div>
+          <Card className="border-border/70 shadow-none">
+            <CardHeader>
+              <CardTitle>Open Dashboard</CardTitle>
+              <CardDescription>Use your Authsome account to continue.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs className="gap-6" defaultValue="signin">
+                <TabsList className="grid h-9 w-full grid-cols-2">
+                  <TabsTrigger value="signin">Sign in</TabsTrigger>
+                  <TabsTrigger value="create">Create account</TabsTrigger>
+                </TabsList>
+                <TabsContent className="grid gap-5" value="signin">
+                  <div>
+                    <h2 className="text-base font-semibold">Sign in</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Continue with an existing Authsome account.
+                    </p>
+                  </div>
+                  <AccountForm
+                    action="/api/auth/login"
+                    autoComplete="current-password"
+                    nextPath={safeNextPath}
+                    submitIcon="login"
+                    submitLabel="Sign in"
+                  />
+                </TabsContent>
+                <TabsContent className="grid gap-5" value="create">
+                  <div>
+                    <h2 className="text-base font-semibold">Create account</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Set up a new account for this dashboard.
+                    </p>
+                  </div>
+                  <AccountForm
+                    action="/api/auth/register"
+                    autoComplete="new-password"
+                    nextPath={safeNextPath}
+                    submitIcon="plus"
+                    submitLabel="Create account"
+                  />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export function AuthsomeClaim({ token }: { token: string }) {
+  const { data, error } = useSWR(token ? ["authsome-claim", token] : null, () => fetchClaimStatus(token));
+  const nextPath = token ? `/claim?token=${encodeURIComponent(token)}` : "/claim";
+
+  if (!token) {
+    return (
+      <ClaimShell
+        description="The claim link is missing a token."
+        title="Invalid claim link"
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <ClaimShell
+        description="This claim link could not be loaded. Request a new link from the CLI."
+        title="Claim unavailable"
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <ClaimShell
+        description="Checking this identity claim."
+        title="Loading claim"
+      />
+    );
+  }
+
+  if (data.expired) {
+    return (
+      <ClaimShell
+        description="This claim link has expired. Request a new link from the CLI."
+        title="Claim expired"
+      />
+    );
+  }
+
+  if (!data.authenticated) {
+    return <AuthsomeLogin nextPath={nextPath} />;
+  }
+
+  return (
+    <ClaimShell
+      description={`Confirm that ${data.identity} should be linked to ${data.email || "this account"}.`}
+      title="Claim identity"
+    >
+      <form action={`/api/claim/${encodeURIComponent(token)}/confirm`} method="post">
+        <Button className="w-full" type="submit">
+          <UserRound />
+          Confirm claim
+        </Button>
+      </form>
+    </ClaimShell>
+  );
+}
+
+export function AuthsomeClaimFromUrl() {
+  const searchParams = useSearchParams();
+  return <AuthsomeClaim token={searchParams.get("token") || ""} />;
+}
+
+export function AuthsomeSessionInputFromUrl() {
+  const searchParams = useSearchParams();
+  return <AuthsomeSessionInput sessionId={searchParams.get("session") || ""} />;
+}
+
+export function AuthsomeSessionDeviceFromUrl() {
+  const searchParams = useSearchParams();
+  return <AuthsomeSessionDevice sessionId={searchParams.get("session") || ""} />;
+}
+
+export function AuthsomeSessionSuccessFromUrl() {
+  const searchParams = useSearchParams();
+  return (
+    <AuthsomeSessionSuccess
+      errorCode={searchParams.get("error") || ""}
+      sessionId={searchParams.get("session") || ""}
+    />
+  );
+}
+
+function AuthsomeSessionInput({ sessionId }: { sessionId: string }) {
+  const { data, error } = useSWR(sessionId ? ["authsome-session-input", sessionId] : null, () =>
+    fetchSessionInput(sessionId),
+  );
+
+  if (!sessionId) {
+    return (
+      <ClaimShell
+        description="The provider setup link is missing a session identifier."
+        title="Invalid setup link"
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <ClaimShell
+        description="This provider setup session could not be loaded. Start the login flow again."
+        title="Setup unavailable"
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <ClaimShell
+        description="Loading the provider setup fields."
+        title="Loading setup"
+      />
+    );
+  }
+
+  const primaryFields = data.fields.filter((field) => !ADVANCED_SESSION_FIELD_NAMES.has(field.name));
+  const advancedFields = data.fields.filter((field) => ADVANCED_SESSION_FIELD_NAMES.has(field.name));
+
+  return (
+    <ClaimShell
+      description="Enter the provider details required to continue this login flow."
+      title={data.display_name}
+    >
+      <form action={`/auth/input?session=${encodeURIComponent(sessionId)}`} className="grid gap-4" method="post">
+        {data.warning ? (
+          <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            {data.warning}
+          </div>
+        ) : null}
+        {data.callback_url ? (
+          <label className="grid gap-2 text-sm">
+            <span className="text-muted-foreground">OAuth callback URL</span>
+            <Input readOnly value={data.callback_url} />
+          </label>
+        ) : null}
+        {primaryFields.map((field) => (
+          <SessionInputFieldControl field={field} key={field.name} />
+        ))}
+        {advancedFields.length ? (
+          <details className="rounded-lg border bg-muted/20 p-3">
+            <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
+              Advanced
+            </summary>
+            <div className="mt-4 grid gap-4">
+              {advancedFields.map((field) => (
+                <SessionInputFieldControl field={field} key={field.name} />
+              ))}
             </div>
-            <div className="rounded-lg border bg-muted p-3">
-              <div className="font-medium">Browser session</div>
-              <div className="mt-1 text-muted-foreground">HttpOnly cookie</div>
-            </div>
+          </details>
+        ) : null}
+        <Button className="mt-2 w-full" type="submit">
+          <LogIn />
+          Continue
+        </Button>
+      </form>
+    </ClaimShell>
+  );
+}
+
+function SessionInputFieldControl({ field }: { field: SessionInputField }) {
+  return (
+    <label className="grid gap-2 text-sm">
+      <span className="text-muted-foreground">{field.label}</span>
+      <Input
+        defaultValue={field.default || ""}
+        name={field.name}
+        pattern={field.pattern || undefined}
+        required
+        type={field.secret ? "password" : "text"}
+      />
+      {field.pattern_hint ? (
+        <span className="text-xs text-muted-foreground">{field.pattern_hint}</span>
+      ) : null}
+    </label>
+  );
+}
+
+function AuthsomeSessionSuccess({ errorCode, sessionId }: { errorCode?: string; sessionId: string }) {
+  const { data, error } = useSWR(sessionId ? ["authsome-session-status", sessionId] : null, () =>
+    fetchAuthSessionStatus(sessionId),
+  );
+
+  if (errorCode) {
+    const description =
+      errorCode === "session_expired"
+        ? "This authentication session expired. Start the login flow again."
+        : "The provider callback did not include a valid authentication state.";
+    return (
+      <ClaimShell
+        description={description}
+        title="Login could not finish"
+      />
+    );
+  }
+
+  if (!sessionId) {
+    return (
+      <ClaimShell
+        description="The completion link is missing a session identifier."
+        title="Invalid session"
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <ClaimShell
+        description="This login session could not be loaded. Check the terminal for the latest status."
+        title="Session unavailable"
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <ClaimShell
+        description="Checking the latest login status."
+        title="Finishing login"
+      />
+    );
+  }
+
+  const isCompleted = data.status === "completed";
+  const isFailed = data.status === "failed";
+  const title = isCompleted ? "Login complete" : isFailed ? "Login failed" : "Login in progress";
+  const description = isCompleted
+    ? `${data.provider} is connected as ${data.connection}.`
+    : isFailed
+      ? data.error || "The provider reported an authentication error."
+      : data.message || "This provider is still finishing authentication.";
+
+  return (
+    <ClaimShell description={description} title={title}>
+      <div className="grid gap-5">
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/25 px-4 py-3">
+          <div
+            className={cn(
+              "flex size-10 shrink-0 items-center justify-center rounded-lg border",
+              isCompleted
+                ? "border-emerald-800 bg-emerald-950/50 text-emerald-400"
+                : isFailed
+                  ? "border-destructive/40 bg-destructive/10 text-destructive"
+                  : "border-amber-800 bg-amber-950/40 text-amber-400",
+            )}
+          >
+            {isCompleted ? <CheckCircle2 /> : <CircleAlert />}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{data.provider}</p>
+            <p className="truncate text-xs text-muted-foreground">{data.connection}</p>
           </div>
         </div>
-        <Card className="shadow-none border-border/50">
+        <Button render={<Link href={isCompleted ? "/connections" : "/"} />}>
+          {isCompleted ? "View connection" : "Back to dashboard"}
+        </Button>
+      </div>
+    </ClaimShell>
+  );
+}
+
+function AuthsomeSessionDevice({ sessionId }: { sessionId: string }) {
+  const { data, error } = useSWR(sessionId ? ["authsome-session-device", sessionId] : null, () =>
+    fetchSessionDevice(sessionId),
+  );
+
+  if (!sessionId) {
+    return (
+      <ClaimShell
+        description="The device-code link is missing a session identifier."
+        title="Invalid device link"
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <ClaimShell
+        description="This device-code session could not be loaded. Start the login flow again."
+        title="Device login unavailable"
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <ClaimShell
+        description="Loading the device-code login details."
+        title="Loading device login"
+      />
+    );
+  }
+
+  return (
+    <ClaimShell
+      description={`Use this code to finish signing in to ${data.display_name}.`}
+      title="Device login"
+    >
+      <div className="grid gap-4">
+        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center font-mono text-2xl font-semibold">
+          {data.user_code}
+        </div>
+        <Button
+          render={<a href={data.verification_uri_complete || data.verification_uri} rel="noreferrer" target="_blank" />}
+          type="button"
+        >
+          Open verification page
+        </Button>
+      </div>
+    </ClaimShell>
+  );
+}
+
+function ClaimShell({
+  children,
+  description,
+  title,
+}: {
+  children?: ReactNode;
+  description: string;
+  title: string;
+}) {
+  return (
+    <main className="flex min-h-screen items-center bg-background px-4 py-8 sm:px-6 lg:px-10">
+      <section className="mx-auto w-full max-w-md">
+        <Card className="border-border/70 shadow-none">
           <CardHeader>
-            <CardTitle>Open Dashboard</CardTitle>
-            <CardDescription>Use your Authsome account to continue.</CardDescription>
+            <img alt="Authsome" className="mb-4 size-9" src="/logo.svg" />
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-6 md:grid-cols-2">
-            <AccountForm action="/auth/login" title="Sign in" submitLabel="Sign in" />
-            <AccountForm action="/auth/register" title="Create account" submitLabel="Create account" />
-          </CardContent>
+          {children ? <CardContent>{children}</CardContent> : null}
         </Card>
       </section>
     </main>
@@ -130,27 +562,30 @@ function AuthGate() {
 
 function AccountForm({
   action,
-  title,
+  autoComplete,
+  nextPath,
+  submitIcon,
   submitLabel,
 }: {
   action: string;
-  title: string;
+  autoComplete: "current-password" | "new-password";
+  nextPath: string;
+  submitIcon: "login" | "plus";
   submitLabel: string;
 }) {
   return (
-    <form action={action} className="grid gap-3 rounded-lg border bg-background p-4" method="post">
-      <input name="next" type="hidden" value={NEXT_URL} />
-      <div className="text-sm font-semibold">{title}</div>
-      <label className="grid gap-1.5 text-sm">
+    <form action={action} className="grid gap-4" method="post">
+      <input name="next" type="hidden" value={nextPath} />
+      <label className="grid gap-2 text-sm">
         <span className="text-muted-foreground">Email</span>
         <Input autoComplete="email" name="email" required type="email" />
       </label>
-      <label className="grid gap-1.5 text-sm">
+      <label className="grid gap-2 text-sm">
         <span className="text-muted-foreground">Password</span>
-        <Input autoComplete="current-password" minLength={8} name="password" required type="password" />
+        <Input autoComplete={autoComplete} minLength={8} name="password" required type="password" />
       </label>
-      <Button className="mt-1" type="submit">
-        <LogIn />
+      <Button className="mt-2 w-full" type="submit" variant={submitIcon === "plus" ? "outline" : "default"}>
+        {submitIcon === "plus" ? <Plus /> : <LogIn />}
         {submitLabel}
       </Button>
     </form>
@@ -161,9 +596,9 @@ function LoadingScreen() {
   return (
     <main className="grid min-h-screen grid-cols-1 bg-background md:grid-cols-[240px_1fr]">
       <aside className="hidden border-r bg-card p-5 md:block">
-        <Skeleton className="h-9 w-32" />
+        <Skeleton className="h-8 w-36" />
         <div className="mt-8 grid gap-3">
-          {Array.from({ length: 6 }).map((_, index) => (
+          {Array.from({ length: 7 }).map((_, index) => (
             <Skeleton className="h-8 w-full" key={index} />
           ))}
         </div>
@@ -193,7 +628,6 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         </CardHeader>
         <CardContent>
           <Button onClick={onRetry} type="button">
-            <RefreshCw />
             Retry
           </Button>
         </CardContent>
@@ -205,55 +639,73 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 function Sidebar({
   activeView,
   data,
-  onChange,
 }: {
   activeView: View;
   data: DashboardData;
-  onChange: (view: View) => void;
 }) {
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || data.account.isAdmin);
 
   return (
     <aside className="flex border-r bg-sidebar md:min-h-screen md:w-64 md:flex-col">
-      <div className="hidden border-b px-5 py-5 md:block">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <ShieldCheck className="size-4" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold">Authsome</div>
-            <div className="text-xs text-muted-foreground">v{data.version}</div>
-          </div>
+      <div className="hidden border-b px-5 py-4 md:block">
+        <div className="flex items-center gap-2">
+          <img alt="Authsome" className="size-7" src="/logo.svg" />
+          <span className="text-sm font-semibold">Authsome</span>
         </div>
       </div>
       <ScrollArea className="w-full md:flex-1">
         <nav className="flex gap-1 overflow-x-auto p-3 md:grid md:gap-1 md:overflow-visible">
           {items.map((item) => (
-            <button
+            <Link
               className={cn(
                 "inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:w-full",
                 activeView === item.id && "bg-sidebar-accent text-sidebar-accent-foreground",
               )}
+              href={item.href}
               key={item.id}
-              onClick={() => onChange(item.id)}
-              type="button"
             >
               <span className="[&_svg]:size-4">{item.icon}</span>
               {item.label}
-            </button>
+            </Link>
           ))}
         </nav>
       </ScrollArea>
-      <div className="hidden border-t p-4 md:block">
-        <div className="rounded-lg border bg-muted p-3">
-          <div className="text-xs font-medium uppercase text-muted-foreground">Signed in</div>
-          <div className="mt-1 truncate text-sm font-medium">{data.account.email || data.account.identity}</div>
+      <div className="hidden border-t md:block">
+        <div className="border-b px-4 py-3">
+          <div className="truncate text-sm font-medium">{data.account.email || data.account.identity}</div>
           {data.account.roleLabel ? (
-            <Badge className="mt-2" variant="outline">
-              {data.account.roleLabel}
-            </Badge>
+            <div className="mt-0.5 text-xs text-muted-foreground">{data.account.roleLabel}</div>
           ) : null}
         </div>
+        <nav className="grid gap-1 p-3">
+          <a
+            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            href="https://authsome.ai/docs"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <BookOpen className="size-4" />
+            Docs
+          </a>
+          <a
+            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            href="https://github.com/agentrhq/authsome"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <GitBranch className="size-4" />
+            GitHub
+          </a>
+          <a
+            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            href="https://authsome.ai/support"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <LifeBuoy className="size-4" />
+            Support
+          </a>
+        </nav>
       </div>
     </aside>
   );
@@ -261,127 +713,122 @@ function Sidebar({
 
 function Topbar() {
   return (
-    <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-3 md:px-6">
-      <div>
-        <div className="text-xs font-medium uppercase text-muted-foreground">Local Dashboard</div>
-        <div className="text-lg font-semibold leading-tight">Workspace Status</div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button render={<a href="https://authsome.mbajaj.me" rel="noreferrer" target="_blank" />} size="sm" variant="outline">
-          <ExternalLink />
-          Docs
+    <header className="flex min-h-14 items-center justify-end gap-3 border-b bg-card px-4 py-3 md:px-6">
+      <form action="/api/logout" method="post">
+        <input name="return_url" type="hidden" value={NEXT_URL} />
+        <Button size="sm" type="submit" variant="ghost">
+          <LogOut />
+          Sign out
         </Button>
-        <Button render={<a href="https://github.com/agentrhq/authsome" rel="noreferrer" target="_blank" />} size="sm" variant="outline">
-          <GitBranch />
-          GitHub
-        </Button>
-        <form action="/logout" method="post">
-          <input name="return_url" type="hidden" value={NEXT_URL} />
-          <Button size="sm" type="submit" variant="secondary">
-            <LogOut />
-            Sign out
-          </Button>
-        </form>
-      </div>
+      </form>
     </header>
   );
 }
 
-function StatCards({ data }: { data: DashboardData }) {
-  const stats = [
-    { label: "Connected Apps", value: data.stats.connected, foot: `${data.stats.available} available`, icon: <AppWindow /> },
-    { label: "Next Expiry", value: data.lastActivity, foot: "Across active providers", icon: <KeyRound /> },
-    { label: "Auth Types", value: `${data.stats.oauth} / ${data.stats.apiKey}`, foot: "OAuth 2.0 / API Key", icon: <ShieldCheck /> },
-  ];
+function DashboardView({ data }: { data: DashboardData }) {
+  const recentEvents = data.audit.events.slice(0, 5);
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {stats.map((stat) => (
-        <Card className="shadow-none border-border/60" key={stat.label}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>{stat.label}</CardDescription>
-            <span className="text-muted-foreground [&_svg]:size-4">{stat.icon}</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold text-foreground">{stat.value}</div>
-            <p className="mt-1 text-sm text-muted-foreground">{stat.foot}</p>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-function DashboardView({ data, onViewChange }: { data: DashboardData; onViewChange: (view: View) => void }) {
-  return (
-    <div className="grid gap-6">
-      <StatCards data={data} />
-      <section className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
-        <Card className="shadow-none border-border/50">
-          <CardHeader className="flex flex-row items-start justify-between gap-4">
-            <div>
-              <CardTitle>Connected Providers</CardTitle>
-              <CardDescription>Active credential surfaces in the current vault.</CardDescription>
-            </div>
-            <Button onClick={() => onViewChange("connections")} size="sm" type="button" variant="outline">
-              Manage
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {data.connectedProviders.length ? (
-              <div className="grid gap-3 md:grid-cols-2">
-                {data.connectedProviders.slice(0, 6).map((provider) => (
-                  <ProviderSummary provider={provider} key={provider.name} />
-                ))}
-              </div>
-            ) : (
-              <EmptyBlock actionLabel="Browse providers" onAction={() => onViewChange("providers")} title="No connections yet" />
-            )}
-          </CardContent>
-        </Card>
-        <Card className="shadow-none border-border/50">
-          <CardHeader>
-            <CardTitle>Vault</CardTitle>
-            <CardDescription>Default credential namespace.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <KeyValue label="Handle" value={data.vault.handle} />
-            <AdvancedSection>
-              <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
-              <KeyValue label="Principal" value={data.account.principalId || "-"} />
-            </AdvancedSection>
-          </CardContent>
-        </Card>
+    <div className="grid gap-8">
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-semibold">Connected Apps</h2>
+          <Button render={<Link href="/providers" />} size="sm" variant="outline">
+            Browse
+          </Button>
+        </div>
+        {data.connectedProviders.length ? (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {data.connectedProviders.map((provider) => (
+              <ProviderSummary key={provider.name} provider={provider} />
+            ))}
+          </div>
+        ) : (
+          <EmptyBlock
+            actionLabel="Browse providers"
+            href="/providers"
+            title="No connections yet"
+          />
+        )}
       </section>
+
+      <section>
+        <div className="mb-4">
+          <h2 className="text-base font-semibold">Identities</h2>
+        </div>
+        {data.identities.length ? (
+          <div className="grid gap-2">
+            {data.identities.map((identity) => (
+              <div
+                className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3"
+                key={identity.handle}
+              >
+                <div className="flex items-center gap-3">
+                  <UserRound className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{identity.handle}</span>
+                </div>
+                {identity.isActive ? <Badge variant="outline">Active</Badge> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed bg-muted/50 p-6 text-center text-sm text-muted-foreground">
+            No identities found.
+          </div>
+        )}
+      </section>
+
+      {data.audit.canView && recentEvents.length > 0 ? (
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold">Recent Events</h2>
+            <Button render={<Link href="/audit" />} size="sm" variant="ghost">
+              View all
+            </Button>
+          </div>
+          <Card className="shadow-none border-border/50">
+            <CardContent className="p-0">
+              <Table>
+                <TableBody>
+                  {recentEvents.map((event) => (
+                    <TableRow key={event.eventId}>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {event.time}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{event.event}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{event.target}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
     </div>
   );
 }
 
 function ProviderSummary({ provider }: { provider: ProviderView }) {
   return (
-    <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-muted font-semibold text-primary">
-            {provider.logoInitial}
-          </span>
-          <div>
-            <div className="font-medium">{provider.displayName}</div>
-            <div className="text-sm text-muted-foreground">{provider.authTypeLabel}</div>
-          </div>
+    <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <ProviderLogo apiUrl={provider.apiUrl} className="size-8" initial={provider.logoInitial} />
+        <div>
+          <div className="text-sm font-medium">{provider.displayName}</div>
+          <div className="text-xs text-muted-foreground">{provider.authTypeLabel}</div>
         </div>
-        <StatusBadge status={provider.status} />
       </div>
-      <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{provider.description || provider.apiUrl}</p>
+      <StatusBadge status={provider.status} />
     </div>
   );
 }
 
-function EmptyBlock({ actionLabel, onAction, title }: { actionLabel: string; onAction: () => void; title: string }) {
+function EmptyBlock({ actionLabel, href, title }: { actionLabel: string; href: string; title: string }) {
   return (
     <div className="rounded-lg border border-dashed bg-muted/50 p-6 text-center">
       <div className="font-medium">{title}</div>
-      <Button className="mt-4" onClick={onAction} size="sm" type="button">
+      <Button className="mt-4" render={<Link href={href} />} size="sm">
         <Plus />
         {actionLabel}
       </Button>
@@ -395,9 +842,7 @@ function ProvidersView({ providers }: { providers: ProviderView[] }) {
 
   const filteredProviders = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) {
-      return providers;
-    }
+    if (!normalized) return providers;
     return providers.filter((provider) =>
       `${provider.displayName} ${provider.name} ${provider.authTypeLabel}`.toLowerCase().includes(normalized),
     );
@@ -412,7 +857,9 @@ function ProvidersView({ providers }: { providers: ProviderView[] }) {
           <ProviderCard key={provider.name} onNamedLogin={() => setDialogProvider(provider)} provider={provider} />
         ))}
       </div>
-      {!filteredProviders.length ? <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">No providers found.</div> : null}
+      {!filteredProviders.length ? (
+        <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">No providers found.</div>
+      ) : null}
       <NamedConnectionDialog onOpenChange={setDialogProvider} provider={dialogProvider} />
     </div>
   );
@@ -424,34 +871,32 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-muted font-semibold text-primary">
-              {provider.logoInitial}
-            </span>
+            <ProviderLogo apiUrl={provider.apiUrl} className="size-10" initial={provider.logoInitial} />
             <div>
               <CardTitle className="text-base">{provider.displayName}</CardTitle>
-              <CardDescription>{provider.name}</CardDescription>
+              <CardDescription className="text-xs">{provider.authTypeLabel}</CardDescription>
             </div>
           </div>
           <StatusBadge status={provider.status} />
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <p className="min-h-10 text-sm text-muted-foreground">{provider.description || provider.apiUrl}</p>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">{provider.authTypeLabel}</Badge>
-          <Badge variant="secondary">{provider.source}</Badge>
-          {provider.connectionCount ? <Badge variant="outline">{provider.connectionCount} connections</Badge> : null}
-        </div>
+        {provider.description ? (
+          <p className="min-h-8 text-sm text-muted-foreground">{provider.description}</p>
+        ) : null}
+        {provider.connectionCount ? (
+          <Badge className="w-max" variant="outline">{provider.connectionCount} connection{provider.connectionCount !== 1 ? "s" : ""}</Badge>
+        ) : null}
         {provider.requiresNamedLogin ? (
-          <Button onClick={onNamedLogin} type="button" variant="secondary">
+          <Button className="w-full" onClick={onNamedLogin} type="button">
             <LogIn />
             Login
           </Button>
         ) : (
-          <form action={`/auth/providers/${provider.name}/connect`} method="post">
+          <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
             <input name="connection" type="hidden" value="default" />
-            <input name="return_url" type="hidden" value={`/?view=connections&provider=${provider.name}`} />
-            <Button className="w-full" type="submit" variant="secondary">
+            <input name="return_url" type="hidden" value={`/connections?provider=${provider.name}`} />
+            <Button className="w-full" type="submit">
               <LogIn />
               Login
             </Button>
@@ -485,12 +930,12 @@ function NamedConnectionDialog({
           <DialogDescription>{provider?.displayName} already has a default connection.</DialogDescription>
         </DialogHeader>
         <form
-          action={provider ? `/auth/providers/${provider.name}/connect` : "#"}
+          action={provider ? `/api/auth/providers/${provider.name}/connect` : "#"}
           className="grid gap-4"
           method="post"
           onSubmit={handleSubmit}
         >
-          <input name="return_url" type="hidden" value={provider ? `/?view=connections&provider=${provider.name}` : NEXT_URL} />
+          <input name="return_url" type="hidden" value={provider ? `/connections?provider=${provider.name}` : NEXT_URL} />
           <label className="grid gap-2 text-sm">
             <span className="text-muted-foreground">Connection name</span>
             <Input
@@ -518,12 +963,18 @@ function ConnectionsView({
   connections: DashboardData["connections"];
   initialFilter?: string;
 }) {
-  const [query, setQuery] = useState(initialFilter ?? "");
+  const [query, setQuery] = useState(() => {
+    if (initialFilter) {
+      return initialFilter;
+    }
+    if (typeof window === "undefined") {
+      return "";
+    }
+    return new URLSearchParams(window.location.search).get("provider") ?? "";
+  });
   const filteredConnections = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) {
-      return connections;
-    }
+    if (!normalized) return connections;
     return connections.filter((row) =>
       `${row.connectionName} ${row.providerDisplayName} ${row.authTypeLabel}`.toLowerCase().includes(normalized),
     );
@@ -567,39 +1018,53 @@ function ConnectionsView({
   );
 }
 
+function IdentitiesView({ data }: { data: DashboardData }) {
+  return (
+    <div className="grid gap-5">
+      <SectionHeader description="Local Ed25519 key pairs claimed to this account." title="Identities" />
+      <div className="grid gap-3">
+        {data.identities.length ? (
+          data.identities.map((identity) => (
+            <div
+              className="flex items-center justify-between rounded-lg border bg-card px-4 py-4"
+              key={identity.handle}
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 items-center justify-center rounded-lg bg-muted">
+                  <UserRound className="size-4 text-muted-foreground" />
+                </span>
+                <div>
+                  <div className="font-medium">{identity.handle}</div>
+                </div>
+              </div>
+              {identity.isActive ? <Badge variant="outline">Active</Badge> : null}
+            </div>
+          ))
+        ) : (
+          <div className="rounded-lg border border-dashed bg-muted/50 p-8 text-center text-muted-foreground">
+            No identities found.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function VaultView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
-      <SectionHeader description="Credential namespace and claimed identities." title="Vault" />
-      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card className="shadow-none border-border/50">
-          <CardHeader>
-            <CardTitle>Default Vault</CardTitle>
-            <CardDescription>{data.vault.isDefault ? "Active for this account" : "Vault binding"}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <KeyValue label="Handle" value={data.vault.handle} />
-            <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
-          </CardContent>
-        </Card>
-        <Card className="shadow-none border-border/50">
-          <CardHeader>
-            <CardTitle>Identities</CardTitle>
-            <CardDescription>Claims accepted for this account.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            {data.identities.map((identity) => (
-              <div className="flex items-center justify-between rounded-lg border bg-muted p-3" key={identity.handle}>
-                <div className="flex items-center gap-3">
-                  <UserRound className="size-4 text-muted-foreground" />
-                  <span className="font-medium">{identity.handle}</span>
-                </div>
-                {identity.isActive ? <Badge variant="outline">Active</Badge> : null}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+      <SectionHeader description="Credential namespace for this account." title="Vault" />
+      <Card className="shadow-none border-border/50 max-w-md">
+        <CardHeader>
+          <CardTitle>Default Vault</CardTitle>
+          <CardDescription>{data.vault.isDefault ? "Active for this account" : "Vault binding"}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <KeyValue label="Handle" value={data.vault.handle} />
+          <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
+          <KeyValue label="Principal ID" value={data.account.principalId || "-"} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -645,7 +1110,7 @@ function AuditView({ data }: { data: DashboardData }) {
 function SettingsView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
-      <SectionHeader description="Local daemon and package context." title="Settings" />
+      <SectionHeader description="Local daemon and account context." title="Settings" />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="shadow-none border-border/50">
           <CardHeader>
@@ -654,9 +1119,7 @@ function SettingsView({ data }: { data: DashboardData }) {
           <CardContent className="grid gap-4">
             <KeyValue label="Email" value={data.account.email || "-"} />
             <KeyValue label="Role" value={data.account.roleLabel || "-"} />
-            <AdvancedSection>
-              <KeyValue label="Principal ID" value={data.account.principalId || "-"} />
-            </AdvancedSection>
+            <KeyValue label="Principal ID" value={data.account.principalId || "-"} />
           </CardContent>
         </Card>
         <Card className="shadow-none border-border/50">
@@ -665,31 +1128,10 @@ function SettingsView({ data }: { data: DashboardData }) {
           </CardHeader>
           <CardContent className="grid gap-4">
             <KeyValue label="Version" value={data.version} />
-            <AdvancedSection>
-              <KeyValue label="UI Path" value="/" />
-            </AdvancedSection>
+            <KeyValue label="Encryption" value={data.account.principalId ? "AES-256-GCM" : "-"} />
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-
-function AdvancedSection({ children }: { children: ReactNode }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="grid gap-2 mt-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setShow(!show)}
-        className="w-max -ml-2 h-8 text-xs text-muted-foreground"
-        type="button"
-      >
-        {show ? "Hide advanced" : "Show advanced"}
-      </Button>
-      {show && <div className="grid gap-4 animate-in fade-in slide-in-from-top-1">{children}</div>}
     </div>
   );
 }
@@ -729,87 +1171,61 @@ function SearchInput({
   return (
     <label className="relative block max-w-md">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input className="h-9 pl-9" onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} />
+      <Input
+        className="h-9 pl-9"
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        value={value}
+      />
     </label>
   );
 }
 
-function ActiveView({
-  connectionFilter,
-  data,
-  onViewChange,
-  view,
-}: {
+function ActiveView({ connectionFilter, data, view }: {
   connectionFilter?: string;
   data: DashboardData;
-  onViewChange: (view: View) => void;
   view: View;
 }) {
-  if (view === "providers") {
-    return <ProvidersView providers={data.providers} />;
-  }
-  if (view === "connections") {
-    return <ConnectionsView connections={data.connections} initialFilter={connectionFilter} />;
-  }
-  if (view === "vault") {
-    return <VaultView data={data} />;
-  }
-  if (view === "audit" && data.account.isAdmin) {
-    return <AuditView data={data} />;
-  }
-  if (view === "settings") {
-    return <SettingsView data={data} />;
-  }
-  return <DashboardView data={data} onViewChange={onViewChange} />;
+  if (view === "providers") return <ProvidersView providers={data.providers} />;
+  if (view === "connections") return <ConnectionsView connections={data.connections} initialFilter={connectionFilter} />;
+  if (view === "identities") return <IdentitiesView data={data} />;
+  if (view === "vault") return <VaultView data={data} />;
+  if (view === "audit" && data.account.isAdmin) return <AuditView data={data} />;
+  if (view === "settings") return <SettingsView data={data} />;
+  return <DashboardView data={data} />;
 }
 
-export function AuthsomeDashboard() {
-  const [activeView, setActiveView] = useState<View>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const view = params.get("view") as View | null;
-    return view && NAV_ITEMS.some((item) => item.id === view) ? view : "dashboard";
-  });
-  const [connectionFilter, setConnectionFilter] = useState<string | undefined>(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("view") === "connections") {
-      return params.get("provider") ?? undefined;
-    }
-    return undefined;
-  });
+export function AuthsomeDashboard({ connectionFilter, view = "dashboard" }: { connectionFilter?: string; view?: View }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const activeView = NAV_ITEMS.some((item) => item.id === view) ? view : "dashboard";
   const { data, error, mutate } = useSWR("authsome-dashboard", fetchDashboard, {
     dedupingInterval: 10_000,
     revalidateOnFocus: true,
   });
 
-  if (isUnauthorized(error)) {
-    return <AuthGate />;
-  }
-  if (error) {
-    return <ErrorState onRetry={() => void mutate()} />;
-  }
-  if (!data) {
-    return <LoadingScreen />;
-  }
+  useEffect(() => {
+    if (isUnauthorized(error)) {
+      router.replace(`/login?next=${encodeURIComponent(currentBrowserPath(pathname || NEXT_URL))}`);
+    }
+  }, [error, pathname, router]);
+
+  if (isUnauthorized(error)) return <LoadingScreen />;
+  if (error) return <ErrorState onRetry={() => void mutate()} />;
+  if (!data) return <LoadingScreen />;
 
   return (
     <main className="min-h-screen bg-background">
       <div className="md:grid md:grid-cols-[256px_1fr]">
-        <Sidebar activeView={activeView} data={data} onChange={setActiveView} />
+        <Sidebar activeView={activeView} data={data} />
         <section className="min-w-0">
           <Topbar />
           <div className="mx-auto grid max-w-7xl gap-6 p-4 md:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="md:hidden">
-                <div className="text-lg font-semibold">Authsome</div>
-                <div className="text-xs text-muted-foreground">v{data.version}</div>
-              </div>
-              <Button onClick={() => void mutate()} size="sm" type="button" variant="outline">
-                <RefreshCw />
-                Refresh
-              </Button>
-            </div>
-            <Separator />
-            <ActiveView connectionFilter={connectionFilter} data={data} onViewChange={setActiveView} view={activeView} />
+            <ActiveView
+              connectionFilter={connectionFilter}
+              data={data}
+              view={activeView}
+            />
           </div>
         </section>
       </div>
