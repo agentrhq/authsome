@@ -1,9 +1,9 @@
 """Command-line interface for authsome."""
 
 import json
-import os
 import pathlib
 import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +34,9 @@ from authsome.cli.helpers import (
     auth_command,
     setup_logging,
 )
+from authsome.config import get_authsome_config
 from authsome.paths import get_client_log_path
+from authsome.server.config import get_server_config
 from authsome.utils import connection_is_active, format_error_code, redact
 
 
@@ -44,7 +46,7 @@ from authsome.utils import connection_is_active, format_error_code, redact
 @click.option(
     "--log-file",
     "log_file",
-    default=str(get_client_log_path(Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome"))))),
+    default=str(get_authsome_config().client_log_path),
     show_default=True,
     metavar="PATH",
     help="Path for the rotating log file. Pass empty string to disable.",
@@ -181,10 +183,8 @@ async def login(
                 auth_url = next_action["url"]
                 import webbrowser
 
-                try:
+                with suppress(Exception):
                     webbrowser.open(auth_url)
-                except Exception:
-                    pass
 
             elif action_type == "browser":
                 from authsome.auth.flows.browser import BrowserFlow
@@ -495,9 +495,9 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
 @auth_command
 async def init(ctx_obj: ContextObj) -> None:
     """Initialize local storage and register a fresh profile."""
-    from authsome.identity import ensure_local_identity
+    from authsome.cli.identity import ensure_local_identity
 
-    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    home = get_authsome_config().home
     identity = ensure_local_identity(home)
 
     actx = await ctx_obj.initialize()
@@ -527,9 +527,9 @@ def profile() -> None:
 @auth_command
 async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
     """Create a local profile keypair."""
-    from authsome.identity import create_identity
+    from authsome.cli.identity import create_identity
 
-    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    home = get_authsome_config().home
     identity_meta = create_identity(home, handle)
 
     data = {
@@ -548,10 +548,10 @@ async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
 @auth_command
 async def profile_use(ctx_obj: ContextObj, handle: str) -> None:
     """Select the active local profile."""
-    from authsome.cli.client_config import load_client_config, save_client_config
-    from authsome.identity import load_identity
+    from authsome.cli.config import load_client_config, save_client_config
+    from authsome.cli.identity import load_identity
 
-    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    home = get_authsome_config().home
     identity_meta = load_identity(home, handle)
     save_client_config(home, load_client_config(home).model_copy(update={"active_identity": identity_meta.handle}))
 
@@ -634,7 +634,7 @@ async def doctor(ctx_obj: ContextObj) -> None:
 @auth_command
 async def log_cmd(ctx_obj: ContextObj, lines: int, raw: bool) -> None:
     """View structured audit entries or the raw client debug log."""
-    home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    home = get_authsome_config().home
 
     if raw:
         log_path = get_client_log_path(home)
@@ -656,8 +656,17 @@ def daemon() -> None:
 
 
 @daemon.command(name="serve")
-@click.option("--host", default="127.0.0.1", show_default=True, metavar="HOST", help="Host interface to bind.")
-@click.option("--port", default=7998, type=int, show_default=True, metavar="PORT", help="TCP port to listen on.")
+@click.option(
+    "--host", default=get_server_config().host, show_default=True, metavar="HOST", help="Host interface to bind."
+)
+@click.option(
+    "--port",
+    default=get_server_config().port,
+    type=int,
+    show_default=True,
+    metavar="PORT",
+    help="TCP port to listen on.",
+)
 @click.option("--reload", is_flag=True, help="Enable auto-reload on code changes.")
 def daemon_serve(host: str, port: int, reload: bool) -> None:
     """Run the daemon in the foreground."""

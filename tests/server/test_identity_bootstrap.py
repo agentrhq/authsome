@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from authsome.identity import create_identity
+from authsome.cli.identity import create_identity
 from authsome.server.identity_bootstrap import IdentityBootstrapService
 from authsome.server.store import create_server_store
 from authsome.server.ui_sessions import UiSessionStore

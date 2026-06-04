@@ -4,18 +4,18 @@ from __future__ import annotations
 
 from urllib.parse import urlencode
 
-from authsome.server.settings import get_settings
+from authsome.server.config import get_server_config
 
 # Invariant: must match the OAuth callback route declared in routes/auth.py.
 DEFAULT_CALLBACK_PATH = "/api/auth/callback/oauth"
 
 # Retained for external importers (proxy, CLI); resolved from server settings.
-DEFAULT_SERVER_BASE_URL = get_settings().resolved_base_url
+DEFAULT_SERVER_BASE_URL = get_server_config().resolved_base_url
 
 
 def build_server_base_url() -> str:
     """Return the canonical external base URL for the daemon."""
-    return get_settings().resolved_base_url
+    return get_server_config().resolved_base_url
 
 
 def build_callback_url(base_url: str) -> str:

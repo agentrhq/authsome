@@ -8,9 +8,9 @@ from typing import Any
 from key_value.aio.stores.disk import DiskStore
 
 from authsome.auth.models.config import ServerConfig
-from authsome.paths import get_authsome_home as _get_authsome_home
-from authsome.paths import get_server_home as _get_server_home
+from authsome.config import get_authsome_config
 from authsome.server.account_auth import AccountAuthService
+from authsome.server.config import get_server_config
 from authsome.server.identity_bootstrap import IdentityBootstrapService
 from authsome.server.ownership import OwnershipResolver
 from authsome.server.secrets import load_master_secret
@@ -25,12 +25,12 @@ from authsome.vault.crypto import AesGcmEncryptionWrapper, DekManager
 
 def get_authsome_home() -> Path:
     """Return the local Authsome home directory."""
-    return _get_authsome_home()
+    return get_authsome_config().home
 
 
 def get_server_home(home: Path | None = None) -> Path:
     """Return the daemon-owned state directory."""
-    return _get_server_home(home)
+    return get_server_config(home).server_home
 
 
 def get_server_base_url() -> str:
@@ -50,8 +50,8 @@ async def load_server_config(store: ServerStore) -> ServerConfig:
 
 async def create_vault(home: Path) -> Vault:
     """Create the daemon vault from an initialized application store."""
-    server_home = get_server_home(home)
-    raw_kv = DiskStore(directory=str(server_home / "kv_store"))
+    server_config = get_server_config(home)
+    raw_kv = DiskStore(directory=str(server_config.kv_store_dir))
     secret = load_master_secret(home)
     dek = await DekManager().load_or_create(secret, raw_kv)
     encrypted_kv = AesGcmEncryptionWrapper(raw_kv, dek=dek)

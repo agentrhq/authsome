@@ -8,8 +8,8 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
 
 from authsome.identity.principal import PrincipalRecord
+from authsome.server.config import get_server_config
 from authsome.server.ownership import ensure_principal_default_vault
-from authsome.server.settings import get_settings
 from authsome.server.store.repositories import (
     PrincipalRegistry,
     PrincipalVaultBindingRegistry,
@@ -85,6 +85,6 @@ class AccountAuthService:
 
     @staticmethod
     def _validate_password(password: str) -> None:
-        min_length = get_settings().min_password_length
+        min_length = get_server_config().min_password_length
         if len(password) < min_length:
             raise ValueError(f"Password must be at least {min_length} characters")

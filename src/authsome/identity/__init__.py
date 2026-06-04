@@ -1,29 +1,16 @@
-"""Identity-domain exports.
+"""Identity-domain exports."""
 
-Contains cryptographic primitives and domain models.
-Filesystem-backed registry implementations live in server/registries.py.
-"""
-
-from authsome.identity.local import (
+from authsome.identity.helpers import (
+    IdentityMaterial,
     IdentityMetadata,
-    IdentitySource,
     IdentityStatus,
-    RuntimeIdentity,
-    create_identity,
-    current_from_home,
-    ensure_local_identity,
-    identities_dir,
-    identity_exists,
-    identity_key_path,
-    identity_metadata_path,
-    load_identity,
-    load_private_key,
-    load_runtime_identity,
-    mark_claimed,
-    mark_registered,
+    create_identity_material,
+    generate_handle,
+    normalize_server_url,
+    private_key_from_hex,
+    private_key_to_hex,
     public_key_from_did_key,
     public_key_to_did_key,
-    remove_legacy_default_identity,
     validate_handle,
 )
 from authsome.identity.principal import (
@@ -44,8 +31,8 @@ from authsome.identity.registry import IdentityRegistration
 __all__ = [
     "ClaimStatus",
     "IdentityClaimRecord",
+    "IdentityMaterial",
     "IdentityMetadata",
-    "IdentitySource",
     "IdentityStatus",
     "IdentityRegistration",
     "PrincipalRecord",
@@ -53,23 +40,14 @@ __all__ = [
     "ProofClaims",
     "ProofValidationError",
     "ReplayCache",
-    "RuntimeIdentity",
-    "current_from_home",
-    "create_identity",
+    "create_identity_material",
     "create_proof_jwt",
-    "ensure_local_identity",
-    "identities_dir",
-    "identity_exists",
-    "identity_key_path",
-    "identity_metadata_path",
-    "load_identity",
-    "load_private_key",
-    "load_runtime_identity",
-    "mark_claimed",
-    "mark_registered",
+    "generate_handle",
+    "normalize_server_url",
+    "private_key_from_hex",
+    "private_key_to_hex",
     "public_key_from_did_key",
     "public_key_to_did_key",
-    "remove_legacy_default_identity",
     "validate_proof_jwt",
     "validate_handle",
 ]

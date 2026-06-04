@@ -46,9 +46,9 @@ from authsome.errors import (
     UnsupportedFlowError,
 )
 from authsome.identity.principal import PrincipalRole
+from authsome.server.config import get_server_config
 from authsome.server.credential_repository import CredentialRepository, parse_store_key
 from authsome.server.provider_repository import ProviderRepository
-from authsome.server.settings import get_settings
 from authsome.utils import format_duration, utc_now
 from authsome.vault import Vault
 
@@ -569,9 +569,7 @@ class CredentialService:
     ) -> bool:
         if scopes is not None and normalize_scopes(scopes) != normalize_scopes(record.scopes):
             return False
-        if base_url is not None and normalize_base_url(base_url) != normalize_base_url(record.base_url):
-            return False
-        return True
+        return not (base_url is not None and normalize_base_url(base_url) != normalize_base_url(record.base_url))
 
     def has_usable_connection(
         self,
@@ -810,7 +808,7 @@ class CredentialService:
 
         now = utc_now()
         if record.expires_at:
-            near_expiry = record.expires_at - timedelta(seconds=get_settings().token_near_expiry_seconds)
+            near_expiry = record.expires_at - timedelta(seconds=get_server_config().token_near_expiry_seconds)
             if now < near_expiry:
                 return record.access_token
 

@@ -8,22 +8,24 @@ import os
 import sys
 import webbrowser
 from collections.abc import Mapping
-from pathlib import Path
+from contextlib import suppress
 from typing import Any
 from urllib.parse import urlparse
 
 import requests
 
-from authsome.identity import (
+from authsome.cli.identity import (
     IdentitySource,
+    RuntimeIdentity,
+    load_identity,
     load_runtime_identity,
     mark_registered,
 )
-from authsome.identity.local import RuntimeIdentity, load_identity
+from authsome.config import get_authsome_config
 from authsome.identity.proof import POP_AUTH_SCHEME, create_proof_jwt
-from authsome.server.urls import DEFAULT_SERVER_BASE_URL
+from authsome.server.config import get_server_config
 
-DEFAULT_DAEMON_URL = DEFAULT_SERVER_BASE_URL
+DEFAULT_DAEMON_URL = get_authsome_config().base_url
 IDENTITY_OVERRIDE_ENV = "AUTHSOME_IDENTITY"
 API_PREFIX = "/api"
 
@@ -48,7 +50,7 @@ def is_managed_local_daemon_url(url: str) -> bool:
         return False
     if parsed.path not in {"", "/"}:
         return False
-    return parsed.hostname in {"127.0.0.1", "localhost", "::1"} and (parsed.port in {None, 7998})
+    return parsed.hostname in {"127.0.0.1", "localhost", "::1"} and (parsed.port in {None, get_server_config().port})
 
 
 def raise_for_error(response: requests.Response) -> None:
@@ -83,7 +85,7 @@ class AuthsomeApiClient:
 
     def __init__(self, base_url: str | None = None) -> None:
         self._base_url = (base_url or resolve_daemon_url()).rstrip("/")
-        self._home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+        self._home = get_authsome_config().home
 
     @property
     def base_url(self) -> str:
@@ -171,10 +173,8 @@ class AuthsomeApiClient:
             f"Open this URL in your browser to register and claim this identity:\n  {claim_url}",
             file=sys.stderr,
         )
-        try:
+        with suppress(Exception):
             webbrowser.open(claim_url)
-        except Exception:
-            pass
 
     async def _poll_claim_completion(self, handle: str, *, timeout_seconds: int = 300) -> dict[str, Any]:
         deadline = asyncio.get_running_loop().time() + timeout_seconds

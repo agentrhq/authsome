@@ -640,12 +640,14 @@ class TestProxyRunner:
         auth = await _make_auth(tmp_path)
         runner = ProxyRunner(auth, home=tmp_path)
 
-        with patch("authsome.proxy.runner.subprocess.run") as run_mock:
+        with (
+            patch("authsome.proxy.runner.subprocess.run") as run_mock,
+            patch("authsome.proxy.runner.ensure_local_proxy_ca") as ensure_ca_mock,
+            patch.object(runner, "_start_proxy", return_value=("http://127.0.0.1:8899", mock.Mock())),
+            patch.object(runner, "_build_ca_bundle", return_value=Path("/tmp/fake-ca.pem")),
+        ):
             run_mock.return_value.returncode = 0
-            with patch("authsome.proxy.runner.ensure_local_proxy_ca") as ensure_ca_mock:
-                with patch.object(runner, "_start_proxy", return_value=("http://127.0.0.1:8899", mock.Mock())):
-                    with patch.object(runner, "_build_ca_bundle", return_value=Path("/tmp/fake-ca.pem")):
-                        await runner.run(["python", "-c", "print('ok')"])
+            await runner.run(["python", "-c", "print('ok')"])
 
         env = run_mock.call_args.kwargs["env"]
         ensure_ca_mock.assert_not_called()
@@ -668,11 +670,13 @@ class TestProxyRunner:
 
         runner = ProxyRunner(auth, home=tmp_path)
 
-        with patch("authsome.proxy.runner.subprocess.run") as run_mock:
+        with (
+            patch("authsome.proxy.runner.subprocess.run") as run_mock,
+            patch.object(runner, "_start_proxy", return_value=("http://127.0.0.1:8899", mock.Mock())),
+            patch.object(runner, "_build_ca_bundle", return_value=None),
+        ):
             run_mock.return_value.returncode = 0
-            with patch.object(runner, "_start_proxy", return_value=("http://127.0.0.1:8899", mock.Mock())):
-                with patch.object(runner, "_build_ca_bundle", return_value=None):
-                    await runner.run(["python", "-c", "print('ok')"])
+            await runner.run(["python", "-c", "print('ok')"])
 
         env = run_mock.call_args.kwargs["env"]
         assert env["OPENAI_API_KEY"] == "authsome-proxy-managed"
@@ -686,11 +690,13 @@ class TestProxyRunner:
         runner = ProxyRunner(auth, home=tmp_path)
         server = mock.Mock()
 
-        with patch("authsome.proxy.runner.subprocess.run", side_effect=RuntimeError("boom")):
-            with patch.object(runner, "_start_proxy", return_value=("http://127.0.0.1:8899", server)):
-                with patch.object(runner, "_build_ca_bundle", return_value=None):
-                    with pytest.raises(RuntimeError, match="boom"):
-                        await runner.run(["python", "-c", "print('ok')"])
+        with (
+            patch("authsome.proxy.runner.subprocess.run", side_effect=RuntimeError("boom")),
+            patch.object(runner, "_start_proxy", return_value=("http://127.0.0.1:8899", server)),
+            patch.object(runner, "_build_ca_bundle", return_value=None),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            await runner.run(["python", "-c", "print('ok')"])
 
         server.shutdown.assert_called_once()
 
@@ -700,9 +706,11 @@ class TestProxyRunner:
         runner = ProxyRunner(mock.Mock(), home=tmp_path)
         server = mock.Mock(url="http://127.0.0.1:8899")
 
-        with patch("authsome.proxy.runner.ensure_local_proxy_ca") as ensure_ca_mock:
-            with patch("authsome.proxy.runner.start_proxy_server", return_value=server) as start_mock:
-                proxy_url, returned_server = runner._start_proxy()
+        with (
+            patch("authsome.proxy.runner.ensure_local_proxy_ca") as ensure_ca_mock,
+            patch("authsome.proxy.runner.start_proxy_server", return_value=server) as start_mock,
+        ):
+            proxy_url, returned_server = runner._start_proxy()
 
         ensure_ca_mock.assert_called_once_with(tmp_path)
         start_mock.assert_called_once_with(runner._client, mode="connected_allow")
@@ -710,21 +718,23 @@ class TestProxyRunner:
         assert returned_server is server
 
     def test_start_proxy_passes_client_config_mode(self, tmp_path: Path) -> None:
-        from authsome.cli.client_config import ClientConfig, save_client_config
+        from authsome.cli.config import ClientConfig, save_client_config
         from authsome.proxy.runner import ProxyRunner
 
         save_client_config(tmp_path, ClientConfig(proxy_mode="configured_deny"))
         runner = ProxyRunner(mock.Mock(), home=tmp_path)
         server = mock.Mock(url="http://127.0.0.1:8899")
 
-        with patch("authsome.proxy.runner.ensure_local_proxy_ca"):
-            with patch("authsome.proxy.runner.start_proxy_server", return_value=server) as start_mock:
-                runner._start_proxy()
+        with (
+            patch("authsome.proxy.runner.ensure_local_proxy_ca"),
+            patch("authsome.proxy.runner.start_proxy_server", return_value=server) as start_mock,
+        ):
+            runner._start_proxy()
 
         start_mock.assert_called_once_with(runner._client, mode="configured_deny")
 
     def test_ensure_local_proxy_ca_sets_flag_after_success(self, tmp_path: Path) -> None:
-        from authsome.cli.client_config import load_client_config
+        from authsome.cli.config import load_client_config
         from authsome.proxy.certs import ensure_local_proxy_ca
 
         with patch("authsome.proxy.certs._ensure_macos_keychain_ca", return_value=True) as ensure_ca_mock:
@@ -734,7 +744,7 @@ class TestProxyRunner:
         assert load_client_config(tmp_path).proxy_ca_installed is True
 
     def test_ensure_local_proxy_ca_skips_repeat_prompt_once_flagged(self, tmp_path: Path) -> None:
-        from authsome.cli.client_config import ClientConfig, save_client_config
+        from authsome.cli.config import ClientConfig, save_client_config
         from authsome.proxy.certs import ensure_local_proxy_ca
 
         save_client_config(tmp_path, ClientConfig(proxy_ca_installed=True))

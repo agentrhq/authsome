@@ -23,7 +23,7 @@ from authsome.audit import AuditEvent
 from authsome.auth.models.config import ServerConfig
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.errors import ProviderAlreadyRegisteredError
-from authsome.identity.local import public_key_from_did_key, validate_handle
+from authsome.identity.helpers import public_key_from_did_key, validate_handle
 from authsome.identity.principal import (
     ClaimStatus,
     IdentityClaimRecord,

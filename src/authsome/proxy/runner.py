@@ -5,12 +5,14 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Protocol
 
 from loguru import logger
 
-from authsome.cli.client_config import load_client_config
+from authsome.cli.config import load_client_config
+from authsome.config import get_authsome_config
 from authsome.proxy.certs import ensure_local_proxy_ca
 from authsome.proxy.server import RunningProxy, start_proxy_server
 
@@ -34,7 +36,7 @@ class ProxyRunner:
 
     def __init__(self, client: ProxyClient, home: Path | None = None) -> None:
         self._client = client
-        self._home = home or Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+        self._home = home or get_authsome_config().home
 
     async def run(self, command: list[str]) -> subprocess.CompletedProcess[str]:
         """Run *command* behind the auth-injecting proxy."""
@@ -71,10 +73,8 @@ class ProxyRunner:
             server.shutdown()
             # Clean up the temporary CA bundle
             if ca_bundle_path and ca_bundle_path.exists():
-                try:
+                with suppress(OSError):
                     ca_bundle_path.unlink()
-                except OSError:
-                    pass
 
     def _start_proxy(self) -> tuple[str, RunningProxy]:
         ensure_local_proxy_ca(self._home)
@@ -108,7 +108,7 @@ class ProxyRunner:
                         env[env_var] = "authsome-proxy-managed"
                         logger.debug("Set dummy env var {} for provider {}", env_var, provider.name)
                 if provider.export.model_extra:
-                    for env_var in provider.export.model_extra.keys():
+                    for env_var in provider.export.model_extra:
                         env[env_var] = "authsome-proxy-managed"
                         logger.debug("Set dummy env var {} for provider {}", env_var, provider.name)
 
@@ -135,10 +135,8 @@ class ProxyRunner:
             path.write_text(content, encoding="utf-8")
         except Exception as e:
             logger.error("Failed to create combined CA bundle: {}", e)
-            try:
+            with suppress(Exception):
                 path.unlink(missing_ok=True)
-            except Exception:
-                pass
             return None
 
         return path

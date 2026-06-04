@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import timedelta
 
 from fastapi import Depends, HTTPException, Request
@@ -23,10 +24,8 @@ def update_device_code_expiry(session: AuthSession) -> None:
     """Set the session expiry from the device-code ``expires_in`` hint, if present."""
     if "expires_in" not in session.payload:
         return
-    try:
+    with suppress(ValueError):
         session.expires_at = utc_now() + timedelta(seconds=int(session.payload["expires_in"]))
-    except ValueError:
-        pass
 
 
 def build_auth_service(

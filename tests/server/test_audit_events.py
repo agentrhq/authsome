@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 from fastapi.testclient import TestClient
 
 from authsome.audit import emit_event
-from authsome.identity import create_identity
+from authsome.cli.identity import create_identity
 from authsome.server.app import create_app
 from tests.server.test_pop_auth import _auth_header
 

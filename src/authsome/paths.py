@@ -2,34 +2,31 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-# TODO: These are all store properties, we have a local file store, move them there
+from authsome.config import get_authsome_config
 
 
 def get_authsome_home(home: Path | None = None) -> Path:
     """Return the root Authsome home directory."""
-    if home is not None:
-        return home
-    return Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+    return get_authsome_config(home).home
 
 
 def get_client_home(home: Path | None = None) -> Path:
     """Return the client-owned Authsome directory."""
-    return get_authsome_home(home) / "client"
+    return get_authsome_config(home).client_home
 
 
 def get_server_home(home: Path | None = None) -> Path:
     """Return the server-owned Authsome directory."""
-    return get_authsome_home(home) / "server"
+    return get_authsome_config(home).server_home
 
 
 def get_client_log_path(home: Path | None = None) -> Path:
     """Return the default client log file path."""
-    return get_client_home(home) / "logs" / "authsome.log"
+    return get_authsome_config(home).client_log_path
 
 
 def get_server_log_path(home: Path | None = None) -> Path:
     """Return the default server log file path."""
-    return get_server_home(home) / "logs" / "authsome.log"
+    return get_authsome_config(home).server_log_path

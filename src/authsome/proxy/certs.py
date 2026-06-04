@@ -8,7 +8,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from authsome.cli.client_config import load_client_config, save_client_config
+from authsome.cli.config import load_client_config, save_client_config
 
 
 def ensure_local_proxy_ca(home: Path) -> None:

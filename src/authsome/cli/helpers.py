@@ -81,7 +81,7 @@ def _validate_provider_endpoints(definition: Any) -> list[tuple[str, str, bool]]
         for api_url in api_urls:
             endpoints_to_check.append(("api_url", api_url, True))
 
-    for name, val, is_host in endpoints_to_check:
+    for name, val, _is_host in endpoints_to_check:
         if "://" in val:
             parsed = urllib.parse.urlparse(val)
             if parsed.scheme != "https":

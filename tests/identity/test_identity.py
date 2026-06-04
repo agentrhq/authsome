@@ -2,17 +2,19 @@ from pathlib import Path
 
 import pytest
 
-from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
-from authsome.identity import current_from_home
-from authsome.identity.local import (
+from authsome.cli.config import ClientConfig, load_client_config, save_client_config
+from authsome.cli.identity import (
     IdentitySource,
-    IdentityStatus,
     create_identity,
+    current_from_home,
     ensure_local_identity,
     identity_key_path,
     load_runtime_identity,
     mark_claimed,
     mark_registered,
+)
+from authsome.identity.helpers import (
+    IdentityStatus,
     public_key_from_did_key,
     public_key_to_did_key,
 )

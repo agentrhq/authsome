@@ -5,9 +5,8 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from authsome.cli.client import AuthsomeApiClient
-from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
-from authsome.identity import create_identity, mark_registered
-from authsome.identity.local import identity_key_path, load_runtime_identity
+from authsome.cli.config import ClientConfig, load_client_config, save_client_config
+from authsome.cli.identity import create_identity, identity_key_path, load_runtime_identity, mark_registered
 
 
 @pytest.mark.asyncio

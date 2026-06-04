@@ -2,14 +2,13 @@
 
 import functools
 import json as json_lib
-import os
-from pathlib import Path
 from typing import Any
 
 import click
 
 from authsome.cli.client import AuthsomeApiClient
 from authsome.cli.daemon_control import resolve_runtime_client
+from authsome.config import get_authsome_config
 from authsome.proxy.runner import ProxyRunner
 
 
@@ -18,7 +17,7 @@ class CliRuntime:
 
     def __init__(self, client: AuthsomeApiClient) -> None:
         self.runtime_client = client
-        self.home = Path(os.environ.get("AUTHSOME_HOME", str(Path.home() / ".authsome")))
+        self.home = get_authsome_config().home
 
     async def doctor(self) -> dict[str, Any]:
         return await self.runtime_client.doctor()

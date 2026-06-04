@@ -8,7 +8,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from authsome import __version__
-from authsome.paths import get_client_home
+from authsome.config import get_authsome_config
 
 ProxyMode = Literal[
     "connected_allow",
@@ -34,12 +34,12 @@ class ClientConfig(BaseModel):
     proxy_mode: ProxyMode = "connected_allow"
 
 
-def client_config_path(home: Path) -> Path:
+def client_config_path(home: Path | None = None) -> Path:
     """Return the caller-local config file path."""
-    return get_client_home(home) / "config.json"
+    return get_authsome_config(home).client_config_path
 
 
-def load_client_config(home: Path) -> ClientConfig:
+def load_client_config(home: Path | None = None) -> ClientConfig:
     """Load caller-local config, defaulting when absent or invalid."""
     path = client_config_path(home)
     if not path.exists():
@@ -50,8 +50,13 @@ def load_client_config(home: Path) -> ClientConfig:
         return ClientConfig()
 
 
-def save_client_config(home: Path, config: ClientConfig) -> None:
+def save_client_config(home: Path | None, config: ClientConfig) -> None:
     """Persist caller-local config."""
     path = client_config_path(home)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(config.model_dump_json(indent=2), encoding="utf-8")
+
+
+def get_client_config(home: Path | None = None) -> ClientConfig:
+    """Return the caller-local config."""
+    return load_client_config(home)

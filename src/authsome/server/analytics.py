@@ -7,7 +7,7 @@ from typing import Any
 from loguru import logger
 from posthog import Posthog
 
-from authsome.server.settings import get_settings
+from authsome.server.config import get_server_config
 
 _client: Posthog | None = None
 
@@ -32,7 +32,7 @@ def init_posthog() -> Posthog | None:
     """
     global _client
 
-    settings = get_settings()
+    settings = get_server_config()
     if not settings.analytics_enabled:
         _client = None
         logger.debug("Analytics disabled via settings")

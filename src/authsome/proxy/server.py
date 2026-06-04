@@ -17,7 +17,7 @@ from mitmproxy import http
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
-from authsome.cli.client_config import ProxyMode
+from authsome.cli.config import ProxyMode
 from authsome.proxy.router import RouteMatch, RouteResolution
 from authsome.server.urls import DEFAULT_SERVER_BASE_URL
 from authsome.utils import utc_now

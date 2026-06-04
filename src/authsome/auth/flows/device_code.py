@@ -123,9 +123,7 @@ class DeviceCodeFlow(AuthFlow):
             )
 
         error = data.get("error", "")
-        if error == "authorization_pending":
-            return None
-        elif error == "slow_down":
+        if error == "authorization_pending" or error == "slow_down":
             return None
         elif error == "access_denied":
             raise AuthenticationFailedError("User denied the authorization request", provider=provider.name)

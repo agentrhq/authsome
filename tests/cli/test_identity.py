@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from authsome.cli.client_config import load_client_config
+from authsome.cli.config import load_client_config
+from authsome.cli.identity import load_identity
 from authsome.cli.main import cli
-from authsome.identity import load_identity
 
 
 class TestProfileCommands:

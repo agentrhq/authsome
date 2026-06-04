@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from authsome.auth.models.enums import FlowType
-from authsome.identity import create_identity
+from authsome.cli.identity import create_identity
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
 from tests.server.test_pop_auth import register_and_claim_identity
@@ -19,7 +19,7 @@ def _auth_header(
     *,
     handle: str,
 ) -> dict[str, str]:
-    from authsome.identity import load_private_key
+    from authsome.cli.identity import load_private_key
 
     identity = create_identity(tmp_path, handle)
     token = create_proof_jwt(

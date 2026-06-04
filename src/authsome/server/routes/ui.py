@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from typing import Any
 from urllib.parse import urlencode
 
@@ -183,19 +184,15 @@ async def logout_ui_session(
     response = _redirect(request, _account_auth_next_url(form.get("return_url") or "/"))
     cookie_value = request.cookies.get(UI_SESSION_COOKIE_NAME)
     if cookie_value:
-        try:
+        with suppress(KeyError):
             browser_session = ui_sessions.get_browser_session(cookie_value)
             capture_event(
                 browser_session.email,
                 "account_logged_out",
                 {"principal_id": browser_session.principal_id},
             )
-        except KeyError:
-            pass
-        try:
+        with suppress(KeyError):
             ui_sessions.delete_browser_session(cookie_value)
-        except KeyError:
-            pass
     _clear_ui_session_cookie(response)
     return response
 

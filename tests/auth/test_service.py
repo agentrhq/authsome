@@ -85,30 +85,30 @@ class TestAuthServiceRefreshLogs:
             expires_at=expires_at,
         )
 
-        with mock.patch.object(
-            service, "_refresh_token", side_effect=RefreshFailedError("API down", provider="github")
+        with (
+            mock.patch.object(service, "_refresh_token", side_effect=RefreshFailedError("API down", provider="github")),
+            mock.patch("loguru.logger.warning") as mock_logger,
         ):
-            with mock.patch("loguru.logger.warning") as mock_logger:
-                # Exercise
-                token = await service._get_oauth_token(record, provider="github", connection="default")
+            # Exercise
+            token = await service._get_oauth_token(record, provider="github", connection="default")
 
-                # 1. Should yield fallback token
-                assert token == "original-token"
+            # 1. Should yield fallback token
+            assert token == "original-token"
 
-                # 2. Log verified
-                mock_logger.assert_called_once()
-                log_msg = mock_logger.call_args[0][0]
-                assert "Warning: token refresh failed for github/default" in log_msg
-                assert "using existing token" in log_msg
-                assert "expires in " in log_msg
+            # 2. Log verified
+            mock_logger.assert_called_once()
+            log_msg = mock_logger.call_args[0][0]
+            assert "Warning: token refresh failed for github/default" in log_msg
+            assert "using existing token" in log_msg
+            assert "expires in " in log_msg
 
-                # 3. Audit verified
-                entries = await audit_log.list_events()
-                assert len(entries) == 1
-                entry = entries[0]
-                assert entry["event"] == "provider.refresh_failed"
-                assert entry["fallback_available"] is True
-                assert "API down" in entry["error"]
+            # 3. Audit verified
+            entries = await audit_log.list_events()
+            assert len(entries) == 1
+            entry = entries[0]
+            assert entry["event"] == "provider.refresh_failed"
+            assert entry["fallback_available"] is True
+            assert "API down" in entry["error"]
 
     async def test_refresh_failure_expired(self, audit_log: ServerAuditLog, service: CredentialService):
         """Verify behavior when refresh fails and current token is already expired."""
@@ -127,26 +127,28 @@ class TestAuthServiceRefreshLogs:
             expires_at=expires_at,
         )
 
-        with mock.patch.object(
-            service, "_refresh_token", side_effect=RefreshFailedError("API rejected", provider="github")
+        with (
+            mock.patch.object(
+                service, "_refresh_token", side_effect=RefreshFailedError("API rejected", provider="github")
+            ),
+            mock.patch("loguru.logger.warning") as mock_logger,
         ):
-            with mock.patch("loguru.logger.warning") as mock_logger:
-                # Exercise - should re-raise exception as there is no fallback
-                with pytest.raises(RefreshFailedError):
-                    await service._get_oauth_token(record, provider="github", connection="default")
+            # Exercise - should re-raise exception as there is no fallback
+            with pytest.raises(RefreshFailedError):
+                await service._get_oauth_token(record, provider="github", connection="default")
 
-                # 1. Warning still emitted even without fallback
-                mock_logger.assert_called_once()
-                log_msg = mock_logger.call_args[0][0]
-                assert "Warning: token refresh failed for github/default" in log_msg
-                assert "token expired" in log_msg
+            # 1. Warning still emitted even without fallback
+            mock_logger.assert_called_once()
+            log_msg = mock_logger.call_args[0][0]
+            assert "Warning: token refresh failed for github/default" in log_msg
+            assert "token expired" in log_msg
 
-                # 2. Audit written
-                entries = await audit_log.list_events()
-                assert len(entries) == 1
-                entry = entries[0]
-                assert entry["event"] == "provider.refresh_failed"
-                assert entry["fallback_available"] is False
+            # 2. Audit written
+            entries = await audit_log.list_events()
+            assert len(entries) == 1
+            entry = entries[0]
+            assert entry["event"] == "provider.refresh_failed"
+            assert entry["fallback_available"] is False
 
 
 def test_auth_service_allows_missing_identity() -> None:

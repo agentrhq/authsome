@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 
 from authsome import __version__
-from authsome.cli.client_config import ClientConfig, load_client_config, save_client_config
+from authsome.cli.config import ClientConfig, load_client_config, save_client_config
+from authsome.cli.identity import create_identity, mark_registered
 from authsome.cli.main import cli
-from authsome.identity import create_identity, mark_registered
 
 
 def test_init_removes_legacy_default_state_and_registers_identity(

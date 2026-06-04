@@ -55,9 +55,7 @@ def is_filesystem_safe(name: str) -> bool:
     if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$", name):
         return False
     # Block path traversal
-    if ".." in name or "/" in name or "\\" in name:
-        return False
-    return True
+    return not (".." in name or "/" in name or "\\" in name)
 
 
 def redact(record: Any, redacted_value: str = "***REDACTED***") -> dict[str, Any]:
@@ -80,9 +78,8 @@ def redact(record: Any, redacted_value: str = "***REDACTED***") -> dict[str, Any
     for field_name, hint in hints.items():
         if typing.get_origin(hint) is typing.Annotated:
             metadata = typing.get_args(hint)[1:]
-            if any(isinstance(m, Sensitive) for m in metadata):
-                if data.get(field_name) is not None:
-                    data[field_name] = redacted_value
+            if any(isinstance(m, Sensitive) for m in metadata) and data.get(field_name) is not None:
+                data[field_name] = redacted_value
     return data
 
 

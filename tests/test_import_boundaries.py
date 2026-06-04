@@ -17,9 +17,8 @@ def _imports_under(package: str) -> set[str]:
                 for alias in node.names:
                     if alias.name.startswith("authsome."):
                         imports.add(alias.name)
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                if node.module.startswith("authsome."):
-                    imports.add(node.module)
+            elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("authsome."):
+                imports.add(node.module)
     return imports
 
 
@@ -45,4 +44,4 @@ def test_vault_is_orthogonal_library_module() -> None:
 
 
 def test_identity_is_orthogonal_library_module() -> None:
-    _assert_no_imports("identity", {"authsome.server", "authsome.auth", "authsome.vault"})
+    _assert_no_imports("identity", {"authsome.server", "authsome.auth", "authsome.vault", "authsome.cli"})

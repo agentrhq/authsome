@@ -5,12 +5,13 @@ from __future__ import annotations
 import base64
 import os
 import secrets
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
 from loguru import logger
 
-from authsome.paths import get_server_home
+from authsome.server.config import get_server_config
 
 _KEY_SIZE = 32
 _KEYRING_SERVICE = "authsome"
@@ -54,7 +55,7 @@ class ServerSecretResolver:
 
     def __init__(self, spec: ServerSecretSpec, home: Path | None = None) -> None:
         self._spec = spec
-        self._server_home = get_server_home(home)
+        self._server_home = get_server_config(home).server_home
         self._default_key_file = self._server_home / spec.default_filename
 
     def resolve(self) -> str:
@@ -104,10 +105,8 @@ class ServerSecretResolver:
     def _write_file(self, path: Path, value: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(value, encoding="utf-8")
-        try:
+        with suppress(OSError):
             os.chmod(path, 0o600)
-        except OSError:
-            pass
 
 
 def load_master_secret(home: Path | None = None) -> str:

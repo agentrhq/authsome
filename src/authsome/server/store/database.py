@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -12,7 +11,7 @@ from urllib.parse import urlparse
 
 import aiosqlite
 
-from authsome.paths import get_authsome_home, get_server_home
+from authsome.server.config import get_server_config
 
 StoreBackend = Literal["sqlite", "postgres"]
 
@@ -107,8 +106,9 @@ class StoreDatabase:
 
 def resolve_store_database_config(home: Path | None = None, database_url: str | None = None) -> StoreDatabaseConfig:
     """Resolve the relational Store backend from explicit config or defaults."""
-    resolved_home = home or get_authsome_home()
-    raw_url = database_url if database_url is not None else os.environ.get("AUTHSOME_DATABASE_URL")
+    server_config = get_server_config(home)
+    resolved_home = server_config.home
+    raw_url = database_url if database_url is not None else server_config.database_url
     if raw_url:
         parsed = urlparse(raw_url)
         if parsed.scheme in {"postgres", "postgresql"}:
@@ -119,8 +119,7 @@ def resolve_store_database_config(home: Path | None = None, database_url: str | 
             return StoreDatabaseConfig(backend="sqlite", dsn=parsed.path, home=resolved_home)
         raise ValueError(f"Unsupported AUTHSOME_DATABASE_URL scheme: {parsed.scheme}")
 
-    sqlite_path = get_server_home(resolved_home) / "authsome.db"
-    return StoreDatabaseConfig(backend="sqlite", dsn=str(sqlite_path), home=resolved_home)
+    return StoreDatabaseConfig(backend="sqlite", dsn=str(server_config.sqlite_database_path), home=resolved_home)
 
 
 async def open_store_database(config: StoreDatabaseConfig) -> StoreDatabase:

@@ -9,6 +9,7 @@ import signal
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from typing import Any
 from urllib.parse import urlparse
 
@@ -17,19 +18,19 @@ from authsome.cli.client import (
     is_managed_local_daemon_url,
     resolve_daemon_url,
 )
-from authsome.paths import get_authsome_home, get_server_home
-from authsome.server.daemon import DEFAULT_HOST, DEFAULT_PORT
+from authsome.server.config import get_server_config
 
-AUTHSOME_HOME = get_authsome_home()
-DAEMON_DIR = get_server_home(AUTHSOME_HOME) / "daemon"
-PID_FILE = DAEMON_DIR / "daemon.pid"
-LOG_FILE = DAEMON_DIR / "daemon.log"
-STATE_FILE = DAEMON_DIR / "daemon.json"
+SERVER_CONFIG = get_server_config()
+DAEMON_DIR = SERVER_CONFIG.daemon_dir
+PID_FILE = SERVER_CONFIG.daemon_pid_file
+LOG_FILE = SERVER_CONFIG.daemon_log_file
+STATE_FILE = SERVER_CONFIG.daemon_state_file
 
 
 def _resolved_host_port() -> tuple[str, int]:
     parsed = urlparse(resolve_daemon_url())
-    return parsed.hostname or DEFAULT_HOST, parsed.port or DEFAULT_PORT
+    config = get_server_config()
+    return parsed.hostname or config.host, parsed.port or config.port
 
 
 class DaemonUnavailableError(RuntimeError):
@@ -145,10 +146,8 @@ async def stop_daemon() -> tuple[bool, str]:
             return True, "Daemon stopped successfully."
         await asyncio.sleep(0.2)
 
-    try:
+    with suppress(ProcessLookupError):
         os.kill(pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
 
     _clear_daemon_files()
     if _process_alive(pid):
@@ -200,10 +199,8 @@ def _pid_file_process_alive() -> bool:
 
 def _clear_daemon_files() -> None:
     for path in (PID_FILE, STATE_FILE):
-        try:
+        with suppress(FileNotFoundError):
             path.unlink()
-        except FileNotFoundError:
-            pass
 
 
 def _startup_error() -> str:

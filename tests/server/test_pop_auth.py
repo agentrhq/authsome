@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
-from authsome.identity import create_identity, load_private_key
+from authsome.cli.identity import create_identity, load_private_key
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
 from authsome.server.credential_repository import build_store_key

@@ -11,8 +11,8 @@ from authsome.auth.models.connection import ConnectionRecord, ProviderClientReco
 from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
 from authsome.auth.models.provider import OAuthConfig, ProviderDefinition
 from authsome.auth.sessions import AuthSession
+from authsome.cli.identity import create_identity
 from authsome.errors import OperationNotAllowedError
-from authsome.identity import create_identity
 from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_repository import CredentialRepository, build_store_key
 from authsome.server.credential_service import CredentialService
@@ -137,19 +137,21 @@ async def test_get_required_inputs_skips_scope_prompt_when_server_scopes_exist()
     service = _service(vault, identity="second-identity")
     session = _make_session(flow_type=FlowType.PKCE)
 
-    with mock.patch.object(
-        service._credentials,
-        "get_provider_client",
-        new=mock.AsyncMock(
-            return_value=ProviderClientRecord(
-                provider="github",
-                client_id="cid",
-                scopes=["repo", "read:user"],
-            )
+    with (
+        mock.patch.object(
+            service._credentials,
+            "get_provider_client",
+            new=mock.AsyncMock(
+                return_value=ProviderClientRecord(
+                    provider="github",
+                    client_id="cid",
+                    scopes=["repo", "read:user"],
+                )
+            ),
         ),
+        mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())),
     ):
-        with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())):
-            fields = await service.get_required_inputs(session)
+        fields = await service.get_required_inputs(session)
 
     assert all(field.name != "scopes" for field in fields)
 
@@ -258,9 +260,11 @@ async def test_begin_login_flow_reuses_server_scopes() -> None:
     handler = mock.AsyncMock()
 
     handlers = {FlowType.PKCE: mock.Mock(return_value=handler)}
-    with mock.patch("authsome.server.credential_service._FLOW_HANDLERS", handlers):
-        with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())):
-            await service.begin_login_flow(session)
+    with (
+        mock.patch("authsome.server.credential_service._FLOW_HANDLERS", handlers),
+        mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=_make_provider())),
+    ):
+        await service.begin_login_flow(session)
 
     handler.begin.assert_awaited_once()
     assert handler.begin.await_args.kwargs["scopes"] == ["repo", "read:user"]
@@ -296,10 +300,12 @@ async def test_resume_login_flow_saves_dcr_client_record_to_server_scope() -> No
     dcr_handlers = {FlowType.DCR_PKCE: mock.Mock(return_value=handler)}
     with mock.patch("authsome.server.credential_service._FLOW_HANDLERS", dcr_handlers):
         provider = _make_provider(flow=FlowType.DCR_PKCE)
-        with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=provider)):
-            with mock.patch.object(service._credentials, "save_connection", new=mock.AsyncMock()):
-                with mock.patch.object(service, "_update_provider_metadata", new=mock.AsyncMock()):
-                    result = await service.resume_login_flow(session, {"code": "auth-code", "state": "oauth-state"})
+        with (
+            mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=provider)),
+            mock.patch.object(service._credentials, "save_connection", new=mock.AsyncMock()),
+            mock.patch.object(service, "_update_provider_metadata", new=mock.AsyncMock()),
+        ):
+            result = await service.resume_login_flow(session, {"code": "auth-code", "state": "oauth-state"})
 
     assert result is not None
     assert result.base_url == "https://api.github.example"
@@ -368,9 +374,11 @@ async def test_non_admin_resume_login_flow_rejects_dcr_client_persistence() -> N
     dcr_handlers = {FlowType.DCR_PKCE: mock.Mock(return_value=handler)}
     with mock.patch("authsome.server.credential_service._FLOW_HANDLERS", dcr_handlers):
         provider = _make_provider(flow=FlowType.DCR_PKCE)
-        with mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=provider)):
-            with pytest.raises(OperationNotAllowedError):
-                await service.resume_login_flow(session, {"code": "auth-code", "state": "oauth-state"})
+        with (
+            mock.patch.object(service, "get_provider", new=mock.AsyncMock(return_value=provider)),
+            pytest.raises(OperationNotAllowedError),
+        ):
+            await service.resume_login_flow(session, {"code": "auth-code", "state": "oauth-state"})
 
 
 @pytest.mark.asyncio

@@ -221,7 +221,7 @@ async def get_session_input(
     try:
         session = await sessions.get(session_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="Authentication session not found")
+        raise HTTPException(status_code=404, detail="Authentication session not found") from None
     if not await _ensure_browser_session_identity(request, session):
         return RedirectResponse("/login", status_code=303)
     auth = await require_auth_service(
@@ -260,7 +260,7 @@ async def get_session_device_code(
     try:
         session = await sessions.get(session_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="Authentication session not found")
+        raise HTTPException(status_code=404, detail="Authentication session not found") from None
     if not await _ensure_browser_session_identity(request, session):
         return RedirectResponse("/login", status_code=303)
     user_code = session.payload.get("user_code")
@@ -293,7 +293,7 @@ async def get_browser_session_status(
     try:
         session = await sessions.get(session_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="Authentication session not found")
+        raise HTTPException(status_code=404, detail="Authentication session not found") from None
     if not await _ensure_browser_session_identity(request, session):
         return RedirectResponse("/login", status_code=303)
     return {
@@ -351,7 +351,7 @@ async def _submit_session_input(
     try:
         session = await sessions.get(session_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="Authentication session not found")
+        raise HTTPException(status_code=404, detail="Authentication session not found") from None
     if not await _ensure_browser_session_identity(request, session):
         return RedirectResponse("/login", status_code=303)
     auth = await require_auth_service(
