@@ -5,9 +5,10 @@ import sys
 from pathlib import Path
 
 from loguru import logger
+from mitmproxy.certs import CertStore
 
 
-def ensure_local_proxy_ca() -> bool:
+def ensure_local_proxy_ca() -> bool:  # noqa: PLR0911
     """Ensure the mitmproxy CA is generated and trusted in the macOS login keychain.
 
     Go's crypto/x509 on macOS uses the native Security framework and ignores
@@ -24,6 +25,7 @@ def ensure_local_proxy_ca() -> bool:
     check = subprocess.run(
         ["security", "find-certificate", "-c", "mitmproxy", str(keychain)],
         capture_output=True,
+        check=False,
         text=True,
     )
     if check.returncode == 0:
@@ -34,8 +36,6 @@ def ensure_local_proxy_ca() -> bool:
     ca_cert_path = confdir / "mitmproxy-ca-cert.pem"
     if not ca_cert_path.exists():
         try:
-            from mitmproxy.certs import CertStore
-
             CertStore.from_store(confdir, "mitmproxy", 2048)
             logger.debug("Generated mitmproxy CA certificate at {}", ca_cert_path)
         except Exception as exc:
@@ -57,6 +57,7 @@ def ensure_local_proxy_ca() -> bool:
             str(ca_cert_path),
         ],
         capture_output=True,
+        check=False,
         text=True,
         timeout=60,
     )

@@ -1,10 +1,33 @@
 """Shared utility functions for authsome."""
 
+import ctypes
+import getpass
+import os
 import re
+import shutil
+import subprocess
+import sys
+import typing
+from ctypes import wintypes
 from datetime import UTC, datetime
 from typing import Any
 
+from authsome.auth.models.connection import Sensitive
 from authsome.errors import AuthsomeError
+
+SECONDS_PER_MINUTE = 60
+MINUTES_PER_HOUR = 60
+HOURS_PER_DAY = 24
+EXIT_SUCCESS = 0
+EXIT_GENERAL_ERROR = 1
+EXIT_AUTHENTICATION_FAILED = 2
+EXIT_CONNECTION_NOT_FOUND = 3
+EXIT_PROVIDER_NOT_FOUND = 4
+EXIT_CREDENTIAL_MISSING = 5
+EXIT_CONNECTION_ALREADY_EXISTS = 6
+EXIT_PROVIDER_ALREADY_REGISTERED = 7
+EXIT_ENDPOINT_UNREACHABLE = 8
+EXIT_DAEMON_UNAVAILABLE = 9
 
 
 def utc_now() -> datetime:
@@ -21,17 +44,16 @@ def to_rfc3339(dt: datetime) -> str:
 
 def format_duration(total_seconds: int) -> str:
     """Return a compact readable string for a duration in seconds."""
-    if total_seconds < 0:
-        total_seconds = 0
-    if total_seconds < 60:
+    total_seconds = max(total_seconds, 0)
+    if total_seconds < SECONDS_PER_MINUTE:
         return f"{total_seconds}s"
-    minutes = total_seconds // 60
-    if minutes < 60:
+    minutes = total_seconds // SECONDS_PER_MINUTE
+    if minutes < MINUTES_PER_HOUR:
         return f"{minutes}m"
-    hours = minutes // 60
-    if hours < 24:
+    hours = minutes // MINUTES_PER_HOUR
+    if hours < HOURS_PER_DAY:
         return f"{hours}h"
-    days = hours // 24
+    days = hours // HOURS_PER_DAY
     return f"{days}d"
 
 
@@ -63,9 +85,6 @@ def redact(record: Any, redacted_value: str = "***REDACTED***") -> dict[str, Any
     Uses get_type_hints(include_extras=True) to detect Annotated[..., Sensitive()]
     fields and replaces their values with redacted_value before display.
     """
-    import typing
-
-    from authsome.auth.models.connection import Sensitive
 
     data = record.model_dump(mode="json")
     try:
@@ -81,14 +100,11 @@ def redact(record: Any, redacted_value: str = "***REDACTED***") -> dict[str, Any
     return data
 
 
-def require_os_auth(action_name: str) -> bool:
+def require_os_auth(action_name: str) -> bool:  # noqa: PLR0911
     """
     Prompt the user for OS-level authentication (e.g., Touch ID on macOS)
     before allowing a sensitive action. Returns True if authenticated, False otherwise.
     """
-    import subprocess
-    import sys
-
     if sys.platform == "darwin":
         prompt = f"Authsome requires authentication to {action_name}."
         script = f'do shell script "echo authenticated" with prompt "{prompt}" with administrator privileges'
@@ -102,8 +118,6 @@ def require_os_auth(action_name: str) -> bool:
         except subprocess.CalledProcessError:
             return False
     elif sys.platform.startswith("linux"):
-        import shutil
-
         if shutil.which("pkexec"):
             try:
                 subprocess.run(["pkexec", "true"], check=True, capture_output=True)
@@ -119,11 +133,6 @@ def require_os_auth(action_name: str) -> bool:
                 return False
         return False
     elif sys.platform == "win32":
-        import ctypes
-        import getpass
-        import os
-        from ctypes import wintypes
-
         try:
             password = getpass.getpass(f"Authsome requires authentication to {action_name}. Password: ")
             if not password:
@@ -189,25 +198,25 @@ def connection_is_active(connection: dict[str, Any]) -> bool:
     return datetime.now(UTC) < expiry
 
 
-def format_error_code(exc: Exception) -> int:
+def format_error_code(exc: Exception) -> int:  # noqa: PLR0911
     """Return a numerical exit code representing the exception type."""
     if exc.__class__.__name__ == "DaemonUnavailableError":
-        return 9
+        return EXIT_DAEMON_UNAVAILABLE
     if not isinstance(exc, AuthsomeError | FileExistsError):
-        return 1
+        return EXIT_GENERAL_ERROR
     exc_name = exc.__class__.__name__
     if exc_name in ("AuthenticationFailedError", "InputCancelledError"):
-        return 2
+        return EXIT_AUTHENTICATION_FAILED
     if exc_name == "ConnectionNotFoundError":
-        return 3
+        return EXIT_CONNECTION_NOT_FOUND
     if exc_name in ("ProviderNotFoundError", "OperationNotAllowedError"):
-        return 4
+        return EXIT_PROVIDER_NOT_FOUND
     if exc_name in ("CredentialMissingError", "TokenExpiredError", "RefreshFailedError"):
-        return 5
+        return EXIT_CREDENTIAL_MISSING
     if exc_name == "ConnectionAlreadyExistsError":
-        return 6
+        return EXIT_CONNECTION_ALREADY_EXISTS
     if exc_name in ("ProviderAlreadyRegisteredError", "FileExistsError"):
-        return 7
+        return EXIT_PROVIDER_ALREADY_REGISTERED
     if exc_name == "EndpointUnreachableError":
-        return 8
-    return 1
+        return EXIT_ENDPOINT_UNREACHABLE
+    return EXIT_GENERAL_ERROR

@@ -4,6 +4,8 @@ These functions have no I/O and require no mocking — they are tested
 directly to ensure the formatting, duration, and error-code logic is correct.
 """
 
+# ruff: noqa: PLR2004
+
 from datetime import UTC, datetime, timedelta
 
 import pytest

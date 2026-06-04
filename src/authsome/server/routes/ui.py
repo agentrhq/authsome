@@ -5,7 +5,7 @@ from contextlib import suppress
 from typing import Any
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
 from fastapi.responses import RedirectResponse
 
 from authsome import audit
@@ -33,8 +33,8 @@ router = APIRouter(tags=["ui"], include_in_schema=False)
 def _redirect(request: Request, url: str) -> Response:
     """Redirect normally, or via htmx full-page redirect for form compatibility."""
     if request.headers.get("HX-Request") == "true":
-        return Response(status_code=204, headers={"HX-Redirect": url})
-    return RedirectResponse(url=url, status_code=303)
+        return Response(status_code=status.HTTP_204_NO_CONTENT, headers={"HX-Redirect": url})
+    return RedirectResponse(url=url, status_code=status.HTTP_303_SEE_OTHER)
 
 
 class UiAuthRequiredError(Exception):
@@ -55,7 +55,9 @@ async def _resolve_ui_auth(request: Request, *, next_url: str | None = None) -> 
         return auth
 
     target = _account_auth_next_url(next_url or request.query_params.get("next") or request.url.path)
-    raise UiAuthRequiredError(RedirectResponse(url=_account_auth_entry_url(target), status_code=303))
+    raise UiAuthRequiredError(
+        RedirectResponse(url=_account_auth_entry_url(target), status_code=status.HTTP_303_SEE_OTHER)
+    )
 
 
 def require_ui_auth(next_url: str | None = None) -> Callable[[Request], Awaitable[CredentialService]]:
@@ -101,7 +103,7 @@ def _account_auth_next_url(value: Any) -> str:
 
 
 @router.post("/auth/providers/{provider_name}/connect", include_in_schema=False)
-async def connect_provider(
+async def connect_provider(  # noqa: PLR0913
     provider_name: str,
     request: Request,
     background_tasks: BackgroundTasks,
@@ -232,11 +234,11 @@ async def register_account(
     except ValueError as exc:
         return RedirectResponse(
             url=f"/login?{urlencode({'next': next_url, 'error': str(exc), 'tab': 'register'})}",
-            status_code=303,
+            status_code=status.HTTP_303_SEE_OTHER,
         )
 
     capture_event(session.email, "account_registered", {"principal_id": session.principal_id})
-    response = RedirectResponse(url=next_url, status_code=303)
+    response = RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
     _set_ui_session_cookie(response, session.token, ui_sessions, server_base_url)
     return response
 
@@ -258,12 +260,12 @@ async def login_account(
         audit.emit_event("account.login_failed", status="failure", reason="invalid_credentials")
         return RedirectResponse(
             url=f"/login?{urlencode({'next': next_url, 'error': str(exc), 'tab': 'login'})}",
-            status_code=303,
+            status_code=status.HTTP_303_SEE_OTHER,
         )
 
     audit.emit_event("account.login", principal_id=session.principal_id, status="success")
     capture_event(session.email, "account_logged_in", {"principal_id": session.principal_id})
-    response = RedirectResponse(url=next_url, status_code=303)
+    response = RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
     _set_ui_session_cookie(response, session.token, ui_sessions, server_base_url)
     return response
 
@@ -277,12 +279,16 @@ async def claim_identity_confirm(
     try:
         pending = ui_sessions.get_pending_claim(token)
     except KeyError:
-        return RedirectResponse(url=f"/claim?{urlencode({'token': token, 'error': 'expired'})}", status_code=303)
+        return RedirectResponse(
+            url=f"/claim?{urlencode({'token': token, 'error': 'expired'})}", status_code=status.HTTP_303_SEE_OTHER
+        )
 
     await resolve_ui_request_identity(request)
     principal_id = getattr(request.state, "ui_principal_id", None)
     if not principal_id:
-        return RedirectResponse(url=f"/login?{urlencode({'next': f'/claim?token={token}'})}", status_code=303)
+        return RedirectResponse(
+            url=f"/login?{urlencode({'next': f'/claim?token={token}'})}", status_code=status.HTTP_303_SEE_OTHER
+        )
 
     pending = ui_sessions.consume_pending_claim(token)
     await request.app.state.ownership_resolver.claim_identity_for_principal(
@@ -291,4 +297,4 @@ async def claim_identity_confirm(
     )
     request.app.state.ownership_cache.pop(pending.identity, None)
     capture_event(pending.identity, "identity_claimed", {"principal_id": principal_id})
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)

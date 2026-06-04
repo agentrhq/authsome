@@ -1,5 +1,7 @@
 """Tests for the `authsome doctor` command."""
 
+# ruff: noqa: PLR2004
+
 import json
 from unittest.mock import patch
 

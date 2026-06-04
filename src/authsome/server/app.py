@@ -3,7 +3,7 @@
 from contextlib import asynccontextmanager
 from importlib.resources import files
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -70,12 +70,12 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(AuthsomeError)
     def authsome_error_handler(request: Request, exc: AuthsomeError) -> JSONResponse:
-        status_code = 400
+        status_code = status.HTTP_400_BAD_REQUEST
         exc_name = exc.__class__.__name__
         if exc_name in ("ConnectionNotFoundError", "ProviderNotFoundError", "IdentityNotFoundError"):
-            status_code = 404
+            status_code = status.HTTP_404_NOT_FOUND
         elif exc_name == "CredentialMissingError":
-            status_code = 401
+            status_code = status.HTTP_401_UNAUTHORIZED
 
         return JSONResponse(
             status_code=status_code,
@@ -89,7 +89,9 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(IdentityRegistrationError)
     def identity_registration_error_handler(request: Request, exc: IdentityRegistrationError) -> JSONResponse:
-        return JSONResponse(status_code=409, content={"error": "IdentityRegistrationError", "message": str(exc)})
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT, content={"error": "IdentityRegistrationError", "message": str(exc)}
+        )
 
     @app.exception_handler(UiAuthRequiredError)
     def ui_auth_required_handler(request: Request, exc: UiAuthRequiredError):
@@ -97,7 +99,7 @@ def create_app() -> FastAPI:
 
     @app.get("/claim/{token}", include_in_schema=False)
     def claim_page_redirect(token: str) -> RedirectResponse:
-        return RedirectResponse(url=f"/claim?token={token}", status_code=307)
+        return RedirectResponse(url=f"/claim?token={token}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
     app.include_router(auth_browser_router)
     app.include_router(health_router, prefix="/api")

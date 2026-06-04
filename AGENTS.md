@@ -80,6 +80,8 @@ These rules govern all changes to this codebase — apply them without exception
 
 **No hallucinated APIs.** If unsure a method or parameter exists, search the codebase before using it.
 
+**Use real runtime types.** Do not hide missing imports or circular dependencies behind quoted annotations, `TYPE_CHECKING` imports, or postponed annotations. If an annotation names a class from another module, import it normally and let import-time failures reveal architectural cycles. Fix those cycles at the ownership boundary. Use `Self` for same-class return types.
+
 **Read before write.** Understand the existing implementation before modifying it.
 
 **Prefer reversible changes.** Avoid destructive operations without explicit user confirmation.

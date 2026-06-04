@@ -99,7 +99,7 @@ def validate_provider_definition(definition: ProviderDefinition) -> None:
         )
 
 
-def required_inputs(
+def required_inputs(  # noqa: PLR0913
     *,
     provider: ProviderDefinition,
     flow_type: FlowType,

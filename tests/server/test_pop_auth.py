@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from fastapi import status
 from fastapi.testclient import TestClient
 
 from authsome.auth.models.connection import ConnectionRecord
@@ -14,7 +15,7 @@ from authsome.server.app import create_app
 from authsome.server.credential_repository import build_store_key
 
 
-def _auth_header(
+def _auth_header(  # noqa: PLR0913
     tmp_path: Path,
     method: str,
     path: str,
@@ -45,18 +46,18 @@ def register_and_claim_identity(
     """Register an identity and drive the browser claim flow through to acceptance."""
     identity = create_identity(tmp_path, handle)
     response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     claim_url = urlparse(response.json()["claim_url"])
     token = parse_qs(claim_url.query)["token"][0]
     claim_path = f"/api/claim/{token}"
-    assert client.get(claim_path).status_code == 200
+    assert client.get(claim_path).status_code == status.HTTP_200_OK
     registered = client.post(
         "/api/auth/register",
         data={"email": email, "password": "password-1", "next": claim_path},
         follow_redirects=False,
     )
-    assert registered.status_code == 303
-    assert client.post(f"{claim_path}/confirm", follow_redirects=False).status_code == 303
+    assert registered.status_code == status.HTTP_303_SEE_OTHER
+    assert client.post(f"{claim_path}/confirm", follow_redirects=False).status_code == status.HTTP_303_SEE_OTHER
 
 
 def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
@@ -65,7 +66,7 @@ def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
     with TestClient(create_app()) as client:
         response = client.get("/api/whoami")
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Path) -> None:
@@ -75,7 +76,7 @@ def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Pat
         register_and_claim_identity(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.get("/api/whoami", headers=_auth_header(tmp_path, "GET", "/api/whoami"))
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json()["identity"] == "steady-wisely-boldly-0042"
     assert response.json()["principal_id"].startswith("principal_")
     assert response.json()["vault_id"].startswith("vault_")
@@ -94,11 +95,11 @@ def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path)
         health_response = client.get("/api/health")
         ready_response = client.get("/api/ready", headers=_auth_header(tmp_path, "GET", "/api/ready"))
 
-    assert health_response.status_code == 200
+    assert health_response.status_code == status.HTTP_200_OK
     assert health_response.json()["configured_encryption_mode"] == "aes-256-gcm"
     assert health_response.json()["effective_encryption_source"] == "aes-256-gcm"
     assert "Argon2id" in health_response.json()["encryption_backend"]
-    assert ready_response.status_code == 200
+    assert ready_response.status_code == status.HTTP_200_OK
     assert ready_response.json()["configured_encryption_mode"] == "aes-256-gcm"
     assert ready_response.json()["effective_encryption_source"] == "aes-256-gcm"
     assert "Argon2id" in ready_response.json()["encryption_backend"]
@@ -111,7 +112,7 @@ def test_registration_requires_claim(monkeypatch, tmp_path: Path) -> None:
     with TestClient(create_app()) as client:
         response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json()["registration_status"] == "claim_required"
     assert "/claim?" in response.json()["claim_url"]
 
@@ -124,7 +125,7 @@ def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
         client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
         response = client.get("/api/whoami", headers=_auth_header(tmp_path, "GET", "/api/connections"))
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_whoami_rejects_unknown_subject(monkeypatch, tmp_path: Path) -> None:
@@ -133,7 +134,7 @@ def test_whoami_rejects_unknown_subject(monkeypatch, tmp_path: Path) -> None:
     with TestClient(create_app()) as client:
         response = client.get("/api/whoami", headers=_auth_header(tmp_path, "GET", "/api/whoami"))
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_whoami_rejects_registered_handle_with_wrong_issuer(monkeypatch, tmp_path: Path) -> None:
@@ -155,7 +156,7 @@ def test_whoami_rejects_registered_handle_with_wrong_issuer(monkeypatch, tmp_pat
             ),
         )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_identity_registration_rejects_duplicate_handle_different_did(monkeypatch, tmp_path: Path) -> None:
@@ -165,11 +166,12 @@ def test_identity_registration_rejects_duplicate_handle_different_did(monkeypatc
 
     with TestClient(create_app()) as client:
         assert (
-            client.post("/api/identities/register", json={"handle": first.handle, "did": first.did}).status_code == 200
+            client.post("/api/identities/register", json={"handle": first.handle, "did": first.did}).status_code
+            == status.HTTP_200_OK
         )
         response = client.post("/api/identities/register", json={"handle": first.handle, "did": second.did})
 
-    assert response.status_code == 409
+    assert response.status_code == status.HTTP_409_CONFLICT
 
 
 def test_identity_registration_rejects_duplicate_did_different_handle(monkeypatch, tmp_path: Path) -> None:
@@ -179,14 +181,14 @@ def test_identity_registration_rejects_duplicate_did_different_handle(monkeypatc
     with TestClient(create_app()) as client:
         assert (
             client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did}).status_code
-            == 200
+            == status.HTTP_200_OK
         )
         response = client.post(
             "/api/identities/register",
             json={"handle": "rapid-brightly-firmly-0007", "did": identity.did},
         )
 
-    assert response.status_code == 409
+    assert response.status_code == status.HTTP_409_CONFLICT
 
 
 def test_ready_uses_active_identity_connections_for_warning_check(monkeypatch, tmp_path: Path) -> None:
@@ -214,6 +216,6 @@ def test_ready_uses_active_identity_connections_for_warning_check(monkeypatch, t
 
         response = client.get("/api/ready", headers=_auth_header(tmp_path, "GET", "/api/ready"))
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json()["checks"]["connections"] == "ok"
     assert "no active provider connections found" not in response.json()["warnings"]

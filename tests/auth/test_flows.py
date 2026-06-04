@@ -1,5 +1,7 @@
 """Tests for authentication flows."""
 
+# ruff: noqa: PLR2004
+
 import pytest
 
 from authsome.auth.flows.api_key import ApiKeyFlow

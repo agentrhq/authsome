@@ -1,5 +1,7 @@
 """Tests for `authsome provider revoke`."""
 
+# ruff: noqa: PLR2004
+
 import json
 
 from authsome.cli.main import cli

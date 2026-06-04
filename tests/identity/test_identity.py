@@ -1,3 +1,5 @@
+# ruff: noqa: PLR2004
+
 from pathlib import Path
 
 import pytest

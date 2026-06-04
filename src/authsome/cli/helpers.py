@@ -1,6 +1,8 @@
 """CLI specific utilities for authsome."""
 
+import asyncio
 import functools
+import inspect
 import ipaddress
 import os
 import sys
@@ -15,15 +17,14 @@ from authsome.auth.models.provider import ProviderDefinition
 from authsome.cli.context import ContextObj, common_options, pass_ctx
 from authsome.utils import format_error_code
 
+_MIN_QUOTED_VALUE_LENGTH = 2
+
 
 def handle_errors(func):
     """Catch exceptions and return structured JSON errors."""
 
     @functools.wraps(func)
     def wrapper(ctx_obj: ContextObj, *args, **kwargs):
-        import asyncio
-        import inspect
-
         try:
             if inspect.iscoroutinefunction(func):
                 return asyncio.run(func(ctx_obj, *args, **kwargs))
@@ -62,7 +63,7 @@ def setup_logging(verbose: bool, log_file: Path | None) -> None:
         )
 
 
-def _validate_provider_endpoints(definition: Any) -> list[tuple[str, str, bool]]:
+def _validate_provider_endpoints(definition: Any) -> list[tuple[str, str, bool]]:  # noqa: PLR0912
     """Extract and validate provider endpoints for security."""
     endpoints_to_check: list[tuple[str, str, bool]] = []
     if definition.oauth:
@@ -137,7 +138,7 @@ def _load_dotenv(path: Path) -> dict[str, str]:
         value = value.strip()
         if not key:
             continue
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        if len(value) >= _MIN_QUOTED_VALUE_LENGTH and value[0] == value[-1] and value[0] in {"'", '"'}:
             value = value[1:-1]
         values[key] = value
 

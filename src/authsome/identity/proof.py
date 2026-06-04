@@ -46,7 +46,7 @@ def body_sha256(body: bytes) -> str:
     return hashlib.sha256(body).hexdigest()
 
 
-def create_proof_jwt(
+def create_proof_jwt(  # noqa: PLR0913
     *,
     private_key: Ed25519PrivateKey,
     issuer: str,
@@ -72,7 +72,7 @@ def create_proof_jwt(
     return jwt.encode(payload, private_key, algorithm="EdDSA")
 
 
-def validate_proof_jwt(
+def validate_proof_jwt(  # noqa: PLR0913
     *,
     token: str,
     method: str,

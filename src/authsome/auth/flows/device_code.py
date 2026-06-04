@@ -1,11 +1,13 @@
 """OAuth2 Device Authorization Grant (RFC 8628)."""
 
+import asyncio
 import json
 import time
 from datetime import timedelta
 from typing import Any
 
 import requests
+from fastapi import status
 from loguru import logger
 
 from authsome.auth.flows.base import AuthFlow, FlowResult
@@ -23,7 +25,7 @@ _MAX_POLL_DURATION = 900
 class DeviceCodeFlow(AuthFlow):
     """OAuth2 Device Authorization Grant — headless flow."""
 
-    async def begin(
+    async def begin(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,
@@ -67,7 +69,7 @@ class DeviceCodeFlow(AuthFlow):
         runtime_session.payload["expires_in"] = str(expires_in)
         runtime_session.payload["internal_scopes"] = json.dumps(effective_scopes)
 
-    async def resume(
+    async def resume(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,
@@ -119,7 +121,7 @@ class DeviceCodeFlow(AuthFlow):
             )
 
         error = data.get("error", "")
-        if error == "authorization_pending" or error == "slow_down":
+        if error in {"authorization_pending", "slow_down"}:
             return None
         elif error == "access_denied":
             raise AuthenticationFailedError("User denied the authorization request", provider=provider.name)
@@ -159,7 +161,7 @@ class DeviceCodeFlow(AuthFlow):
                 "Device authorization response was not valid JSON", provider=provider.name
             ) from exc
 
-    async def poll_for_token(
+    async def poll_for_token(  # noqa: PLR0912, PLR0913
         self,
         provider: ProviderDefinition,
         client_id: str | None,
@@ -168,8 +170,6 @@ class DeviceCodeFlow(AuthFlow):
         interval: int,
         expires_in: int,
     ) -> dict[str, Any]:
-        import asyncio
-
         assert provider.oauth is not None
         poll_interval = max(interval, 1)
 
@@ -212,7 +212,7 @@ class DeviceCodeFlow(AuthFlow):
                 logger.warning("Token poll response was not JSON, retrying...")
                 continue
 
-            if resp.status_code == 200 and "access_token" in data:
+            if resp.status_code == status.HTTP_200_OK and "access_token" in data:
                 return data
 
             error = data.get("error", "")

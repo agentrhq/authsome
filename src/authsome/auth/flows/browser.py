@@ -33,7 +33,7 @@ _DEFAULT_TIMEOUT = 300.0
 class BrowserFlow(AuthFlow):
     """Cookie-based browser SSO — reads Chrome's on-disk cookie database."""
 
-    async def begin(
+    async def begin(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,
@@ -55,7 +55,7 @@ class BrowserFlow(AuthFlow):
         runtime_session.payload["ttl_from_cookie"] = cfg.ttl_from_cookie
         runtime_session.payload["ttl_hours"] = cfg.ttl_hours
 
-    async def resume(
+    async def resume(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,

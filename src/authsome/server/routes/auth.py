@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
 
 from authsome.auth.input_provider import InputField
@@ -48,7 +48,7 @@ async def _load_session_or_404(sessions: AuthSessionStore, session_id: str) -> A
     try:
         return await sessions.get(session_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Authentication session not found") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Authentication session not found") from exc
 
 
 def _event_actor(session: AuthSession) -> str:
@@ -145,7 +145,7 @@ async def get_session(
 ) -> AuthSessionResponse:
     session = await _load_session_or_404(sessions, session_id)
     if session.identity != auth.identity:
-        raise HTTPException(status_code=404, detail="Authentication session not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Authentication session not found")
     return _session_response(session, server_base_url)
 
 
@@ -159,7 +159,7 @@ async def resume_session(
 ) -> AuthSessionResponse:
     session = await _load_session_or_404(sessions, session_id)
     if session.identity != auth.identity:
-        raise HTTPException(status_code=404, detail="Authentication session not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Authentication session not found")
     try:
         record = await auth.resume_login_flow(session, body.data)
         if record is None:
@@ -182,13 +182,13 @@ async def oauth_callback(
 ) -> Response:
     state = request.query_params.get("state")
     if not state:
-        return RedirectResponse("/auth/success?error=missing_state", status_code=303)
+        return RedirectResponse("/auth/success?error=missing_state", status_code=status.HTTP_303_SEE_OTHER)
     try:
         session = await sessions.get_by_oauth_state(state)
     except KeyError:
-        return RedirectResponse("/auth/success?error=session_expired", status_code=303)
+        return RedirectResponse("/auth/success?error=session_expired", status_code=status.HTTP_303_SEE_OTHER)
     if not await _ensure_browser_session_identity(request, session):
-        return RedirectResponse("/login", status_code=303)
+        return RedirectResponse("/login", status_code=status.HTTP_303_SEE_OTHER)
     callback_data = dict(request.query_params)
     auth = await require_auth_service(
         request,
@@ -203,10 +203,14 @@ async def oauth_callback(
     except Exception as exc:
         _mark_failed(session, str(exc))
         await sessions.save(session)
-        return RedirectResponse(build_auth_success_url(server_base_url, session.session_id), status_code=303)
+        return RedirectResponse(
+            build_auth_success_url(server_base_url, session.session_id), status_code=status.HTTP_303_SEE_OTHER
+        )
     if return_url := session.payload.get("return_url"):
-        return RedirectResponse(str(return_url), status_code=303)
-    return RedirectResponse(build_auth_success_url(server_base_url, session.session_id), status_code=303)
+        return RedirectResponse(str(return_url), status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(
+        build_auth_success_url(server_base_url, session.session_id), status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 @router.get("/sessions/{session_id}/input")
@@ -219,9 +223,9 @@ async def get_session_input(
     try:
         session = await sessions.get(session_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="Authentication session not found") from None
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Authentication session not found") from None
     if not await _ensure_browser_session_identity(request, session):
-        return RedirectResponse("/login", status_code=303)
+        return RedirectResponse("/login", status_code=status.HTTP_303_SEE_OTHER)
     auth = await require_auth_service(
         request,
         identity=session.identity,
@@ -258,14 +262,14 @@ async def get_session_device_code(
     try:
         session = await sessions.get(session_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="Authentication session not found") from None
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Authentication session not found") from None
     if not await _ensure_browser_session_identity(request, session):
-        return RedirectResponse("/login", status_code=303)
+        return RedirectResponse("/login", status_code=status.HTTP_303_SEE_OTHER)
     user_code = session.payload.get("user_code")
     verification_uri = session.payload.get("verification_uri")
     verification_uri_complete = session.payload.get("verification_uri_complete")
     if not user_code or not verification_uri:
-        raise HTTPException(status_code=400, detail="This session does not have a device code")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This session does not have a device code")
     auth = await require_auth_service(
         request,
         identity=session.identity,
@@ -291,9 +295,9 @@ async def get_browser_session_status(
     try:
         session = await sessions.get(session_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="Authentication session not found") from None
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Authentication session not found") from None
     if not await _ensure_browser_session_identity(request, session):
-        return RedirectResponse("/login", status_code=303)
+        return RedirectResponse("/login", status_code=status.HTTP_303_SEE_OTHER)
     return {
         "id": session.session_id,
         "provider": session.provider,
@@ -338,7 +342,7 @@ async def submit_browser_input(
     )
 
 
-async def _submit_session_input(
+async def _submit_session_input(  # noqa: PLR0911
     *,
     session_id: str,
     request: Request,
@@ -349,9 +353,9 @@ async def _submit_session_input(
     try:
         session = await sessions.get(session_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="Authentication session not found") from None
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Authentication session not found") from None
     if not await _ensure_browser_session_identity(request, session):
-        return RedirectResponse("/login", status_code=303)
+        return RedirectResponse("/login", status_code=status.HTTP_303_SEE_OTHER)
     auth = await require_auth_service(
         request,
         identity=session.identity,
@@ -369,8 +373,10 @@ async def _submit_session_input(
         session.status_message = "Provider configuration updated"
         await sessions.save(session)
         if return_url := session.payload.get("return_url"):
-            return RedirectResponse(str(return_url), status_code=303)
-        return RedirectResponse(build_auth_success_url(server_base_url, session.session_id), status_code=303)
+            return RedirectResponse(str(return_url), status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            build_auth_success_url(server_base_url, session.session_id), status_code=status.HTTP_303_SEE_OTHER
+        )
 
     await auth.save_inputs(session, inputs)
 
@@ -380,8 +386,10 @@ async def _submit_session_input(
         _mark_completed(session)
         await sessions.save(session)
         if return_url := session.payload.get("return_url"):
-            return RedirectResponse(str(return_url), status_code=303)
-        return RedirectResponse(build_auth_success_url(server_base_url, session.session_id), status_code=303)
+            return RedirectResponse(str(return_url), status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            build_auth_success_url(server_base_url, session.session_id), status_code=status.HTTP_303_SEE_OTHER
+        )
 
     session.payload["callback_url_override"] = build_callback_url(server_base_url)
     await auth.begin_login_flow(
@@ -395,16 +403,20 @@ async def _submit_session_input(
         background_tasks.add_task(auth.background_resume, session)
         if session.payload.get("user_code") and session.payload.get("verification_uri"):
             await sessions.save(session)
-            return RedirectResponse(url=build_device_url(server_base_url, session.session_id), status_code=303)
+            return RedirectResponse(
+                url=build_device_url(server_base_url, session.session_id), status_code=status.HTTP_303_SEE_OTHER
+            )
 
     await sessions.index_oauth_state(session)
 
     auth_url = session.payload.get("auth_url")
     if auth_url:
         await sessions.save(session)
-        return RedirectResponse(str(auth_url), status_code=303)
+        return RedirectResponse(str(auth_url), status_code=status.HTTP_303_SEE_OTHER)
     await sessions.save(session)
-    return RedirectResponse(build_auth_success_url(server_base_url, session.session_id), status_code=303)
+    return RedirectResponse(
+        build_auth_success_url(server_base_url, session.session_id), status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 def _session_response(session: AuthSession, server_base_url: str) -> AuthSessionResponse:

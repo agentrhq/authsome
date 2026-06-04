@@ -7,8 +7,10 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any, Protocol
 
+import certifi
 from loguru import logger
 
+from authsome.auth.models.provider import ProviderDefinition
 from authsome.cli.config import load_client_config, save_client_config
 from authsome.config import get_authsome_config
 from authsome.proxy.certs import ensure_local_proxy_ca
@@ -95,7 +97,6 @@ class ProxyRunner:
                 },
             }
         connected_names = {entry["name"] for entry in connections_data["connections"]}
-        from authsome.auth.models.provider import ProviderDefinition
 
         for source_providers in connections_data["by_source"].values():
             for provider_dict in source_providers:
@@ -120,8 +121,6 @@ class ProxyRunner:
         if not mitm_ca.exists():
             logger.warning("Mitmproxy CA cert not found at {}; HTTPS may fail", mitm_ca)
             return None
-
-        import certifi
 
         system_ca_path = Path(certifi.where())
 

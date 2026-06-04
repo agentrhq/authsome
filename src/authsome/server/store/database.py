@@ -8,6 +8,7 @@ from typing import Any, Literal
 from urllib.parse import urlparse
 
 import aiosqlite
+import asyncpg
 
 from authsome.server.config import get_server_config
 
@@ -132,8 +133,6 @@ async def open_store_database(config: StoreDatabaseConfig) -> StoreDatabase:
         await initialize_schema(database)
         return database
 
-    import asyncpg
-
     connection = await asyncpg.connect(config.dsn)
     database = StoreDatabase(config=config, connection=connection)
     await initialize_schema(database)
@@ -205,7 +204,7 @@ async def initialize_schema(database: StoreDatabase) -> None:
 
 async def create_server_store(home: Path | None = None, database_url: str | None = None):
     """Create the server-owned relational Store."""
-    from authsome.server.store.repositories import (
+    from authsome.server.store.repositories import (  # noqa: PLC0415
         AuditEventRegistry,
         IdentityClaimRegistry,
         IdentityRegistry,

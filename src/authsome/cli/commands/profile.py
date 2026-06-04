@@ -2,8 +2,10 @@
 
 import click
 
+from authsome.cli.config import load_client_config, save_client_config
 from authsome.cli.context import ContextObj
 from authsome.cli.helpers import auth_command
+from authsome.cli.identity import create_identity, load_identity
 from authsome.config import get_authsome_config
 
 
@@ -17,8 +19,6 @@ def profile() -> None:
 @auth_command
 async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
     """Create a local profile keypair."""
-    from authsome.cli.identity import create_identity
-
     home = get_authsome_config().home
     identity_meta = create_identity(home, handle)
 
@@ -38,9 +38,6 @@ async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
 @auth_command
 async def profile_use(ctx_obj: ContextObj, handle: str) -> None:
     """Select the active local profile."""
-    from authsome.cli.config import load_client_config, save_client_config
-    from authsome.cli.identity import load_identity
-
     home = get_authsome_config().home
     identity_meta = load_identity(home, handle)
     save_client_config(home, load_client_config(home).model_copy(update={"active_identity": identity_meta.handle}))

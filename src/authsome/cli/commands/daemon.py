@@ -4,6 +4,7 @@ import sys
 
 import click
 
+from authsome.cli import daemon_control
 from authsome.cli.client import resolve_daemon_url
 from authsome.cli.context import ContextObj
 from authsome.cli.daemon_control import (
@@ -18,6 +19,7 @@ from authsome.cli.daemon_control import (
 )
 from authsome.cli.helpers import auth_command
 from authsome.server.config import get_server_config
+from authsome.server.daemon import serve
 
 
 @click.group(name="daemon")
@@ -40,8 +42,6 @@ def daemon() -> None:
 @click.option("--reload", is_flag=True, help="Enable auto-reload on code changes.")
 def daemon_serve(host: str, port: int, reload: bool) -> None:
     """Run the daemon in the foreground."""
-    from authsome.server.daemon import serve
-
     serve(host=host, port=port, reload=reload)
 
 
@@ -152,10 +152,9 @@ async def daemon_status_cmd(ctx_obj: ContextObj) -> None:
 @auth_command
 async def daemon_logs(ctx_obj: ContextObj, lines: int) -> None:
     """Show daemon log output."""
-    from authsome.cli.daemon_control import LOG_FILE
-
-    if not LOG_FILE.exists():
-        ctx_obj.print_json({"log_file": str(LOG_FILE), "entries": []})
+    log_file = daemon_control.LOG_FILE
+    if not log_file.exists():
+        ctx_obj.print_json({"log_file": str(log_file), "entries": []})
         return
-    entries = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:]
-    ctx_obj.print_json({"log_file": str(LOG_FILE), "entries": entries})
+    entries = log_file.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:]
+    ctx_obj.print_json({"log_file": str(log_file), "entries": entries})

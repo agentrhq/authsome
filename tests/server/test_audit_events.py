@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from fastapi import status
 from fastapi.testclient import TestClient
 
 from authsome.audit import emit_event
@@ -13,7 +14,7 @@ from tests.server.test_pop_auth import _auth_header
 def _claim_identity(client: TestClient, tmp_path: Path, handle: str, *, email: str) -> None:
     identity = create_identity(tmp_path, handle)
     response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     claim_url = urlparse(response.json()["claim_url"])
     token = parse_qs(claim_url.query)["token"][0]
     claim_path = f"/api/claim/{token}"
@@ -22,8 +23,8 @@ def _claim_identity(client: TestClient, tmp_path: Path, handle: str, *, email: s
         data={"email": email, "password": "password-1", "next": claim_path},
         follow_redirects=False,
     )
-    assert registered.status_code == 303
-    assert client.post(f"{claim_path}/confirm", follow_redirects=False).status_code == 303
+    assert registered.status_code == status.HTTP_303_SEE_OTHER
+    assert client.post(f"{claim_path}/confirm", follow_redirects=False).status_code == status.HTTP_303_SEE_OTHER
 
 
 def test_audit_events_endpoint_returns_internal_events_for_admin(monkeypatch, tmp_path: Path) -> None:
@@ -44,7 +45,7 @@ def test_audit_events_endpoint_returns_internal_events_for_admin(monkeypatch, tm
             headers=_auth_header(tmp_path, "GET", "/api/audit/events?limit=10"),
         )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     entries = response.json()["entries"]
     assert entries[0]["event"] == "login"
     assert entries[0]["identity"] == "steady-wisely-boldly-0042"
@@ -72,7 +73,7 @@ def test_external_audit_post_is_enriched_from_pop_identity(monkeypatch, tmp_path
             headers=_auth_header(tmp_path, "GET", "/api/audit/events?limit=10"),
         )
 
-    assert posted.status_code == 200
+    assert posted.status_code == status.HTTP_200_OK
     entries = response.json()["entries"]
     assert entries[0]["event"] == "proxy_deny"
     assert entries[0]["source"] == "external"
@@ -115,11 +116,11 @@ def test_admin_sees_all_audit_events_and_user_sees_only_own_principal(monkeypatc
             headers=_auth_header(tmp_path, "GET", "/api/audit/events"),
         )
 
-    assert admin_response.status_code == 200
+    assert admin_response.status_code == status.HTTP_200_OK
     admin_events = {entry["event"] for entry in admin_response.json()["entries"]}
     assert {"admin_event", "user_event"}.issubset(admin_events)
 
-    assert user_response.status_code == 200
+    assert user_response.status_code == status.HTTP_200_OK
     user_entries = user_response.json()["entries"]
     assert "user_event" in {entry["event"] for entry in user_entries}
     assert "admin_event" not in {entry["event"] for entry in user_entries}

@@ -46,7 +46,7 @@ def emit(event: AuditEvent) -> AuditEvent:
     return event
 
 
-def emit_event(
+def emit_event(  # noqa: PLR0913
     event: str,
     *,
     source: AuditSource = "internal",

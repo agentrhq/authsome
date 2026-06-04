@@ -65,7 +65,7 @@ def test_read_chrome_cookies_attaches_ttl_from_cookie(monkeypatch):
             yield FakeCookie(".www.linkedin.com", "li_at", "token", 1_800_000_000)
             yield FakeCookie(".www.linkedin.com", "bcookie", "other", 1_800_000_000)
 
-    monkeypatch.setitem(sys.modules, "browser_cookie3", type("M", (), {"chrome": staticmethod(lambda: FakeJar())}))
+    monkeypatch.setitem(sys.modules, "browser_cookie3", type("M", (), {"chrome": staticmethod(FakeJar)}))
     monkeypatch.setattr(mod.time, "time", lambda: 1_700_000_000)
 
     result = mod.read_chrome_cookies([".linkedin.com"], ttl_from_cookie="li_at")
@@ -90,7 +90,7 @@ def test_read_chrome_cookies_omits_expiry_when_ttl_cookie_is_session(monkeypatch
         def __iter__(self):
             yield FakeCookie(".www.linkedin.com", "li_at", "token", None)
 
-    monkeypatch.setitem(sys.modules, "browser_cookie3", type("M", (), {"chrome": staticmethod(lambda: FakeJar())}))
+    monkeypatch.setitem(sys.modules, "browser_cookie3", type("M", (), {"chrome": staticmethod(FakeJar)}))
     monkeypatch.setattr(mod.time, "time", lambda: 1_700_000_000)
 
     result = mod.read_chrome_cookies([".linkedin.com"], ttl_from_cookie="li_at")

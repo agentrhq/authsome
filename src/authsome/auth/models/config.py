@@ -4,6 +4,8 @@ from importlib.metadata import PackageNotFoundError, version
 
 from pydantic import BaseModel, Field
 
+_MIN_VERSION_PARTS = 2
+
 
 # TODO: This is generic package level function, move it there
 def current_spec_version() -> int:
@@ -13,7 +15,7 @@ def current_spec_version() -> int:
     except PackageNotFoundError:
         return 0
     parts = package_version.split(".")
-    if len(parts) < 2:
+    if len(parts) < _MIN_VERSION_PARTS:
         return 0
     try:
         return int(parts[1])

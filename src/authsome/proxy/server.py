@@ -6,7 +6,7 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Protocol, Self
+from typing import Any, Protocol, Self, get_args
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -15,6 +15,7 @@ from mitmproxy import http
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
+from authsome.auth.models.provider import ProviderDefinition
 from authsome.config import get_authsome_config
 from authsome.proxy.config import ProxyMode
 from authsome.proxy.router import RouteMatch, RouteResolution
@@ -119,13 +120,12 @@ class ProxyRouter:
         return self.resolve(scheme, host, port, path).match
 
     @staticmethod
-    async def _build_routes(
+    async def _build_routes(  # noqa: PLR0912
         client: ProxyClient,
         scope: str = "connected",
     ) -> tuple[dict[str, tuple[_RouteTarget, ...]], tuple[_RegexRouteTarget, ...]]:
         routes_by_host: dict[str, list[_RouteTarget]] = {}
         regex_routes: list[_RegexRouteTarget] = []
-        from authsome.auth.models.provider import ProviderDefinition
 
         if hasattr(client, "proxy_routes"):
             try:
@@ -609,8 +609,6 @@ def start_proxy_server(
     dashboard_url: str | None = None,
 ) -> RunningProxy:
     """Start a mitmproxy DumpMaster in a background thread."""
-    from typing import get_args
-
     if mode not in get_args(ProxyMode):
         raise ValueError(f"Invalid proxy mode {mode!r}, expected one of {get_args(ProxyMode)}")
 

@@ -1,6 +1,7 @@
 """Root CLI commands."""
 
 import sys
+import webbrowser
 from contextlib import suppress
 from typing import Any
 
@@ -8,6 +9,7 @@ import click
 from loguru import logger
 
 from authsome import FlowType
+from authsome.auth.flows.browser import BrowserFlow
 from authsome.auth.models.enums import AuthType
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.cli.context import ContextObj
@@ -17,6 +19,7 @@ from authsome.cli.helpers import (
     _scan_resolve_should_import,
     auth_command,
 )
+from authsome.cli.identity import ensure_local_identity
 from authsome.config import get_authsome_config
 from authsome.paths import get_client_log_path
 from authsome.utils import connection_is_active
@@ -58,7 +61,7 @@ def _build_login_json_payload(session_info: dict[str, Any], provider: str, conne
 @click.option("--base-url", metavar="URL", help="Override provider API base URL (e.g. for self-hosted enterprise).")
 @click.option("--force", is_flag=True, help="Overwrite an existing connection if it already exists.")
 @auth_command
-async def login(
+async def login(  # noqa: PLR0913
     ctx_obj: ContextObj,
     provider: str,
     connection: str,
@@ -88,14 +91,11 @@ async def login(
 
         if action_type == "open_url":
             auth_url = next_action["url"]
-            import webbrowser
 
             with suppress(Exception):
                 webbrowser.open(auth_url)
 
         elif action_type == "browser":
-            from authsome.auth.flows.browser import BrowserFlow
-
             credentials = await BrowserFlow.run_login(next_action, provider)
             session_info = await actx.runtime_client.resume_login_session(session_info["id"], credentials=credentials)
             login_result = _build_login_json_payload(session_info, provider, connection)
@@ -115,7 +115,7 @@ async def login(
 @click.option("--connection", default="default", metavar="NAME", help="Connection name.")
 @click.option("--import", "auto_import", is_flag=True, help="Import detected keys without interactive prompt.")
 @auth_command
-async def scan(ctx_obj: ContextObj, connection: str, auto_import: bool) -> None:
+async def scan(ctx_obj: ContextObj, connection: str, auto_import: bool) -> None:  # noqa: PLR0912, PLR0915
     """Scan env files and process env for provider API keys.
 
     Returns a drift report by default unless ``--import`` is also passed.
@@ -270,8 +270,6 @@ async def run(ctx_obj: ContextObj, command: tuple[str]) -> None:
 @auth_command
 async def init(ctx_obj: ContextObj) -> None:
     """Initialize local storage and register a fresh profile."""
-    from authsome.cli.identity import ensure_local_identity
-
     home = get_authsome_config().home
     identity = ensure_local_identity(home)
 

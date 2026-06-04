@@ -3,6 +3,7 @@
 import asyncio
 from pathlib import Path
 
+from fastapi import status
 from fastapi.testclient import TestClient
 
 from authsome.auth.models.enums import FlowType
@@ -41,7 +42,7 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
 
     with TestClient(app) as client:
         owner_registration = client.post("/api/identities/register", json={"handle": owner.handle, "did": owner.did})
-        assert owner_registration.status_code == 200
+        assert owner_registration.status_code == status.HTTP_200_OK
         register_and_claim_identity(client, tmp_path, stranger.handle, email="stranger@example.com")
         session = asyncio.run(
             client.app.state.auth_sessions.create(
@@ -63,7 +64,7 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
             ),
         )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
     assert response.json()["detail"] == "Authentication session not found"
 
 
@@ -75,12 +76,12 @@ def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> N
 
     with TestClient(app) as client:
         owner_registration = client.post("/api/identities/register", json={"handle": owner.handle, "did": owner.did})
-        assert owner_registration.status_code == 200
+        assert owner_registration.status_code == status.HTTP_200_OK
         stranger_registration = client.post(
             "/api/identities/register",
             json={"handle": stranger.handle, "did": stranger.did},
         )
-        assert stranger_registration.status_code == 200
+        assert stranger_registration.status_code == status.HTTP_200_OK
         session = asyncio.run(
             client.app.state.auth_sessions.create(
                 provider="github",
@@ -102,7 +103,7 @@ def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> N
             ),
         )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Proof JWT body hash does not match request"
 
 
@@ -130,5 +131,5 @@ def test_sessions_do_not_survive_app_recreation(monkeypatch, tmp_path: Path) -> 
             headers=_auth_header(tmp_path, "GET", f"/api/auth/sessions/{session_id}", handle=owner.handle),
         )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
     assert response.json()["detail"] == "Authentication session not found"

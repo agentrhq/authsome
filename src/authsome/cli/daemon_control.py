@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -12,6 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from authsome import __version__
 from authsome.cli.client import (
     AuthsomeApiClient,
     is_managed_local_daemon_url,
@@ -45,8 +47,6 @@ async def is_daemon_responsive() -> bool:
 
 def is_port_occupied() -> bool:
     """Return whether the configured daemon port is currently occupied by any listening process."""
-    import socket
-
     host, port = _resolved_host_port()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(0.2)
@@ -170,7 +170,6 @@ async def daemon_status() -> dict[str, Any]:
 async def _is_ready(client: AuthsomeApiClient) -> bool:
     try:
         health = await client.health()
-        from authsome import __version__
 
         if health.get("version") != __version__:
             return False

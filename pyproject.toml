@@ -84,7 +84,8 @@ line-length = 120
 target-version = "py313"
 
 [tool.ruff.lint]
-select = [# pycodestyle
+select = [
+    # pycodestyle
     "E",
     # Pyflakes
     "F",
@@ -95,8 +96,13 @@ select = [# pycodestyle
     # flake8-simplify
     "SIM",
     # isort
-    "I"]
+    "I",
+    # pylint
+    "PL"]
 ignore = ['B008']
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["PLC0415"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 20

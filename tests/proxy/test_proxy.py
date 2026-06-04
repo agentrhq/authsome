@@ -6,6 +6,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from fastapi import status
 
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
@@ -536,7 +537,7 @@ class TestAuthProxyAddon:
         finally:
             patcher.stop()
 
-        assert flow.response.status_code == 403
+        assert flow.response.status_code == status.HTTP_403_FORBIDDEN
         assert flow.response.content == b"Forbidden by Authsome proxy policy"
         auth.record_audit_event.assert_awaited_once()
         event = auth.record_audit_event.await_args.args[0]
@@ -561,7 +562,7 @@ class TestAuthProxyAddon:
         finally:
             patcher.stop()
 
-        assert flow.response.status_code == 403
+        assert flow.response.status_code == status.HTTP_403_FORBIDDEN
         body = flow.response.content.decode("utf-8")
         assert "openai" in body
         assert "authsome login openai" in body

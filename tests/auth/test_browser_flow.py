@@ -1,5 +1,7 @@
 """Tests for BrowserFlow begin/resume/refresh."""
 
+# ruff: noqa: PLR2004
+
 from unittest.mock import MagicMock
 
 import pytest

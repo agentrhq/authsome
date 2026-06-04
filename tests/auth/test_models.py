@@ -1,5 +1,7 @@
 """Tests for authsome data models."""
 
+# ruff: noqa: PLR2004
+
 from authsome.auth.models.config import current_spec_version
 from authsome.auth.models.connection import (
     ConnectionRecord,

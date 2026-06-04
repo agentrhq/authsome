@@ -4,6 +4,7 @@ import sys
 
 import click
 
+from authsome.auth.models.connection import ConnectionRecord
 from authsome.cli.context import ContextObj
 from authsome.cli.helpers import auth_command
 from authsome.utils import redact
@@ -35,7 +36,6 @@ async def inspect_connection(ctx_obj: ContextObj, provider: str, connection: str
     actx = await ctx_obj.initialize()
     await actx.runtime_client.get_provider(provider)
     record_dict = await actx.runtime_client.get_connection(provider, connection)
-    from authsome.auth.models.connection import ConnectionRecord
 
     record = ConnectionRecord.model_validate(record_dict)
     data = redact(record)

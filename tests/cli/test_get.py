@@ -1,5 +1,7 @@
 """Tests for `authsome connections inspect`."""
 
+# ruff: noqa: PLR2004
+
 import json
 
 from authsome.cli.main import cli

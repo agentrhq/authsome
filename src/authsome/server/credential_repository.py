@@ -13,6 +13,9 @@ from authsome.auth.models.connection import (
 )
 from authsome.vault import Vault
 
+_VAULT_KEY_PARTS = 3
+_MIN_CONNECTION_SCHEMA_VERSION = 2
+
 
 class StoreKeyParts(NamedTuple):
     """Parsed components of a credential store key."""
@@ -52,7 +55,7 @@ def build_store_key(
     )
 
 
-def parse_store_key(key: str) -> StoreKeyParts:
+def parse_store_key(key: str) -> StoreKeyParts:  # noqa: PLR0911
     """Parse a credential store key into its components."""
     if key.startswith("provider:") and key.endswith(":definition"):
         provider = key[len("provider:") : -len(":definition")]
@@ -64,7 +67,7 @@ def parse_store_key(key: str) -> StoreKeyParts:
 
     if key.startswith("vault:"):
         parts = key.split(":", 2)
-        if len(parts) < 3:
+        if len(parts) < _VAULT_KEY_PARTS:
             return StoreKeyParts()
         vault = parts[1]
         remainder = parts[2]
@@ -206,6 +209,6 @@ class CredentialRepository:
         except json.JSONDecodeError:
             logger.warning("Corrupt record at key {}", key)
             return None
-        if data.get("schema_version", 1) < 2:
+        if data.get("schema_version", 1) < _MIN_CONNECTION_SCHEMA_VERSION:
             return None
         return ConnectionRecord.model_validate(data)

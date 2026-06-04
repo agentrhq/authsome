@@ -114,7 +114,7 @@ class AuditEventRegistry:
 
     def configure_exporter(self, loop: asyncio.AbstractEventLoop | None = None):
         """Configure the process OTel logger provider to export audit logs to Store."""
-        global _audit_logger_provider
+        global _audit_logger_provider  # noqa: PLW0603
 
         exporter = _StoreAuditExporter(self, loop or asyncio.get_running_loop())
         with _audit_provider_lock:

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 _ED25519_MULTICODEC_PREFIX = b"\xed\x01"
 _DID_KEY_PREFIX = "did:key:z"
 _HANDLE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
+_ED25519_KEY_BYTES = 32
 
 # TODO: The list is very small, will start creating conflicts soon. Use a library like randomword.
 _ADJECTIVES = (
@@ -100,7 +101,7 @@ def public_key_from_did_key(did: str) -> Ed25519PublicKey:
     if not decoded.startswith(_ED25519_MULTICODEC_PREFIX):
         raise ValueError("did:key does not use the Ed25519 multicodec prefix")
     raw_key = decoded[len(_ED25519_MULTICODEC_PREFIX) :]
-    if len(raw_key) != 32:
+    if len(raw_key) != _ED25519_KEY_BYTES:
         raise ValueError("Ed25519 did:key public key must be 32 bytes")
     return Ed25519PublicKey.from_public_bytes(raw_key)
 
@@ -119,7 +120,7 @@ def private_key_from_hex(value: str) -> Ed25519PrivateKey:
         raw = bytes.fromhex(value.strip())
     except ValueError as exc:
         raise ValueError("Malformed Ed25519 private key hex") from exc
-    if len(raw) != 32:
+    if len(raw) != _ED25519_KEY_BYTES:
         raise ValueError("Ed25519 private key must be 32 bytes")
     return Ed25519PrivateKey.from_private_bytes(raw)
 

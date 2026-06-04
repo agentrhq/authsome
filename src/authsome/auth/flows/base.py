@@ -36,7 +36,7 @@ class AuthFlow(ABC):
     """
 
     @abstractmethod
-    async def begin(
+    async def begin(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,
@@ -55,7 +55,7 @@ class AuthFlow(ABC):
         ...
 
     @abstractmethod
-    async def resume(
+    async def resume(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,

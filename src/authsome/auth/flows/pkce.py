@@ -23,7 +23,7 @@ class PkceFlow(AuthFlow):
 
     callback_port: int = 7999  # TODO: Remove hardcoded ports, better to keep a global in config file
 
-    async def begin(
+    async def begin(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,
@@ -65,7 +65,7 @@ class PkceFlow(AuthFlow):
         runtime_session.payload["internal_state"] = state
         runtime_session.payload["internal_scopes"] = json.dumps(effective_scopes)
 
-    async def resume(
+    async def resume(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,
@@ -133,7 +133,7 @@ class PkceFlow(AuthFlow):
         )
 
     @staticmethod
-    async def _exchange_code(
+    async def _exchange_code(  # noqa: PLR0913
         *,
         provider: ProviderDefinition,
         auth_code: str,

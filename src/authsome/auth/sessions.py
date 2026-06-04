@@ -55,7 +55,7 @@ class AuthSessionStore:
         self._sessions: dict[str, AuthSession] = {}
         self._state_index: dict[str, str] = {}
 
-    async def create(
+    async def create(  # noqa: PLR0913
         self,
         *,
         provider: str,

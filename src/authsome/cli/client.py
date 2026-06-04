@@ -11,7 +11,9 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from fastapi import status
 
+import authsome.errors as err_mod
 from authsome.cli.identity import (
     RuntimeIdentity,
     load_runtime_identity,
@@ -53,15 +55,11 @@ def raise_for_error(response: httpx.Response) -> None:
         obj = None
         try:
             data = response.json()
-            if response.status_code == 401 and data.get("detail") == "Unknown identity handle":
-                import authsome.errors as err_mod
-
+            if response.status_code == status.HTTP_401_UNAUTHORIZED and data.get("detail") == "Unknown identity handle":
                 raise err_mod.IdentityNotRegisteredError("current identity") from exc
             error_name = data.get("error")
             message = data.get("message")
             if error_name and message:
-                import authsome.errors as err_mod
-
                 exc_cls = getattr(err_mod, error_name, None)
                 if exc_cls and issubclass(exc_cls, err_mod.AuthsomeError):
                     obj = exc_cls.__new__(exc_cls)
@@ -121,7 +119,7 @@ class AuthsomeApiClient:
                 content=body_bytes if body is not None else None,
                 headers=headers,
             )
-        if protected and _retry and response.status_code == 401:
+        if protected and _retry and response.status_code == status.HTTP_401_UNAUTHORIZED:
             try:
                 detail = response.json().get("detail", "")
             except Exception:
@@ -167,15 +165,15 @@ class AuthsomeApiClient:
     async def _check_server_registration(self, runtime: RuntimeIdentity) -> None:
         """Verify registration with the server; register and claim if needed."""
         try:
-            status = await self.get_identity_status(runtime.handle)
+            identity_status = await self.get_identity_status(runtime.handle)
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code != 404:
+            if exc.response.status_code != status.HTTP_404_NOT_FOUND:
                 raise
-            status = await self.register_identity(runtime.handle, runtime.did)
+            identity_status = await self.register_identity(runtime.handle, runtime.did)
 
-        reg_status = status.get("registration_status", "")
+        reg_status = identity_status.get("registration_status", "")
         if reg_status == "claim_required":
-            claim_url = status.get("claim_url", "")
+            claim_url = identity_status.get("claim_url", "")
             if claim_url:
                 self._open_claim_url(claim_url)
             await self._poll_claim_completion(runtime.handle)

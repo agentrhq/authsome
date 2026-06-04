@@ -15,7 +15,7 @@ from authsome.utils import utc_now
 class ApiKeyFlow(AuthFlow):
     """Stores a user-provided API key as a connection record."""
 
-    async def begin(
+    async def begin(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,
@@ -32,7 +32,7 @@ class ApiKeyFlow(AuthFlow):
         runtime_session.state = "waiting_for_user"
         runtime_session.payload["input_required"] = "api_key"
 
-    async def resume(
+    async def resume(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,

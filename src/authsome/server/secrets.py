@@ -7,6 +7,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
+import keyring
 from loguru import logger
 
 from authsome.server.config import get_server_config
@@ -85,16 +86,12 @@ class ServerSecretResolver:
 
     def _read_keyring(self) -> str | None:
         try:
-            import keyring
-
             return keyring.get_password(_KEYRING_SERVICE, self._spec.keyring_username)
         except Exception:
             return None
 
     def _write_keyring(self, value: str) -> bool:
         try:
-            import keyring
-
             keyring.set_password(_KEYRING_SERVICE, self._spec.keyring_username, value)
             return True
         except Exception:

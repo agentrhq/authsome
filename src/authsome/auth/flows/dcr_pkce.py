@@ -7,6 +7,7 @@ from datetime import timedelta
 from typing import Any
 
 import requests as http_client
+from fastapi import status
 
 from authsome.auth.flows.base import AuthFlow, FlowResult
 from authsome.auth.models.connection import AccountInfo, ConnectionRecord, ProviderClientRecord
@@ -23,7 +24,7 @@ class DcrPkceFlow(AuthFlow):
 
     callback_port: int = 7999
 
-    async def begin(
+    async def begin(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,
@@ -74,7 +75,7 @@ class DcrPkceFlow(AuthFlow):
             if client_secret:
                 runtime_session.payload["internal_client_secret"] = client_secret
 
-    async def resume(
+    async def resume(  # noqa: PLR0913
         self,
         provider: ProviderDefinition,
         identity: str | None,
@@ -171,7 +172,7 @@ class DcrPkceFlow(AuthFlow):
         ]:
             try:
                 resp = http_client.get(url, timeout=15)
-                if resp.status_code == 200:
+                if resp.status_code == status.HTTP_200_OK:
                     reg_endpoint = resp.json().get("registration_endpoint")
                     if reg_endpoint:
                         return reg_endpoint
@@ -221,7 +222,7 @@ class DcrPkceFlow(AuthFlow):
         return client_id, reg_data.get("client_secret")
 
     @staticmethod
-    async def _exchange_code(
+    async def _exchange_code(  # noqa: PLR0913
         *,
         provider: ProviderDefinition,
         auth_code: str,

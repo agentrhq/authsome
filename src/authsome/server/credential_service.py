@@ -26,7 +26,7 @@ from authsome.auth.models.connection import (
 )
 from authsome.auth.models.enums import AuthType, ConnectionStatus, ExportFormat, FlowType
 from authsome.auth.models.provider import ProviderDefinition
-from authsome.auth.sessions import AuthSession
+from authsome.auth.sessions import AuthSession, AuthSessionStatus
 from authsome.auth.utils import (
     export_name_part,
     normalize_base_url,
@@ -66,7 +66,7 @@ class CredentialService:
     Coordinates provider lookup, auth flows, credential persistence, and policy checks.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         credentials: CredentialRepository,
@@ -241,7 +241,7 @@ class CredentialService:
         """
         return await self._credentials.get_provider_client(provider)
 
-    async def update_provider_configuration(
+    async def update_provider_configuration(  # noqa: PLR0912
         self,
         provider: str,
         inputs: dict[str, str],
@@ -539,8 +539,6 @@ class CredentialService:
 
     async def background_resume(self, session: AuthSession) -> None:
         """Resume a flow in a background thread."""
-        from authsome.auth.sessions import AuthSessionStatus
-
         try:
             await self.resume_login_flow(session, {})
             session.state = AuthSessionStatus.COMPLETED
@@ -698,9 +696,12 @@ class CredentialService:
                     connection_name = connection_record["connection_name"]
                     exported = await self._export_connection_values(provider_name, connection_name)
                     for env_name, env_value in exported.items():
-                        if env_name in values:
-                            env_name = self._disambiguate_export_name(env_name, provider_name, connection_name, values)
-                        values[env_name] = env_value
+                        resolved_env_name = (
+                            self._disambiguate_export_name(env_name, provider_name, connection_name, values)
+                            if env_name in values
+                            else env_name
+                        )
+                        values[resolved_env_name] = env_value
             return values
 
         return await self._export_connection_values(provider, connection)
@@ -800,7 +801,7 @@ class CredentialService:
             raise CredentialMissingError("No API key stored in connection record", provider=record.provider)
         return record.api_key
 
-    async def _get_oauth_token(self, record: ConnectionRecord, provider: str, connection: str) -> str:
+    async def _get_oauth_token(self, record: ConnectionRecord, provider: str, connection: str) -> str:  # noqa: PLR0912
         if record.access_token is None:
             raise CredentialMissingError("No access token stored", provider=provider)
 

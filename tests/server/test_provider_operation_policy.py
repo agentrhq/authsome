@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from fastapi import status
 from fastapi.testclient import TestClient
 
 from authsome.cli.identity import create_identity
@@ -12,21 +13,21 @@ from tests.server.test_pop_auth import _auth_header
 def _register_identity(client: TestClient, tmp_path: Path, handle: str, *, email: str = "dev@example.com") -> None:
     identity = create_identity(tmp_path, handle)
     response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     claim_url = response.json().get("claim_url")
     if claim_url:
         parsed = urlparse(claim_url)
         token = parse_qs(parsed.query)["token"][0]
         claim_path = f"/api/claim/{token}"
-        assert client.get(claim_path).status_code == 200
+        assert client.get(claim_path).status_code == status.HTTP_200_OK
         registered = client.post(
             "/api/auth/register",
             data={"email": email, "password": "password-1", "next": claim_path},
             follow_redirects=False,
         )
-        assert registered.status_code == 303
+        assert registered.status_code == status.HTTP_303_SEE_OTHER
         claimed = client.post(f"{claim_path}/confirm", follow_redirects=False)
-        assert claimed.status_code == 303
+        assert claimed.status_code == status.HTTP_303_SEE_OTHER
 
 
 def _register_admin_then_user(client: TestClient, tmp_path: Path, user_handle: str) -> None:
@@ -44,7 +45,7 @@ def test_non_admin_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:
             headers=_auth_header(tmp_path, "POST", "/api/connections/github/revoke"),
         )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
     assert response.json()["detail"] == "Admin role required"
 
 
@@ -58,7 +59,7 @@ def test_non_admin_remove_is_rejected(monkeypatch, tmp_path: Path) -> None:
             headers=_auth_header(tmp_path, "DELETE", "/api/providers/github"),
         )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
     assert response.json()["detail"] == "Admin role required"
 
 
@@ -86,7 +87,7 @@ def test_non_admin_register_provider_is_rejected(monkeypatch, tmp_path: Path) ->
             },
         )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
     assert response.json()["detail"] == "Admin role required"
 
 
@@ -114,5 +115,5 @@ def test_first_principal_admin_can_register_provider(monkeypatch, tmp_path: Path
             },
         )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json()["status"] == "ok"

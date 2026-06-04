@@ -3,7 +3,7 @@
 from typing import Any
 
 from loguru import logger
-from posthog import Posthog
+from posthog import Posthog, identify_context, new_context
 
 from authsome.server.config import get_server_config
 
@@ -15,7 +15,6 @@ def capture_event(identity: str, event: str, properties: dict[str, Any]) -> None
     ph = _client
     if ph is None:
         return
-    from posthog import identify_context, new_context
 
     with new_context():
         identify_context(identity)
@@ -28,7 +27,7 @@ def init_posthog() -> Posthog | None:
     Returns the client when analytics is enabled, otherwise None so the daemon
     can run without emitting telemetry.
     """
-    global _client
+    global _client  # noqa: PLW0603
 
     settings = get_server_config()
     if not settings.analytics_enabled:
@@ -47,7 +46,7 @@ def init_posthog() -> Posthog | None:
 
 def shutdown_posthog() -> None:
     """Flush pending events and shut down the PostHog client."""
-    global _client
+    global _client  # noqa: PLW0603
     if _client is not None:
         _client.shutdown()
         _client = None

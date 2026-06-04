@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
+from fastapi import status
 
 from authsome.cli.client import AuthsomeApiClient
 from authsome.cli.config import ClientConfig, load_client_config, save_client_config
@@ -172,12 +173,12 @@ async def test_unregistered_identity_registers_on_first_use(monkeypatch, tmp_pat
         calls.append((method, url))
         response = Mock()
         if f"/api/identities/{identity.handle}" in url and method == "GET":
-            response.status_code = 404
+            response.status_code = status.HTTP_404_NOT_FOUND
             response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Not Found", request=Mock(), response=Mock(status_code=404)
+                "Not Found", request=Mock(), response=Mock(status_code=status.HTTP_404_NOT_FOUND)
             )
         else:
-            response.status_code = 200
+            response.status_code = status.HTTP_200_OK
             response.raise_for_status.return_value = None
             if url.endswith("/api/identities/register"):
                 response.json.return_value = {
