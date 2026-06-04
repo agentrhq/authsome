@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "savvycal",
   "display_name": "SavvyCal",
+  "logo": "img.logo.dev/name/savvycal",
   "description": "Scheduling links, events, and availability workflows from SavvyCal.",
   "auth_type": "api_key",
   "flow": "api_key",

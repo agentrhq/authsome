@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "postmark",
   "display_name": "Postmark",
+  "logo": "img.logo.dev/name/postmark",
   "description": "Transactional email sending and server token access from Postmark.",
   "auth_type": "api_key",
   "flow": "api_key",

@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "g2",
   "display_name": "G2",
+  "logo": "img.logo.dev/name/g2",
   "description": "Review, buyer intent, and marketplace data from G2.",
   "auth_type": "api_key",
   "flow": "api_key",

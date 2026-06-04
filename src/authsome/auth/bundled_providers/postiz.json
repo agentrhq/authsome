@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "postiz",
   "display_name": "Postiz",
+  "logo": "img.logo.dev/name/postiz",
   "description": "Social publishing and Postiz API access through device authorization.",
   "auth_type": "oauth2",
   "flow": "device_code",

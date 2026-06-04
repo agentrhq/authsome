@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "microsoft",
   "display_name": "Microsoft",
+  "logo": "img.logo.dev/name/microsoft",
   "description": "Microsoft Graph access for mail, calendars, files, tasks, and identity.",
   "auth_type": "oauth2",
   "flow": "pkce",

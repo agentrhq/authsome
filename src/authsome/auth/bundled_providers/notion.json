@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "notion",
   "display_name": "Notion",
+  "logo": "img.logo.dev/name/notion",
   "description": "Notion workspace content and integration access over OAuth.",
   "auth_type": "oauth2",
   "flow": "pkce",

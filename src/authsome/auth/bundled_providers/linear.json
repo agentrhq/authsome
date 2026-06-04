@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "linear",
   "display_name": "Linear",
+  "logo": "img.logo.dev/name/linear",
   "description": "Issues, teams, projects, and product operations through Linear.",
   "auth_type": "oauth2",
   "flow": "pkce",

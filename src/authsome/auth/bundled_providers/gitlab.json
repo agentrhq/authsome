@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "gitlab",
   "display_name": "GitLab",
+  "logo": "img.logo.dev/name/gitlab",
   "description": "GitLab repositories, user data, and project automation over OAuth.",
   "auth_type": "oauth2",
   "flow": "pkce",

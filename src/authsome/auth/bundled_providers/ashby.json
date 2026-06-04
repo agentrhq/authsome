@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "ashby",
   "display_name": "Ashby",
+  "logo": "img.logo.dev/name/ashby",
   "description": "Recruiting operations, candidate data, and hiring workflow automation.",
   "auth_type": "api_key",
   "flow": "api_key",

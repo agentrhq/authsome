@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "mention-me",
   "display_name": "Mention Me",
+  "logo": "img.logo.dev/name/mention-me",
   "description": "Referral marketing campaigns, contacts, and Mention Me data access.",
   "auth_type": "api_key",
   "flow": "api_key",

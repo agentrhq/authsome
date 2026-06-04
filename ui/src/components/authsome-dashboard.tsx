@@ -18,6 +18,7 @@ import {
   Settings,
   UserRound,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
@@ -102,7 +103,15 @@ function ProviderLogo({
       )}
     >
       {logoUrl ? (
-        <img alt="" className="size-5 object-contain" onError={() => setErr(true)} src={logoUrl} />
+        <Image
+          alt=""
+          className="size-5 object-contain"
+          height={20}
+          onError={() => setErr(true)}
+          src={logoUrl}
+          unoptimized
+          width={20}
+        />
       ) : (
         initial
       )}

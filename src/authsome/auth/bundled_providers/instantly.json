@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "instantly",
   "display_name": "Instantly",
+  "logo": "img.logo.dev/name/instantly",
   "description": "Outbound email campaign and lead management automation.",
   "auth_type": "api_key",
   "flow": "api_key",

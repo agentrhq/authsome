@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "ahrefs",
   "display_name": "Ahrefs",
+  "logo": "img.logo.dev/name/ahrefs",
   "description": "SEO intelligence, backlink analysis, and keyword research APIs.",
   "auth_type": "api_key",
   "flow": "api_key",

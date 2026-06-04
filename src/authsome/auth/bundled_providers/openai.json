@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "openai",
   "display_name": "OpenAI",
+  "logo": "img.logo.dev/name/openai",
   "description": "OpenAI API keys for model, assistant, and platform automation.",
   "auth_type": "api_key",
   "flow": "api_key",

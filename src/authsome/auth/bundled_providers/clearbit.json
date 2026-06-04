@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "clearbit",
   "display_name": "Clearbit",
+  "logo": "img.logo.dev/name/clearbit",
   "description": "Company and contact enrichment data for sales and marketing workflows.",
   "auth_type": "api_key",
   "flow": "api_key",

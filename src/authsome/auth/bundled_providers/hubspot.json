@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "hubspot",
   "display_name": "HubSpot",
+  "logo": "img.logo.dev/name/hubspot",
   "description": "CRM contacts, companies, deals, owners, and HubSpot workflow data.",
   "auth_type": "oauth2",
   "flow": "pkce",

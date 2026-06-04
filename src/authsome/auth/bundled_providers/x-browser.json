@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "x-browser",
   "display_name": "X (Twitter) — Browser Session",
+  "logo": "img.logo.dev/name/x",
   "description": "X browser-session credentials for authenticated web workflows.",
   "auth_type": "browser",
   "flow": "browser",

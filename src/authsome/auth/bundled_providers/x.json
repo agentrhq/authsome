@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "x",
   "display_name": "X (Twitter)",
+  "logo": "img.logo.dev/name/x",
   "description": "X OAuth access for posts, user data, and social automation.",
   "auth_type": "oauth2",
   "flow": "pkce",

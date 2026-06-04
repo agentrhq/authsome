@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "mailchimp",
   "display_name": "Mailchimp",
+  "logo": "img.logo.dev/name/mailchimp",
   "description": "Audience, campaign, and marketing automation APIs from Mailchimp.",
   "auth_type": "api_key",
   "flow": "api_key",

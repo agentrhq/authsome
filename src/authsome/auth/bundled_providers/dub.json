@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "dub",
   "display_name": "Dub.co",
+  "logo": "img.logo.dev/name/dub",
   "description": "Short links, conversion tracking, and link analytics from Dub.co.",
   "auth_type": "api_key",
   "flow": "api_key",

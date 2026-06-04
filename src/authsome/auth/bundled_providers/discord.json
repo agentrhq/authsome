@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "discord",
   "display_name": "Discord",
+  "logo": "img.logo.dev/name/discord",
   "description": "Discord identity, guild, and messaging integrations over OAuth.",
   "auth_type": "oauth2",
   "flow": "pkce",

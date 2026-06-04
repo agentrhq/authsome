@@ -4,6 +4,10 @@ const isDev = process.env.NODE_ENV !== "production";
 
 const nextConfig: NextConfig = {
   ...(!isDev && { output: "export" }),
+  images: {
+    remotePatterns: [new URL("https://img.logo.dev/**")],
+    unoptimized: true,
+  },
   trailingSlash: true,
   ...(isDev && {
     async rewrites() {

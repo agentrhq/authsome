@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "hunter",
   "display_name": "Hunter",
+  "logo": "img.logo.dev/name/hunter",
   "description": "Email discovery and verification data for outreach workflows.",
   "auth_type": "api_key",
   "flow": "api_key",

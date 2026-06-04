@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "intercom",
   "display_name": "Intercom",
+  "logo": "img.logo.dev/name/intercom",
   "description": "Customer conversations, contacts, and support automation APIs.",
   "auth_type": "api_key",
   "flow": "api_key",

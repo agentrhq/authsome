@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "slack",
   "display_name": "Slack",
+  "logo": "img.logo.dev/name/slack",
   "description": "Slack workspace channels, chat, and collaboration workflows over OAuth.",
   "auth_type": "oauth2",
   "flow": "pkce",

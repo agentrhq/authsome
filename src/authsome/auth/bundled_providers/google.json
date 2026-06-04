@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "google",
   "display_name": "Google",
+  "logo": "img.logo.dev/name/google",
   "description": "Google identity and Google API access with OAuth-backed credentials.",
   "auth_type": "oauth2",
   "flow": "pkce",
