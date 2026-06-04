@@ -2,11 +2,12 @@ import json
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
+import httpx
 import pytest
 
 from authsome.cli.client import AuthsomeApiClient
 from authsome.cli.config import ClientConfig, load_client_config, save_client_config
-from authsome.cli.identity import create_identity, identity_key_path, load_runtime_identity, mark_registered
+from authsome.cli.identity import create_identity, identity_key_path, load_runtime_identity
 
 
 def _patch_httpx_request(monkeypatch, handler) -> None:
@@ -136,7 +137,6 @@ async def test_registered_identity_skips_reregister_roundtrip(monkeypatch, tmp_p
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     base_url = "http://127.0.0.1:7998"
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    mark_registered(tmp_path, identity.handle, server_url=base_url)
     save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
     calls: list[tuple[str, str]] = []
 
@@ -144,50 +144,59 @@ async def test_registered_identity_skips_reregister_roundtrip(monkeypatch, tmp_p
         calls.append((method, url))
         response = Mock()
         response.raise_for_status.return_value = None
-        response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
-        return response
-
-    _patch_httpx_request(monkeypatch, fake_request)
-
-    await AuthsomeApiClient(base_url).list_connections()
-
-    assert calls == [("GET", "http://127.0.0.1:7998/api/connections")]
-
-
-@pytest.mark.asyncio
-async def test_registered_identity_registers_again_for_new_server(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    first_server = "http://127.0.0.1:7998"
-    second_server = "http://127.0.0.1:8998"
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    mark_registered(tmp_path, identity.handle, server_url=first_server)
-    save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
-    calls: list[tuple[str, str]] = []
-
-    def fake_request(method, url, data=None, headers=None, timeout=None):
-        calls.append((method, url))
-        response = Mock()
-        response.raise_for_status.return_value = None
-        if url.endswith("/api/identities/register"):
-            response.json.return_value = {
-                "identity": identity.handle,
-                "did": identity.did,
-                "registration_status": "claim_required",
-                "claim_url": f"{second_server}/claim?token=claim_123",
-            }
+        if f"/api/identities/{identity.handle}" in url:
+            response.json.return_value = {"identity": identity.handle, "registration_status": "claimed"}
         else:
             response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
     _patch_httpx_request(monkeypatch, fake_request)
 
-    await AuthsomeApiClient(second_server).list_connections()
-    await AuthsomeApiClient(second_server).list_connections()
+    await AuthsomeApiClient(base_url).list_connections()
 
     assert calls == [
-        ("POST", "http://127.0.0.1:8998/api/identities/register"),
-        ("GET", "http://127.0.0.1:8998/api/connections"),
-        ("GET", "http://127.0.0.1:8998/api/connections"),
+        ("GET", f"http://127.0.0.1:7998/api/identities/{identity.handle}"),
+        ("GET", "http://127.0.0.1:7998/api/connections"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_unregistered_identity_registers_on_first_use(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    server = "http://127.0.0.1:7998"
+    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
+    calls: list[tuple[str, str]] = []
+
+    def fake_request(method, url, data=None, headers=None, timeout=None):
+        calls.append((method, url))
+        response = Mock()
+        if f"/api/identities/{identity.handle}" in url and method == "GET":
+            response.status_code = 404
+            response.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "Not Found", request=Mock(), response=Mock(status_code=404)
+            )
+        else:
+            response.status_code = 200
+            response.raise_for_status.return_value = None
+            if url.endswith("/api/identities/register"):
+                response.json.return_value = {
+                    "identity": identity.handle,
+                    "did": identity.did,
+                    "registration_status": "claimed",
+                }
+            else:
+                response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
+        return response
+
+    _patch_httpx_request(monkeypatch, fake_request)
+
+    await AuthsomeApiClient(server).list_connections()
+
+    assert calls == [
+        ("GET", f"http://127.0.0.1:7998/api/identities/{identity.handle}"),
+        ("POST", "http://127.0.0.1:7998/api/identities/register"),
+        ("GET", "http://127.0.0.1:7998/api/connections"),
     ]
 
 
@@ -218,10 +227,12 @@ async def test_identity_env_override_wins_over_active_identity(monkeypatch, tmp_
     base_url = "http://127.0.0.1:7998"
     create_identity(tmp_path, "steady-wisely-boldly-0042")
     override_identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
-    mark_registered(tmp_path, override_identity.handle, server_url=base_url)
     save_client_config(tmp_path, ClientConfig(active_identity="steady-wisely-boldly-0042"))
 
     client = AuthsomeApiClient(base_url)
+    client.get_identity_status = AsyncMock(  # type: ignore[method-assign]
+        return_value={"identity": override_identity.handle, "registration_status": "claimed"}
+    )
     identity = await client.ensure_identity_ready()
 
     assert identity.handle == "rapid-brightly-firmly-0007"
@@ -327,11 +338,12 @@ async def test_protected_request_bootstraps_identity_readiness(monkeypatch, tmp_
 
 
 @pytest.mark.asyncio
-async def test_registered_server_cache_skips_future_registration_roundtrip(monkeypatch, tmp_path: Path) -> None:
+async def test_in_memory_cache_skips_server_check_on_subsequent_calls(monkeypatch, tmp_path: Path) -> None:
+    """After the first successful registration check, the in-memory flag prevents
+    further server calls for the lifetime of the client instance."""
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     base_url = "http://127.0.0.1:7998"
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    mark_registered(tmp_path, identity.handle, server_url=base_url)
     save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
     calls: list[tuple[str, str]] = []
 
@@ -339,7 +351,10 @@ async def test_registered_server_cache_skips_future_registration_roundtrip(monke
         calls.append((method, url))
         response = Mock()
         response.raise_for_status.return_value = None
-        response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
+        if f"/api/identities/{identity.handle}" in url:
+            response.json.return_value = {"identity": identity.handle, "registration_status": "claimed"}
+        else:
+            response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
     _patch_httpx_request(monkeypatch, fake_request)
@@ -349,6 +364,7 @@ async def test_registered_server_cache_skips_future_registration_roundtrip(monke
     await client.list_connections()
 
     assert calls == [
+        ("GET", f"http://127.0.0.1:7998/api/identities/{identity.handle}"),
         ("GET", "http://127.0.0.1:7998/api/connections"),
         ("GET", "http://127.0.0.1:7998/api/connections"),
     ]

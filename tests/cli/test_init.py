@@ -7,7 +7,7 @@ from pathlib import Path
 
 from authsome import __version__
 from authsome.cli.config import ClientConfig, load_client_config, save_client_config
-from authsome.cli.identity import create_identity, mark_registered
+from authsome.cli.identity import create_identity
 from authsome.cli.main import cli
 
 
@@ -22,7 +22,6 @@ def test_init_removes_legacy_default_state_and_registers_identity(
     (identities / "default.key").write_text("legacy\n", encoding="utf-8")
 
     created = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    mark_registered(tmp_path, created.handle)
     mock_client.ensure_identity_ready.return_value = created
 
     result = runner.invoke(cli, ["--log-file", "", "init"])
@@ -50,7 +49,6 @@ def test_init_skips_registration_for_registered_active_profile(
     tmp_path: Path,
 ) -> None:
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    mark_registered(tmp_path, identity.handle)
     save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
 
     result = runner.invoke(cli, ["--log-file", "", "init"])

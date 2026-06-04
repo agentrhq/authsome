@@ -11,7 +11,7 @@ from authsome.auth.models.connection import (
 from authsome.auth.models.enums import AuthType, ConnectionStatus, ExportFormat, FlowType
 from authsome.auth.models.provider import ApiKeyConfig, OAuthConfig, ProviderDefinition
 from authsome.errors import OperationNotAllowedError
-from authsome.identity.helpers import IdentityMetadata, IdentityStatus
+from authsome.identity.helpers import IdentityMetadata
 
 
 class TestEnums:
@@ -49,25 +49,15 @@ class TestIdentityMetadata:
         meta = IdentityMetadata(handle="steady-wisely-boldly-0042", did="did:key:z6MkTest")
         assert meta.handle == "steady-wisely-boldly-0042"
         assert meta.did == "did:key:z6MkTest"
-        assert meta.identity_status == IdentityStatus.UNREGISTERED
-        assert meta.registered is False
-        assert meta.claimed is False
         assert meta.created_at is not None
         assert meta.updated_at is not None
 
     def test_json_roundtrip(self) -> None:
-        meta = IdentityMetadata(
-            handle="steady-wisely-boldly-0042",
-            did="did:key:z6MkTest",
-            identity_status=IdentityStatus.CLAIMED,
-        )
+        meta = IdentityMetadata(handle="steady-wisely-boldly-0042", did="did:key:z6MkTest")
         json_str = meta.model_dump_json()
         restored = IdentityMetadata.model_validate_json(json_str)
         assert restored.handle == "steady-wisely-boldly-0042"
         assert restored.did == "did:key:z6MkTest"
-        assert restored.identity_status == IdentityStatus.CLAIMED
-        assert restored.registered is True
-        assert restored.claimed is True
 
 
 class TestProviderDefinition:
