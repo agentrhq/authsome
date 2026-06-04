@@ -31,7 +31,7 @@ server becomes the **admin** Principal; every later account is a regular user.
 
 ```bash
 # Kill daemon and start fresh (optional — skip to keep existing config)
-kill $(lsof -ti :7998) 2>/dev/null; rm -rf ~/.authsome
+kill $(lsof -ti :7998) 2>/dev/null; rm -rf $AUTHSOME_HOME
 
 uv run authsome whoami
 ```
@@ -39,8 +39,8 @@ uv run authsome whoami
 **Expected (first run):** the command prints a claim URL to stderr, opens it in a
 browser, and blocks while polling:
 ```
-Open this URL in your browser to register and claim this identity:
-  http://127.0.0.1:7998/claim/claim_<token>
+Open this URL in your browser to claim this identity:
+  http://127.0.0.1:7998/claim?token=claim_<token>
 ```
 
 **Human action:**
@@ -49,7 +49,7 @@ Open this URL in your browser to register and claim this identity:
 3. Confirm that the displayed identity handle is yours.
 4. The CLI unblocks and `whoami` prints your context. Subsequent commands reuse the accepted claim — no browser step.
 
-**Expected (after claim):** a JSON object (`{"v": 1, ...}`) with key fields `home_directory`, `profile` (registered non-default identity handle), `principal_id`, `vault_id`, `did`, `registration_status`, `daemon_url`, `encryption_backend`, `vault_status` (`OK`), and `connected_providers_count` (`0`).
+**Expected (after claim):** a JSON object (`{"v": 1, ...}`) with key fields `authsome_version`, `home_directory`, `profile` (registered non-default identity handle), `principal_id`, `vault_id`, `did`, `registration_status`, `daemon_url`, `configured_encryption_mode`, `effective_encryption_source`, `encryption_backend`, `vault_status` (`OK`), `connected_providers_count` (`0`), `connected_providers` (`[]`), and `issues` (`[]`).
 
 ```bash
 uv run authsome doctor
@@ -69,7 +69,7 @@ uv run authsome doctor
 uv run authsome login resend
 ```
 
-**Expected:** JSON with `status: "started"`, `provider: "resend"`, `connection: "default"`, a `session_id`, and an `auth_url` pointing at the daemon input page. The URL opens in a browser automatically.
+**Expected:** JSON with `status: "started"`, `provider: "resend"`, `connection: "default"`, `record_status: "waiting_for_user"`, a `session_id`, and an `auth_url` pointing at the daemon input page. The URL opens in a browser automatically.
 
 **Human action:**
 1. Open the printed `auth_url` in a browser (it opens automatically if a browser is available)
@@ -81,6 +81,13 @@ uv run authsome provider list
 ```
 
 **Expected:** `resend` appears under `bundled` with a non-empty `connections` array whose entry shows `status: "connected"`.
+
+```bash
+# Verify the Resend API call succeeds through the proxy
+uv run authsome run --quiet curl -s https://api.resend.com/domains
+```
+
+**Expected:** JSON from Resend containing an `object: "list"` and a `data` array of your verified domains. No proxy log noise (suppressed by `--quiet`).
 
 ---
 
@@ -174,7 +181,7 @@ uv run authsome provider list
 uv run authsome provider list
 ```
 
-**Expected:** JSON with `bundled` and `custom` arrays. Each provider entry has `name`, `display_name`, `auth_type`, `source`, and a `connections` array; connected providers have a non-empty `connections` array with `connection_name`, `is_default`, `status`, and (for OAuth) `scopes`/`expires_at`.
+**Expected:** JSON with `bundled` and `custom` arrays. Each provider entry has `name`, `display_name`, `auth_type`, `source`, and a `connections` array; connected providers have a non-empty `connections` array with `connection_name`, `is_default`, `auth_type`, `status`, and (for OAuth) `scopes`/`expires_at`.
 
 ---
 
@@ -492,5 +499,5 @@ uv run authsome connections inspect resend 2>&1; echo "exit: $?"
 
 ```bash
 uv run authsome daemon stop
-rm -rf ~/.authsome
+rm -rf $AUTHSOME_HOME
 ```
