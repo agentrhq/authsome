@@ -17,9 +17,9 @@ from mitmproxy import http
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
-from authsome.cli.config import ProxyMode
+from authsome.config import get_authsome_config
+from authsome.proxy.config import ProxyMode
 from authsome.proxy.router import RouteMatch, RouteResolution
-from authsome.server.urls import DEFAULT_SERVER_BASE_URL
 from authsome.utils import utc_now
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
@@ -346,9 +346,15 @@ class AuthProxyAddon:
     the daemon never sees or persists a proxy mode of its own.
     """
 
-    def __init__(self, client: ProxyClient, mode: ProxyMode = "connected_allow") -> None:
+    def __init__(
+        self,
+        client: ProxyClient,
+        mode: ProxyMode = "connected_allow",
+        dashboard_url: str | None = None,
+    ) -> None:
         self._client = client
         self._mode = mode
+        self._dashboard_url = (dashboard_url or get_authsome_config().base_url).rstrip("/")
         self._scope, self._policy = mode.split("_", 1)
         self._router: ProxyRouter | None = None
         self._header_cache: dict[tuple[str, str], _HeaderCacheEntry] = {}
@@ -447,7 +453,7 @@ class AuthProxyAddon:
         if flow.request.method.upper() == "CONNECT":
             flow.kill()
             return
-        flow.response = http.Response.make(403, _deny_body(reason, match).encode("utf-8"))
+        flow.response = http.Response.make(403, _deny_body(reason, match, self._dashboard_url).encode("utf-8"))
 
     def _record_external_audit(
         self,
@@ -513,21 +519,21 @@ class AuthProxyAddon:
             return headers
 
 
-def _deny_body(reason: str, match: RouteMatch | None) -> str:
+def _deny_body(reason: str, match: RouteMatch | None, dashboard_url: str) -> str:
     """Build a human-readable 403 body for a denied proxy request.
 
     For `no_credentials` we surface the provider name plus a CLI command
     and a dashboard URL so the agent (or human) can recover; other
     reasons fall back to a generic message.
 
-    The dashboard URL uses ``DEFAULT_SERVER_BASE_URL`` and still requires an active browser session.
+    The dashboard URL comes from the top-level Authsome config and still requires an active browser session.
     """
     if reason == "no_credentials" and match is not None:
         provider = match.provider
         return (
             f"Forbidden: provider '{provider}' is configured but has no "
             f"active connection. Run `authsome login {provider}` to connect, "
-            f"or open the dashboard at {DEFAULT_SERVER_BASE_URL}/."
+            f"or open the dashboard at {dashboard_url}/."
         )
     return "Forbidden by Authsome proxy policy"
 
@@ -602,6 +608,7 @@ def start_proxy_server(
     port: int = 0,
     *,
     mode: ProxyMode = "connected_allow",
+    dashboard_url: str | None = None,
 ) -> RunningProxy:
     """Start a mitmproxy DumpMaster in a background thread."""
     from typing import get_args
@@ -610,7 +617,7 @@ def start_proxy_server(
         raise ValueError(f"Invalid proxy mode {mode!r}, expected one of {get_args(ProxyMode)}")
 
     confdir = Path.home() / ".mitmproxy"
-    auth_addon = AuthProxyAddon(client=client, mode=mode)
+    auth_addon = AuthProxyAddon(client=client, mode=mode, dashboard_url=dashboard_url)
 
     ready = threading.Event()
     state: dict = {}

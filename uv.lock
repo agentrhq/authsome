@@ -173,6 +173,7 @@ dependencies = [
     { name = "click" },
     { name = "cryptography" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "keyring" },
     { name = "loguru" },
     { name = "mitmproxy" },
@@ -190,7 +191,6 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -209,7 +209,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.0" },
     { name = "cryptography", specifier = ">=41.0" },
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "keyring", specifier = ">=24.0" },
     { name = "loguru", specifier = ">=0.7" },
     { name = "mitmproxy", specifier = ">=11.0" },

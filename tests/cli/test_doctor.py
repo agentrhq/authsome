@@ -17,7 +17,7 @@ class TestDoctorCommand:
             "warnings": [],
         }
 
-        with patch("authsome.cli.context.CliRuntime.doctor", return_value=mock_results):
+        with patch("authsome.cli.context.ContextObj.doctor", return_value=mock_results):
             result = runner.invoke(cli, ["--log-file", "", "doctor"])
 
         assert result.exit_code == 0, result.output
@@ -33,7 +33,7 @@ class TestDoctorCommand:
             "warnings": ["master.key too old", "no connections"],
         }
 
-        with patch("authsome.cli.context.CliRuntime.doctor", return_value=mock_results):
+        with patch("authsome.cli.context.ContextObj.doctor", return_value=mock_results):
             result = runner.invoke(cli, ["--log-file", "", "doctor"])
 
         assert result.exit_code == 0
@@ -49,7 +49,7 @@ class TestDoctorCommand:
             "warnings": [],
         }
 
-        with patch("authsome.cli.context.CliRuntime.doctor", return_value=mock_results):
+        with patch("authsome.cli.context.ContextObj.doctor", return_value=mock_results):
             result = runner.invoke(cli, ["--log-file", "", "doctor"])
 
         assert result.exit_code == 1

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from contextlib import suppress
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -18,6 +19,7 @@ from authsome.cli.client import (
     is_managed_local_daemon_url,
     resolve_daemon_url,
 )
+from authsome.cli.identity import RuntimeIdentity
 from authsome.server.config import get_server_config
 
 SERVER_CONFIG = get_server_config()
@@ -65,9 +67,9 @@ class DaemonAlreadyRunningError(RuntimeError):
         self.pid = pid
 
 
-async def ensure_daemon() -> AuthsomeApiClient:
+async def ensure_daemon(identity: RuntimeIdentity | None = None, home: Path | None = None) -> AuthsomeApiClient:
     """Return a ready daemon client, starting/restarting the daemon if needed."""
-    client = AuthsomeApiClient(resolve_daemon_url())
+    client = AuthsomeApiClient(resolve_daemon_url(), identity=identity, home=home)
     if await _is_ready(client):
         return client
     await stop_daemon()
@@ -91,11 +93,14 @@ async def wait_for_daemon_ready(timeout: int = 10) -> None:
     raise DaemonUnavailableError(_startup_error())
 
 
-async def resolve_runtime_client() -> AuthsomeApiClient:
+async def resolve_runtime_client(
+    identity: RuntimeIdentity | None = None,
+    home: Path | None = None,
+) -> AuthsomeApiClient:
     """Return the configured runtime client, auto-starting only for local mode."""
-    client = AuthsomeApiClient(resolve_daemon_url())
+    client = AuthsomeApiClient(resolve_daemon_url(), identity=identity, home=home)
     if is_managed_local_daemon_url(client.base_url):
-        return await ensure_daemon()
+        return await ensure_daemon(identity=identity, home=home)
     return client
 
 

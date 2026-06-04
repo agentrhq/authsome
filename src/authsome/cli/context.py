@@ -8,22 +8,9 @@ import click
 
 from authsome.cli.client import AuthsomeApiClient
 from authsome.cli.daemon_control import resolve_runtime_client
+from authsome.cli.identity import load_runtime_identity
+from authsome.cli.proxy_runner import ProxyRunner
 from authsome.config import get_authsome_config
-from authsome.proxy.runner import ProxyRunner
-
-
-class CliRuntime:
-    """CLI-local wiring around the daemon API client."""
-
-    def __init__(self, client: AuthsomeApiClient) -> None:
-        self.runtime_client = client
-        self.home = get_authsome_config().home
-
-    async def doctor(self) -> dict[str, Any]:
-        return await self.runtime_client.doctor()
-
-    def require_local_proxy(self) -> ProxyRunner:
-        return ProxyRunner(client=self.runtime_client, home=self.home)
 
 
 class ContextObj:
@@ -33,12 +20,28 @@ class ContextObj:
         self.json_output = json_output
         self.quiet = quiet
         self.no_color = no_color
-        self._ctx: CliRuntime | None = None
+        self.home = get_authsome_config().home
+        self._runtime_client: AuthsomeApiClient | None = None
 
-    async def initialize(self) -> CliRuntime:
-        if self._ctx is None:
-            self._ctx = CliRuntime(await resolve_runtime_client())
-        return self._ctx
+    @property
+    def runtime_client(self) -> AuthsomeApiClient:
+        if self._runtime_client is None:
+            raise RuntimeError("CLI context has not been initialized")
+        return self._runtime_client
+
+    async def initialize(self) -> "ContextObj":
+        if self._runtime_client is None:
+            identity = load_runtime_identity(self.home)
+            self._runtime_client = await resolve_runtime_client(identity=identity, home=self.home)
+        return self
+
+    async def doctor(self) -> dict[str, Any]:
+        if self._runtime_client is None:
+            await self.initialize()
+        return await self.runtime_client.doctor()
+
+    def require_local_proxy(self) -> ProxyRunner:
+        return ProxyRunner(client=self.runtime_client, home=self.home)
 
     def print_json(self, data: Any) -> None:
         output = {"v": 1}

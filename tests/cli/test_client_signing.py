@@ -9,6 +9,23 @@ from authsome.cli.config import ClientConfig, load_client_config, save_client_co
 from authsome.cli.identity import create_identity, identity_key_path, load_runtime_identity, mark_registered
 
 
+def _patch_httpx_request(monkeypatch, handler) -> None:
+    class FakeAsyncClient:
+        def __init__(self, timeout=None):
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def request(self, method, url, content=None, headers=None):
+            return handler(method, url, data=content, headers=headers, timeout=self.timeout)
+
+    monkeypatch.setattr("authsome.cli.client.httpx.AsyncClient", FakeAsyncClient)
+
+
 @pytest.mark.asyncio
 async def test_protected_request_sends_pop_header(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
@@ -21,7 +38,7 @@ async def test_protected_request_sends_pop_header(monkeypatch, tmp_path: Path) -
         response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     await AuthsomeApiClient("http://127.0.0.1:7998").list_connections()
 
@@ -40,7 +57,7 @@ async def test_health_request_is_unsigned(monkeypatch, tmp_path: Path) -> None:
         response.json.return_value = {"status": "ok", "version": "0.0.0"}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     await AuthsomeApiClient("http://127.0.0.1:7998").health()
 
@@ -59,7 +76,7 @@ async def test_post_body_is_signed_as_sent(monkeypatch, tmp_path: Path) -> None:
         response.json.return_value = {"status": "ok"}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     await AuthsomeApiClient("http://127.0.0.1:7998").set_default_connection("github", "work")
 
@@ -78,7 +95,7 @@ async def test_proxy_routes_request_is_signed(monkeypatch, tmp_path: Path) -> No
         response.json.return_value = {"routes": []}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     await AuthsomeApiClient("http://127.0.0.1:7998").proxy_routes()
 
@@ -105,7 +122,7 @@ async def test_resolve_credentials_request_is_signed(monkeypatch, tmp_path: Path
         }
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     await AuthsomeApiClient("http://127.0.0.1:7998").resolve_credentials(provider="github", connection="default")
 
@@ -130,7 +147,7 @@ async def test_registered_identity_skips_reregister_roundtrip(monkeypatch, tmp_p
         response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     await AuthsomeApiClient(base_url).list_connections()
 
@@ -162,7 +179,7 @@ async def test_registered_identity_registers_again_for_new_server(monkeypatch, t
             response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     await AuthsomeApiClient(second_server).list_connections()
     await AuthsomeApiClient(second_server).list_connections()
@@ -186,7 +203,7 @@ async def test_bootstrapped_identity_is_saved_as_active_profile(monkeypatch, tmp
         response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     await AuthsomeApiClient("http://127.0.0.1:7998").list_connections()
 
@@ -232,7 +249,7 @@ async def test_env_identity_protected_request_signs_without_identity_file(monkey
             response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     await AuthsomeApiClient("http://127.0.0.1:7998").list_connections()
 
@@ -295,7 +312,7 @@ async def test_protected_request_bootstraps_identity_readiness(monkeypatch, tmp_
         response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
     client = AuthsomeApiClient("http://127.0.0.1:7998")
@@ -325,7 +342,7 @@ async def test_registered_server_cache_skips_future_registration_roundtrip(monke
         response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
         return response
 
-    monkeypatch.setattr("authsome.cli.client.requests.request", fake_request)
+    _patch_httpx_request(monkeypatch, fake_request)
 
     client = AuthsomeApiClient(base_url)
     await client.list_connections()

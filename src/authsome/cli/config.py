@@ -3,19 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
 
 from pydantic import BaseModel
 
 from authsome import __version__
 from authsome.config import get_authsome_config
-
-ProxyMode = Literal[
-    "connected_allow",
-    "connected_deny",
-    "configured_allow",
-    "configured_deny",
-]
+from authsome.proxy.config import ProxyMode
 
 
 class ClientConfig(BaseModel):

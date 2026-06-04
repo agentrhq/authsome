@@ -45,6 +45,7 @@ dependencies = [
     "browser-cookie3>=0.19",
     "opentelemetry-api>=1.42.1",
     "opentelemetry-sdk>=1.42.1",
+    "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]
@@ -54,7 +55,6 @@ dev = [
     "pytest-cov>=4.0",
     "ruff>=0.9",
     "ty",
-    "httpx>=0.28.1",
     "pre-commit>=4.6.0",
 ]
 

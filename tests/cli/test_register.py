@@ -50,7 +50,7 @@ class TestRegisterCommand:
 
     def test_register_calls_client(self, runner, mock_client, tmp_path: Path, monkeypatch) -> None:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
-        monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
+        monkeypatch.setattr("authsome.cli.commands.provider.requests.head", lambda *a, **kw: MagicMock())
 
         result = runner.invoke(cli, ["--log-file", "", "provider", "register", str(path), "--yes"])
         assert result.exit_code == 0, result.output
@@ -63,7 +63,7 @@ class TestRegisterCommand:
 
     def test_force_flag_passed_to_client(self, runner, mock_client, tmp_path: Path, monkeypatch) -> None:
         path = _write_provider(tmp_path, _VALID_API_KEY_PROVIDER)
-        monkeypatch.setattr("authsome.cli.main.requests.head", lambda *a, **kw: MagicMock())
+        monkeypatch.setattr("authsome.cli.commands.provider.requests.head", lambda *a, **kw: MagicMock())
 
         runner.invoke(cli, ["--log-file", "", "provider", "register", str(path), "--yes", "--force"])
         call_kwargs = mock_client.register_provider.call_args.kwargs

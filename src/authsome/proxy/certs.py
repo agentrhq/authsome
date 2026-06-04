@@ -8,21 +8,8 @@ from pathlib import Path
 
 from loguru import logger
 
-from authsome.cli.config import load_client_config, save_client_config
 
-
-def ensure_local_proxy_ca(home: Path) -> None:
-    """Ensure local proxy trust setup has run at most once per client home."""
-    config = load_client_config(home)
-    if config.proxy_ca_installed:
-        return
-
-    if _ensure_macos_keychain_ca():
-        config.proxy_ca_installed = True
-        save_client_config(home, config)
-
-
-def _ensure_macos_keychain_ca() -> bool:
+def ensure_local_proxy_ca() -> bool:
     """Ensure the mitmproxy CA is generated and trusted in the macOS login keychain.
 
     Go's crypto/x509 on macOS uses the native Security framework and ignores

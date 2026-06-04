@@ -10,7 +10,7 @@ class TestDaemonStatusCommand:
     """Tests for `authsome daemon status`."""
 
     def test_status_json_output(self, runner, mock_client) -> None:
-        with patch("authsome.cli.main.daemon_status") as mock_status:
+        with patch("authsome.cli.commands.daemon.daemon_status") as mock_status:
             mock_status.return_value = {
                 "running": True,
                 "pid_file": "/tmp/daemon.pid",
@@ -27,10 +27,10 @@ class TestDaemonStartStopCommand:
 
     def test_daemon_start_calls_start_daemon(self, runner, mock_client) -> None:
         with (
-            patch("authsome.cli.main.start_daemon") as mock_start,
-            patch("authsome.cli.main.wait_for_daemon_ready"),
-            patch("authsome.cli.main.is_daemon_responsive", return_value=False),
-            patch("authsome.cli.main.is_port_occupied", return_value=False),
+            patch("authsome.cli.commands.daemon.start_daemon") as mock_start,
+            patch("authsome.cli.commands.daemon.wait_for_daemon_ready"),
+            patch("authsome.cli.commands.daemon.is_daemon_responsive", return_value=False),
+            patch("authsome.cli.commands.daemon.is_port_occupied", return_value=False),
         ):
             result = runner.invoke(cli, ["--log-file", "", "daemon", "start"])
         assert result.exit_code == 0
@@ -39,7 +39,7 @@ class TestDaemonStartStopCommand:
         assert data["status"] == "started"
 
     def test_daemon_stop_calls_stop_daemon(self, runner, mock_client) -> None:
-        with patch("authsome.cli.main.stop_daemon") as mock_stop:
+        with patch("authsome.cli.commands.daemon.stop_daemon") as mock_stop:
             mock_stop.return_value = (True, "Daemon stopped successfully.")
             result = runner.invoke(cli, ["--log-file", "", "daemon", "stop"])
         assert result.exit_code == 0
@@ -49,11 +49,11 @@ class TestDaemonStartStopCommand:
 
     def test_daemon_restart_calls_both(self, runner, mock_client) -> None:
         with (
-            patch("authsome.cli.main.stop_daemon") as mock_stop,
-            patch("authsome.cli.main.start_daemon") as mock_start,
-            patch("authsome.cli.main.wait_for_daemon_ready"),
-            patch("authsome.cli.main.is_daemon_responsive", return_value=False),
-            patch("authsome.cli.main.is_port_occupied", return_value=False),
+            patch("authsome.cli.commands.daemon.stop_daemon") as mock_stop,
+            patch("authsome.cli.commands.daemon.start_daemon") as mock_start,
+            patch("authsome.cli.commands.daemon.wait_for_daemon_ready"),
+            patch("authsome.cli.commands.daemon.is_daemon_responsive", return_value=False),
+            patch("authsome.cli.commands.daemon.is_port_occupied", return_value=False),
         ):
             mock_stop.return_value = (True, "Daemon stopped successfully.")
             result = runner.invoke(cli, ["--log-file", "", "daemon", "restart"])

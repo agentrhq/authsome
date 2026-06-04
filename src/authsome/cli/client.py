@@ -4,20 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import sys
 import webbrowser
 from collections.abc import Mapping
 from contextlib import suppress
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-import requests
+import httpx
 
 from authsome.cli.identity import (
     IdentitySource,
     RuntimeIdentity,
     load_identity,
+    load_private_key,
     load_runtime_identity,
     mark_registered,
 )
@@ -25,16 +26,14 @@ from authsome.config import get_authsome_config
 from authsome.identity.proof import POP_AUTH_SCHEME, create_proof_jwt
 from authsome.server.config import get_server_config
 
-DEFAULT_DAEMON_URL = get_authsome_config().base_url
-IDENTITY_OVERRIDE_ENV = "AUTHSOME_IDENTITY"
 API_PREFIX = "/api"
 
 
 def resolve_daemon_url(env: Mapping[str, str] | None = None) -> str:
-    """Return the configured daemon URL for CLI and proxy clients."""
-    values = env if env is not None else os.environ
-    raw = values.get("AUTHSOME_DAEMON_URL", DEFAULT_DAEMON_URL).strip()
-    return raw.rstrip("/") or DEFAULT_DAEMON_URL
+    """Return the top-level configured Authsome server URL."""
+    configured = get_authsome_config().base_url
+    raw = (env or {}).get("AUTHSOME_BASE_URL", configured).strip()
+    return raw.rstrip("/") or configured
 
 
 def is_local_daemon_url(url: str) -> bool:
@@ -53,10 +52,10 @@ def is_managed_local_daemon_url(url: str) -> bool:
     return parsed.hostname in {"127.0.0.1", "localhost", "::1"} and (parsed.port in {None, get_server_config().port})
 
 
-def raise_for_error(response: requests.Response) -> None:
+def raise_for_error(response: httpx.Response) -> None:
     try:
         response.raise_for_status()
-    except requests.HTTPError as exc:
+    except httpx.HTTPStatusError as exc:
         obj = None
         try:
             data = response.json()
@@ -83,9 +82,15 @@ def raise_for_error(response: requests.Response) -> None:
 class AuthsomeApiClient:
     """Small typed wrapper around the daemon API."""
 
-    def __init__(self, base_url: str | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        identity: RuntimeIdentity | None = None,
+        home: Path | None = None,
+    ) -> None:
         self._base_url = (base_url or resolve_daemon_url()).rstrip("/")
-        self._home = get_authsome_config().home
+        self._home = home or get_authsome_config().home
+        self._identity = identity
 
     @property
     def base_url(self) -> str:
@@ -101,30 +106,37 @@ class AuthsomeApiClient:
         protected: bool = True,
     ) -> dict[str, Any]:
         body_bytes = b""
-        headers: dict[str, str | bytes] = {}
+        headers: dict[str, str] = {}
         if body is not None:
             body_bytes = json.dumps(body, separators=(",", ":"), sort_keys=True).encode("utf-8")
             headers["Content-Type"] = "application/json"
         if protected:
             headers.update(await self._proof_headers(method, path, body_bytes))
-        response = await asyncio.to_thread(
-            requests.request,
-            method,
-            f"{self._base_url}{path}",
-            data=body_bytes if body is not None else None,
-            headers=headers,
-            timeout=timeout,
-        )
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.request(
+                method,
+                f"{self._base_url}{path}",
+                content=body_bytes if body is not None else None,
+                headers=headers,
+            )
         raise_for_error(response)
         return response.json()
 
     def _runtime_identity(self) -> RuntimeIdentity:
-        return load_runtime_identity(self._home)
+        if self._identity is None:
+            self._identity = load_runtime_identity(self._home)
+        return self._identity
 
-    def _runtime_for_handle(self, handle: str) -> RuntimeIdentity:
-        return load_runtime_identity(self._home, env={IDENTITY_OVERRIDE_ENV: handle})
+    def _filesystem_runtime_for_handle(self, handle: str) -> RuntimeIdentity:
+        identity = load_identity(self._home, handle)
+        return RuntimeIdentity(
+            handle=identity.handle,
+            did=identity.did,
+            source=IdentitySource.FILESYSTEM,
+            signer=load_private_key(self._home, identity.handle),
+        )
 
-    async def _proof_headers(self, method: str, path: str, body: bytes) -> dict[str, str | bytes]:
+    async def _proof_headers(self, method: str, path: str, body: bytes) -> dict[str, str]:
         identity = await self.ensure_identity_ready()
         token = create_proof_jwt(
             private_key=identity.signer,
@@ -154,7 +166,8 @@ class AuthsomeApiClient:
         else:
             return runtime
 
-        return self._runtime_for_handle(identity.handle)
+        self._identity = self._filesystem_runtime_for_handle(identity.handle)
+        return self._identity
 
     async def _ensure_env_identity_ready(self, identity: RuntimeIdentity) -> RuntimeIdentity:
         try:

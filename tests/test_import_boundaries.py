@@ -45,3 +45,7 @@ def test_vault_is_orthogonal_library_module() -> None:
 
 def test_identity_is_orthogonal_library_module() -> None:
     _assert_no_imports("identity", {"authsome.server", "authsome.auth", "authsome.vault", "authsome.cli"})
+
+
+def test_proxy_is_leaf_injection_module() -> None:
+    _assert_no_imports("proxy", {"authsome.server", "authsome.cli"})

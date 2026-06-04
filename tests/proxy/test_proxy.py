@@ -11,13 +11,13 @@ import pytest
 
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
+from authsome.config import get_authsome_config
 from authsome.proxy.router import RouteMatch, RouteResolution
 from authsome.proxy.server import AuthProxyAddon, ProxyRouter, _build_proxy_options, _route
 from authsome.server.credential_repository import CredentialRepository
 from authsome.server.credential_service import CredentialService as AuthLayer
 from authsome.server.dependencies import create_store, create_vault
 from authsome.server.provider_repository import ProviderRepository
-from authsome.server.urls import DEFAULT_SERVER_BASE_URL
 
 
 async def _make_auth(tmp_path: Path) -> AuthLayer:
@@ -567,7 +567,7 @@ class TestAuthProxyAddon:
         body = flow.response.content.decode("utf-8")
         assert "openai" in body
         assert "authsome login openai" in body
-        assert f"{DEFAULT_SERVER_BASE_URL}/" in body
+        assert f"{get_authsome_config().base_url}/" in body
         events = [call.args[0] for call in auth.record_audit_event.await_args_list]
         assert {
             "event": "proxy_no_credentials",
@@ -635,14 +635,14 @@ class TestProxyRunner:
 
     @pytest.mark.asyncio
     async def test_runner_sets_proxy_environment(self, tmp_path: Path) -> None:
-        from authsome.proxy.runner import ProxyRunner
+        from authsome.cli.proxy_runner import ProxyRunner
 
         auth = await _make_auth(tmp_path)
         runner = ProxyRunner(auth, home=tmp_path)
 
         with (
-            patch("authsome.proxy.runner.subprocess.run") as run_mock,
-            patch("authsome.proxy.runner.ensure_local_proxy_ca") as ensure_ca_mock,
+            patch("authsome.cli.proxy_runner.subprocess.run") as run_mock,
+            patch("authsome.cli.proxy_runner.ensure_local_proxy_ca") as ensure_ca_mock,
             patch.object(runner, "_start_proxy", return_value=("http://127.0.0.1:8899", mock.Mock())),
             patch.object(runner, "_build_ca_bundle", return_value=Path("/tmp/fake-ca.pem")),
         ):
@@ -663,7 +663,7 @@ class TestProxyRunner:
 
     @pytest.mark.asyncio
     async def test_runner_injects_dummy_credentials_for_connected_providers(self, tmp_path: Path) -> None:
-        from authsome.proxy.runner import ProxyRunner
+        from authsome.cli.proxy_runner import ProxyRunner
 
         auth = await _make_auth(tmp_path)
         await _save_connection_record(auth, "openai", "sk-real-padded-for-regex-12")
@@ -671,7 +671,7 @@ class TestProxyRunner:
         runner = ProxyRunner(auth, home=tmp_path)
 
         with (
-            patch("authsome.proxy.runner.subprocess.run") as run_mock,
+            patch("authsome.cli.proxy_runner.subprocess.run") as run_mock,
             patch.object(runner, "_start_proxy", return_value=("http://127.0.0.1:8899", mock.Mock())),
             patch.object(runner, "_build_ca_bundle", return_value=None),
         ):
@@ -684,14 +684,14 @@ class TestProxyRunner:
 
     @pytest.mark.asyncio
     async def test_runner_stops_proxy_on_subprocess_failure(self, tmp_path: Path) -> None:
-        from authsome.proxy.runner import ProxyRunner
+        from authsome.cli.proxy_runner import ProxyRunner
 
         auth = await _make_auth(tmp_path)
         runner = ProxyRunner(auth, home=tmp_path)
         server = mock.Mock()
 
         with (
-            patch("authsome.proxy.runner.subprocess.run", side_effect=RuntimeError("boom")),
+            patch("authsome.cli.proxy_runner.subprocess.run", side_effect=RuntimeError("boom")),
             patch.object(runner, "_start_proxy", return_value=("http://127.0.0.1:8899", server)),
             patch.object(runner, "_build_ca_bundle", return_value=None),
             pytest.raises(RuntimeError, match="boom"),
@@ -701,61 +701,71 @@ class TestProxyRunner:
         server.shutdown.assert_called_once()
 
     def test_start_proxy_ensures_local_proxy_ca_once(self, tmp_path: Path) -> None:
-        from authsome.proxy.runner import ProxyRunner
+        from authsome.cli.proxy_runner import ProxyRunner
 
         runner = ProxyRunner(mock.Mock(), home=tmp_path)
         server = mock.Mock(url="http://127.0.0.1:8899")
 
         with (
-            patch("authsome.proxy.runner.ensure_local_proxy_ca") as ensure_ca_mock,
-            patch("authsome.proxy.runner.start_proxy_server", return_value=server) as start_mock,
+            patch("authsome.cli.proxy_runner.ensure_local_proxy_ca") as ensure_ca_mock,
+            patch("authsome.cli.proxy_runner.start_proxy_server", return_value=server) as start_mock,
         ):
             proxy_url, returned_server = runner._start_proxy()
 
-        ensure_ca_mock.assert_called_once_with(tmp_path)
-        start_mock.assert_called_once_with(runner._client, mode="connected_allow")
+        ensure_ca_mock.assert_called_once_with()
+        start_mock.assert_called_once_with(
+            runner._client,
+            mode="connected_allow",
+            dashboard_url=get_authsome_config().base_url,
+        )
         assert proxy_url == "http://127.0.0.1:8899"
         assert returned_server is server
 
     def test_start_proxy_passes_client_config_mode(self, tmp_path: Path) -> None:
         from authsome.cli.config import ClientConfig, save_client_config
-        from authsome.proxy.runner import ProxyRunner
+        from authsome.cli.proxy_runner import ProxyRunner
 
         save_client_config(tmp_path, ClientConfig(proxy_mode="configured_deny"))
         runner = ProxyRunner(mock.Mock(), home=tmp_path)
         server = mock.Mock(url="http://127.0.0.1:8899")
 
         with (
-            patch("authsome.proxy.runner.ensure_local_proxy_ca"),
-            patch("authsome.proxy.runner.start_proxy_server", return_value=server) as start_mock,
+            patch("authsome.cli.proxy_runner.ensure_local_proxy_ca"),
+            patch("authsome.cli.proxy_runner.start_proxy_server", return_value=server) as start_mock,
         ):
             runner._start_proxy()
 
-        start_mock.assert_called_once_with(runner._client, mode="configured_deny")
+        start_mock.assert_called_once_with(
+            runner._client,
+            mode="configured_deny",
+            dashboard_url=get_authsome_config().base_url,
+        )
 
     def test_ensure_local_proxy_ca_sets_flag_after_success(self, tmp_path: Path) -> None:
         from authsome.cli.config import load_client_config
-        from authsome.proxy.certs import ensure_local_proxy_ca
+        from authsome.cli.proxy_runner import ProxyRunner
 
-        with patch("authsome.proxy.certs._ensure_macos_keychain_ca", return_value=True) as ensure_ca_mock:
-            ensure_local_proxy_ca(tmp_path)
+        runner = ProxyRunner(mock.Mock(), home=tmp_path)
+        with patch("authsome.cli.proxy_runner.ensure_local_proxy_ca", return_value=True) as ensure_ca_mock:
+            runner._ensure_local_proxy_ca_once()
 
         ensure_ca_mock.assert_called_once_with()
         assert load_client_config(tmp_path).proxy_ca_installed is True
 
     def test_ensure_local_proxy_ca_skips_repeat_prompt_once_flagged(self, tmp_path: Path) -> None:
         from authsome.cli.config import ClientConfig, save_client_config
-        from authsome.proxy.certs import ensure_local_proxy_ca
+        from authsome.cli.proxy_runner import ProxyRunner
 
         save_client_config(tmp_path, ClientConfig(proxy_ca_installed=True))
+        runner = ProxyRunner(mock.Mock(), home=tmp_path)
 
-        with patch("authsome.proxy.certs._ensure_macos_keychain_ca") as ensure_ca_mock:
-            ensure_local_proxy_ca(tmp_path)
+        with patch("authsome.cli.proxy_runner.ensure_local_proxy_ca") as ensure_ca_mock:
+            runner._ensure_local_proxy_ca_once()
 
         ensure_ca_mock.assert_not_called()
 
     def test_runner_merges_existing_no_proxy(self, tmp_path: Path) -> None:
-        from authsome.proxy.runner import ProxyRunner
+        from authsome.cli.proxy_runner import ProxyRunner
 
         result = ProxyRunner._merge_no_proxy("internal.corp.com,10.0.0.1")
         assert "internal.corp.com" in result
@@ -828,10 +838,10 @@ class TestProxyCLI:
 
         with patch("authsome.cli.context.resolve_runtime_client", new_callable=mock.AsyncMock) as mock_resolve:
             mock_resolve.return_value = mock.AsyncMock()
-            with patch("authsome.proxy.runner.ProxyRunner.run", new_callable=mock.AsyncMock) as run_mock:
+            with patch("authsome.cli.proxy_runner.ProxyRunner.run", new_callable=mock.AsyncMock) as run_mock:
                 run_mock.return_value = mock.Mock(returncode=0)
 
-                with patch("authsome.proxy.runner.ProxyRunner.__init__", return_value=None):
+                with patch("authsome.cli.proxy_runner.ProxyRunner.__init__", return_value=None):
                     runner = CliRunner()
                     _result = runner.invoke(cli, ["run", "--", "echo", "hello"])
 
