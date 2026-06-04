@@ -6,7 +6,6 @@ import random
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import StrEnum
 
 import base58
 from cryptography.hazmat.primitives import serialization
@@ -50,34 +49,13 @@ _ADVERBS = (
 )
 
 
-class IdentityStatus(StrEnum):
-    """Progressive local lifecycle state for an identity."""
-
-    UNREGISTERED = "unregistered"
-    REGISTERED = "registered"
-    CLAIMED = "claimed"
-
-
 class IdentityMetadata(BaseModel):
     """Identity metadata associated with a caller-owned private key."""
 
     handle: str
     did: str
-    identity_status: IdentityStatus = IdentityStatus.UNREGISTERED
-    registered_servers: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-    @property
-    def registered(self) -> bool:
-        return self.identity_status in {IdentityStatus.REGISTERED, IdentityStatus.CLAIMED}
-
-    @property
-    def claimed(self) -> bool:
-        return self.identity_status == IdentityStatus.CLAIMED
-
-    def registered_for(self, server_url: str) -> bool:
-        return normalize_server_url(server_url) in self.registered_servers
 
 
 @dataclass(frozen=True)
@@ -104,11 +82,6 @@ def validate_handle(handle: str) -> str:
     if not _HANDLE_RE.match(handle):
         raise ValueError(f"Invalid identity handle: {handle}")
     return handle
-
-
-def normalize_server_url(server_url: str) -> str:
-    """Normalize daemon URLs before using them as local identity status keys."""
-    return server_url.rstrip("/") or server_url
 
 
 def public_key_to_did_key(public_key: Ed25519PublicKey) -> str:

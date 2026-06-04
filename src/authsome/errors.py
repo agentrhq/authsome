@@ -161,3 +161,10 @@ class EndpointUnreachableError(AuthsomeError):
 
     def __init__(self, endpoint: str, reason: str = "Unreachable", *, provider: str | None = None) -> None:
         super().__init__(f"Endpoint '{endpoint}' is unreachable: {reason}", provider=provider)
+
+
+class IdentityNotRegisteredError(AuthsomeError):
+    """Raised when the identity is not registered with the target server."""
+
+    def __init__(self, handle: str) -> None:
+        super().__init__(f"Identity '{handle}' is not registered with the server", operation="registration")

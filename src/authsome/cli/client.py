@@ -15,12 +15,8 @@ from urllib.parse import urlparse
 import httpx
 
 from authsome.cli.identity import (
-    IdentitySource,
     RuntimeIdentity,
-    load_identity,
-    load_private_key,
     load_runtime_identity,
-    mark_registered,
 )
 from authsome.config import get_authsome_config
 from authsome.identity.proof import POP_AUTH_SCHEME, create_proof_jwt
@@ -59,6 +55,10 @@ def raise_for_error(response: httpx.Response) -> None:
         obj = None
         try:
             data = response.json()
+            if response.status_code == 401 and data.get("detail") == "Unknown identity handle":
+                import authsome.errors as err_mod
+
+                raise err_mod.IdentityNotRegisteredError("current identity") from exc
             error_name = data.get("error")
             message = data.get("message")
             if error_name and message:
@@ -70,6 +70,8 @@ def raise_for_error(response: httpx.Response) -> None:
                     Exception.__init__(obj, message)
                     obj.provider = data.get("provider")
                     obj.operation = data.get("operation")
+        except httpx.HTTPStatusError:
+            raise
         except Exception:
             pass
 
@@ -91,6 +93,7 @@ class AuthsomeApiClient:
         self._base_url = (base_url or resolve_daemon_url()).rstrip("/")
         self._home = home or get_authsome_config().home
         self._identity = identity
+        self._server_registered = False  # in-memory flag; reset on 401
 
     @property
     def base_url(self) -> str:
@@ -104,6 +107,7 @@ class AuthsomeApiClient:
         body: dict[str, Any] | None = None,
         timeout: int = 30,
         protected: bool = True,
+        _retry: bool = True,
     ) -> dict[str, Any]:
         body_bytes = b""
         headers: dict[str, str] = {}
@@ -119,6 +123,15 @@ class AuthsomeApiClient:
                 content=body_bytes if body is not None else None,
                 headers=headers,
             )
+        if protected and _retry and response.status_code == 401:
+            try:
+                detail = response.json().get("detail", "")
+            except Exception:
+                detail = ""
+            if detail == "Unknown identity handle":
+                self._server_registered = False
+                await self.ensure_identity_ready()
+                return await self._request(method, path, body=body, timeout=timeout, protected=protected, _retry=False)
         raise_for_error(response)
         return response.json()
 
@@ -126,15 +139,6 @@ class AuthsomeApiClient:
         if self._identity is None:
             self._identity = load_runtime_identity(self._home)
         return self._identity
-
-    def _filesystem_runtime_for_handle(self, handle: str) -> RuntimeIdentity:
-        identity = load_identity(self._home, handle)
-        return RuntimeIdentity(
-            handle=identity.handle,
-            did=identity.did,
-            source=IdentitySource.FILESYSTEM,
-            signer=load_private_key(self._home, identity.handle),
-        )
 
     async def _proof_headers(self, method: str, path: str, body: bytes) -> dict[str, str]:
         identity = await self.ensure_identity_ready()
@@ -149,52 +153,52 @@ class AuthsomeApiClient:
         return {"Authorization": f"{POP_AUTH_SCHEME} {token}"}
 
     async def ensure_identity_ready(self) -> RuntimeIdentity:
-        """Ensure the acting identity is registered and claimed by a principal.
+        """Ensure the acting identity is registered with the server and claimed.
 
-        A freshly registered identity must be claimed by a principal before it
-        can make authenticated calls; the daemon returns a browser claim URL
-        which is opened here while we poll for completion.
+        Checks server status on the first call per client instance (cached in
+        memory after that). Registers and opens the browser claim URL when the
+        identity is new or the server has been reset.
         """
         runtime = self._runtime_identity()
-        if runtime.source is IdentitySource.ENV:
-            return await self._ensure_env_identity_ready(runtime)
-
-        identity = load_identity(self._home, runtime.handle)
-        if not identity.registered_for(self._base_url):
-            await self.register_identity(identity.handle, identity.did)
-            identity = mark_registered(self._home, identity.handle, server_url=self._base_url)
-        else:
+        if self._server_registered:
             return runtime
+        await self._check_server_registration(runtime)
+        self._server_registered = True
+        return runtime
 
-        self._identity = self._filesystem_runtime_for_handle(identity.handle)
-        return self._identity
-
-    async def _ensure_env_identity_ready(self, identity: RuntimeIdentity) -> RuntimeIdentity:
+    async def _check_server_registration(self, runtime: RuntimeIdentity) -> None:
+        """Verify registration with the server; register and claim if needed."""
         try:
-            status = await self.get_identity_status(identity.handle)
-        except Exception:
-            status = await self.register_identity(identity.handle, identity.did)
+            status = await self.get_identity_status(runtime.handle)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code != 404:
+                raise
+            status = await self.register_identity(runtime.handle, runtime.did)
 
-        registration_status = status.get("registration_status", "registered")
-        if registration_status == "unknown":
-            await self.register_identity(identity.handle, identity.did)
-        return identity
+        reg_status = status.get("registration_status", "")
+        if reg_status == "claim_required":
+            claim_url = status.get("claim_url", "")
+            if claim_url:
+                self._open_claim_url(claim_url)
+            await self._poll_claim_completion(runtime.handle)
+        elif reg_status == "rejected":
+            raise RuntimeError(f"Identity '{runtime.handle}' claim was rejected by the server")
 
     def _open_claim_url(self, claim_url: str) -> None:
-        """Surface the browser claim URL (so headless users can open it) and try to launch it."""
-        print(
-            f"Open this URL in your browser to register and claim this identity:\n  {claim_url}",
-            file=sys.stderr,
-        )
+        print(f"Open this URL in your browser to claim this identity:\n  {claim_url}", file=sys.stderr)
         with suppress(Exception):
             webbrowser.open(claim_url)
 
-    async def _poll_claim_completion(self, handle: str, *, timeout_seconds: int = 300) -> dict[str, Any]:
+    async def _poll_claim_completion(self, handle: str, *, timeout_seconds: int = 300) -> None:
+        print("Waiting for identity to be claimed...", file=sys.stderr)
         deadline = asyncio.get_running_loop().time() + timeout_seconds
         while True:
             status = await self.get_identity_status(handle)
-            if status.get("registration_status") in {"claimed", "registered"}:
-                return status
+            reg_status = status.get("registration_status", "")
+            if reg_status == "claimed":
+                return
+            if reg_status == "rejected":
+                raise RuntimeError(f"Identity '{handle}' claim was rejected")
             if asyncio.get_running_loop().time() >= deadline:
                 raise TimeoutError(f"Timed out waiting for identity '{handle}' to be claimed")
             await asyncio.sleep(1)

@@ -27,7 +27,7 @@ async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
         "home": str(home),
         "profile": identity_meta.handle,
         "did": identity_meta.did,
-        "registration_status": "registered" if identity_meta.registered else "local",
+        "registration_status": "local",
         "switched": True,
     }
     ctx_obj.print_json(data)

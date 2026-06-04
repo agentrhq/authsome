@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from contextlib import suppress
-from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 
@@ -15,10 +14,8 @@ from pydantic import BaseModel
 from authsome.cli.config import load_client_config, save_client_config
 from authsome.identity.helpers import (
     IdentityMetadata,
-    IdentityStatus,
     create_identity_material,
     generate_handle,
-    normalize_server_url,
     private_key_from_hex,
     private_key_to_hex,
     public_key_to_did_key,
@@ -96,43 +93,6 @@ def remove_legacy_default_identity(home: Path) -> None:
     for path in (identity_metadata_path(home, "default"), identity_key_path(home, "default")):
         with suppress(FileNotFoundError):
             path.unlink()
-
-
-def mark_registered(home: Path, handle: str, *, server_url: str | None = None) -> IdentityMetadata:
-    """Persist a registered state for a local identity after daemon registration."""
-    metadata = load_identity(home, handle)
-    registered_servers = list(metadata.registered_servers)
-    if server_url is not None:
-        normalized_server_url = normalize_server_url(server_url)
-        if normalized_server_url not in registered_servers:
-            registered_servers.append(normalized_server_url)
-    if metadata.identity_status == IdentityStatus.CLAIMED:
-        if registered_servers == metadata.registered_servers:
-            return metadata
-        updated = metadata.model_copy(
-            update={"registered_servers": registered_servers, "updated_at": datetime.now(UTC)}
-        )
-        identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
-        return updated
-    if server_url is None:
-        registered_servers = metadata.registered_servers
-    updated = metadata.model_copy(
-        update={
-            "identity_status": IdentityStatus.REGISTERED,
-            "registered_servers": registered_servers,
-            "updated_at": datetime.now(UTC),
-        }
-    )
-    identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
-    return updated
-
-
-def mark_claimed(home: Path, handle: str) -> IdentityMetadata:
-    """Persist a claimed state for a local identity after ownership resolution."""
-    metadata = load_identity(home, handle)
-    updated = metadata.model_copy(update={"identity_status": IdentityStatus.CLAIMED, "updated_at": datetime.now(UTC)})
-    identity_metadata_path(home, handle).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
-    return updated
 
 
 def ensure_local_identity(home: Path, active_handle: str | None = None) -> IdentityMetadata:
