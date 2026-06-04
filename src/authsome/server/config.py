@@ -6,17 +6,15 @@ from functools import lru_cache
 from pathlib import Path
 
 from pydantic import AliasChoices, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 
-from authsome.config import get_authsome_config
+from authsome.config import AuthsomeConfig
 
 
-class ServerConfig(BaseSettings):
+class ServerConfig(AuthsomeConfig):
     """Daemon runtime settings resolved from ``AUTHSOME_*`` environment variables."""
 
-    model_config = SettingsConfigDict(env_prefix="AUTHSOME_", extra="ignore")
-
-    home: Path = Field(default_factory=lambda: get_authsome_config().home)
+    model_config = SettingsConfigDict(env_prefix="AUTHSOME_", extra="ignore", populate_by_name=True)
 
     # Network
     host: str = "127.0.0.1"
