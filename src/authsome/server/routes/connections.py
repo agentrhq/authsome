@@ -1,7 +1,5 @@
 """Connection routes."""
 
-from __future__ import annotations
-
 from fastapi import APIRouter, Depends
 
 from authsome.auth.models.enums import ExportFormat

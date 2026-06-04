@@ -4,8 +4,6 @@ These are HTTP boundary models. They intentionally avoid exposing internal
 auth/vault models directly.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Annotated, Any, Literal
 

@@ -1,7 +1,5 @@
 """Provider routes."""
 
-from __future__ import annotations
-
 from fastapi import APIRouter, Depends
 
 from authsome.auth.models.provider import ProviderDefinition

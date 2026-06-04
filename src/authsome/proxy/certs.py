@@ -1,7 +1,5 @@
 """Local certificate trust helpers for the auth proxy."""
 
-from __future__ import annotations
-
 import subprocess
 import sys
 from pathlib import Path

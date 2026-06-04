@@ -1,7 +1,5 @@
 """Focused tests for server-scoped provider client storage."""
 
-from __future__ import annotations
-
 from unittest import mock
 
 import pytest

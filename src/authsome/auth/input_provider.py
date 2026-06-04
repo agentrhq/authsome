@@ -1,7 +1,5 @@
 """InputProvider protocol and adapters for collecting credentials from users."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel
 
 

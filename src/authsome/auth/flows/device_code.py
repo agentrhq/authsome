@@ -1,11 +1,9 @@
 """OAuth2 Device Authorization Grant (RFC 8628)."""
 
-from __future__ import annotations
-
 import json
 import time
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import requests
 from loguru import logger
@@ -14,11 +12,9 @@ from authsome.auth.flows.base import AuthFlow, FlowResult
 from authsome.auth.models.connection import AccountInfo, ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
+from authsome.auth.sessions import AuthSession
 from authsome.errors import AuthenticationFailedError
 from authsome.utils import utc_now
-
-if TYPE_CHECKING:
-    from authsome.auth.sessions import AuthSession
 
 _DEFAULT_POLL_INTERVAL = 5
 _MAX_POLL_DURATION = 900

@@ -1,7 +1,5 @@
 """Identity domain models and did:key helpers."""
 
-from __future__ import annotations
-
 import random
 import re
 from dataclasses import dataclass

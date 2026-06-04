@@ -1,7 +1,5 @@
 """Browser-session routes for the Authsome local dashboard."""
 
-from __future__ import annotations
-
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from typing import Any

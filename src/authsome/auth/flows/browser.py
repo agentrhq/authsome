@@ -5,12 +5,10 @@ resume() — daemon-side: build ConnectionRecord from CLI-supplied cookies.
 run_login() — CLI-side: read Chrome cookie DB, open browser if needed, poll until valid.
 """
 
-from __future__ import annotations
-
 import asyncio
 import webbrowser
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from loguru import logger
 
@@ -24,11 +22,9 @@ from authsome.auth.flows.base import AuthFlow, FlowResult
 from authsome.auth.models.connection import AccountInfo, ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
+from authsome.auth.sessions import AuthSession
 from authsome.errors import AuthenticationFailedError, RefreshFailedError
 from authsome.utils import utc_now
-
-if TYPE_CHECKING:
-    from authsome.auth.sessions import AuthSession
 
 _POLL_INTERVAL = 4.0
 _DEFAULT_TIMEOUT = 300.0

@@ -1,7 +1,5 @@
 """Relational server Store database wiring."""
 
-from __future__ import annotations
-
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -108,18 +106,17 @@ def resolve_store_database_config(home: Path | None = None, database_url: str | 
     """Resolve the relational Store backend from explicit config or defaults."""
     server_config = get_server_config(home)
     resolved_home = server_config.home
-    raw_url = database_url if database_url is not None else server_config.database_url
-    if raw_url:
-        parsed = urlparse(raw_url)
-        if parsed.scheme in {"postgres", "postgresql"}:
-            return StoreDatabaseConfig(backend="postgres", dsn=raw_url, home=resolved_home)
-        if parsed.scheme == "sqlite":
-            if parsed.path in {"", "/"}:
-                raise ValueError("sqlite AUTHSOME_DATABASE_URL must include a database path")
-            return StoreDatabaseConfig(backend="sqlite", dsn=parsed.path, home=resolved_home)
-        raise ValueError(f"Unsupported AUTHSOME_DATABASE_URL scheme: {parsed.scheme}")
-
-    return StoreDatabaseConfig(backend="sqlite", dsn=str(server_config.sqlite_database_path), home=resolved_home)
+    raw_url = database_url if database_url is not None else server_config.database
+    parsed = urlparse(raw_url)
+    if not parsed.scheme:
+        return StoreDatabaseConfig(backend="sqlite", dsn=raw_url, home=resolved_home)
+    if parsed.scheme in {"postgres", "postgresql"}:
+        return StoreDatabaseConfig(backend="postgres", dsn=raw_url, home=resolved_home)
+    if parsed.scheme == "sqlite":
+        if parsed.path in {"", "/"}:
+            raise ValueError("sqlite AUTHSOME_DATABASE_URL must include a database path")
+        return StoreDatabaseConfig(backend="sqlite", dsn=str(parsed.path), home=resolved_home)
+    raise ValueError(f"Unsupported AUTHSOME_DATABASE_URL scheme: {parsed.scheme}")
 
 
 async def open_store_database(config: StoreDatabaseConfig) -> StoreDatabase:

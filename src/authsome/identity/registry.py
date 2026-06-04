@@ -3,8 +3,6 @@
 The IdentityRegistry persistence implementation lives in server/registries.py.
 """
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field

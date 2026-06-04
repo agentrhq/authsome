@@ -1,7 +1,5 @@
 """Authsome configuration models and helpers."""
 
-from __future__ import annotations
-
 from importlib.metadata import PackageNotFoundError, version
 
 from pydantic import BaseModel, Field

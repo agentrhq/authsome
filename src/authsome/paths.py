@@ -1,7 +1,5 @@
 """Filesystem layout helpers for Authsome."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from authsome.config import get_authsome_config

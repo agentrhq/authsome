@@ -4,8 +4,6 @@ Only tests our code (DekManager, AesGcmEncryptionWrapper).
 The underlying key-value library's encryption primitives are already well-tested.
 """
 
-from __future__ import annotations
-
 import base64
 import os
 from pathlib import Path

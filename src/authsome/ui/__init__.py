@@ -1,1 +1,1 @@
-"""Authsome UI package."""
+"""Packaged static dashboard assets."""

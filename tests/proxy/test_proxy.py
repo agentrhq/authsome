@@ -1,7 +1,5 @@
 """Tests for the HTTP proxy injection feature."""
 
-from __future__ import annotations
-
 import asyncio
 from pathlib import Path
 from unittest import mock

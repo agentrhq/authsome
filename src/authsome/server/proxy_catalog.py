@@ -1,14 +1,11 @@
 """Proxy route catalog — builds the route table the proxy addon uses to match requests."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from urllib.parse import urlparse
 
 from loguru import logger
 
-if TYPE_CHECKING:
-    from authsome.server.credential_service import CredentialService
+from authsome.server.credential_service import CredentialService
 
 
 def _build_route_entry(definition: Any, connection_name: str, api_url: str | list[str] | None) -> dict[str, Any]:

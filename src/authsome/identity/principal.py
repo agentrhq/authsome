@@ -4,8 +4,6 @@ These are pure data models shared across server, cli, and identity modules.
 Filesystem-backed registry implementations live in server/registries.py.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from enum import StrEnum
 

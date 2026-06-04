@@ -4,11 +4,9 @@ Owns OAuth flows, token refresh, login/logout/revoke.
 Lives in server/ because it coordinates auth/ flows with vault/ storage and audit/ logging.
 """
 
-from __future__ import annotations
-
 import json
 from datetime import timedelta
-from typing import Any
+from typing import Any, Self
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -652,9 +650,9 @@ class CredentialService:
             connection_count=revoked_connections,
         )
 
-    def _for_vault(self, vault_id: str) -> CredentialService:
+    def _for_vault(self, vault_id: str) -> Self:
         """Return a sibling service scoped to another vault of the same principal."""
-        return CredentialService(
+        return type(self)(
             credentials=CredentialRepository(
                 self.vault,
                 identity=self._identity,

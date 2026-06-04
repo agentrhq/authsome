@@ -1,7 +1,5 @@
 """Tests for BROWSER auth handling in credential_service.py."""
 
-from __future__ import annotations
-
 from datetime import timedelta
 from unittest.mock import MagicMock
 

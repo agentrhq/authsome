@@ -1,7 +1,5 @@
 """Proxy support routes."""
 
-from __future__ import annotations
-
 from fastapi import APIRouter, Depends, Query
 
 from authsome.server.analytics import capture_event

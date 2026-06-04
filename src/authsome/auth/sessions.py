@@ -1,7 +1,5 @@
 """Auth-owned session models and in-memory session store."""
 
-from __future__ import annotations
-
 import uuid
 from datetime import datetime, timedelta
 from enum import StrEnum

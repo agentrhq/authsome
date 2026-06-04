@@ -1,7 +1,5 @@
 """Route match result type for proxy routing."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Literal
 

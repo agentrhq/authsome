@@ -1,12 +1,10 @@
 """DCR + PKCE OAuth2 flow."""
 
-from __future__ import annotations
-
 import json
 import secrets
 import urllib.parse
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import requests as http_client
 
@@ -14,12 +12,10 @@ from authsome.auth.flows.base import AuthFlow, FlowResult
 from authsome.auth.models.connection import AccountInfo, ConnectionRecord, ProviderClientRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
+from authsome.auth.sessions import AuthSession
 from authsome.auth.utils import generate_pkce, resolve_callback_url
 from authsome.errors import AuthenticationFailedError, DiscoveryError
 from authsome.utils import utc_now
-
-if TYPE_CHECKING:
-    from authsome.auth.sessions import AuthSession
 
 
 class DcrPkceFlow(AuthFlow):

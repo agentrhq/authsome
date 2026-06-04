@@ -1,7 +1,5 @@
 """PostHog analytics client for the Authsome daemon."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from loguru import logger
@@ -36,6 +34,11 @@ def init_posthog() -> Posthog | None:
     if not settings.analytics_enabled:
         _client = None
         logger.debug("Analytics disabled via settings")
+        return None
+
+    if settings.posthog_api_key is None:
+        _client = None
+        logger.debug("Analytics disabled because no PostHog API key is configured")
         return None
 
     _client = Posthog(settings.posthog_api_key, host=settings.posthog_host, enable_exception_autocapture=True)

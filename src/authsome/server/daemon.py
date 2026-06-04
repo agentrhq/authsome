@@ -1,7 +1,5 @@
 """Local daemon foreground runner."""
 
-from __future__ import annotations
-
 import uvicorn
 
 from authsome.server.config import get_server_config

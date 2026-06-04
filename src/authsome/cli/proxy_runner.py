@@ -1,7 +1,5 @@
 """CLI subprocess runner for commands launched behind the local auth proxy."""
 
-from __future__ import annotations
-
 import os
 import subprocess
 import tempfile

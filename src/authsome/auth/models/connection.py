@@ -6,8 +6,6 @@ Sensitive fields are marked with Annotated[..., Sensitive()] so callers
 can redact them before display without knowing field names in advance.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Annotated, Any
 

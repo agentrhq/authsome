@@ -1,11 +1,9 @@
 """Abstract base class and result type for authentication flows."""
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import requests as http_client
 from loguru import logger
@@ -13,11 +11,9 @@ from loguru import logger
 from authsome.auth.models.connection import ConnectionRecord, ProviderClientRecord
 from authsome.auth.models.enums import ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
+from authsome.auth.sessions import AuthSession
 from authsome.errors import RefreshFailedError
 from authsome.utils import utc_now
-
-if TYPE_CHECKING:
-    from authsome.auth.sessions import AuthSession
 
 
 @dataclass

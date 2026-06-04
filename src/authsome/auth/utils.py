@@ -1,23 +1,18 @@
 """Shared utility functions for the auth module."""
 
-from __future__ import annotations
-
 import hashlib
 import re
 import secrets
 from base64 import urlsafe_b64encode
-from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
 from authsome.auth.input_provider import InputField
 from authsome.auth.models.connection import ProviderClientRecord
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.models.provider import ProviderDefinition
+from authsome.auth.sessions import AuthSession
 from authsome.errors import InvalidProviderSchemaError
 from authsome.utils import is_filesystem_safe
-
-if TYPE_CHECKING:
-    from authsome.auth.sessions import AuthSession
 
 
 def generate_pkce() -> tuple[str, str]:

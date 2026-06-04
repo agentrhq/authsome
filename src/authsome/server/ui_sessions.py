@@ -1,7 +1,5 @@
 """Browser sessions and pending identity-claim storage."""
 
-from __future__ import annotations
-
 import hashlib
 import hmac
 import secrets
@@ -10,9 +8,10 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from pydantic import BaseModel, Field
 
-from authsome.server.account_auth import UI_TOKEN_AUDIENCE
 from authsome.server.config import get_server_config
 from authsome.utils import utc_now
+
+UI_TOKEN_AUDIENCE = "authsome-ui"
 
 # Settings-backed session lifetimes (seconds).
 DEFAULT_UI_BOOTSTRAP_TTL_SECONDS = get_server_config().ui_bootstrap_ttl_seconds

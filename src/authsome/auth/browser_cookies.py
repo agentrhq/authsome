@@ -1,7 +1,5 @@
 """Read cookies from Chrome's on-disk SQLite database via browser-cookie3."""
 
-from __future__ import annotations
-
 import time
 
 # Reserved credential key: Unix expiry timestamp for ttl_from_cookie (stripped on resume).

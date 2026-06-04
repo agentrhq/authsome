@@ -1,7 +1,5 @@
 """Typed repositories for server-owned relational Store records."""
 
-from __future__ import annotations
-
 import asyncio
 import builtins
 import json
@@ -114,7 +112,7 @@ class AuditEventRegistry:
             )
         return [json.loads(row["payload_json"]) for row in rows]
 
-    def configure_exporter(self, loop: asyncio.AbstractEventLoop | None = None) -> ServerAuditLog:
+    def configure_exporter(self, loop: asyncio.AbstractEventLoop | None = None):
         """Configure the process OTel logger provider to export audit logs to Store."""
         global _audit_logger_provider
 

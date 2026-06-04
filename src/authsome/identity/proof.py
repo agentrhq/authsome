@@ -1,7 +1,5 @@
 """DID proof-of-possession JWT helpers."""
 
-from __future__ import annotations
-
 import hashlib
 import time
 import uuid

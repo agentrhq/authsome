@@ -1,7 +1,5 @@
 """FastAPI dependency helpers."""
 
-from __future__ import annotations
-
 from contextlib import suppress
 from datetime import timedelta
 
@@ -194,13 +192,6 @@ async def get_daemon_or_browser_auth_service(request: Request) -> CredentialServ
     return auth
 
 
-async def get_admin_daemon_or_browser_auth_service(request: Request) -> CredentialService:
-    auth = await get_daemon_or_browser_auth_service(request)
-    if auth.principal_role != PrincipalRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin role required")
-    return auth
-
-
 def get_vault_registry(request: Request) -> VaultRegistry:
     return request.app.state.store.vaults
 
@@ -230,6 +221,4 @@ async def resolve_ui_request_identity(request: Request) -> None:
 
     request.state.ui_identity = None
     request.state.ui_principal_id = session.principal_id
-    principal = await request.app.state.store.principals.get(session.principal_id)
-    request.state.ui_principal_role = principal.role if principal else None
     request.state.ui_email = session.email

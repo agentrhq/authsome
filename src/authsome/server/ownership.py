@@ -1,7 +1,5 @@
 """Resolve acting identity into principal and vault context."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 from authsome import audit

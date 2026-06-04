@@ -1,7 +1,5 @@
 """FastAPI app factory for the Authsome daemon."""
 
-from __future__ import annotations
-
 from contextlib import asynccontextmanager
 from importlib.resources import files
 

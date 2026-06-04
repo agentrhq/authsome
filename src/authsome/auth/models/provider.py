@@ -1,8 +1,6 @@
 """Provider definition models."""
 
-from __future__ import annotations
-
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, Field
 
@@ -121,7 +119,7 @@ class ProviderDefinition(BaseModel):
         urls = self.api_urls()
         return urls[0] if urls else None
 
-    def resolve_urls(self, base_url: str | None = None) -> ProviderDefinition:
+    def resolve_urls(self, base_url: str | None = None) -> Self:
         """Return a new ProviderDefinition with {base_url} templates resolved."""
         # Use provided base_url or fall back to the one in oauth config
         resolved_base_url = base_url or (self.oauth.base_url if self.oauth else None)

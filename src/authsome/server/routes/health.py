@@ -1,7 +1,5 @@
 """Health and readiness routes."""
 
-from __future__ import annotations
-
 from fastapi import APIRouter, Depends, Request
 
 from authsome import __version__

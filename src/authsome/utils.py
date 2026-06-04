@@ -1,7 +1,5 @@
 """Shared utility functions for authsome."""
 
-from __future__ import annotations
-
 import re
 from datetime import UTC, datetime
 from typing import Any

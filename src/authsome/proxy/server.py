@@ -1,14 +1,12 @@
 """Mitmproxy addon and server lifecycle for header injection."""
 
-from __future__ import annotations
-
 import asyncio
 import re
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, Self
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -73,7 +71,7 @@ class ProxyRouter:
         self._regex_routes = regex_routes
 
     @classmethod
-    async def create(cls, client: ProxyClient, scope: str = "connected") -> ProxyRouter:
+    async def create(cls, client: ProxyClient, scope: str = "connected") -> Self:
         """Async factory for ProxyRouter."""
         routes_by_host, regex_routes = await cls._build_routes(client, scope)
         return cls(routes_by_host, regex_routes)

@@ -1,7 +1,5 @@
 """Concrete local dependency wiring for the daemon server."""
 
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Any
 
@@ -26,11 +24,6 @@ from authsome.vault.crypto import AesGcmEncryptionWrapper, DekManager
 def get_authsome_home() -> Path:
     """Return the local Authsome home directory."""
     return get_authsome_config().home
-
-
-def get_server_home(home: Path | None = None) -> Path:
-    """Return the daemon-owned state directory."""
-    return get_server_config(home).server_home
 
 
 def get_server_base_url() -> str:

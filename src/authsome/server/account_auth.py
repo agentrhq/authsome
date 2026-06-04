@@ -1,9 +1,5 @@
 """Account authentication for browser UI sessions."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
 
@@ -15,11 +11,9 @@ from authsome.server.store.repositories import (
     PrincipalVaultBindingRegistry,
     VaultRegistry,
 )
+from authsome.server.ui_sessions import UI_TOKEN_AUDIENCE, BrowserSession, UiSessionStore
 
-if TYPE_CHECKING:
-    from authsome.server.ui_sessions import BrowserSession, UiSessionStore
-
-UI_TOKEN_AUDIENCE = "authsome-ui"
+__all__ = ["AccountAuthService", "UI_TOKEN_AUDIENCE"]
 
 
 class AccountAuthService:

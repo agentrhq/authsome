@@ -1,7 +1,5 @@
 """Vault — encrypted key-value layer over AsyncKeyValue."""
 
-from __future__ import annotations
-
 import builtins
 import json
 

@@ -1,19 +1,15 @@
 """API key authentication flow."""
 
-from __future__ import annotations
-
 import re
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from authsome.auth.flows.base import AuthFlow, FlowResult
 from authsome.auth.models.connection import AccountInfo, ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.auth.models.provider import ProviderDefinition
+from authsome.auth.sessions import AuthSession
 from authsome.errors import AuthenticationFailedError
 from authsome.utils import utc_now
-
-if TYPE_CHECKING:
-    from authsome.auth.sessions import AuthSession
 
 
 class ApiKeyFlow(AuthFlow):

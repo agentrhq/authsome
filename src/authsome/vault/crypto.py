@@ -11,8 +11,6 @@ That collection is accessed directly (unencrypted) — the wrapped DEK is alread
 protected by AES-256-GCM with the KEK; stealing it without the master secret is useless.
 """
 
-from __future__ import annotations
-
 import base64
 import secrets
 from typing import Any

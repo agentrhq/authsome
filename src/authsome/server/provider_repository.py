@@ -1,7 +1,5 @@
 """Server-owned provider definition repository."""
 
-from __future__ import annotations
-
 import builtins
 import importlib.resources
 import json

@@ -1,7 +1,5 @@
 """Internal HTTP client used by the CLI and local proxy runner."""
 
-from __future__ import annotations
-
 import asyncio
 import json
 import sys

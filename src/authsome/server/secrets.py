@@ -1,7 +1,5 @@
 """Server-owned secret resolution for root key material."""
 
-from __future__ import annotations
-
 import base64
 import os
 import secrets

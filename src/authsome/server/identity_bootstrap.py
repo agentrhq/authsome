@@ -1,7 +1,5 @@
 """Identity bootstrap: register identities and report their claim readiness."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 from authsome import audit

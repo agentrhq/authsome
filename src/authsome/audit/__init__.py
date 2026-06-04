@@ -5,8 +5,6 @@ events into OpenTelemetry log records and leaves export decisions to the
 server composition root.
 """
 
-from __future__ import annotations
-
 import uuid
 from datetime import datetime
 from typing import Any, Literal
