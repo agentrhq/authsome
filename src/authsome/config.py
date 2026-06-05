@@ -11,11 +11,11 @@ from authsome import __version__
 class AuthsomeConfig(BaseSettings):
     """Shared Authsome configuration resolved from environment variables."""
 
-    model_config = SettingsConfigDict(populate_by_name=True)
+    model_config = SettingsConfigDict(env_prefix="AUTHSOME_")
 
     version: str = __version__
-    home: Path = Field(default=Path.home() / ".authsome", validation_alias="AUTHSOME_HOME")
-    base_url: str = Field(default="http://127.0.0.1:7998", validation_alias="AUTHSOME_BASE_URL")
+    home: Path = Field(default=Path.home() / ".authsome")
+    base_url: str = Field(default="http://127.0.0.1:7998")
 
     @property
     def client_home(self) -> Path:

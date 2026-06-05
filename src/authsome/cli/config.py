@@ -3,8 +3,6 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic.fields import Field
-
 from authsome.config import AuthsomeConfig, get_authsome_config
 from authsome.proxy.config import ProxyMode
 
@@ -19,7 +17,7 @@ class ClientConfig(AuthsomeConfig):
     file directly — there is no CLI command for it today (YAGNI).
     """
 
-    active_identity: str | None = Field(default=None, validation_alias="AUTHSOME_ACTIVE_IDENTITY")
+    active_identity: str | None = None
     proxy_ca_installed: bool = False
     proxy_mode: ProxyMode = "connected_allow"
 
@@ -44,7 +42,8 @@ class ClientConfig(AuthsomeConfig):
     def save(self, home: Path | None = None) -> None:
         path = get_authsome_config(home).client_config_path
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.model_dump_json(indent=2), encoding="utf-8")
+        # Exclude inherited settings fields — only persist client-local state.
+        path.write_text(self.model_dump_json(indent=2, exclude={"home", "base_url", "version"}), encoding="utf-8")
 
 
 @lru_cache
