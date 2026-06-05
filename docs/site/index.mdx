@@ -1,9 +1,9 @@
 ---
 title: "Introduction"
-description: "Local auth for AI agents. Log in once via OAuth2 or API key. Authsome keeps the credentials fresh for every agent."
+description: "Credential broker for AI agents. Log in once via OAuth2 or API key. Authsome keeps the credentials fresh for every agent."
 ---
 
-Authsome is a local credential layer for AI agents. You authenticate once with a provider (GitHub, Google, OpenAI, Linear, and 41 other bundled services) and authsome keeps the credentials fresh for every agent run that follows.
+Authsome is a credential broker for AI agents. You authenticate once with a provider (GitHub, Google, OpenAI, Linear, and 41 other bundled services) and authsome keeps the credentials fresh for every agent run that follows.
 
 ```bash
 authsome login github
@@ -16,17 +16,17 @@ Agents run outside interactive sessions: in CI, over SSH, in cron jobs, in backg
 
 Hardcoded environment tokens leak or go stale. Building auth flow logic, token storage, refresh handling, and per-provider config into every project forces you to rebuild the same plumbing every time.
 
-Authsome acts as the local credential layer agents call at runtime.
+Authsome acts as the credential broker agents call at runtime.
 
 - **No credential sprawl.** One encrypted store, every provider, every agent, one place.
-- **No SaaS dependency.** Credentials never leave your machine.
+- **No SaaS dependency.** Self-host the daemon; credentials stay under your control.
 - **No browser required at runtime.** You set up once using a browser or terminal prompt. After that, agents run headlessly.
 
 ## How it works
 
 The CLI is the agent's interface. Set up once, then inject fresh credentials whenever a tool runs.
 
-<Frame caption="Agents call authsome at runtime. The vault decrypts and returns a fresh token; the vault never leaves the machine.">
+<Frame caption="Agents call authsome at runtime. The vault decrypts and returns a fresh token without exposing secrets to the agent.">
 ```mermaid
 flowchart LR
     Agent -->|authsome| Vault["Local Vault<br/><i>(encrypted)</i>"]
@@ -34,7 +34,7 @@ flowchart LR
 ```
 </Frame>
 
-Credentials are stored locally in an encrypted SQLite vault, refreshed before expiry, and injected into agents transparently through a local proxy (`authsome run`). No server. No account. No cloud.
+Credentials are stored in an encrypted vault, refreshed before expiry, and injected into agents transparently through a proxy (`authsome run`).
 
 ## Start here
 

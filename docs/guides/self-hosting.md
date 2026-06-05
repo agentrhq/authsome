@@ -21,7 +21,7 @@ The daemon is now available at `http://localhost:7998`.
 Point agents at it by setting:
 
 ```bash
-export AUTHSOME_DAEMON_URL=http://localhost:7998
+export AUTHSOME_BASE_URL=http://localhost:7998
 ```
 
 ## Environment variables
@@ -31,7 +31,7 @@ export AUTHSOME_DAEMON_URL=http://localhost:7998
 | `AUTHSOME_HOME` | `/data/authsome` | Root directory for credentials, keys, and the database |
 | `AUTHSOME_HOST` | `0.0.0.0` | Interface the daemon binds to inside the container |
 | `AUTHSOME_PORT` | `7998` | TCP port |
-| `AUTHSOME_SERVER_BASE_URL` | _(derived from host:port)_ | Public URL used to build OAuth callback URLs. **Must be set when behind a reverse proxy.** |
+| `AUTHSOME_BASE_URL` | _(derived from host:port)_ | Public URL used to build OAuth callback URLs. **Must be set when behind a reverse proxy.** On client machines, set this to point the CLI at a remote daemon. |
 | `AUTHSOME_ENCRYPTION_MODE` | `local_key` | `local_key` stores the master key on disk; `keyring` uses the OS keyring (not available in containers) |
 | `AUTHSOME_LOG_LEVEL` | `info` | Uvicorn log level (`debug`, `info`, `warning`, `error`) |
 | `AUTHSOME_ANALYTICS` | `1` | Set to `0` to disable telemetry |
@@ -83,7 +83,7 @@ services:
     expose:
       - "7998"
     environment:
-      AUTHSOME_SERVER_BASE_URL: https://auth.example.com
+      AUTHSOME_BASE_URL: https://auth.example.com
     volumes:
       - authsome-data:/data/authsome
 

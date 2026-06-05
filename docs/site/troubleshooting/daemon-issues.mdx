@@ -3,7 +3,7 @@ title: "Daemon issues"
 sidebarTitle: "Daemon issues"
 description: "Diagnose port 7998 conflicts, lost sessions on restart, and broken daemon discovery."
 icon: "server"
-keywords: ["authsome daemon error", "port 7998 in use", "AUTHSOME_DAEMON_URL", "daemon not reachable", "authsome restart session"]
+keywords: ["authsome daemon error", "port 7998 in use", "AUTHSOME_BASE_URL", "daemon not reachable", "authsome restart session"]
 ---
 
 The authsome daemon binds to `127.0.0.1:7998` by default. Most issues are one of three shapes: port held by another process, daemon unreachable from the CLI, or in-memory state lost across a restart.
@@ -13,11 +13,11 @@ The authsome daemon binds to `127.0.0.1:7998` by default. Most issues are one of
 | Symptom | Most likely cause |
 |---------|-------------------|
 | `Address already in use: 127.0.0.1:7998` | Another `authsome` process is running, or something else holds the port. |
-| `Could not connect to daemon at http://127.0.0.1:7998` | The daemon didn't start, the port is firewalled, or `AUTHSOME_DAEMON_URL` points somewhere wrong. |
+| `Could not connect to daemon at http://127.0.0.1:7998` | The daemon didn't start, the port is firewalled, or `AUTHSOME_BASE_URL` points somewhere wrong. |
 | Browser opens to a blank form | Daemon started but the route is missing; usually a version mismatch between CLI and daemon. |
 | Login was mid-flight, then the terminal disconnected | Daemon restarted; session is gone. |
 | `Connection refused` from `authsome run` | The proxy can't reach the daemon to resolve credentials. |
-| `AUTHSOME_DAEMON_URL is set but unreachable` | Hosted daemon URL is wrong, or the host is down. |
+| `AUTHSOME_BASE_URL is set but unreachable` | Hosted daemon URL is wrong, or the host is down. |
 
 ## Port 7998 in use
 
@@ -54,16 +54,16 @@ Common root causes:
 
 ## CLI can't find the daemon
 
-The CLI looks at `AUTHSOME_DAEMON_URL` first, then falls back to `http://127.0.0.1:7998`.
+The CLI looks at `AUTHSOME_BASE_URL` first, then falls back to `http://127.0.0.1:7998`.
 
 ```bash
-echo $AUTHSOME_DAEMON_URL
+echo $AUTHSOME_BASE_URL
 ```
 
 If it's set to a hosted URL that's currently unreachable:
 
 ```bash
-unset AUTHSOME_DAEMON_URL
+unset AUTHSOME_BASE_URL
 authsome whoami
 ```
 
@@ -72,7 +72,7 @@ The CLI will start a local daemon and verify it's reachable.
 If you do want a hosted daemon and it's unreachable, the fix is on the daemon host. Check that:
 
 - The daemon process is running there.
-- `AUTHSOME_SERVER_BASE_URL` on the daemon matches the URL you're calling.
+- `AUTHSOME_BASE_URL` on the daemon matches the URL you're calling.
 - Ingress is allowed from your client's network (private VPC, VPN, or whatever the team uses).
 
 
@@ -158,6 +158,6 @@ If the daemon fails to start after `pkill` + a fresh `authsome whoami`, and `doc
     The first command to run when something looks wrong.
   </Card>
   <Card title="Environment variables" icon="terminal" href="/reference/environment-variables">
-    `AUTHSOME_DAEMON_URL`, `AUTHSOME_SERVER_BASE_URL`, `AUTHSOME_HOME`.
+    `AUTHSOME_BASE_URL`, `AUTHSOME_BASE_URL`, `AUTHSOME_HOME`.
   </Card>
 </Columns>

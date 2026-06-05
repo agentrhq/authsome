@@ -8,7 +8,7 @@ keywords: ["authsome daemon api", "authsome http routes", "authsome 7998", "auth
 
 The authsome daemon serves a small FastAPI HTTP surface on `127.0.0.1:7998` by default. The CLI, the proxy, and the dashboard UI all call it through these routes. This page documents every prefix so you can build tooling on top of authsome without going through the CLI.
 
-For the lifecycle, trust model, and `AUTHSOME_DAEMON_URL` / `AUTHSOME_SERVER_BASE_URL` overrides, see [The local daemon](/concepts/the-daemon).
+For the lifecycle, trust model, and `AUTHSOME_BASE_URL` / `AUTHSOME_BASE_URL` overrides, see [The local daemon](/concepts/the-daemon).
 
 ## Health and readiness
 
@@ -168,7 +168,7 @@ curl -s http://127.0.0.1:7998/connections | jq
 curl -s http://127.0.0.1:7998/proxy/routes | jq
 ```
 
-When `AUTHSOME_DAEMON_URL` is set to a hosted daemon URL, replace `http://127.0.0.1:7998` with that URL.
+When `AUTHSOME_BASE_URL` is set to a hosted daemon URL, replace `http://127.0.0.1:7998` with that URL.
 
 ## Building on top
 
@@ -191,6 +191,6 @@ curl -s http://127.0.0.1:7998/openapi.json | jq '.paths | keys'
     Port conflicts, lost sessions, and restart behavior.
   </Card>
   <Card title="Environment variables" icon="terminal" href="/reference/environment-variables">
-    `AUTHSOME_DAEMON_URL` and `AUTHSOME_SERVER_BASE_URL`.
+    `AUTHSOME_BASE_URL` and `AUTHSOME_HOME`.
   </Card>
 </Columns>

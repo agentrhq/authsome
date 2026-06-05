@@ -47,7 +47,7 @@ Agents run beyond interactive sessions. They live in CI, over SSH, in cron jobs,
 
 Hardcoded environment tokens leak or go stale, and building auth flow logic, token storage, refresh handling, and per-provider config into every project rebuilds the same plumbing every time.
 
-Authsome is the local credential layer agents call at runtime.
+Authsome is the credential broker agents call at runtime.
 
 - **No credential sprawl.** One encrypted store. Every provider, every agent, one place.
 - **Agents never see credentials.** Auth is handled outside the agent process — no exfiltration risk, no secrets in environment variables.
@@ -78,7 +78,7 @@ All they need to do is use `authsome run --` before the command they want to run
 
 ```bash
 authsome run -- curl -s "https://api.github.com/user/repos?per_page=10"
-# runs behind a local auth proxy that injects headers at request time
+# runs behind an auth proxy that injects headers at request time
 # without exposing secrets in the child process environment.
 # matched automatically via provider api_url (e.g. api.openai.com)
 ```
@@ -116,7 +116,7 @@ Run a persistent daemon in Docker — no Python required on the host:
 
 ```bash
 docker compose up -d
-export AUTHSOME_DAEMON_URL=http://localhost:7998
+export AUTHSOME_BASE_URL=http://localhost:7998
 ```
 
 See the [self-hosting guide](docs/guides/self-hosting.md) for volume backup, TLS termination, and environment variable reference.

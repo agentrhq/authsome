@@ -9,26 +9,26 @@ Authsome interacts with environment variables in three roles: **inputs** that ch
 
 | Variable | Purpose |
 |----------|---------|
-| `AUTHSOME_DAEMON_URL` | Client-side daemon URL used by the CLI and proxy helpers. Set this on machines that should talk to a remote authsome daemon instead of auto-starting a local one. Defaults to `http://127.0.0.1:7998`. |
+| `AUTHSOME_BASE_URL` | The daemon URL. On client machines, set this to point the CLI and proxy at a remote daemon instead of auto-starting one locally. On the daemon host, set this to the public URL when behind a reverse proxy — authsome uses it to build OAuth callback URLs such as `/auth/callback/oauth`. Defaults to `http://127.0.0.1:7998`. |
 | `AUTHSOME_HOME` | Override the default `~/.authsome` directory. Useful for tests, ephemeral environments, and per-project vaults. |
-| `AUTHSOME_SERVER_BASE_URL` | Canonical external base URL for remote daemon deployments. Authsome uses it to build browser-facing URLs and OAuth callback URLs such as `/auth/callback/oauth`. Set this when the daemon is reached through a private VM, reverse proxy, or internal DNS name instead of localhost. |
 | `HTTP_PROXY` / `HTTPS_PROXY` | Honored by authsome's own outbound HTTP requests (token endpoints, device flow polling). The proxy started by `authsome run` is **set** as these variables in the child process; it does not chain through them. |
 
-### `AUTHSOME_DAEMON_URL` expectations
+### `AUTHSOME_BASE_URL` for remote daemons
 
 For remote daemon deployments:
 
-- set `AUTHSOME_DAEMON_URL` to the full daemon URL
-- when `AUTHSOME_DAEMON_URL` points at a non-local host, the CLI will not attempt to manage daemon state
+- set `AUTHSOME_BASE_URL` to the full daemon URL on client machines
+- set `AUTHSOME_BASE_URL` to the public-facing URL on the daemon host when behind a reverse proxy
+- when `AUTHSOME_BASE_URL` points at a non-local host, the CLI will not attempt to manage daemon state
 
 Example:
 
 ```bash
-export AUTHSOME_DAEMON_URL=https://authsome.internal.example.com
+export AUTHSOME_BASE_URL=https://authsome.internal.example.com
 uv run authsome list
 ```
 
-In a local-only setup, you typically do not need to set `AUTHSOME_DAEMON_URL`.
+When running the daemon locally, you typically do not need to set `AUTHSOME_BASE_URL`.
 
 ### Provider-specific input variables
 

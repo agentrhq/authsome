@@ -15,7 +15,7 @@ uv run authsome --version
 >
 > ```bash
 > export AUTHSOME_HOME=/tmp/authsome-test
-> export AUTHSOME_DAEMON_URL=http://127.0.0.1:7998
+> export AUTHSOME_BASE_URL=http://127.0.0.1:7998
 > ```
 
 > **Note on reset:** `rm -rf ~/.authsome` clears local state but does **not** stop a running daemon. If you reset while the daemon is running, `daemon stop` will say "No managed daemon record was found" and leave the process alive. Kill it manually first: `kill $(lsof -ti :7998)`, then reset.
