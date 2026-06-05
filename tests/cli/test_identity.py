@@ -3,8 +3,8 @@
 import json
 from pathlib import Path
 
-from authsome.cli.config import load_client_config
-from authsome.cli.identity import load_identity
+from authsome.cli.config import ClientConfig
+from authsome.cli.identity import RuntimeIdentity
 from authsome.cli.main import cli
 
 
@@ -22,9 +22,9 @@ class TestProfileCommands:
         assert data["status"] == "created"
         assert data["profile"] == "steady-wisely-boldly-0042"
         assert data["switched"] is True
-        stored = load_identity(tmp_path, "steady-wisely-boldly-0042")
+        stored = RuntimeIdentity.from_filesystem(tmp_path, "steady-wisely-boldly-0042")
         assert stored.did == data["did"]
-        assert load_client_config(tmp_path).active_identity == stored.handle
+        assert ClientConfig.load(tmp_path).active_identity == stored.handle
 
     def test_profile_create_switches_active_profile(self, runner, mock_client, tmp_path: Path) -> None:
         runner.invoke(cli, ["--log-file", "", "profile", "create", "--handle", "steady-wisely-boldly-0042"])
@@ -38,12 +38,12 @@ class TestProfileCommands:
         assert data["status"] == "created"
         assert data["profile"] == "rapid-brightly-firmly-0007"
         assert data["switched"] is True
-        assert load_client_config(tmp_path).active_identity == "rapid-brightly-firmly-0007"
+        assert ClientConfig.load(tmp_path).active_identity == "rapid-brightly-firmly-0007"
 
     def test_profile_use_sets_active_identity(self, runner, mock_client, tmp_path: Path) -> None:
         runner.invoke(cli, ["--log-file", "", "profile", "create", "--handle", "steady-wisely-boldly-0042"])
         runner.invoke(cli, ["--log-file", "", "profile", "create", "--handle", "rapid-brightly-firmly-0007"])
-        stored = load_identity(tmp_path, "steady-wisely-boldly-0042")
+        stored = RuntimeIdentity.from_filesystem(tmp_path, "steady-wisely-boldly-0042")
 
         result = runner.invoke(cli, ["--log-file", "", "profile", "use", "steady-wisely-boldly-0042"])
 
@@ -52,4 +52,4 @@ class TestProfileCommands:
         assert data["status"] == "active"
         assert data["profile"] == stored.handle
         assert data["did"] == stored.did
-        assert load_client_config(tmp_path).active_identity == stored.handle
+        assert ClientConfig.load(tmp_path).active_identity == stored.handle

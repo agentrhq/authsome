@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from authsome.cli.identity import create_identity
+from authsome.cli.identity import RuntimeIdentity
 from authsome.server.identity_bootstrap import IdentityBootstrapService
 from authsome.server.store import create_server_store
 from authsome.server.ui_sessions import UiSessionStore
@@ -10,7 +10,7 @@ from authsome.server.ui_sessions import UiSessionStore
 
 @pytest.mark.asyncio
 async def test_bootstrap_requires_claim_until_identity_is_claimed(tmp_path: Path) -> None:
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     store = await create_server_store(home=tmp_path)
     ui_sessions = UiSessionStore("test-secret")
     service = IdentityBootstrapService(
@@ -31,7 +31,7 @@ async def test_bootstrap_requires_claim_until_identity_is_claimed(tmp_path: Path
 
 @pytest.mark.asyncio
 async def test_bootstrap_returns_claimed_status_after_claim(tmp_path: Path) -> None:
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     store = await create_server_store(home=tmp_path)
     ui_sessions = UiSessionStore("test-secret")
     service = IdentityBootstrapService(

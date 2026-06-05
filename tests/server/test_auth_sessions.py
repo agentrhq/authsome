@@ -7,7 +7,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 from authsome.auth.models.enums import FlowType
-from authsome.cli.identity import create_identity
+from authsome.cli.identity import RuntimeIdentity
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
 from tests.server.test_pop_auth import register_and_claim_identity
@@ -20,11 +20,9 @@ def _auth_header(
     *,
     handle: str,
 ) -> dict[str, str]:
-    from authsome.cli.identity import load_private_key
-
-    identity = create_identity(tmp_path, handle)
+    identity = RuntimeIdentity.create(tmp_path, handle)
     token = create_proof_jwt(
-        private_key=load_private_key(tmp_path, identity.handle),
+        private_key=RuntimeIdentity.load_private_key(tmp_path, identity.handle),
         issuer=identity.did,
         subject=identity.handle,
         method=method,
@@ -36,8 +34,8 @@ def _auth_header(
 
 def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    owner = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    stranger = create_identity(tmp_path, "rapid-brightly-firmly-0007")
+    owner = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    stranger = RuntimeIdentity.create(tmp_path, "rapid-brightly-firmly-0007")
     app = create_app()
 
     with TestClient(app) as client:
@@ -70,8 +68,8 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
 
 def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    owner = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    stranger = create_identity(tmp_path, "rapid-brightly-firmly-0007")
+    owner = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    stranger = RuntimeIdentity.create(tmp_path, "rapid-brightly-firmly-0007")
     app = create_app()
 
     with TestClient(app) as client:
@@ -109,7 +107,7 @@ def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> N
 
 def test_sessions_do_not_survive_app_recreation(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    owner = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    owner = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     session_id = ""
 
     with TestClient(create_app()) as first_client:

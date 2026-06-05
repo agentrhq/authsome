@@ -2,13 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from authsome.cli.identity import create_identity, load_private_key
+from authsome.cli.identity import RuntimeIdentity
 from authsome.identity.proof import ReplayCache, create_proof_jwt, validate_proof_jwt
 
 
 def _token(tmp_path: Path, *, method: str = "POST", path: str = "/connections", body: bytes = b"{}") -> str:
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    private_key = load_private_key(tmp_path, identity.handle)
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    private_key = RuntimeIdentity.load_private_key(tmp_path, identity.handle)
     return create_proof_jwt(
         private_key=private_key,
         issuer=identity.did,

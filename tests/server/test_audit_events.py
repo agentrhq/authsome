@@ -6,13 +6,13 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 from authsome.audit import emit_event
-from authsome.cli.identity import create_identity
+from authsome.cli.identity import RuntimeIdentity
 from authsome.server.app import create_app
 from tests.server.test_pop_auth import _auth_header
 
 
 def _claim_identity(client: TestClient, tmp_path: Path, handle: str, *, email: str) -> None:
-    identity = create_identity(tmp_path, handle)
+    identity = RuntimeIdentity.create(tmp_path, handle)
     response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == status.HTTP_200_OK
     claim_url = urlparse(response.json()["claim_url"])

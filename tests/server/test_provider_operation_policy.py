@@ -5,13 +5,13 @@ from urllib.parse import parse_qs, urlparse
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from authsome.cli.identity import create_identity
+from authsome.cli.identity import RuntimeIdentity
 from authsome.server.app import create_app
 from tests.server.test_pop_auth import _auth_header
 
 
 def _register_identity(client: TestClient, tmp_path: Path, handle: str, *, email: str = "dev@example.com") -> None:
-    identity = create_identity(tmp_path, handle)
+    identity = RuntimeIdentity.create(tmp_path, handle)
     response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == status.HTTP_200_OK
     claim_url = response.json().get("claim_url")

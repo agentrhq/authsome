@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
-from authsome.cli.identity import create_identity, load_private_key
+from authsome.cli.identity import RuntimeIdentity
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
 from authsome.server.credential_repository import build_store_key
@@ -24,9 +24,9 @@ def _auth_header(  # noqa: PLR0913
     handle: str = "steady-wisely-boldly-0042",
     subject: str | None = None,
 ) -> dict[str, str]:
-    identity = create_identity(tmp_path, handle)
+    identity = RuntimeIdentity.create(tmp_path, handle)
     token = create_proof_jwt(
-        private_key=load_private_key(tmp_path, identity.handle),
+        private_key=RuntimeIdentity.load_private_key(tmp_path, identity.handle),
         issuer=identity.did,
         subject=subject or identity.handle,
         method=method,
@@ -44,7 +44,7 @@ def register_and_claim_identity(
     email: str = "dev@example.com",
 ) -> None:
     """Register an identity and drive the browser claim flow through to acceptance."""
-    identity = create_identity(tmp_path, handle)
+    identity = RuntimeIdentity.create(tmp_path, handle)
     response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
     assert response.status_code == status.HTTP_200_OK
     claim_url = urlparse(response.json()["claim_url"])
@@ -107,7 +107,7 @@ def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path)
 
 def test_registration_requires_claim(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
         response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
@@ -119,7 +119,7 @@ def test_registration_requires_claim(monkeypatch, tmp_path: Path) -> None:
 
 def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
         client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
@@ -139,8 +139,8 @@ def test_whoami_rejects_unknown_subject(monkeypatch, tmp_path: Path) -> None:
 
 def test_whoami_rejects_registered_handle_with_wrong_issuer(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    victim = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    attacker = create_identity(tmp_path, "rapid-brightly-firmly-0007")
+    victim = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    attacker = RuntimeIdentity.create(tmp_path, "rapid-brightly-firmly-0007")
 
     with TestClient(create_app()) as client:
         client.post("/api/identities/register", json={"handle": victim.handle, "did": victim.did})
@@ -161,8 +161,8 @@ def test_whoami_rejects_registered_handle_with_wrong_issuer(monkeypatch, tmp_pat
 
 def test_identity_registration_rejects_duplicate_handle_different_did(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    first = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    second = create_identity(tmp_path, "rapid-brightly-firmly-0007")
+    first = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    second = RuntimeIdentity.create(tmp_path, "rapid-brightly-firmly-0007")
 
     with TestClient(create_app()) as client:
         assert (
@@ -176,7 +176,7 @@ def test_identity_registration_rejects_duplicate_handle_different_did(monkeypatc
 
 def test_identity_registration_rejects_duplicate_did_different_handle(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
         assert (
@@ -193,7 +193,7 @@ def test_identity_registration_rejects_duplicate_did_different_handle(monkeypatc
 
 def test_ready_uses_active_identity_connections_for_warning_check(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
 
     with TestClient(create_app()) as client:
         register_and_claim_identity(client, tmp_path, identity.handle)

@@ -721,10 +721,10 @@ class TestProxyRunner:
         assert returned_server is server
 
     def test_start_proxy_passes_client_config_mode(self, tmp_path: Path) -> None:
-        from authsome.cli.config import ClientConfig, save_client_config
+        from authsome.cli.config import ClientConfig
         from authsome.cli.proxy_runner import ProxyRunner
 
-        save_client_config(tmp_path, ClientConfig(proxy_mode="configured_deny"))
+        ClientConfig(proxy_mode="configured_deny").save(tmp_path)
         runner = ProxyRunner(mock.Mock(), home=tmp_path)
         server = mock.Mock(url="http://127.0.0.1:8899")
 
@@ -741,7 +741,7 @@ class TestProxyRunner:
         )
 
     def test_ensure_local_proxy_ca_sets_flag_after_success(self, tmp_path: Path) -> None:
-        from authsome.cli.config import load_client_config
+        from authsome.cli.config import ClientConfig
         from authsome.cli.proxy_runner import ProxyRunner
 
         runner = ProxyRunner(mock.Mock(), home=tmp_path)
@@ -749,13 +749,13 @@ class TestProxyRunner:
             runner._ensure_local_proxy_ca_once()
 
         ensure_ca_mock.assert_called_once_with()
-        assert load_client_config(tmp_path).proxy_ca_installed is True
+        assert ClientConfig.load(tmp_path).proxy_ca_installed is True
 
     def test_ensure_local_proxy_ca_skips_repeat_prompt_once_flagged(self, tmp_path: Path) -> None:
-        from authsome.cli.config import ClientConfig, save_client_config
+        from authsome.cli.config import ClientConfig
         from authsome.cli.proxy_runner import ProxyRunner
 
-        save_client_config(tmp_path, ClientConfig(proxy_ca_installed=True))
+        ClientConfig(proxy_ca_installed=True).save(tmp_path)
         runner = ProxyRunner(mock.Mock(), home=tmp_path)
 
         with patch("authsome.cli.proxy_runner.ensure_local_proxy_ca") as ensure_ca_mock:

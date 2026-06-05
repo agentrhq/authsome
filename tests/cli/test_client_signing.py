@@ -7,8 +7,8 @@ import pytest
 from fastapi import status
 
 from authsome.cli.client import AuthsomeApiClient
-from authsome.cli.config import ClientConfig, load_client_config, save_client_config
-from authsome.cli.identity import create_identity, identity_key_path, load_runtime_identity
+from authsome.cli.config import ClientConfig
+from authsome.cli.identity import RuntimeIdentity
 
 
 def _patch_httpx_request(monkeypatch, handler) -> None:
@@ -137,8 +137,8 @@ async def test_resolve_credentials_request_is_signed(monkeypatch, tmp_path: Path
 async def test_registered_identity_skips_reregister_roundtrip(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     base_url = "http://127.0.0.1:7998"
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    ClientConfig(active_identity=identity.handle).save(tmp_path)
     calls: list[tuple[str, str]] = []
 
     def fake_request(method, url, data=None, headers=None, timeout=None):
@@ -165,8 +165,8 @@ async def test_registered_identity_skips_reregister_roundtrip(monkeypatch, tmp_p
 async def test_unregistered_identity_registers_on_first_use(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     server = "http://127.0.0.1:7998"
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    ClientConfig(active_identity=identity.handle).save(tmp_path)
     calls: list[tuple[str, str]] = []
 
     def fake_request(method, url, data=None, headers=None, timeout=None):
@@ -217,7 +217,7 @@ async def test_bootstrapped_identity_is_saved_as_active_profile(monkeypatch, tmp
 
     await AuthsomeApiClient("http://127.0.0.1:7998").list_connections()
 
-    config = load_client_config(tmp_path)
+    config = ClientConfig.load(tmp_path)
     assert config.active_identity is not None
 
 
@@ -226,9 +226,9 @@ async def test_identity_env_override_wins_over_active_identity(monkeypatch, tmp_
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
     base_url = "http://127.0.0.1:7998"
-    create_identity(tmp_path, "steady-wisely-boldly-0042")
-    override_identity = create_identity(tmp_path, "rapid-brightly-firmly-0007")
-    save_client_config(tmp_path, ClientConfig(active_identity="steady-wisely-boldly-0042"))
+    RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    override_identity = RuntimeIdentity.create(tmp_path, "rapid-brightly-firmly-0007")
+    ClientConfig(active_identity="steady-wisely-boldly-0042").save(tmp_path)
 
     client = AuthsomeApiClient(base_url)
     client.get_identity_status = AsyncMock(  # type: ignore[method-assign]
@@ -242,8 +242,8 @@ async def test_identity_env_override_wins_over_active_identity(monkeypatch, tmp_
 @pytest.mark.asyncio
 async def test_env_identity_protected_request_signs_without_identity_file(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    source_identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    private_key_hex = identity_key_path(tmp_path, source_identity.handle).read_text(encoding="utf-8").strip()
+    source_identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    private_key_hex = RuntimeIdentity.key_path(tmp_path, source_identity.handle).read_text(encoding="utf-8").strip()
     monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
     monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", private_key_hex)
     captured: dict = {}
@@ -282,9 +282,9 @@ async def test_env_identity_private_key_without_handle_errors(monkeypatch, tmp_p
 @pytest.mark.asyncio
 async def test_env_identity_does_not_update_active_profile(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    stored = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    save_client_config(tmp_path, ClientConfig(active_identity=stored.handle))
-    private_key_hex = identity_key_path(tmp_path, stored.handle).read_text(encoding="utf-8").strip()
+    stored = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    ClientConfig(active_identity=stored.handle).save(tmp_path)
+    private_key_hex = RuntimeIdentity.key_path(tmp_path, stored.handle).read_text(encoding="utf-8").strip()
     monkeypatch.setenv("AUTHSOME_IDENTITY", "rapid-brightly-firmly-0007")
     monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", private_key_hex)
 
@@ -295,7 +295,7 @@ async def test_env_identity_does_not_update_active_profile(monkeypatch, tmp_path
 
     await client.ensure_identity_ready()
 
-    assert load_client_config(tmp_path).active_identity == stored.handle
+    assert ClientConfig.load(tmp_path).active_identity == stored.handle
 
 
 @pytest.mark.asyncio
@@ -326,10 +326,10 @@ async def test_protected_request_bootstraps_identity_readiness(monkeypatch, tmp_
 
     _patch_httpx_request(monkeypatch, fake_request)
 
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     client = AuthsomeApiClient("http://127.0.0.1:7998")
     client.ensure_identity_ready = AsyncMock(  # type: ignore[method-assign]
-        return_value=load_runtime_identity(tmp_path, env={"AUTHSOME_IDENTITY": identity.handle})
+        return_value=RuntimeIdentity.load(tmp_path, env={"AUTHSOME_IDENTITY": identity.handle})
     )
 
     await client.list_connections()
@@ -344,8 +344,8 @@ async def test_in_memory_cache_skips_server_check_on_subsequent_calls(monkeypatc
     further server calls for the lifetime of the client instance."""
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     base_url = "http://127.0.0.1:7998"
-    identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
-    save_client_config(tmp_path, ClientConfig(active_identity=identity.handle))
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    ClientConfig(active_identity=identity.handle).save(tmp_path)
     calls: list[tuple[str, str]] = []
 
     def fake_request(method, url, data=None, headers=None, timeout=None):

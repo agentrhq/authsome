@@ -3,13 +3,13 @@
 import os
 from collections.abc import Mapping
 from contextlib import suppress
-from enum import StrEnum
 from pathlib import Path
+from typing import Self
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from pydantic import BaseModel
 
-from authsome.cli.config import load_client_config, save_client_config
+from authsome.cli.config import ClientConfig
 from authsome.identity.helpers import (
     IdentityMetadata,
     create_identity_material,
@@ -22,136 +22,125 @@ from authsome.identity.helpers import (
 from authsome.paths import get_client_home
 
 
-class IdentitySource(StrEnum):
-    """Where the acting runtime identity was resolved from."""
-
-    ENV = "env"
-    FILESYSTEM = "filesystem"
-
-
 class RuntimeIdentity(BaseModel):
     """Resolved acting identity for the current process."""
 
     handle: str
     did: str
-    source: IdentitySource
     signer: Ed25519PrivateKey
 
     model_config = {"arbitrary_types_allowed": True}
 
+    @classmethod
+    def from_pkey(cls, handle: str, signer: Ed25519PrivateKey) -> Self:
+        return cls(handle=validate_handle(handle), did=public_key_to_did_key(signer.public_key()), signer=signer)
 
-def identities_dir(home: Path) -> Path:
-    return get_client_home(home) / "identities"
+    @classmethod
+    def from_filesystem(cls, home: Path, handle: str) -> Self:
+        metadata = cls.load_metadata(home, handle)
+        return cls(handle=metadata.handle, did=metadata.did, signer=cls.load_private_key(home, handle))
 
+    @classmethod
+    def load(cls, home: Path, env: Mapping[str, str] | None = None) -> Self:
+        """Resolve the acting process identity from env or local identity files."""
+        handle_override, private_key_hex = cls._env_identity_values(env)
+        if private_key_hex and not handle_override:
+            raise ValueError("AUTHSOME_IDENTITY_PRIVATE_KEY requires AUTHSOME_IDENTITY")
 
-def identity_metadata_path(home: Path, handle: str) -> Path:
-    return identities_dir(home) / f"{handle}.json"
+        if handle_override and private_key_hex:
+            return cls.from_pkey(handle_override, private_key_from_hex(private_key_hex))
 
+        return cls.ensure_local(home, active_handle=handle_override)
 
-def identity_key_path(home: Path, handle: str) -> Path:
-    return identities_dir(home) / f"{handle}.key"
+    @classmethod
+    async def current_from_home(cls, home: Path) -> Self:
+        """Return the configured local identity, bootstrapping it if needed."""
+        return cls.ensure_local(home)
 
+    @classmethod
+    def ensure_local(cls, home: Path, active_handle: str | None = None) -> Self:
+        """Return the active local identity, creating one if none exists."""
+        cls.remove_legacy_default(home)
+        if active_handle is None:
+            active_handle = cls._read_active_identity_handle(home)
+        if active_handle:
+            if not cls.exists(home, active_handle):
+                return cls.create(home, active_handle)
+            return cls.from_filesystem(home, active_handle)
+        return cls.create(home)
 
-def load_private_key(home: Path, handle: str) -> Ed25519PrivateKey:
-    return private_key_from_hex(identity_key_path(home, handle).read_text(encoding="utf-8"))
+    @classmethod
+    def create(cls, home: Path, handle: str | None = None) -> Self:
+        """Create a local identity and private key, returning existing files if present."""
+        resolved_handle = validate_handle(handle or cls._unique_handle(home))
+        if cls.exists(home, resolved_handle):
+            return cls.from_filesystem(home, resolved_handle)
 
+        directory = cls.identities_dir(home)
+        directory.mkdir(parents=True, exist_ok=True)
+        with suppress(OSError):
+            os.chmod(directory, 0o700)
 
-def load_identity(home: Path, handle: str) -> IdentityMetadata:
-    return IdentityMetadata.model_validate_json(identity_metadata_path(home, handle).read_text(encoding="utf-8"))
+        material = create_identity_material(resolved_handle)
+        key_path = cls.key_path(home, resolved_handle)
+        metadata_path = cls.metadata_path(home, resolved_handle)
+        key_path.write_text(private_key_to_hex(material.signer) + "\n", encoding="utf-8")
+        with suppress(OSError):
+            os.chmod(key_path, 0o600)
+        metadata_path.write_text(material.metadata.model_dump_json(indent=2), encoding="utf-8")
+        cls._write_active_identity_handle(home, material.metadata.handle)
+        return cls(handle=material.metadata.handle, did=material.metadata.did, signer=material.signer)
 
+    @classmethod
+    def load_metadata(cls, home: Path, handle: str) -> IdentityMetadata:
+        return IdentityMetadata.model_validate_json(cls.metadata_path(home, handle).read_text(encoding="utf-8"))
 
-def identity_exists(home: Path, handle: str) -> bool:
-    return identity_metadata_path(home, handle).exists() and identity_key_path(home, handle).exists()
+    @classmethod
+    def load_private_key(cls, home: Path, handle: str) -> Ed25519PrivateKey:
+        return private_key_from_hex(cls.key_path(home, handle).read_text(encoding="utf-8"))
 
+    @staticmethod
+    def identities_dir(home: Path) -> Path:
+        return get_client_home(home) / "identities"
 
-def create_identity(home: Path, handle: str | None = None) -> IdentityMetadata:
-    """Create a local identity and private key, returning existing metadata if present."""
-    resolved_handle = validate_handle(handle or _unique_handle(home))
-    if identity_exists(home, resolved_handle):
-        return load_identity(home, resolved_handle)
+    @classmethod
+    def metadata_path(cls, home: Path, handle: str) -> Path:
+        return cls.identities_dir(home) / f"{handle}.json"
 
-    directory = identities_dir(home)
-    directory.mkdir(parents=True, exist_ok=True)
-    with suppress(OSError):
-        os.chmod(directory, 0o700)
+    @classmethod
+    def key_path(cls, home: Path, handle: str) -> Path:
+        return cls.identities_dir(home) / f"{handle}.key"
 
-    material = create_identity_material(resolved_handle)
-    key_path = identity_key_path(home, resolved_handle)
-    metadata_path = identity_metadata_path(home, resolved_handle)
-    key_path.write_text(private_key_to_hex(material.signer) + "\n", encoding="utf-8")
-    with suppress(OSError):
-        os.chmod(key_path, 0o600)
-    metadata_path.write_text(material.metadata.model_dump_json(indent=2), encoding="utf-8")
-    _write_active_identity_handle(home, material.metadata.handle)
-    return material.metadata
+    @classmethod
+    def exists(cls, home: Path, handle: str) -> bool:
+        return cls.metadata_path(home, handle).exists() and cls.key_path(home, handle).exists()
 
+    @classmethod
+    def remove_legacy_default(cls, home: Path) -> None:
+        """Remove legacy local files for the implicit default identity."""
+        for path in (cls.metadata_path(home, "default"), cls.key_path(home, "default")):
+            with suppress(FileNotFoundError):
+                path.unlink()
 
-def remove_legacy_default_identity(home: Path) -> None:
-    """Remove legacy local files for the implicit default identity."""
-    for path in (identity_metadata_path(home, "default"), identity_key_path(home, "default")):
-        with suppress(FileNotFoundError):
-            path.unlink()
+    @classmethod
+    def _unique_handle(cls, home: Path) -> str:
+        for _ in range(100):
+            handle = generate_handle()
+            if not cls.exists(home, handle):
+                return handle
+        raise RuntimeError("Unable to generate a unique identity handle")
 
+    @staticmethod
+    def _env_identity_values(env: Mapping[str, str] | None = None) -> tuple[str | None, str | None]:
+        values = env if env is not None else os.environ
+        handle = values.get("AUTHSOME_IDENTITY", "").strip() or None
+        private_key_hex = values.get("AUTHSOME_IDENTITY_PRIVATE_KEY", "").strip() or None
+        return handle, private_key_hex
 
-def ensure_local_identity(home: Path, active_handle: str | None = None) -> IdentityMetadata:
-    """Return the active local identity, creating one if none exists."""
-    remove_legacy_default_identity(home)
-    if active_handle is None:
-        active_handle = _read_active_identity_handle(home)
-    if active_handle:
-        if not identity_exists(home, active_handle):
-            return create_identity(home, active_handle)
-        return load_identity(home, active_handle)
-    return create_identity(home)
+    @staticmethod
+    def _read_active_identity_handle(home: Path) -> str | None:
+        return ClientConfig.load(home).active_identity
 
-
-async def current_from_home(home: Path) -> IdentityMetadata:
-    """Return the configured local identity, bootstrapping it if needed."""
-    return ensure_local_identity(home)
-
-
-def load_runtime_identity(home: Path, env: Mapping[str, str] | None = None) -> RuntimeIdentity:
-    """Resolve the acting process identity from env or local identity files."""
-    handle_override, private_key_hex = _env_identity_values(env)
-    if private_key_hex and not handle_override:
-        raise ValueError("AUTHSOME_IDENTITY_PRIVATE_KEY requires AUTHSOME_IDENTITY")
-
-    if handle_override and private_key_hex:
-        signer = private_key_from_hex(private_key_hex)
-        return RuntimeIdentity(
-            handle=validate_handle(handle_override),
-            did=public_key_to_did_key(signer.public_key()),
-            source=IdentitySource.ENV,
-            signer=signer,
-        )
-
-    identity = ensure_local_identity(home, active_handle=handle_override)
-    return RuntimeIdentity(
-        handle=identity.handle,
-        did=identity.did,
-        source=IdentitySource.FILESYSTEM,
-        signer=load_private_key(home, identity.handle),
-    )
-
-
-def _read_active_identity_handle(home: Path) -> str | None:
-    return load_client_config(home).active_identity
-
-
-def _write_active_identity_handle(home: Path, handle: str) -> None:
-    save_client_config(home, load_client_config(home).model_copy(update={"active_identity": handle}))
-
-
-def _env_identity_values(env: Mapping[str, str] | None = None) -> tuple[str | None, str | None]:
-    values = env if env is not None else os.environ
-    handle = values.get("AUTHSOME_IDENTITY", "").strip() or None
-    private_key_hex = values.get("AUTHSOME_IDENTITY_PRIVATE_KEY", "").strip() or None
-    return handle, private_key_hex
-
-
-def _unique_handle(home: Path) -> str:
-    for _ in range(100):
-        handle = generate_handle()
-        if not identity_exists(home, handle):
-            return handle
-    raise RuntimeError("Unable to generate a unique identity handle")
+    @staticmethod
+    def _write_active_identity_handle(home: Path, handle: str) -> None:
+        ClientConfig.load(home).model_copy(update={"active_identity": handle}).save(home)

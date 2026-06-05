@@ -1,15 +1,15 @@
 """Caller-local CLI config helpers."""
 
+from functools import lru_cache
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic.fields import Field
 
-from authsome import __version__
-from authsome.config import get_authsome_config
+from authsome.config import AuthsomeConfig, get_authsome_config
 from authsome.proxy.config import ProxyMode
 
 
-class ClientConfig(BaseModel):
+class ClientConfig(AuthsomeConfig):
     """Caller-local config that should not live in daemon-owned storage.
 
     The proxy_mode field lives here (not in ServerConfig) because the
@@ -19,35 +19,34 @@ class ClientConfig(BaseModel):
     file directly — there is no CLI command for it today (YAGNI).
     """
 
-    version: str = __version__
-    active_identity: str | None = None
+    active_identity: str | None = Field(default=None, validation_alias="AUTHSOME_ACTIVE_IDENTITY")
     proxy_ca_installed: bool = False
     proxy_mode: ProxyMode = "connected_allow"
 
+    @property
+    def identities_dir(self) -> Path:
+        return self.client_home / "identities"
 
-def client_config_path(home: Path | None = None) -> Path:
-    """Return the caller-local config file path."""
-    return get_authsome_config(home).client_config_path
+    @classmethod
+    def load(cls, home: Path | None = None) -> "ClientConfig":
+        path = get_authsome_config(home).client_config_path
+
+        if not path.exists():
+            return cls(home=home) if home is not None else cls()
+        try:
+            config = cls.model_validate_json(path.read_text(encoding="utf-8"))
+        except Exception:
+            return cls(home=home) if home is not None else cls()
+        if home is not None:
+            return config.model_copy(update={"home": home})
+        return config
+
+    def save(self, home: Path | None = None) -> None:
+        path = get_authsome_config(home).client_config_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(self.model_dump_json(indent=2), encoding="utf-8")
 
 
-def load_client_config(home: Path | None = None) -> ClientConfig:
-    """Load caller-local config, defaulting when absent or invalid."""
-    path = client_config_path(home)
-    if not path.exists():
-        return ClientConfig()
-    try:
-        return ClientConfig.model_validate_json(path.read_text(encoding="utf-8"))
-    except Exception:
-        return ClientConfig()
-
-
-def save_client_config(home: Path | None, config: ClientConfig) -> None:
-    """Persist caller-local config."""
-    path = client_config_path(home)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(config.model_dump_json(indent=2), encoding="utf-8")
-
-
+@lru_cache
 def get_client_config(home: Path | None = None) -> ClientConfig:
-    """Return the caller-local config."""
-    return load_client_config(home)
+    return ClientConfig.load(home)

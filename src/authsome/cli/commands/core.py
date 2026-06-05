@@ -19,7 +19,7 @@ from authsome.cli.helpers import (
     _scan_resolve_should_import,
     auth_command,
 )
-from authsome.cli.identity import ensure_local_identity
+from authsome.cli.identity import RuntimeIdentity
 from authsome.config import get_authsome_config
 from authsome.paths import get_client_log_path
 from authsome.utils import connection_is_active
@@ -271,7 +271,7 @@ async def run(ctx_obj: ContextObj, command: tuple[str]) -> None:
 async def init(ctx_obj: ContextObj) -> None:
     """Initialize local storage and register a fresh profile."""
     home = get_authsome_config().home
-    identity = ensure_local_identity(home)
+    RuntimeIdentity.ensure_local(home)
 
     actx = await ctx_obj.initialize()
     identity = await actx.runtime_client.ensure_identity_ready()

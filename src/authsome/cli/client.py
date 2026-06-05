@@ -14,10 +14,7 @@ import httpx
 from fastapi import status
 
 import authsome.errors as err_mod
-from authsome.cli.identity import (
-    RuntimeIdentity,
-    load_runtime_identity,
-)
+from authsome.cli.identity import RuntimeIdentity
 from authsome.config import get_authsome_config
 from authsome.identity.proof import POP_AUTH_SCHEME, create_proof_jwt
 from authsome.server.config import get_server_config
@@ -131,11 +128,6 @@ class AuthsomeApiClient:
         raise_for_error(response)
         return response.json()
 
-    def _runtime_identity(self) -> RuntimeIdentity:
-        if self._identity is None:
-            self._identity = load_runtime_identity(self._home)
-        return self._identity
-
     async def _proof_headers(self, method: str, path: str, body: bytes) -> dict[str, str]:
         identity = await self.ensure_identity_ready()
         token = create_proof_jwt(
@@ -161,6 +153,11 @@ class AuthsomeApiClient:
         await self._check_server_registration(runtime)
         self._server_registered = True
         return runtime
+
+    def _runtime_identity(self) -> RuntimeIdentity:
+        if self._identity is None:
+            self._identity = RuntimeIdentity.load(self._home)
+        return self._identity
 
     async def _check_server_registration(self, runtime: RuntimeIdentity) -> None:
         """Verify registration with the server; register and claim if needed."""

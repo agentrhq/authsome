@@ -8,7 +8,7 @@ import click
 
 from authsome.cli.client import AuthsomeApiClient
 from authsome.cli.daemon_control import resolve_runtime_client
-from authsome.cli.identity import load_runtime_identity
+from authsome.cli.identity import RuntimeIdentity
 from authsome.cli.proxy_runner import ProxyRunner
 from authsome.config import get_authsome_config
 
@@ -31,7 +31,7 @@ class ContextObj:
 
     async def initialize(self) -> "ContextObj":
         if self._runtime_client is None:
-            identity = load_runtime_identity(self.home)
+            identity = RuntimeIdentity.load(self.home)
             self._runtime_client = await resolve_runtime_client(identity=identity, home=self.home)
         return self
 

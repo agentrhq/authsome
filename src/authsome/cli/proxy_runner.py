@@ -11,7 +11,7 @@ import certifi
 from loguru import logger
 
 from authsome.auth.models.provider import ProviderDefinition
-from authsome.cli.config import load_client_config, save_client_config
+from authsome.cli.config import ClientConfig
 from authsome.config import get_authsome_config
 from authsome.proxy.certs import ensure_local_proxy_ca
 from authsome.proxy.server import RunningProxy, start_proxy_server
@@ -73,17 +73,17 @@ class ProxyRunner:
 
     def _start_proxy(self) -> tuple[str, RunningProxy]:
         self._ensure_local_proxy_ca_once()
-        mode = load_client_config(self._home).proxy_mode
+        mode = ClientConfig.load(self._home).proxy_mode
         server = start_proxy_server(self._client, mode=mode, dashboard_url=get_authsome_config().base_url)
         return server.url, server
 
     def _ensure_local_proxy_ca_once(self) -> None:
-        config = load_client_config(self._home)
+        config = ClientConfig.load(self._home)
         if config.proxy_ca_installed:
             return
         if ensure_local_proxy_ca():
             config.proxy_ca_installed = True
-            save_client_config(self._home, config)
+            config.save(self._home)
 
     async def _inject_dummy_credentials(self, env: dict[str, str]) -> None:
         connections_data = await self._client.list_connections()

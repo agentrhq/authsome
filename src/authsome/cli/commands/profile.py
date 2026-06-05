@@ -2,10 +2,10 @@
 
 import click
 
-from authsome.cli.config import load_client_config, save_client_config
+from authsome.cli.config import ClientConfig
 from authsome.cli.context import ContextObj
 from authsome.cli.helpers import auth_command
-from authsome.cli.identity import create_identity, load_identity
+from authsome.cli.identity import RuntimeIdentity
 from authsome.config import get_authsome_config
 
 
@@ -20,13 +20,13 @@ def profile() -> None:
 async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
     """Create a local profile keypair."""
     home = get_authsome_config().home
-    identity_meta = create_identity(home, handle)
+    identity = RuntimeIdentity.create(home, handle)
 
     data = {
         "status": "created",
         "home": str(home),
-        "profile": identity_meta.handle,
-        "did": identity_meta.did,
+        "profile": identity.handle,
+        "did": identity.did,
         "registration_status": "local",
         "switched": True,
     }
@@ -39,12 +39,12 @@ async def profile_create(ctx_obj: ContextObj, handle: str | None) -> None:
 async def profile_use(ctx_obj: ContextObj, handle: str) -> None:
     """Select the active local profile."""
     home = get_authsome_config().home
-    identity_meta = load_identity(home, handle)
-    save_client_config(home, load_client_config(home).model_copy(update={"active_identity": identity_meta.handle}))
+    identity = RuntimeIdentity.from_filesystem(home, handle)
+    ClientConfig.load(home).model_copy(update={"active_identity": identity.handle}).save(home)
 
     data = {
         "status": "active",
-        "profile": identity_meta.handle,
-        "did": identity_meta.did,
+        "profile": identity.handle,
+        "did": identity.did,
     }
     ctx_obj.print_json(data)

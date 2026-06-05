@@ -9,7 +9,7 @@ from authsome.auth.models.connection import ConnectionRecord, ProviderClientReco
 from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
 from authsome.auth.models.provider import OAuthConfig, ProviderDefinition
 from authsome.auth.sessions import AuthSession
-from authsome.cli.identity import create_identity
+from authsome.cli.identity import RuntimeIdentity
 from authsome.errors import OperationNotAllowedError
 from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_repository import CredentialRepository, build_store_key
@@ -381,7 +381,7 @@ async def test_non_admin_resume_login_flow_rejects_dcr_client_persistence() -> N
 
 @pytest.mark.asyncio
 async def test_revoke_local_deletes_shared_client_and_all_identity_connections(tmp_path) -> None:
-    first_identity = create_identity(tmp_path, "steady-wisely-boldly-0042")
+    first_identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     store = await create_store(tmp_path)
     await store.identity_registry.register(handle=first_identity.handle, did=first_identity.did)
     primary_vault = await store.vaults.create_default()
