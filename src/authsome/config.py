@@ -15,7 +15,7 @@ class AuthsomeConfig(BaseSettings):
 
     version: str = __version__
     home: Path = Field(default=Path.home() / ".authsome")
-    base_url: str = Field(default="http://127.0.0.1:7998")
+    base_url: str = Field(default="https://api.authsome.ai")
 
     @property
     def client_home(self) -> Path:
