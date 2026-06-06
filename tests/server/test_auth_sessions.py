@@ -10,7 +10,7 @@ from authsome.auth.models.enums import FlowType
 from authsome.cli.identity import RuntimeIdentity
 from authsome.identity.proof import create_proof_jwt
 from authsome.server.app import create_app
-from tests.server.test_pop_auth import register_and_claim_identity
+from tests.server.test_pop_auth import TEST_SERVER_BASE_URL, register_and_claim_identity
 
 
 def _auth_header(
@@ -38,7 +38,7 @@ def test_get_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> None
     stranger = RuntimeIdentity.create(tmp_path, "rapid-brightly-firmly-0007")
     app = create_app()
 
-    with TestClient(app) as client:
+    with TestClient(app, base_url=TEST_SERVER_BASE_URL) as client:
         owner_registration = client.post("/api/identities/register", json={"handle": owner.handle, "did": owner.did})
         assert owner_registration.status_code == status.HTTP_200_OK
         register_and_claim_identity(client, tmp_path, stranger.handle, email="stranger@example.com")
@@ -72,7 +72,7 @@ def test_resume_session_rejects_other_identity(monkeypatch, tmp_path: Path) -> N
     stranger = RuntimeIdentity.create(tmp_path, "rapid-brightly-firmly-0007")
     app = create_app()
 
-    with TestClient(app) as client:
+    with TestClient(app, base_url=TEST_SERVER_BASE_URL) as client:
         owner_registration = client.post("/api/identities/register", json={"handle": owner.handle, "did": owner.did})
         assert owner_registration.status_code == status.HTTP_200_OK
         stranger_registration = client.post(
@@ -110,7 +110,7 @@ def test_sessions_do_not_survive_app_recreation(monkeypatch, tmp_path: Path) -> 
     owner = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     session_id = ""
 
-    with TestClient(create_app()) as first_client:
+    with TestClient(create_app(), base_url=TEST_SERVER_BASE_URL) as first_client:
         register_and_claim_identity(first_client, tmp_path, owner.handle)
         session = asyncio.run(
             first_client.app.state.auth_sessions.create(
@@ -123,7 +123,7 @@ def test_sessions_do_not_survive_app_recreation(monkeypatch, tmp_path: Path) -> 
         )
         session_id = session.session_id
 
-    with TestClient(create_app()) as second_client:
+    with TestClient(create_app(), base_url=TEST_SERVER_BASE_URL) as second_client:
         response = second_client.get(
             f"/api/auth/sessions/{session_id}",
             headers=_auth_header(tmp_path, "GET", f"/api/auth/sessions/{session_id}", handle=owner.handle),

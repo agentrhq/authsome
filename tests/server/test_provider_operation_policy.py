@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from authsome.cli.identity import RuntimeIdentity
 from authsome.server.app import create_app
-from tests.server.test_pop_auth import _auth_header
+from tests.server.test_pop_auth import TEST_SERVER_BASE_URL, _auth_header
 
 
 def _register_identity(client: TestClient, tmp_path: Path, handle: str, *, email: str = "dev@example.com") -> None:
@@ -38,7 +38,7 @@ def _register_admin_then_user(client: TestClient, tmp_path: Path, user_handle: s
 def test_non_admin_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
-    with TestClient(create_app()) as client:
+    with TestClient(create_app(), base_url=TEST_SERVER_BASE_URL) as client:
         _register_admin_then_user(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.post(
             "/api/connections/github/revoke",
@@ -52,7 +52,7 @@ def test_non_admin_revoke_is_rejected(monkeypatch, tmp_path: Path) -> None:
 def test_non_admin_remove_is_rejected(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
-    with TestClient(create_app()) as client:
+    with TestClient(create_app(), base_url=TEST_SERVER_BASE_URL) as client:
         _register_admin_then_user(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.delete(
             "/api/providers/github",
@@ -76,7 +76,7 @@ def test_non_admin_register_provider_is_rejected(monkeypatch, tmp_path: Path) ->
     }
     body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
 
-    with TestClient(create_app()) as client:
+    with TestClient(create_app(), base_url=TEST_SERVER_BASE_URL) as client:
         _register_admin_then_user(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.post(
             "/api/providers",
@@ -104,7 +104,7 @@ def test_first_principal_admin_can_register_provider(monkeypatch, tmp_path: Path
     }
     body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
 
-    with TestClient(create_app()) as client:
+    with TestClient(create_app(), base_url=TEST_SERVER_BASE_URL) as client:
         _register_identity(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.post(
             "/api/providers",
