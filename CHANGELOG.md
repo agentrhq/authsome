@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.6.0](https://github.com/agentrhq/authsome/compare/authsome-v0.5.0...authsome-v0.6.0) (2026-06-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* Cleaner architechture, multi server compatible identities and cleaner ui
+
+### feature
+
+* Cleaner architechture, multi server compatible identities and cleaner ui ([f661d8d](https://github.com/agentrhq/authsome/commit/f661d8d360233557d460dd9502525b101720073d))
+
+
+### Features
+
+* add Dockerfile, docker-compose, and self-hosting guide ([c7455c0](https://github.com/agentrhq/authsome/commit/c7455c00edd5fc325c3708998cbd978317f882af))
+* add Dockerfile, docker-compose, and self-hosting guide ([6231674](https://github.com/agentrhq/authsome/commit/62316746108a60077814e4b5954d59d6c5a0314b)), closes [#366](https://github.com/agentrhq/authsome/issues/366)
+* Add logos and description for all bundled providers ([33e13f9](https://github.com/agentrhq/authsome/commit/33e13f96259bfcc196c7d0f0ad3cdc09da3fe905))
+* add provider dashboard metadata ([635285a](https://github.com/agentrhq/authsome/commit/635285a56550e390cfb19fc01321b6fca34cf283))
+* add static Next.js dashboard ([7c46cd8](https://github.com/agentrhq/authsome/commit/7c46cd895d860f2eecfb5a726cace09afe4dfc49))
+* add static Next.js dashboard ([e0a2cd9](https://github.com/agentrhq/authsome/commit/e0a2cd915843901256f9a0d6b90a0016e483611a))
+* Build dependencies ([2705e8e](https://github.com/agentrhq/authsome/commit/2705e8e6e55a2906d5115502d65f97413f888d84))
+* improve scan to cover all typical env file locations ([364f3e5](https://github.com/agentrhq/authsome/commit/364f3e531b8cc7707bf3a6df6dd94f03ee00ba50))
+* improve scan to cover all typical env file locations ([96fd514](https://github.com/agentrhq/authsome/commit/96fd514adbda5cc3eb1bc38007d35f71de14bc5a))
+* replace Python dashboard fallback with built Next.js static UI ([98a3351](https://github.com/agentrhq/authsome/commit/98a3351c56cea43b417c989b4f197d224d015c7a))
+* Simplify identity portability ([ad23d60](https://github.com/agentrhq/authsome/commit/ad23d6075474c008c58c4447138ed0212a783f64))
+* **ui:** redirect to connections view after successful provider login ([19bdf05](https://github.com/agentrhq/authsome/commit/19bdf0546e6e8fcb26d86553d8f0c80fe826a597))
+* **ui:** redirect to connections view after successful provider login ([60931a0](https://github.com/agentrhq/authsome/commit/60931a027b505b3937ab7161f8c7c43d8b3798a4)), closes [#355](https://github.com/agentrhq/authsome/issues/355)
+* Update docs ([07dbb87](https://github.com/agentrhq/authsome/commit/07dbb8705fc51ec4e920ec47b0517181bb60ca79))
+
+
+### Bug Fixes
+
+* allow explicit authsome config home ([7faf61f](https://github.com/agentrhq/authsome/commit/7faf61f9d896e9a18214c8cc9cf774b96895a2a3))
+* cache identity registration per daemon ([668f91a](https://github.com/agentrhq/authsome/commit/668f91a54aebead5f62e58e35f3e5fe3b8032347))
+* Cleaner design ([301d353](https://github.com/agentrhq/authsome/commit/301d353c5e9e4f42259adc5223676be507de8425))
+* **docs:** remove all broken links to missing pages ([cac5f9f](https://github.com/agentrhq/authsome/commit/cac5f9f2c48e29291d61275470734c4440814c60))
+* inherit ServerConfig from AuthsomeConfig for consistent home resolution ([cf95c6c](https://github.com/agentrhq/authsome/commit/cf95c6c5da525030e8e5f7e8006eb2211f0ef535))
+* install pnpm before setup-node to fix CI cache resolution ([0dd5291](https://github.com/agentrhq/authsome/commit/0dd5291ffbe673e8a9c6c39a7128bed41f474303))
+* move dashboard auth flow to Next routes ([52fe7dc](https://github.com/agentrhq/authsome/commit/52fe7dc5c3320a46fdddd8e21e3e876d5485179d))
+* remove populate_by_name and redundant validation_alias from settings ([9ee46a6](https://github.com/agentrhq/authsome/commit/9ee46a651ee16a4f78824dd86056ddfc39a4b152))
+* Remove type checking hacks ([10f6e8a](https://github.com/agentrhq/authsome/commit/10f6e8ae41dc019c233b341555afffc072eb68e3))
+* resolve pre-commit failures ([b96d593](https://github.com/agentrhq/authsome/commit/b96d5938832b861880214fa7eb9b5dd5006abc42))
+* **ui:** replace setState-in-effect with lazy useState initializers ([ff592fd](https://github.com/agentrhq/authsome/commit/ff592fde5924329f1f8c1060509e22746c1c296b))
+
+
+### Documentation
+
+* remove stale authsome skill commands ([fc51d29](https://github.com/agentrhq/authsome/commit/fc51d2919a9be42bab146439b6ceb4fd5c3829df))
+* Update context on design philosophy behind authsome ([5933be4](https://github.com/agentrhq/authsome/commit/5933be47de734839d2e65f03b2a783c70acb75fa))
+* Update documentation ([d76304a](https://github.com/agentrhq/authsome/commit/d76304a911ab2a9f7049079cfe1e0b648a11e79f))
+* Update documentation ([30ec8d4](https://github.com/agentrhq/authsome/commit/30ec8d4ff6ddf1c16061156067207ac9b68e3bfb))
+* Update documentation to correctly reference current authsome state ([54d7c3a](https://github.com/agentrhq/authsome/commit/54d7c3a200c1eaa0765bfcfb4497b9f238721e90))
+
 ## [0.5.0](https://github.com/agentrhq/authsome/compare/authsome-v0.4.2...authsome-v0.5.0) (2026-05-29)
 
 
