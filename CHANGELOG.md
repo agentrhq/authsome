@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.2](https://github.com/agentrhq/authsome/compare/authsome-v0.6.1...authsome-v0.6.2) (2026-06-06)
+
+
+### Features
+
+* Change default url to hosted server, api.authsome ([16417dc](https://github.com/agentrhq/authsome/commit/16417dca036497c10f7328dcd5601e0dc1055bfa))
+
+
+### Bug Fixes
+
+* Fix tests ([900adf1](https://github.com/agentrhq/authsome/commit/900adf1ee32b3ca655e62db7d09cedb840db3d0d))
+
 ## [0.6.1](https://github.com/agentrhq/authsome/compare/authsome-v0.6.0...authsome-v0.6.1) (2026-06-06)
 
 
