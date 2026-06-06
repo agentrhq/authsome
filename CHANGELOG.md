@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/agentrhq/authsome/compare/authsome-v0.6.0...authsome-v0.6.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* build action ([5b5a55d](https://github.com/agentrhq/authsome/commit/5b5a55d2bff76979ff5186092050aa31cca85cbf))
+
 ## [0.6.0](https://github.com/agentrhq/authsome/compare/authsome-v0.5.0...authsome-v0.6.0) (2026-06-06)
 
 
