@@ -95,14 +95,22 @@ async def get_auth_service(
     return _build_service(request, resolved)
 
 
-async def require_auth_service(
+async def require_auth_service(  # noqa: PLR0913
     request: Request,
     *,
     identity: str | None = None,
     principal_id: str | None = None,
+    acting_auth: CredentialService | None = None,
+    require_admin_for_other_principal: bool = False,
     status_code: int = 404,
     detail: str = "Authentication context not found",
 ) -> CredentialService:
+    if acting_auth is not None and principal_id is not None:
+        if principal_id == acting_auth.principal_id:
+            return acting_auth
+        if require_admin_for_other_principal and acting_auth.principal_role != PrincipalRole.ADMIN:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
+
     auth = await get_auth_service(request, identity=identity, principal_id=principal_id)
     if auth is None:
         raise HTTPException(status_code=status_code, detail=detail)

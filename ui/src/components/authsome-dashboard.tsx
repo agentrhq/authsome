@@ -3,8 +3,10 @@
 import {
   AppWindow,
   BookOpen,
+  Check,
   CheckCircle2,
   CircleAlert,
+  Clipboard,
   ClipboardList,
   Database,
   GitBranch,
@@ -14,6 +16,7 @@ import {
   LogIn,
   LogOut,
   Plus,
+  Save,
   Search,
   Settings,
   UserRound,
@@ -26,14 +29,21 @@ import useSWR from "swr";
 
 import {
   ApiError,
+  ConnectionDetail,
   DashboardData,
+  ProviderDetail,
   ProviderView,
   SessionInputField,
   fetchAuthSessionStatus,
   fetchClaimStatus,
+  fetchConnectionDetail,
   fetchDashboard,
+  fetchProviderDetail,
   fetchSessionDevice,
   fetchSessionInput,
+  logoutConnection,
+  revokeProvider,
+  updateProviderConfiguration,
 } from "@/lib/authsome-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -154,6 +164,18 @@ function currentBrowserPath(fallback: string): string {
     return fallback;
   }
   return `${window.location.pathname}${window.location.search}`;
+}
+
+function connectionDetailHref(provider: string, connection: string, principal?: string | null): string {
+  const params = new URLSearchParams({ provider, connection });
+  if (principal) {
+    params.set("principal", principal);
+  }
+  return `/connections/detail?${params.toString()}`;
+}
+
+function providerDetailHref(provider: string): string {
+  return `/providers/detail?${new URLSearchParams({ provider }).toString()}`;
 }
 
 export function AuthsomeLogin({ nextPath = NEXT_URL }: { nextPath?: string }) {
@@ -645,6 +667,40 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
+function DashboardDetailShell({
+  activeView,
+  backHref,
+  children,
+  data,
+  title,
+}: {
+  activeView: View;
+  backHref: string;
+  children: ReactNode;
+  data: DashboardData;
+  title: string;
+}) {
+  return (
+    <main className="min-h-screen bg-background">
+      <div className="md:grid md:grid-cols-[256px_1fr]">
+        <Sidebar activeView={activeView} data={data} />
+        <section className="min-w-0">
+          <Topbar />
+          <div className="mx-auto grid max-w-7xl gap-6 p-4 md:p-6">
+            <div>
+              <Button render={<Link href={backHref} />} size="sm" variant="ghost">
+                Back
+              </Button>
+              <h1 className="mt-3 text-2xl font-semibold leading-tight text-foreground">{title}</h1>
+            </div>
+            {children}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 function Sidebar({
   activeView,
   data,
@@ -891,7 +947,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
     <Card className="flex h-full flex-col border-border/50 shadow-none transition-colors hover:border-border">
       <CardHeader className="gap-4 pb-4">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex items-center gap-3">
+          <Link className="min-w-0 flex items-center gap-3" href={providerDetailHref(provider.name)}>
             <ProviderLogo className="size-10" initial={provider.logoInitial} logo={provider.logo} />
             <div className="min-w-0">
               <CardTitle className="truncate text-base">{provider.displayName}</CardTitle>
@@ -899,7 +955,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
                 {provider.source === "custom" ? "Custom provider" : "Bundled provider"}
               </CardDescription>
             </div>
-          </div>
+          </Link>
           <StatusBadge status={provider.status} />
         </div>
       </CardHeader>
@@ -1027,7 +1083,13 @@ function ConnectionsView({
               <TableBody>
                 {filteredConnections.map((row) => (
                   <TableRow key={`${row.providerName}:${row.connectionName}`}>
-                    <TableCell className="font-medium">{row.connectionName}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={connectionDetailHref(row.providerName, row.connectionName)}
+                      >
+                        {row.connectionName}
+                      </Link>
+                    </TableCell>
                     <TableCell>{row.providerDisplayName}</TableCell>
                     <TableCell>{row.authTypeLabel}</TableCell>
                     <TableCell>
@@ -1206,6 +1268,474 @@ function SearchInput({
         value={value}
       />
     </label>
+  );
+}
+
+function detailProviderDisplayName(data: ProviderDetail): string {
+  return data.provider.display_name || data.provider.name;
+}
+
+function detailProviderApiUrl(data: ProviderDetail): string {
+  const apiUrl = data.client?.api_url || data.provider.api_url || data.provider.oauth?.base_url || data.provider.name;
+  return Array.isArray(apiUrl) ? apiUrl.filter(Boolean).join(", ") : apiUrl;
+}
+
+function detailAuthTypeLabel(authType?: string): string {
+  return authType === "oauth2" ? "OAuth 2.0" : authType === "api_key" ? "API Key" : authType || "Provider";
+}
+
+export function AuthsomeProviderDetailRoute() {
+  const searchParams = useSearchParams();
+  const provider = searchParams.get("provider") || "";
+
+  if (!provider) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-6">
+        <Card className="w-full max-w-md border-border/50 shadow-none">
+          <CardHeader>
+            <CardTitle>Provider not found</CardTitle>
+            <CardDescription>Open a provider from the dashboard to view its details.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button render={<Link href="/providers" />} type="button" variant="outline">
+              Back to providers
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  return <AuthsomeProviderDetail provider={provider} />;
+}
+
+export function AuthsomeProviderDetail({ provider }: { provider: string }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { data: dashboard, error: dashboardError, mutate: mutateDashboard } = useSWR("authsome-dashboard", fetchDashboard);
+  const { data, error, mutate } = useSWR(["authsome-provider-detail", provider], () => fetchProviderDetail(provider));
+
+  useEffect(() => {
+    if (isUnauthorized(dashboardError) || isUnauthorized(error)) {
+      router.replace(`/login?next=${encodeURIComponent(currentBrowserPath(pathname || providerDetailHref(provider)))}`);
+    }
+  }, [dashboardError, error, pathname, provider, router]);
+
+  if (isUnauthorized(dashboardError) || isUnauthorized(error)) return <LoadingScreen />;
+  if (dashboardError || error) return <ErrorState onRetry={() => { void mutateDashboard(); void mutate(); }} />;
+  if (!dashboard || !data) return <LoadingScreen />;
+
+  return (
+    <DashboardDetailShell activeView="providers" backHref="/providers" data={dashboard} title={detailProviderDisplayName(data)}>
+      <ProviderDetailBody data={data} onRefresh={() => { void mutate(); void mutateDashboard(); }} />
+    </DashboardDetailShell>
+  );
+}
+
+function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; onRefresh: () => void }) {
+  const displayName = detailProviderDisplayName(data);
+  const initial = (displayName[0] || "?").toUpperCase();
+  const description = data.provider.description || data.provider.metadata?.description || "";
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-5">
+        <Card className="border-border/50 shadow-none">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <ProviderLogo className="size-11" initial={initial} logo={data.provider.logo || null} />
+              <div className="min-w-0">
+                <CardTitle>{displayName}</CardTitle>
+                <CardDescription>{description || detailProviderApiUrl(data)}</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <KeyValue label="Provider" value={data.provider.name} />
+            <KeyValue label="Auth Type" value={detailAuthTypeLabel(data.provider.auth_type)} />
+            <KeyValue label="API URL" value={detailProviderApiUrl(data) || "-"} />
+            {data.provider.docs_url ? <KeyValue label="Docs" value={data.provider.docs_url} /> : null}
+            {data.show_callback_helper && data.callback_url ? (
+              <KeyValue label="OAuth Callback URL" value={data.callback_url} />
+            ) : null}
+          </CardContent>
+        </Card>
+        <ProviderUsage data={data} />
+      </div>
+      <div className="grid content-start gap-5">
+        {data.account.is_admin ? (
+          <ProviderConfigurationForm
+            data={data}
+            key={data.configuration_fields.map((field) => `${field.name}:${field.default || ""}`).join("|")}
+            onRefresh={onRefresh}
+          />
+        ) : (
+          <Card className="border-border/50 shadow-none">
+            <CardHeader>
+              <CardTitle>Configuration</CardTitle>
+              <CardDescription>Managed by the admin.</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+        <Card className="border-border/50 shadow-none">
+          <CardHeader>
+            <CardTitle>Connect</CardTitle>
+            <CardDescription>Create a connection in the current vault.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
+              <input name="connection" type="hidden" value="default" />
+              <input name="return_url" type="hidden" value={providerDetailHref(data.provider.name)} />
+              <Button className="w-full" type="submit">
+                <LogIn />
+                Connect
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function ProviderConfigurationForm({ data, onRefresh }: { data: ProviderDetail; onRefresh: () => void }) {
+  const initialValues = useMemo(() => {
+    const values: Record<string, string> = {};
+    for (const field of data.configuration_fields) {
+      values[field.name] = field.default || "";
+    }
+    return values;
+  }, [data.configuration_fields]);
+  const [values, setValues] = useState(initialValues);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function save() {
+    setSaving(true);
+    setMessage("");
+    try {
+      const result = await updateProviderConfiguration(data.provider.name, values);
+      setMessage(result.changed ? "Configuration updated." : "No changes to save.");
+      onRefresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Configuration could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="border-border/50 shadow-none">
+      <CardHeader>
+        <CardTitle>Configuration</CardTitle>
+        <CardDescription>Provider-level inputs required before users can connect.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {data.configuration_warning ? (
+          <div className="rounded-lg border border-amber-800 bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
+            {data.configuration_warning}
+          </div>
+        ) : null}
+        {data.configuration_fields.map((field) => (
+          <label className="grid gap-2 text-sm" key={field.name}>
+            <span className="text-muted-foreground">{field.label}</span>
+            <Input
+              onChange={(event) => setValues((current) => ({ ...current, [field.name]: event.target.value }))}
+              pattern={field.pattern || undefined}
+              type="text"
+              value={values[field.name] || ""}
+            />
+            {field.pattern_hint ? <span className="text-xs text-muted-foreground">{field.pattern_hint}</span> : null}
+          </label>
+        ))}
+        {message ? <div className="text-sm text-muted-foreground">{message}</div> : null}
+        <Button disabled={saving} onClick={() => void save()} type="button">
+          <Save />
+          Save
+        </Button>
+        <RevokeProviderButton data={data} onRefresh={onRefresh} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function RevokeProviderButton({ data, onRefresh }: { data: ProviderDetail; onRefresh: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [working, setWorking] = useState(false);
+
+  async function revoke() {
+    setWorking(true);
+    try {
+      await revokeProvider(data.provider.name);
+      setOpen(false);
+      onRefresh();
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  return (
+    <>
+      <Button onClick={() => setOpen(true)} type="button" variant="destructive">
+        Revoke app
+      </Button>
+      <Dialog onOpenChange={setOpen} open={open}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revoke app</DialogTitle>
+            <DialogDescription>All connections for this provider will be revoked.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setOpen(false)} type="button" variant="outline">
+              Cancel
+            </Button>
+            <Button disabled={working} onClick={() => void revoke()} type="button" variant="destructive">
+              Revoke
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function ProviderUsage({ data }: { data: ProviderDetail }) {
+  const groups = data.account.is_admin
+    ? data.principal_usage
+    : [{ principal_id: data.account.principal_id || "current", email: null, connections: data.connections }];
+
+  return (
+    <Card className="border-border/50 shadow-none">
+      <CardHeader>
+        <CardTitle>Connections</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {groups.length ? (
+          groups.map((group) => (
+            <div className="grid gap-2" key={group.principal_id}>
+              <div className="text-sm font-medium">{group.email || group.principal_id}</div>
+              {group.connections.map((connection) => (
+                <Link
+                  className="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm"
+                  href={connectionDetailHref(
+                    connection.provider,
+                    connection.connection_name,
+                    data.account.is_admin ? group.principal_id : null,
+                  )}
+                  key={`${group.principal_id}:${connection.connection_name}`}
+                >
+                  <span className="truncate">{connection.connection_name}</span>
+                  <StatusBadge status={connection.status} />
+                </Link>
+              ))}
+            </div>
+          ))
+        ) : (
+          <div className="text-sm text-muted-foreground">No connections found.</div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function AuthsomeConnectionDetailRoute() {
+  const searchParams = useSearchParams();
+  const provider = searchParams.get("provider") || "";
+  const connection = searchParams.get("connection") || "";
+  const principal = searchParams.get("principal") || undefined;
+
+  if (!provider || !connection) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-6">
+        <Card className="w-full max-w-md border-border/50 shadow-none">
+          <CardHeader>
+            <CardTitle>Connection not found</CardTitle>
+            <CardDescription>Open a connection from the dashboard to view its details.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button render={<Link href="/connections" />} type="button" variant="outline">
+              Back to connections
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  return <AuthsomeConnectionDetail connection={connection} principal={principal} provider={provider} />;
+}
+
+export function AuthsomeConnectionDetail({
+  connection,
+  principal,
+  provider,
+}: {
+  connection: string;
+  principal?: string;
+  provider: string;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { data: dashboard, error: dashboardError, mutate: mutateDashboard } = useSWR("authsome-dashboard", fetchDashboard);
+  const { data, error, mutate } = useSWR(["authsome-connection-detail", provider, connection, principal], () =>
+    fetchConnectionDetail(provider, connection, principal),
+  );
+
+  useEffect(() => {
+    if (isUnauthorized(dashboardError) || isUnauthorized(error)) {
+      router.replace(`/login?next=${encodeURIComponent(currentBrowserPath(pathname || connectionDetailHref(provider, connection, principal)))}`);
+    }
+  }, [connection, dashboardError, error, pathname, principal, provider, router]);
+
+  if (isUnauthorized(dashboardError) || isUnauthorized(error)) return <LoadingScreen />;
+  if (dashboardError || error) return <ErrorState onRetry={() => { void mutateDashboard(); void mutate(); }} />;
+  if (!dashboard || !data) return <LoadingScreen />;
+
+  return (
+    <DashboardDetailShell activeView="connections" backHref="/connections" data={dashboard} title={data.connection_name}>
+      <ConnectionDetailBody data={data} onRefresh={() => { void mutate(); void mutateDashboard(); }} principal={principal} />
+    </DashboardDetailShell>
+  );
+}
+
+function SecretValue({ label, value }: { label: string; value: string | null }) {
+  const [copied, setCopied] = useState(false);
+  if (!value) return null;
+
+  async function copy() {
+    await navigator.clipboard.writeText(value || "");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  }
+
+  return (
+    <div className="grid gap-2">
+      <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
+      <div className="flex min-w-0 items-start gap-2 rounded-lg border bg-muted p-3">
+        <code className="min-w-0 flex-1 break-all text-xs">{value}</code>
+        <Button onClick={() => void copy()} size="icon-sm" type="button" variant="ghost">
+          {copied ? <Check /> : <Clipboard />}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ConnectionDetailBody({
+  data,
+  onRefresh,
+  principal,
+}: {
+  data: ConnectionDetail;
+  onRefresh: () => void;
+  principal?: string;
+}) {
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+      <Card className="border-border/50 shadow-none">
+        <CardHeader>
+          <CardTitle>{data.provider_display_name}</CardTitle>
+          <CardDescription>
+            {data.provider} / {data.connection_name}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <KeyValue label="Status" value={data.status} />
+          <KeyValue label="Auth Type" value={data.auth_type} />
+          <KeyValue label="Principal ID" value={data.principal_id || "-"} />
+          <KeyValue label="Identity" value={data.identity || "-"} />
+          <KeyValue label="Scopes" value={data.scopes.join(", ") || "-"} />
+          <KeyValue label="Token Type" value={data.token_type || "-"} />
+          <KeyValue label="Obtained" value={data.obtained_at || "-"} />
+          <KeyValue label="Expires" value={data.expires_at || "-"} />
+          <KeyValue label="Base URL" value={data.base_url || "-"} />
+          <KeyValue label="API URL" value={data.api_url || "-"} />
+        </CardContent>
+      </Card>
+      <div className="grid content-start gap-5">
+        <Card className="border-border/50 shadow-none">
+          <CardHeader>
+            <CardTitle>Secrets</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <SecretValue label="Access Token" value={data.secrets.access_token} />
+            <SecretValue label="Refresh Token" value={data.secrets.refresh_token} />
+            <SecretValue label="API Key" value={data.secrets.api_key} />
+            {Object.entries(data.secrets.credentials).map(([key, value]) => (
+              <SecretValue key={key} label={key} value={value} />
+            ))}
+          </CardContent>
+        </Card>
+        <ConnectionActions data={data} onRefresh={onRefresh} principal={principal} />
+      </div>
+    </div>
+  );
+}
+
+function ConnectionActions({
+  data,
+  onRefresh,
+  principal,
+}: {
+  data: ConnectionDetail;
+  onRefresh: () => void;
+  principal?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [working, setWorking] = useState(false);
+
+  async function logout() {
+    setWorking(true);
+    try {
+      await logoutConnection(data.provider, data.connection_name, principal);
+      setOpen(false);
+      onRefresh();
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  return (
+    <Card className="border-border/50 shadow-none">
+      <CardHeader>
+        <CardTitle>Actions</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {data.can_set_default ? (
+          <form
+            action={`/api/connections/${encodeURIComponent(data.provider)}/${encodeURIComponent(data.connection_name)}/default`}
+            method="post"
+          >
+            <Button className="w-full" type="submit" variant="outline">
+              Set as default
+            </Button>
+          </form>
+        ) : null}
+        <Button onClick={() => setOpen(true)} type="button" variant="destructive">
+          <LogOut />
+          Logout
+        </Button>
+        <Button render={<Link href={providerDetailHref(data.provider)} />} type="button" variant="outline">
+          View provider
+        </Button>
+      </CardContent>
+      <Dialog onOpenChange={setOpen} open={open}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Logout connection</DialogTitle>
+            <DialogDescription>This removes the stored credentials for this connection.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setOpen(false)} type="button" variant="outline">
+              Cancel
+            </Button>
+            <Button disabled={working} onClick={() => void logout()} type="button" variant="destructive">
+              Logout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
 

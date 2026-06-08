@@ -370,6 +370,10 @@ class PrincipalRegistry:
         row = await self._db.fetch_one("SELECT * FROM principals WHERE email = ?", [normalized])
         return self._record(row) if row else None
 
+    async def list_all(self) -> list[PrincipalRecord]:
+        rows = await self._db.fetch_all("SELECT * FROM principals ORDER BY created_at, principal_id")
+        return [self._record(row) for row in rows]
+
     async def create_by_email(self, email: str, *, password_hash: str | None = None) -> PrincipalRecord:
         normalized = email.strip().lower()
         if await self.get_by_email(normalized) is not None:

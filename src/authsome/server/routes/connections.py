@@ -1,6 +1,6 @@
 """Connection routes."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from authsome.auth.models.enums import ExportFormat
 from authsome.server.analytics import capture_event
@@ -10,10 +10,51 @@ from authsome.server.routes._deps import (
     get_daemon_or_browser_auth_service,
     get_protected_auth_service,
     get_vault_registry,
+    require_auth_service,
 )
+from authsome.server.schemas import ConnectionDetailResponse, ConnectionSecretsResponse
 from authsome.server.store.repositories import VaultRegistry
 
 router = APIRouter(tags=["connections"])
+
+
+def _actor(auth: CredentialService) -> str:
+    return auth.identity or auth.principal_id or "account-ui"
+
+
+async def _connection_detail(
+    auth: CredentialService,
+    provider: str,
+    connection: str,
+    *,
+    can_set_default: bool,
+) -> ConnectionDetailResponse:
+    definition = await auth.get_provider(provider)
+    record = await auth.get_connection(provider, connection)
+    return ConnectionDetailResponse(
+        provider=record.provider,
+        provider_display_name=definition.display_name,
+        connection_name=record.connection_name,
+        principal_id=record.principal_id,
+        identity=record.identity,
+        vault_id=record.vault_id,
+        status=record.status.value,
+        auth_type=record.auth_type.value,
+        base_url=record.base_url,
+        api_url=record.api_url,
+        scopes=list(record.scopes or []),
+        token_type=record.token_type,
+        obtained_at=record.obtained_at,
+        expires_at=record.expires_at,
+        account=record.account.model_dump(mode="json") if record.account else None,
+        secrets=ConnectionSecretsResponse(
+            access_token=record.access_token,
+            refresh_token=record.refresh_token,
+            api_key=record.api_key,
+            credentials=dict(record.credentials or {}),
+        ),
+        can_set_default=can_set_default,
+    )
 
 
 @router.get("/connections")
@@ -33,16 +74,53 @@ async def get_connection(provider: str, connection: str, auth: CredentialService
     return (await auth.get_connection(provider, connection)).model_dump(mode="json")
 
 
+@router.get("/connections/{provider}/{connection}/detail", response_model=ConnectionDetailResponse)
+async def get_connection_detail(
+    provider: str,
+    connection: str,
+    request: Request,
+    principal: str | None = None,
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
+):
+    target = await require_auth_service(
+        request,
+        principal_id=principal or auth.principal_id,
+        acting_auth=auth,
+        require_admin_for_other_principal=True,
+        detail="Principal not found",
+    )
+    return await _connection_detail(
+        target,
+        provider,
+        connection,
+        can_set_default=target.principal_id == auth.principal_id,
+    )
+
+
 @router.post("/connections/{provider}/{connection}/logout")
-async def logout(provider: str, connection: str, auth: CredentialService = Depends(get_protected_auth_service)):
-    await auth.logout(provider, connection)
+async def logout(
+    provider: str,
+    connection: str,
+    request: Request,
+    principal: str | None = None,
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
+):
+    target = await require_auth_service(
+        request,
+        principal_id=principal or auth.principal_id,
+        acting_auth=auth,
+        require_admin_for_other_principal=True,
+        detail="Principal not found",
+    )
+    await target.logout(provider, connection)
     capture_event(
-        auth.require_identity(),
+        _actor(auth),
         "connection logout",
         {
             "provider": provider,
             "connection": connection,
-            "principal_id": auth.principal_id,
+            "principal_id": target.principal_id,
+            "requested_by_principal_id": auth.principal_id,
         },
     )
     return {"status": "ok"}
@@ -72,7 +150,7 @@ async def revoke(
 async def set_default_connection(
     provider: str,
     connection: str,
-    auth: CredentialService = Depends(get_protected_auth_service),
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
 ):
     await auth.set_default_connection(provider, connection)
     return {"status": "ok", "provider": provider, "default_connection": connection}

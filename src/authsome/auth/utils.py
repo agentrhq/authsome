@@ -137,14 +137,34 @@ def required_inputs(  # noqa: PLR0913
 
     if flow_type == FlowType.PKCE and (provider_config_only or not flow_client_id):
         fields.append(InputField(name="client_id", label="Client ID", secret=False, default=flow_client_id or ""))
-        fields.append(InputField(name="client_secret", label="Client Secret", secret=True, default=""))
+        fields.append(
+            InputField(
+                name="client_secret",
+                label="Client Secret",
+                secret=True,
+                default=client_record.client_secret if provider_config_only and client_record else "",
+            )
+        )
     elif flow_type == FlowType.DEVICE_CODE and (provider_config_only or not flow_client_id):
         fields.append(InputField(name="client_id", label="Client ID", secret=False, default=flow_client_id or ""))
-        fields.append(InputField(name="client_secret", label="Client Secret (Optional)", secret=True, default=""))
+        fields.append(
+            InputField(
+                name="client_secret",
+                label="Client Secret (Optional)",
+                secret=True,
+                default=client_record.client_secret if provider_config_only and client_record else "",
+            )
+        )
 
     needs_scopes = flow_type in (FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE)
-    if needs_scopes and scopes is None and persisted_scopes is None:
-        default_scopes = ",".join(provider.oauth.scopes) if provider.oauth and provider.oauth.scopes else ""
+    if needs_scopes and scopes is None and (provider_config_only or persisted_scopes is None):
+        default_scopes = ",".join(
+            persisted_scopes
+            if provider_config_only and persisted_scopes is not None
+            else provider.oauth.scopes
+            if provider.oauth and provider.oauth.scopes
+            else []
+        )
         fields.append(InputField(name="scopes", label="Scopes (comma-separated)", secret=False, default=default_scopes))
 
     if flow_type == FlowType.API_KEY:

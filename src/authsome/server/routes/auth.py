@@ -238,9 +238,6 @@ async def get_session_input(
     callback_url = None
     if definition.auth_type == AuthType.OAUTH2:
         callback_url = build_callback_url(server_base_url)
-    warning_message = None
-    if session.payload.get("provider_config_only") and session.payload.get("existing_provider_client"):
-        warning_message = "Changing these credentials will revoke existing connections for this provider."
 
     return {
         "session_id": session.session_id,
@@ -249,7 +246,7 @@ async def get_session_input(
         "docs_url": definition.docs_url,
         "fields": fields,
         "callback_url": callback_url,
-        "warning": warning_message,
+        "warning": None,
     }
 
 
@@ -364,19 +361,6 @@ async def _submit_session_input(  # noqa: PLR0911
     )
     form = await request.form()
     inputs = {key: str(value) for key, value in form.items()}
-
-    if session.payload.get("provider_config_only"):
-        all_vaults = await request.app.state.store.vaults.list_all()
-        vault_ids = [vault.vault_id for vault in all_vaults] or ([auth.vault_id] if auth.vault_id else [])
-        await auth.update_provider_configuration(session.provider, inputs, vault_ids=vault_ids)
-        session.state = AuthSessionStatus.COMPLETED
-        session.status_message = "Provider configuration updated"
-        await sessions.save(session)
-        if return_url := session.payload.get("return_url"):
-            return RedirectResponse(str(return_url), status_code=status.HTTP_303_SEE_OTHER)
-        return RedirectResponse(
-            build_auth_success_url(server_base_url, session.session_id), status_code=status.HTTP_303_SEE_OTHER
-        )
 
     await auth.save_inputs(session, inputs)
 

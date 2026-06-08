@@ -97,7 +97,7 @@ type ConnectionSummary = {
   expires_at?: string | null;
 };
 
-type ProviderResponse = {
+export type ProviderResponse = {
   name: string;
   display_name?: string;
   logo?: string | null;
@@ -110,6 +110,81 @@ type ProviderResponse = {
   metadata?: {
     description?: string;
   };
+  docs_url?: string | null;
+};
+
+export type ProviderClientDetail = {
+  client_id: string | null;
+  client_secret: string | null;
+  base_url: string | null;
+  api_url: string | null;
+  scopes: string[];
+};
+
+export type ProviderConfigurationField = {
+  name: string;
+  label: string;
+  secret: boolean;
+  default?: string | null;
+  pattern?: string | null;
+  pattern_hint?: string | null;
+};
+
+export type ProviderConnectionSummary = {
+  provider: string;
+  provider_display_name: string;
+  connection_name: string;
+  status: string;
+  auth_type: string;
+  account_label: string | null;
+  principal_id: string | null;
+};
+
+export type ProviderPrincipalUsage = {
+  principal_id: string;
+  email: string | null;
+  connections: ProviderConnectionSummary[];
+};
+
+export type ProviderDetail = {
+  provider: ProviderResponse;
+  account: {
+    principal_id: string | null;
+    role: string;
+    is_admin: boolean;
+  };
+  client: ProviderClientDetail | null;
+  configuration_fields: ProviderConfigurationField[];
+  configuration_warning: string | null;
+  show_callback_helper: boolean;
+  callback_url: string | null;
+  connections: ProviderConnectionSummary[];
+  principal_usage: ProviderPrincipalUsage[];
+};
+
+export type ConnectionDetail = {
+  provider: string;
+  provider_display_name: string;
+  connection_name: string;
+  principal_id: string | null;
+  identity: string | null;
+  vault_id: string | null;
+  status: string;
+  auth_type: string;
+  base_url: string | null;
+  api_url: string | null;
+  scopes: string[];
+  token_type: string | null;
+  obtained_at: string | null;
+  expires_at: string | null;
+  account: Record<string, unknown> | null;
+  secrets: {
+    access_token: string | null;
+    refresh_token: string | null;
+    api_key: string | null;
+    credentials: Record<string, string>;
+  };
+  can_set_default: boolean;
 };
 
 type ConnectionsResponse = {
@@ -183,6 +258,31 @@ async function requestJson<T>(path: string): Promise<T> {
     headers: {
       Accept: "application/json",
     },
+  });
+
+  if (!response.ok) {
+    let message = response.statusText || "Request failed";
+    try {
+      const payload = (await response.json()) as { detail?: string; message?: string };
+      message = payload.detail || payload.message || message;
+    } catch {
+      // Status is sufficient for the UI's failure modes.
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function sendJson<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+    },
+    ...init,
   });
 
   if (!response.ok) {
@@ -403,4 +503,48 @@ export async function fetchSessionDevice(sessionId: string): Promise<SessionDevi
 
 export async function fetchAuthSessionStatus(sessionId: string): Promise<AuthSessionStatus> {
   return requestJson<AuthSessionStatus>(`/api/auth/sessions/${encodeURIComponent(sessionId)}/status`);
+}
+
+export async function fetchProviderDetail(provider: string): Promise<ProviderDetail> {
+  return requestJson<ProviderDetail>(`/api/providers/${encodeURIComponent(provider)}/detail`);
+}
+
+export async function updateProviderConfiguration(
+  provider: string,
+  payload: Record<string, string | undefined>,
+): Promise<{ status: "ok"; changed: boolean; provider: string }> {
+  return sendJson(`/api/providers/${encodeURIComponent(provider)}/configuration`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchConnectionDetail(
+  provider: string,
+  connection: string,
+  principal?: string,
+): Promise<ConnectionDetail> {
+  const query = principal ? `?principal=${encodeURIComponent(principal)}` : "";
+  return requestJson<ConnectionDetail>(
+    `/api/connections/${encodeURIComponent(provider)}/${encodeURIComponent(connection)}/detail${query}`,
+  );
+}
+
+export async function logoutConnection(
+  provider: string,
+  connection: string,
+  principal?: string,
+): Promise<{ status: string }> {
+  const query = principal ? `?principal=${encodeURIComponent(principal)}` : "";
+  return sendJson(`/api/connections/${encodeURIComponent(provider)}/${encodeURIComponent(connection)}/logout${query}`, {
+    method: "POST",
+    body: "{}",
+  });
+}
+
+export async function revokeProvider(provider: string): Promise<{ status: string; provider?: string }> {
+  return sendJson(`/api/connections/${encodeURIComponent(provider)}/revoke`, {
+    method: "POST",
+    body: "{}",
+  });
 }

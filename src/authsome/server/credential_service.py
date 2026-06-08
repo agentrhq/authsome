@@ -226,6 +226,21 @@ class CredentialService:
             )
         return record
 
+    async def list_connection_records(self, provider: str) -> list[ConnectionRecord]:
+        """Return stored connection records for a provider in this service's vault."""
+        keys = await self._credentials.list_connection_keys()
+        records: list[ConnectionRecord] = []
+        for key in keys:
+            parts = parse_store_key(key)
+            if parts.record_type != "connection" or not parts.provider or not parts.connection:
+                continue
+            if parts.provider != provider:
+                continue
+            record = await self._credentials.get_connection(parts.provider, parts.connection)
+            if record is not None:
+                records.append(record)
+        return records
+
     async def resolve_connection_name(self, provider: str, connection: str | None = None) -> str:
         """Resolve an optional connection name to the provider default."""
         if connection:
@@ -354,7 +369,17 @@ class CredentialService:
             client_record=client_record,
             scopes=scopes,
             base_url=base_url,
-            provider_config_only=bool(session.payload.get("provider_config_only")),
+        )
+
+    async def get_provider_configuration_inputs(self, provider: str) -> list[InputField]:
+        """Return provider-level configuration fields for admin management UI."""
+        definition = await self.get_provider(provider)
+        client_record = await self._credentials.get_provider_client(provider)
+        return required_inputs(
+            provider=definition,
+            flow_type=definition.flow,
+            client_record=client_record,
+            provider_config_only=True,
         )
 
     async def save_inputs(self, session: AuthSession, inputs: dict[str, str]) -> None:
