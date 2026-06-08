@@ -399,7 +399,7 @@ function SessionInputFieldControl({ field }: { field: SessionInputField }) {
         defaultValue={field.default || ""}
         name={field.name}
         pattern={field.pattern || undefined}
-        required
+        required={field.required !== false}
         type={field.secret ? "password" : "text"}
       />
       {field.pattern_hint ? (
