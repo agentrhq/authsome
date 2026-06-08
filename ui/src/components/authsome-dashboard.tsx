@@ -1336,6 +1336,7 @@ function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; onRefre
   const displayName = detailProviderDisplayName(data);
   const initial = (displayName[0] || "?").toUpperCase();
   const description = data.provider.description || data.provider.metadata?.description || "";
+  const showsConfiguration = data.provider.auth_type !== "api_key";
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -1363,20 +1364,22 @@ function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; onRefre
         <ProviderUsage data={data} />
       </div>
       <div className="grid content-start gap-5">
-        {data.account.is_admin ? (
-          <ProviderConfigurationForm
-            data={data}
-            key={data.configuration_fields.map((field) => `${field.name}:${field.default || ""}`).join("|")}
-            onRefresh={onRefresh}
-          />
-        ) : (
-          <Card className="border-border/50 shadow-none">
-            <CardHeader>
-              <CardTitle>Configuration</CardTitle>
-              <CardDescription>Managed by the admin.</CardDescription>
-            </CardHeader>
-          </Card>
-        )}
+        {showsConfiguration ? (
+          data.account.is_admin ? (
+            <ProviderConfigurationForm
+              data={data}
+              key={data.configuration_fields.map((field) => `${field.name}:${field.default || ""}`).join("|")}
+              onRefresh={onRefresh}
+            />
+          ) : (
+            <Card className="border-border/50 shadow-none">
+              <CardHeader>
+                <CardTitle>Configuration</CardTitle>
+                <CardDescription>Managed by the admin.</CardDescription>
+              </CardHeader>
+            </Card>
+          )
+        ) : null}
         <Card className="border-border/50 shadow-none">
           <CardHeader>
             <CardTitle>Connect</CardTitle>
