@@ -195,12 +195,20 @@ class DeviceCodeFlow(AuthFlow):
                         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                         "device_code": device_code,
                     }
-                    if client_id:
-                        payload["client_id"] = client_id
-                    if client_secret:
-                        payload["client_secret"] = client_secret
+                    auth: tuple[str, str] | None = None
+                    if provider.oauth.authorization_method == "basic":
+                        auth = (client_id or "", client_secret or "")
+                    else:
+                        if client_id:
+                            payload["client_id"] = client_id
+                        if client_secret:
+                            payload["client_secret"] = client_secret
                     resp = requests.post(
-                        provider.oauth.token_url, data=payload, headers={"Accept": "application/json"}, timeout=30
+                        provider.oauth.token_url,
+                        data=payload,
+                        headers={"Accept": "application/json"},
+                        auth=auth,
+                        timeout=30,
                     )
             except requests.RequestException as exc:
                 logger.warning("Token poll request failed: {}, retrying...", exc)

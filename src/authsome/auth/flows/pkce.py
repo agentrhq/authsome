@@ -46,6 +46,7 @@ class PkceFlow(AuthFlow):
 
         state = secrets.token_urlsafe(32)
         auth_params: dict[str, str] = {
+            **provider.oauth.authorization_params,
             "response_type": "code",
             "client_id": client_id,
             "redirect_uri": redirect_uri,
@@ -147,17 +148,23 @@ class PkceFlow(AuthFlow):
             "grant_type": "authorization_code",
             "code": auth_code,
             "redirect_uri": redirect_uri,
-            "client_id": client_id,
             "code_verifier": code_verifier,
         }
-        if client_secret:
-            payload["client_secret"] = client_secret
+
+        auth: tuple[str, str] | None = None
+        if provider.oauth.authorization_method == "basic":
+            auth = (client_id, client_secret or "")
+        else:
+            payload["client_id"] = client_id
+            if client_secret:
+                payload["client_secret"] = client_secret
 
         try:
             resp = http_client.post(
                 provider.oauth.token_url,
                 data=payload,
                 headers={"Accept": "application/json"},
+                auth=auth,
                 timeout=30,
             )
             resp.raise_for_status()

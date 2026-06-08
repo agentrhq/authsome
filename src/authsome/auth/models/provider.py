@@ -19,10 +19,12 @@ class OAuthConfig(BaseModel):
     #: ``json`` = poll token URL with ``POST`` JSON body ``{"device_code": "..."}`` (e.g. Postiz CLI auth).
     device_token_request: Literal["oauth2_form", "json"] = "oauth2_form"
     scopes: list[str] = Field(default_factory=list)
+    authorization_params: dict[str, str] = Field(default_factory=dict)
     pkce: bool = True
     supports_device_code: bool = False
     supports_dcr: bool = False
     base_url: str | None = None
+    authorization_method: Literal["body", "basic"] = "body"
 
     model_config = {"extra": "allow"}
 

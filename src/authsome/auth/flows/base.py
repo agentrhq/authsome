@@ -133,15 +133,20 @@ class AuthFlow(ABC):
         payload: dict[str, str] = {
             "grant_type": "refresh_token",
             "refresh_token": record.refresh_token,
-            "client_id": client_id,
         }
-        if client_secret:
-            payload["client_secret"] = client_secret
+        auth: tuple[str, str] | None = None
+        if provider.oauth.authorization_method == "basic":
+            auth = (client_id, client_secret or "")
+        else:
+            payload["client_id"] = client_id
+            if client_secret:
+                payload["client_secret"] = client_secret
 
         resp = http_client.post(
             provider.oauth.token_url,
             data=payload,
             headers={"Accept": "application/json"},
+            auth=auth,
             timeout=30,
         )
         resp.raise_for_status()
