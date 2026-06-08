@@ -17,15 +17,17 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: "pnpm"
           cache-dependency-path: ui/pnpm-lock.yaml
-
-      - name: Enable pnpm
-        run: corepack enable
 
       - name: Build static UI
         run: ./scripts/build-ui.sh
