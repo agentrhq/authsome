@@ -9,6 +9,7 @@ from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.cli.identity import RuntimeIdentity
 from authsome.server.app import create_app
 from authsome.server.credential_repository import build_store_key
+from authsome.server.routes._deps import UI_SESSION_COOKIE_NAME
 from tests.server.test_pop_auth import _auth_header
 
 
@@ -125,3 +126,26 @@ def test_admin_logout_targets_other_principal_connection(monkeypatch, tmp_path: 
         missing = client.get(detail_path, headers=_auth_header(tmp_path, "GET", detail_path, handle=admin.handle))
 
     assert missing.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_admin_browser_session_can_revoke_provider(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    with TestClient(create_app()) as client:
+        admin = _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
+        admin_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity=admin.handle))
+        _put_connection(client, admin_ctx.principal_id, admin_ctx.vault_id, "default", auth_type=AuthType.API_KEY)
+        session = client.app.state.ui_sessions.create_browser_session(
+            principal_id=admin_ctx.principal_id,
+            email="admin@example.com",
+        )
+        client.cookies.set(UI_SESSION_COOKIE_NAME, client.app.state.ui_sessions.build_cookie_value(session.token))
+
+        response = client.post("/api/connections/github/revoke", json={})
+        assert response.status_code == status.HTTP_200_OK
+
+        detail = client.get(
+            "/api/connections/github/default/detail",
+            headers=_auth_header(tmp_path, "GET", "/api/connections/github/default/detail", handle=admin.handle),
+        )
+
+    assert detail.status_code == status.HTTP_404_NOT_FOUND

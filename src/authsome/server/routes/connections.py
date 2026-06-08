@@ -1,12 +1,12 @@
 """Connection routes."""
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from authsome.auth.models.enums import ExportFormat
+from authsome.identity.principal import PrincipalRole
 from authsome.server.analytics import capture_event
 from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
-    get_admin_auth_service,
     get_daemon_or_browser_auth_service,
     get_protected_auth_service,
     get_vault_registry,
@@ -129,14 +129,16 @@ async def logout(
 @router.post("/connections/{provider}/revoke")
 async def revoke(
     provider: str,
-    auth: CredentialService = Depends(get_admin_auth_service),
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
     vault_registry: VaultRegistry = Depends(get_vault_registry),
 ):
+    if auth.principal_role != PrincipalRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
     all_vaults = await vault_registry.list_all()
     vault_ids: list[str] = [v.vault_id for v in all_vaults] or ([auth.vault_id] if auth.vault_id else [])
     await auth.revoke(provider, vault_ids=vault_ids)
     capture_event(
-        auth.require_identity(),
+        _actor(auth),
         "connection revoked",
         {
             "provider": provider,

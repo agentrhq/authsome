@@ -1465,13 +1465,17 @@ function ProviderConfigurationForm({ data, onRefresh }: { data: ProviderDetail; 
 function RevokeProviderButton({ data, onRefresh }: { data: ProviderDetail; onRefresh: () => void }) {
   const [open, setOpen] = useState(false);
   const [working, setWorking] = useState(false);
+  const [message, setMessage] = useState("");
 
   async function revoke() {
     setWorking(true);
+    setMessage("");
     try {
       await revokeProvider(data.provider.name);
       setOpen(false);
       onRefresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Provider could not be revoked.");
     } finally {
       setWorking(false);
     }
@@ -1488,6 +1492,7 @@ function RevokeProviderButton({ data, onRefresh }: { data: ProviderDetail; onRef
             <DialogTitle>Revoke app</DialogTitle>
             <DialogDescription>All connections for this provider will be revoked.</DialogDescription>
           </DialogHeader>
+          {message ? <div className="text-sm text-destructive">{message}</div> : null}
           <DialogFooter>
             <Button onClick={() => setOpen(false)} type="button" variant="outline">
               Cancel
