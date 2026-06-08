@@ -88,17 +88,21 @@ class AuthFlow(ABC):
         if not revocation_url:
             return
 
-        def _do_revoke(token: str, token_type: str) -> None:
-            payload = {"token": token}
-            if client_id:
-                payload["client_id"] = client_id
-            if client_secret:
-                payload["client_secret"] = client_secret
+        use_basic = provider.oauth.client_secret_handling == "basic" if provider.oauth else False
 
+        def _do_revoke(token: str, token_type: str) -> None:
+            payload: dict[str, str] = {"token": token}
+            if not use_basic:
+                if client_id:
+                    payload["client_id"] = client_id
+                if client_secret:
+                    payload["client_secret"] = client_secret
             try:
                 http_client.post(
                     revocation_url,
-                    data=payload,
+                    data=None if use_basic else payload,
+                    json=payload if use_basic else None,
+                    auth=(client_id or "", client_secret or "") if use_basic else None,
                     timeout=15,
                 )
             except Exception as exc:
@@ -133,14 +137,19 @@ class AuthFlow(ABC):
         payload: dict[str, str] = {
             "grant_type": "refresh_token",
             "refresh_token": record.refresh_token,
-            "client_id": client_id,
         }
-        if client_secret:
-            payload["client_secret"] = client_secret
+
+        use_basic = provider.oauth.client_secret_handling == "basic"
+        if not use_basic:
+            payload["client_id"] = client_id
+            if client_secret:
+                payload["client_secret"] = client_secret
 
         resp = http_client.post(
             provider.oauth.token_url,
-            data=payload,
+            data=None if use_basic else payload,
+            json=payload if use_basic else None,
+            auth=(client_id, client_secret or "") if use_basic else None,
             headers={"Accept": "application/json"},
             timeout=30,
         )

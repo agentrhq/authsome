@@ -143,23 +143,29 @@ class PkceFlow(AuthFlow):
         code_verifier: str,
     ) -> dict[str, Any]:
         assert provider.oauth is not None
-        payload: dict[str, str] = {
+        body: dict[str, str] = {
             "grant_type": "authorization_code",
             "code": auth_code,
             "redirect_uri": redirect_uri,
-            "client_id": client_id,
             "code_verifier": code_verifier,
         }
-        if client_secret:
-            payload["client_secret"] = client_secret
+
+        use_basic = provider.oauth.client_secret_handling == "basic"
+        if not use_basic:
+            body["client_id"] = client_id
+            if client_secret:
+                body["client_secret"] = client_secret
+
+        resp = http_client.post(
+            provider.oauth.token_url,
+            data=None if use_basic else body,
+            json=body if use_basic else None,
+            auth=(client_id, client_secret or "") if use_basic else None,
+            headers={"Accept": "application/json"},
+            timeout=30,
+        )
 
         try:
-            resp = http_client.post(
-                provider.oauth.token_url,
-                data=payload,
-                headers={"Accept": "application/json"},
-                timeout=30,
-            )
             resp.raise_for_status()
         except http_client.RequestException as exc:
             raise AuthenticationFailedError(f"Token exchange failed: {exc}", provider=provider.name) from exc
