@@ -18,7 +18,7 @@ curl http://localhost:7998/health
 
 The daemon is now available at `http://localhost:7998`.
 
-Point agents at it by setting:
+Authsome clients use hosted Authsome by default. Point agents at this self-hosted daemon by setting:
 
 ```bash
 export AUTHSOME_BASE_URL=http://localhost:7998

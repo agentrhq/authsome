@@ -67,6 +67,10 @@ Authsome runs on Python 3.13 or newer. It ships as a single PyPI package with no
 </Tabs>
 
 <Note>
+  Authsome clients use hosted Authsome at `https://api.authsome.ai` by default. Set `AUTHSOME_BASE_URL` only when you want the CLI and proxy to use a local or self-hosted Authsome server.
+</Note>
+
+<Note>
   Every command in the docs is written as `authsome <subcommand>` and assumes you ran `uv tool install authsome` (or `pip install authsome`). If you skipped install and prefer one-off runs, prefix every command with `uvx authsome@latest` instead of `authsome`.
 </Note>
 
@@ -83,7 +87,7 @@ If `doctor` reports failures, see [Diagnose with doctor](/troubleshooting/doctor
 
 ## First-run initialization
 
-On `authsome init`, authsome initializes its home directory at `~/.authsome/`, creates a generated identity handle and Ed25519 DID, and registers that identity with the local daemon:
+On `authsome init`, authsome initializes its home directory at `~/.authsome/`, creates a generated identity handle and Ed25519 DID, and registers that identity with the configured Authsome server:
 
 ```text
 ~/.authsome/

@@ -9,7 +9,7 @@ Authsome interacts with environment variables in three roles: **inputs** that ch
 
 | Variable | Purpose |
 |----------|---------|
-| `AUTHSOME_BASE_URL` | The daemon URL. On client machines, set this to point the CLI and proxy at a remote daemon instead of auto-starting one locally. On the daemon host, set this to the public URL when behind a reverse proxy — authsome uses it to build OAuth callback URLs such as `/auth/callback/oauth`. Defaults to `http://127.0.0.1:7998`. |
+| `AUTHSOME_BASE_URL` | Runtime target and public URL. Defaults to `https://api.authsome.ai`. On client machines, set this to point the CLI and proxy at a local or self-hosted daemon. On the daemon host, set this to the public URL when behind a reverse proxy so authsome can build OAuth callback URLs such as `/auth/callback/oauth`. |
 | `AUTHSOME_HOME` | Override the default `~/.authsome` directory. Useful for tests, ephemeral environments, and per-project vaults. |
 | `HTTP_PROXY` / `HTTPS_PROXY` | Honored by authsome's own outbound HTTP requests (token endpoints, device flow polling). The proxy started by `authsome run` is **set** as these variables in the child process; it does not chain through them. |
 
@@ -28,7 +28,12 @@ export AUTHSOME_BASE_URL=https://authsome.internal.example.com
 uv run authsome list
 ```
 
-When running the daemon locally, you typically do not need to set `AUTHSOME_BASE_URL`.
+For local daemon mode, set `AUTHSOME_BASE_URL` explicitly:
+
+```bash
+export AUTHSOME_BASE_URL=http://127.0.0.1:7998
+authsome login github
+```
 
 ### Provider-specific input variables
 

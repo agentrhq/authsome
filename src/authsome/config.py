@@ -7,6 +7,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from authsome import __version__
 
+DEFAULT_BASE_URL = "https://api.authsome.ai"
+
 
 class AuthsomeConfig(BaseSettings):
     """Shared Authsome configuration resolved from environment variables."""
@@ -15,7 +17,7 @@ class AuthsomeConfig(BaseSettings):
 
     version: str = __version__
     home: Path = Field(default=Path.home() / ".authsome")
-    base_url: str = Field(default="http://127.0.0.1:7998")
+    base_url: str = Field(default=DEFAULT_BASE_URL)
 
     @property
     def client_home(self) -> Path:

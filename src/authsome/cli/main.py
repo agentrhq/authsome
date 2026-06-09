@@ -25,9 +25,10 @@ from authsome.config import get_authsome_config
 @common_options
 @click.pass_context
 def cli(ctx: click.Context, verbose: bool, log_file: str) -> None:
-    """Authsome: Portable local authentication library for AI agents and tools.
+    """Authsome: Credential broker for AI agents and tools.
 
-    Securely manage credentials and API keys for third-party providers from your terminal.
+    Uses hosted Authsome by default. Set AUTHSOME_BASE_URL to use a local daemon
+    or self-hosted Authsome server.
     """
     resolved = Path(log_file) if log_file else None
     setup_logging(verbose=verbose, log_file=resolved)

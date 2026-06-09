@@ -1,15 +1,16 @@
 """
-Authsome — A portable local authentication library for AI agents and developer tools.
+Authsome — A hosted-by-default authentication library for AI agents and developer tools.
 
 Provides credential management for third-party services with support for:
 - OAuth2 (PKCE, Device Code, DCR + PKCE)
 - API key management
-- Encrypted local storage (OS keyring or local file)
+- Encrypted credential storage
 
 Usage:
-    Run `authsome login openai` to start the local daemon and connect a
-    provider, then use `authsome run ...` to inject credentials through the
-    local proxy.
+    Run `authsome login openai` to connect a provider through the configured
+    Authsome server, then use `authsome run ...` to inject credentials through
+    the local proxy. Set `AUTHSOME_BASE_URL` to opt into a local or self-hosted
+    Authsome server.
 """
 
 from importlib.metadata import PackageNotFoundError as _PkgNotFoundError

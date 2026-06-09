@@ -269,7 +269,7 @@ async def run(ctx_obj: ContextObj, command: tuple[str]) -> None:
 @click.command()
 @auth_command
 async def init(ctx_obj: ContextObj) -> None:
-    """Initialize local storage and register a fresh profile."""
+    """Create a local identity and register it with the configured Authsome server."""
     home = get_authsome_config().home
     RuntimeIdentity.ensure_local(home)
 

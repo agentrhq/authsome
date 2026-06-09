@@ -110,6 +110,12 @@ Requires Python 3.13+.
 uv tool install authsome
 ```
 
+By default, the CLI talks to hosted Authsome at `https://api.authsome.ai`. To use a local or self-hosted daemon instead, set `AUTHSOME_BASE_URL`:
+
+```bash
+export AUTHSOME_BASE_URL=http://127.0.0.1:7998
+```
+
 ## Self-hosting
 
 Run a persistent daemon in Docker — no Python required on the host:
