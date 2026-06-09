@@ -19,7 +19,7 @@
       "offline.access"
     ],
     "pkce": true,
-    "client_secret_handling": "basic",
+    "authorization_method": "basic",
     "supports_device_code": false,
     "supports_dcr": false
   },
