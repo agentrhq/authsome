@@ -239,17 +239,19 @@ class DcrPkceFlow(AuthFlow):
             "code_verifier": code_verifier,
         }
 
-        use_basic = provider.oauth.client_secret_handling == "basic"
-        if not use_basic:
+        use_basic = provider.oauth.authorization_method == "basic"
+        auth: tuple[str, str] | None = None
+        if use_basic:
+            auth = (client_id, client_secret or "")
+        else:
             body["client_id"] = client_id
             if client_secret:
                 body["client_secret"] = client_secret
 
         resp = http_client.post(
             provider.oauth.token_url,
-            data=None if use_basic else body,
-            json=body if use_basic else None,
-            auth=(client_id, client_secret or "") if use_basic else None,
+            data=body,
+            auth=auth,
             headers={"Accept": "application/json"},
             timeout=30,
         )

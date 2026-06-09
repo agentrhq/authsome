@@ -88,11 +88,14 @@ class AuthFlow(ABC):
         if not revocation_url:
             return
 
-        use_basic = provider.oauth.client_secret_handling == "basic" if provider.oauth else False
+        use_basic = provider.oauth.authorization_method == "basic" if provider.oauth else False
 
         def _do_revoke(token: str, token_type: str) -> None:
             payload: dict[str, str] = {"token": token}
-            if not use_basic:
+            auth: tuple[str, str] | None = None
+            if use_basic:
+                auth = (client_id or "", client_secret or "")
+            else:
                 if client_id:
                     payload["client_id"] = client_id
                 if client_secret:
@@ -100,9 +103,8 @@ class AuthFlow(ABC):
             try:
                 http_client.post(
                     revocation_url,
-                    data=None if use_basic else payload,
-                    json=payload if use_basic else None,
-                    auth=(client_id or "", client_secret or "") if use_basic else None,
+                    data=payload,
+                    auth=auth,
                     timeout=15,
                 )
             except Exception as exc:

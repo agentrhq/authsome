@@ -18,7 +18,6 @@ class OAuthConfig(BaseModel):
     device_authorization_url: str | None = None
     #: ``json`` = poll token URL with ``POST`` JSON body ``{"device_code": "..."}`` (e.g. Postiz CLI auth).
     device_token_request: Literal["oauth2_form", "json"] = "oauth2_form"
-    client_secret_handling: Literal["post", "basic"] = "post"
     scopes: list[str] = Field(default_factory=list)
     authorization_params: dict[str, str] = Field(default_factory=dict)
     pkce: bool = True
