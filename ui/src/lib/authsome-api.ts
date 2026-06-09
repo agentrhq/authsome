@@ -199,6 +199,13 @@ type AuditResponse = {
   entries: Array<Record<string, unknown>>;
 };
 
+export type PrincipalRow = {
+  principal_id: string;
+  email: string;
+  role: string;
+  created_at: string;
+};
+
 export type ClaimStatus = {
   token: string;
   identity: string;
@@ -488,6 +495,11 @@ export async function fetchDashboard(): Promise<DashboardData> {
       events: buildAuditRows(audit.entries),
     },
   };
+}
+
+export async function fetchPrincipals(): Promise<PrincipalRow[]> {
+  const data = await requestJson<{ principals: PrincipalRow[] }>("/api/principals");
+  return data.principals;
 }
 
 export async function fetchClaimStatus(token: string): Promise<ClaimStatus> {

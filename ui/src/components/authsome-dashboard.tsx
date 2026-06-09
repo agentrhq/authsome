@@ -20,6 +20,7 @@ import {
   Search,
   Settings,
   UserRound,
+  Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -31,6 +32,7 @@ import {
   ApiError,
   ConnectionDetail,
   DashboardData,
+  PrincipalRow,
   ProviderDetail,
   ProviderView,
   SessionInputField,
@@ -38,6 +40,7 @@ import {
   fetchClaimStatus,
   fetchConnectionDetail,
   fetchDashboard,
+  fetchPrincipals,
   fetchProviderDetail,
   fetchSessionDevice,
   fetchSessionInput,
@@ -65,7 +68,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-type View = "dashboard" | "providers" | "connections" | "identities" | "vault" | "audit" | "settings";
+type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "vault" | "audit" | "settings";
 
 type NavItem = {
   id: View;
@@ -79,7 +82,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", href: "/", label: "Dashboard", icon: <AppWindow /> },
   { id: "providers", href: "/providers", label: "Providers", icon: <KeyRound /> },
   { id: "connections", href: "/connections", label: "Connections", icon: <Link2 /> },
-  { id: "identities", href: "/identities", label: "Identities", icon: <UserRound /> },
+  { id: "agents", href: "/agents", label: "Agents", icon: <UserRound /> },
+  { id: "principals", href: "/principal", label: "Principals", icon: <Users />, adminOnly: true },
   { id: "vault", href: "/vault", label: "Vault", icon: <Database /> },
   { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList />, adminOnly: true },
   { id: "settings", href: "/settings", label: "Settings", icon: <Settings /> },
@@ -187,6 +191,17 @@ export function AuthsomeLogin({ nextPath = NEXT_URL }: { nextPath?: string }) {
     return next.startsWith("/") && !next.startsWith("//") ? next : NEXT_URL;
   });
 
+  const [errorMessage] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("error") || "";
+  });
+
+  const [defaultTab] = useState(() => {
+    if (typeof window === "undefined") return "signin";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "register" ? "create" : "signin";
+  });
+
   return (
     <main className="flex min-h-screen items-center bg-background px-4 py-8 sm:px-6 lg:px-10">
       <section className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
@@ -209,7 +224,7 @@ export function AuthsomeLogin({ nextPath = NEXT_URL }: { nextPath?: string }) {
               <CardDescription>Use your Authsome account to continue.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs className="gap-6" defaultValue="signin">
+              <Tabs className="gap-6" defaultValue={defaultTab}>
                 <TabsList className="grid h-9 w-full grid-cols-2">
                   <TabsTrigger value="signin">Sign in</TabsTrigger>
                   <TabsTrigger value="create">Create account</TabsTrigger>
@@ -221,6 +236,12 @@ export function AuthsomeLogin({ nextPath = NEXT_URL }: { nextPath?: string }) {
                       Continue with an existing Authsome account.
                     </p>
                   </div>
+                  {defaultTab === "signin" && errorMessage ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                      <CircleAlert className="size-4 shrink-0" />
+                      {errorMessage}
+                    </div>
+                  ) : null}
                   <AccountForm
                     action="/api/auth/login"
                     autoComplete="current-password"
@@ -236,6 +257,12 @@ export function AuthsomeLogin({ nextPath = NEXT_URL }: { nextPath?: string }) {
                       Set up a new account for this dashboard.
                     </p>
                   </div>
+                  {defaultTab === "create" && errorMessage ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                      <CircleAlert className="size-4 shrink-0" />
+                      {errorMessage}
+                    </div>
+                  ) : null}
                   <AccountForm
                     action="/api/auth/register"
                     autoComplete="new-password"
@@ -819,7 +846,7 @@ function DashboardView({ data }: { data: DashboardData }) {
 
       <section>
         <div className="mb-4">
-          <h2 className="text-base font-semibold">Identities</h2>
+          <h2 className="text-base font-semibold">Agents</h2>
         </div>
         {data.identities.length ? (
           <div className="grid gap-2">
@@ -1083,15 +1110,16 @@ function ConnectionsView({
               <TableBody>
                 {filteredConnections.map((row) => (
                   <TableRow key={`${row.providerName}:${row.connectionName}`}>
-                    <TableCell className="font-medium">
+                    <TableCell>
                       <Link
+                        className="font-medium hover:underline underline-offset-4"
                         href={connectionDetailHref(row.providerName, row.connectionName)}
                       >
                         {row.connectionName}
                       </Link>
                     </TableCell>
-                    <TableCell>{row.providerDisplayName}</TableCell>
-                    <TableCell>{row.authTypeLabel}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.providerDisplayName}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.authTypeLabel}</TableCell>
                     <TableCell>
                       <StatusBadge status={row.status} />
                     </TableCell>
@@ -1108,34 +1136,114 @@ function ConnectionsView({
   );
 }
 
-function IdentitiesView({ data }: { data: DashboardData }) {
+function AgentsView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
-      <SectionHeader description="Local Ed25519 key pairs claimed to this account." title="Identities" />
-      <div className="grid gap-3">
-        {data.identities.length ? (
-          data.identities.map((identity) => (
-            <div
-              className="flex items-center justify-between rounded-lg border bg-card px-4 py-4"
-              key={identity.handle}
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-lg bg-muted">
-                  <UserRound className="size-4 text-muted-foreground" />
-                </span>
-                <div>
-                  <div className="font-medium">{identity.handle}</div>
-                </div>
-              </div>
-              {identity.isActive ? <Badge variant="outline">Active</Badge> : null}
+      <SectionHeader description="Local Ed25519 key pairs (agents) claimed to this account." title="Agents" />
+      <Card className="shadow-none border-border/50">
+        <CardContent className="p-0">
+          {data.identities.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agent</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.identities.map((identity) => (
+                  <TableRow key={identity.handle}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                          <UserRound className="size-3.5 text-muted-foreground" />
+                        </span>
+                        <span className="font-medium">{identity.handle}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {identity.isActive ? (
+                        <Badge className="border-emerald-800 bg-emerald-950/50 text-emerald-400" variant="outline">
+                          <CheckCircle2 />
+                          Active
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Inactive</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="p-8 text-center text-muted-foreground">No agents found.</div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function PrincipalsView() {
+  const { data, error } = useSWR<PrincipalRow[]>("authsome-principals", fetchPrincipals);
+
+  return (
+    <div className="grid gap-5">
+      <SectionHeader description="All registered principals and their account roles." title="Principals" />
+      <Card className="shadow-none border-border/50">
+        <CardContent className="p-0">
+          {error ? (
+            <div className="p-8 text-center text-sm text-destructive">
+              Failed to load principals.
             </div>
-          ))
-        ) : (
-          <div className="rounded-lg border border-dashed bg-muted/50 p-8 text-center text-muted-foreground">
-            No identities found.
-          </div>
-        )}
-      </div>
+          ) : !data ? (
+            <div className="divide-y">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div className="flex items-center gap-4 px-4 py-3" key={i}>
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-56" />
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : data.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Principal ID</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((principal) => (
+                  <TableRow key={principal.principal_id}>
+                    <TableCell className="font-medium">{principal.email || "-"}</TableCell>
+                    <TableCell>
+                      <span className="font-mono text-xs text-muted-foreground">{principal.principal_id}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={principal.role === "admin" ? "border-amber-800 bg-amber-950/50 text-amber-400" : ""}
+                        variant="outline"
+                      >
+                        {principal.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {principal.created_at ? new Date(principal.created_at).toISOString().slice(0, 10) : "-"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="p-8 text-center text-muted-foreground">No principals found.</div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1179,11 +1287,23 @@ function AuditView({ data }: { data: DashboardData }) {
               <TableBody>
                 {data.audit.events.map((event) => (
                   <TableRow key={event.eventId}>
-                    <TableCell className="whitespace-nowrap">{event.time}</TableCell>
+                    <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{event.time}</TableCell>
                     <TableCell className="font-medium">{event.event}</TableCell>
-                    <TableCell>{event.actor}</TableCell>
-                    <TableCell>{event.target}</TableCell>
-                    <TableCell>{event.status}</TableCell>
+                    <TableCell className="text-muted-foreground">{event.actor}</TableCell>
+                    <TableCell className="text-muted-foreground">{event.target}</TableCell>
+                    <TableCell>
+                      {event.status === "success" ? (
+                        <Badge className="border-emerald-800 bg-emerald-950/50 text-emerald-400" variant="outline">
+                          {event.status}
+                        </Badge>
+                      ) : event.status === "failure" || event.status === "error" ? (
+                        <Badge className="border-destructive/60 bg-destructive/10 text-destructive" variant="outline">
+                          {event.status}
+                        </Badge>
+                      ) : event.status ? (
+                        <Badge variant="outline">{event.status}</Badge>
+                      ) : null}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1754,7 +1874,8 @@ function ActiveView({ connectionFilter, data, view }: {
 }) {
   if (view === "providers") return <ProvidersView providers={data.providers} />;
   if (view === "connections") return <ConnectionsView connections={data.connections} initialFilter={connectionFilter} />;
-  if (view === "identities") return <IdentitiesView data={data} />;
+  if (view === "agents") return <AgentsView data={data} />;
+  if (view === "principals") return <PrincipalsView />;
   if (view === "vault") return <VaultView data={data} />;
   if (view === "audit" && data.account.isAdmin) return <AuditView data={data} />;
   if (view === "settings") return <SettingsView data={data} />;

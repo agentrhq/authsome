@@ -27,6 +27,7 @@ from authsome.server.routes.auth import router as auth_router
 from authsome.server.routes.connections import router as connections_router
 from authsome.server.routes.health import router as health_router
 from authsome.server.routes.identities import router as identities_router
+from authsome.server.routes.principals import router as principals_router
 from authsome.server.routes.providers import router as providers_router
 from authsome.server.routes.proxy import router as proxy_router
 from authsome.server.routes.ui import UiAuthRequiredError
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_browser_router)
     app.include_router(health_router, prefix="/api")
     app.include_router(identities_router, prefix="/api")
+    app.include_router(principals_router, prefix="/api")
     app.include_router(audit_router, prefix="/api")
     app.include_router(auth_router, prefix="/api")
     app.include_router(connections_router, prefix="/api")
