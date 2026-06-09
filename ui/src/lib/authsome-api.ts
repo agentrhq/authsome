@@ -212,6 +212,7 @@ export type SessionInputField = {
   label: string;
   secret: boolean;
   default?: string | null;
+  required?: boolean;
   pattern?: string | null;
   pattern_hint?: string | null;
 };

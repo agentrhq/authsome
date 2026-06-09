@@ -157,15 +157,18 @@ def required_inputs(  # noqa: PLR0913
         )
 
     needs_scopes = flow_type in (FlowType.PKCE, FlowType.DEVICE_CODE, FlowType.DCR_PKCE)
-    if needs_scopes and scopes is None and (provider_config_only or persisted_scopes is None):
-        default_scopes = ",".join(
-            persisted_scopes
-            if provider_config_only and persisted_scopes is not None
-            else provider.oauth.scopes
-            if provider.oauth and provider.oauth.scopes
-            else []
+
+    if needs_scopes and scopes is None and persisted_scopes is None:
+        default_scopes = ",".join(provider.oauth.scopes) if provider.oauth and provider.oauth.scopes else ""
+        fields.append(
+            InputField(
+                name="scopes",
+                label="Scopes (comma-separated)",
+                secret=False,
+                default=default_scopes,
+                required=False,
+            )
         )
-        fields.append(InputField(name="scopes", label="Scopes (comma-separated)", secret=False, default=default_scopes))
 
     if flow_type == FlowType.API_KEY:
         api_key_field = InputField(name="api_key", label="API Key", secret=True)
