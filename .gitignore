@@ -206,9 +206,8 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
-# Generated static dashboard bundle
+# Generated static dashboard bundle — run scripts/build-ui.sh before uv build
 src/authsome/ui/web/*
-!src/authsome/ui/web/.gitkeep
 
 # PyPI configuration file
 .pypirc
