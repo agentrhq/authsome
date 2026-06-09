@@ -61,8 +61,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSkeleton,
+  SidebarProvider,
+  SidebarRail,
+  SidebarSeparator,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -652,24 +668,41 @@ function AccountForm({
 
 function LoadingScreen() {
   return (
-    <main className="grid min-h-screen grid-cols-1 bg-background md:grid-cols-[240px_1fr]">
-      <aside className="hidden border-r bg-card p-5 md:block">
-        <Skeleton className="h-8 w-36" />
-        <div className="mt-8 grid gap-3">
-          {Array.from({ length: 7 }).map((_, index) => (
-            <Skeleton className="h-8 w-full" key={index} />
-          ))}
-        </div>
-      </aside>
-      <section className="p-6">
-        <Skeleton className="h-10 w-56" />
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton className="h-32 rounded-lg" key={index} />
-          ))}
-        </div>
-      </section>
-    </main>
+    <SidebarProvider>
+      <Sidebar collapsible="offcanvas">
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Skeleton className="h-9 w-full rounded-md" />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <SidebarMenuSkeleton key={i} showIcon />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-14 items-center border-b px-4">
+          <Skeleton className="size-8 rounded-md" />
+        </header>
+        <section className="p-6">
+          <Skeleton className="h-10 w-56" />
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton className="h-32 rounded-lg" key={i} />
+            ))}
+          </div>
+        </section>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
@@ -708,27 +741,25 @@ function DashboardDetailShell({
   title: string;
 }) {
   return (
-    <main className="min-h-screen bg-background">
-      <div className="md:grid md:grid-cols-[256px_1fr]">
-        <Sidebar activeView={activeView} data={data} />
-        <section className="min-w-0">
-          <Topbar />
-          <div className="mx-auto grid max-w-7xl gap-6 p-4 md:p-6">
-            <div>
-              <Button render={<Link href={backHref} />} size="sm" variant="ghost">
-                Back
-              </Button>
-              <h1 className="mt-3 text-2xl font-semibold leading-tight text-foreground">{title}</h1>
-            </div>
-            {children}
+    <SidebarProvider>
+      <AppSidebar activeView={activeView} data={data} />
+      <SidebarInset>
+        <Topbar />
+        <div className="grid gap-6 p-4 md:p-6">
+          <div>
+            <Button render={<Link href={backHref} />} size="sm" variant="ghost">
+              Back
+            </Button>
+            <h1 className="mt-3 text-2xl font-semibold leading-tight text-foreground">{title}</h1>
           </div>
-        </section>
-      </div>
-    </main>
+          {children}
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
-function Sidebar({
+function AppSidebar({
   activeView,
   data,
 }: {
@@ -738,74 +769,75 @@ function Sidebar({
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || data.account.isAdmin);
 
   return (
-    <aside className="flex border-r bg-sidebar md:min-h-screen md:w-64 md:flex-col">
-      <div className="hidden border-b px-5 py-4 md:block">
-        <div className="flex items-center gap-2">
-          <img alt="Authsome" className="size-7" src="/logo.svg" />
-          <span className="text-sm font-semibold">Authsome</span>
-        </div>
-      </div>
-      <ScrollArea className="w-full md:flex-1">
-        <nav className="flex gap-1 overflow-x-auto p-3 md:grid md:gap-1 md:overflow-visible">
-          {items.map((item) => (
-            <Link
-              className={cn(
-                "inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:w-full",
-                activeView === item.id && "bg-sidebar-accent text-sidebar-accent-foreground",
-              )}
-              href={item.href}
-              key={item.id}
-            >
-              <span className="[&_svg]:size-4">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </ScrollArea>
-      <div className="hidden border-t md:block">
-        <div className="border-b px-4 py-3">
+    <Sidebar collapsible="offcanvas">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" render={<Link href="/" />}>
+              <img alt="Authsome" className="size-5 shrink-0" src="/logo.svg" />
+              <span className="font-semibold">Authsome</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.id}>
+                  <SidebarMenuButton
+                    render={<Link href={item.href} />}
+                    isActive={activeView === item.id}
+                    tooltip={item.label}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton render={<a href="https://authsome.ai/docs" rel="noreferrer" target="_blank" />}>
+              <BookOpen />
+              <span>Docs</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton render={<a href="https://github.com/agentrhq/authsome" rel="noreferrer" target="_blank" />}>
+              <GitBranch />
+              <span>GitHub</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton render={<a href="https://authsome.ai/support" rel="noreferrer" target="_blank" />}>
+              <LifeBuoy />
+              <span>Support</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <SidebarSeparator />
+        <div className="px-2 py-1">
           <div className="truncate text-sm font-medium">{data.account.email || data.account.identity}</div>
           {data.account.roleLabel ? (
             <div className="mt-0.5 text-xs text-muted-foreground">{data.account.roleLabel}</div>
           ) : null}
         </div>
-        <nav className="grid gap-1 p-3">
-          <a
-            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            href="https://authsome.ai/docs"
-            rel="noreferrer"
-            target="_blank"
-          >
-            <BookOpen className="size-4" />
-            Docs
-          </a>
-          <a
-            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            href="https://github.com/agentrhq/authsome"
-            rel="noreferrer"
-            target="_blank"
-          >
-            <GitBranch className="size-4" />
-            GitHub
-          </a>
-          <a
-            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            href="https://authsome.ai/support"
-            rel="noreferrer"
-            target="_blank"
-          >
-            <LifeBuoy className="size-4" />
-            Support
-          </a>
-        </nav>
-      </div>
-    </aside>
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
   );
 }
 
 function Topbar() {
   return (
-    <header className="flex min-h-14 items-center justify-end gap-3 border-b bg-card px-4 py-3 md:px-6">
+    <header className="flex min-h-14 items-center justify-between gap-3 border-b bg-card px-4 py-3 md:px-6">
+      <SidebarTrigger />
       <form action="/api/logout" method="post">
         <input name="return_url" type="hidden" value={NEXT_URL} />
         <Button size="sm" type="submit" variant="ghost">
@@ -1252,17 +1284,19 @@ function VaultView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Credential namespace for this account." title="Vault" />
-      <Card className="shadow-none border-border/50 max-w-md">
-        <CardHeader>
-          <CardTitle>Default Vault</CardTitle>
-          <CardDescription>{data.vault.isDefault ? "Active for this account" : "Vault binding"}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <KeyValue label="Handle" value={data.vault.handle} />
-          <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
-          <KeyValue label="Principal ID" value={data.account.principalId || "-"} />
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="shadow-none border-border/50">
+          <CardHeader>
+            <CardTitle>Default Vault</CardTitle>
+            <CardDescription>{data.vault.isDefault ? "Active for this account" : "Vault binding"}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <KeyValue label="Handle" value={data.vault.handle} />
+            <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
+            <KeyValue label="Principal ID" value={data.account.principalId || "-"} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -1902,20 +1936,18 @@ export function AuthsomeDashboard({ connectionFilter, view = "dashboard" }: { co
   if (!data) return <LoadingScreen />;
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="md:grid md:grid-cols-[256px_1fr]">
-        <Sidebar activeView={activeView} data={data} />
-        <section className="min-w-0">
-          <Topbar />
-          <div className="mx-auto grid max-w-7xl gap-6 p-4 md:p-6">
-            <ActiveView
-              connectionFilter={connectionFilter}
-              data={data}
-              view={activeView}
-            />
-          </div>
-        </section>
-      </div>
-    </main>
+    <SidebarProvider>
+      <AppSidebar activeView={activeView} data={data} />
+      <SidebarInset>
+        <Topbar />
+        <div className="grid gap-6 p-4 md:p-6">
+          <ActiveView
+            connectionFilter={connectionFilter}
+            data={data}
+            view={activeView}
+          />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
