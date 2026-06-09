@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "name": "google-chat",
+  "display_name": "Google Chat",
+  "logo": "img.logo.dev/name/google-chat",
+  "description": "Google Chat access for sending and managing messages and spaces via the Chat API.",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "https://chat.googleapis.com/v1",
+  "oauth": {
+    "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
+    "token_url": "https://oauth2.googleapis.com/token",
+    "revocation_url": "https://oauth2.googleapis.com/revoke",
+    "device_authorization_url": "https://oauth2.googleapis.com/device/code",
+    "scopes": [
+      "openid",
+      "profile",
+      "https://www.googleapis.com/auth/chat.messages"
+    ],
+    "pkce": true,
+    "supports_device_code": true,
+    "supports_dcr": false
+  },
+  "export": {
+    "GOOGLE_CHAT_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
