@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.6.2](https://github.com/agentrhq/authsome/compare/authsome-v0.6.1...authsome-v0.6.2) (2026-06-09)
+
+
+### Features
+
+* add bundled providers for 14 Google Workspace and API services ([a389bf7](https://github.com/agentrhq/authsome/commit/a389bf7078cbe44e61bfe1c3c5f6b7b5436b6429))
+* add bundled providers for 14 Google Workspace and API services ([0a88fef](https://github.com/agentrhq/authsome/commit/0a88fef824de7a0de94b5fbeeef0092dbebd0711))
+* add bundled providers for Jira, Confluence, YouTube, Vertex AI, Todoist, Cloudflare, Outlook, Word, Calendar, and Zoom ([2e7d2f6](https://github.com/agentrhq/authsome/commit/2e7d2f6dae0b2a98516dd44d0c447950639fb061))
+* add client_secret_handling support for basic auth and update OAuth flows accordingly ([b3bceae](https://github.com/agentrhq/authsome/commit/b3bceaeae93cd9a6d0dafd39ef4fd8ae237992ff))
+* add Reddit OAuth2 bundled provider ([2d66ac9](https://github.com/agentrhq/authsome/commit/2d66ac96ab220a374e1bcbddc823b341f842b907))
+* add required field support to InputField and update UI components to respect optionality ([19a40fe](https://github.com/agentrhq/authsome/commit/19a40fe91cb228d21ffc25cd598bf11fe032007c))
+* add required field support to InputField and update UI components to respect optionality ([3b7b175](https://github.com/agentrhq/authsome/commit/3b7b175b70a40958808264621d6777835bd56c16))
+* enable admin browser sessions for provider revocation and add error handling to UI button ([73c5843](https://github.com/agentrhq/authsome/commit/73c58437b61d5ece377d07fbed2e7f4621cc970b))
+* Fix failing tests ([6fe1107](https://github.com/agentrhq/authsome/commit/6fe11073c829a86d7e114b04d1bfa4d367d67c24))
+* hide configuration UI for API key providers ([39caabe](https://github.com/agentrhq/authsome/commit/39caabec157a66bac09d28c73dd7e852cdc2c99b))
+* implement provider and connection detail endpoints with UI support for configuration management and status monitoring ([11d2166](https://github.com/agentrhq/authsome/commit/11d21661096d7680b9d756c7332714945a34319c))
+* Improve UI ([9f622ec](https://github.com/agentrhq/authsome/commit/9f622ec1ab7ec50643c517a81246ace01ec8e476))
+* Improve UI ([3a7a7b8](https://github.com/agentrhq/authsome/commit/3a7a7b8aea8bde69707f6f0e63e356408518a19e))
+
+
+### Bug Fixes
+
+* bundle static UI assets into wheel ([74be6b9](https://github.com/agentrhq/authsome/commit/74be6b97243bdf1c690f19881084b66d60d702ae))
+* bundle static UI assets into wheel ([745f1a2](https://github.com/agentrhq/authsome/commit/745f1a28d41e016dcb7650e8622dbbb0cb93987b))
+* use artifacts instead of force-include for wheel UI assets ([f345a18](https://github.com/agentrhq/authsome/commit/f345a189bf5db5252487fa4101487dc7a3935a1e))
+
 ## [0.6.1](https://github.com/agentrhq/authsome/compare/authsome-v0.6.0...authsome-v0.6.1) (2026-06-06)
 
 
