@@ -65,6 +65,9 @@ authsome = "authsome.cli.main:cli"
 [tool.hatch.build.targets.wheel]
 packages = ["src/authsome"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/authsome/ui/web" = "authsome/ui/web"
+
 [tool.hatch.build.targets.sdist.force-include]
 "src/authsome/ui/web" = "src/authsome/ui/web"
 
