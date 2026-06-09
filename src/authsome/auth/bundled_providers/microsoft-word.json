@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "name": "microsoft-word",
+  "display_name": "Microsoft Word",
+  "logo": "img.logo.dev/name/microsoft-word",
+  "description": "Microsoft Word document access for reading and editing .docx files stored in OneDrive and SharePoint via Microsoft Graph.",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "https://graph.microsoft.com/v1.0/me/drive",
+  "oauth": {
+    "authorization_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    "revocation_url": null,
+    "device_authorization_url": "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode",
+    "scopes": [
+      "User.Read",
+      "Files.ReadWrite.All",
+      "Sites.ReadWrite.All",
+      "offline_access"
+    ],
+    "pkce": true,
+    "supports_device_code": true,
+    "supports_dcr": false
+  },
+  "export": {
+    "MICROSOFT_WORD_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
