@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.4](https://github.com/agentrhq/authsome/compare/authsome-v0.6.3...authsome-v0.6.4) (2026-06-09)
+
+
+### Bug Fixes
+
+* keep dashboard sidebar fixed in providers page ([168c51f](https://github.com/agentrhq/authsome/commit/168c51f5604960bd82fd0e73c7b359f8b23f6023))
+
 ## [0.6.3](https://github.com/agentrhq/authsome/compare/authsome-v0.6.2...authsome-v0.6.3) (2026-06-09)
 
 
