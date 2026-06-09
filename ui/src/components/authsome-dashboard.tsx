@@ -729,30 +729,22 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function DashboardDetailShell({
   activeView,
-  backHref,
   children,
   data,
-  title,
 }: {
   activeView: View;
-  backHref: string;
   children: ReactNode;
   data: DashboardData;
-  title: string;
 }) {
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar activeView={activeView} data={data} />
-      <SidebarInset>
+      <SidebarInset className="min-h-0">
         <Topbar />
-        <div className="grid gap-6 p-4 md:p-6">
-          <div>
-            <Button render={<Link href={backHref} />} size="sm" variant="ghost">
-              Back
-            </Button>
-            <h1 className="mt-3 text-2xl font-semibold leading-tight text-foreground">{title}</h1>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto grid w-full max-w-[86rem] gap-6 p-4 md:p-6">
+            {children}
           </div>
-          {children}
         </div>
       </SidebarInset>
     </SidebarProvider>
@@ -1002,27 +994,30 @@ function providerSortRank(provider: ProviderView): number {
 }
 
 function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; provider: ProviderView }) {
+  const router = useRouter();
+
   return (
-    <Card className="flex h-full flex-col border-border/50 shadow-none transition-colors hover:border-border">
-      <CardHeader className="gap-4 pb-4">
+    <Card
+      className="flex h-full cursor-pointer flex-col border-border/50 shadow-none transition-all hover:border-border hover:bg-accent hover:shadow-sm"
+      onClick={() => router.push(providerDetailHref(provider.name))}
+    >
+      <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
-          <Link className="min-w-0 flex items-center gap-3" href={providerDetailHref(provider.name)}>
-            <ProviderLogo className="size-10" initial={provider.logoInitial} logo={provider.logo} />
-            <div className="min-w-0">
-              <CardTitle className="truncate text-base">{provider.displayName}</CardTitle>
-              <CardDescription className="truncate text-xs">
-                {provider.source === "custom" ? "Custom provider" : "Bundled provider"}
-              </CardDescription>
-            </div>
-          </Link>
+          <ProviderLogo className="size-10 shrink-0" initial={provider.logoInitial} logo={provider.logo} />
           <StatusBadge status={provider.status} />
         </div>
+        <div className="mt-1">
+          <CardTitle className="text-base leading-tight">{provider.displayName}</CardTitle>
+          <CardDescription className="mt-0.5 text-xs">
+            {provider.source === "custom" ? "Custom provider" : "Bundled provider"}
+          </CardDescription>
+        </div>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4">
-        <p className="min-h-12 text-sm leading-6 text-muted-foreground">
+      <CardContent className="flex flex-1 flex-col gap-4 pt-0">
+        <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
           {provider.description || "Connect this provider to store and inject credentials from your Authsome vault."}
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <Badge variant="outline">{provider.authTypeLabel}</Badge>
           {provider.connectionCount ? (
             <Badge variant="outline">
@@ -1030,21 +1025,27 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
             </Badge>
           ) : null}
         </div>
-        {provider.requiresNamedLogin ? (
-          <Button className="mt-auto w-full" onClick={onNamedLogin} type="button">
-            <LogIn />
-            Connect
-          </Button>
-        ) : (
-          <form action={`/api/auth/providers/${provider.name}/connect`} className="mt-auto" method="post">
-            <input name="connection" type="hidden" value="default" />
-            <input name="return_url" type="hidden" value={`/connections?provider=${provider.name}`} />
-            <Button className="w-full" type="submit">
+        <div className="mt-auto" onClick={(e) => e.stopPropagation()}>
+          {provider.requiresNamedLogin ? (
+            <Button
+              className="w-full"
+              onClick={(e) => { e.preventDefault(); onNamedLogin(); }}
+              type="button"
+            >
               <LogIn />
               Connect
             </Button>
-          </form>
-        )}
+          ) : (
+            <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
+              <input name="connection" type="hidden" value="default" />
+              <input name="return_url" type="hidden" value={`/connections?provider=${provider.name}`} />
+              <Button className="w-full" type="submit">
+                <LogIn />
+                Connect
+              </Button>
+            </form>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -1480,7 +1481,7 @@ export function AuthsomeProviderDetail({ provider }: { provider: string }) {
   if (!dashboard || !data) return <LoadingScreen />;
 
   return (
-    <DashboardDetailShell activeView="providers" backHref="/providers" data={dashboard} title={detailProviderDisplayName(data)}>
+    <DashboardDetailShell activeView="providers" data={dashboard}>
       <ProviderDetailBody data={data} onRefresh={() => { void mutate(); void mutateDashboard(); }} />
     </DashboardDetailShell>
   );
@@ -1493,63 +1494,60 @@ function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; onRefre
   const showsConfiguration = data.provider.auth_type !== "api_key";
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="grid gap-5">
-        <Card className="border-border/50 shadow-none">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <ProviderLogo className="size-11" initial={initial} logo={data.provider.logo || null} />
-              <div className="min-w-0">
-                <CardTitle>{displayName}</CardTitle>
-                <CardDescription>{description || detailProviderApiUrl(data)}</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <KeyValue label="Provider" value={data.provider.name} />
-            <KeyValue label="Auth Type" value={detailAuthTypeLabel(data.provider.auth_type)} />
-            <KeyValue label="API URL" value={detailProviderApiUrl(data) || "-"} />
-            {data.provider.docs_url ? <KeyValue label="Docs" value={data.provider.docs_url} /> : null}
-            {data.show_callback_helper && data.callback_url ? (
-              <KeyValue label="OAuth Callback URL" value={data.callback_url} />
-            ) : null}
-          </CardContent>
-        </Card>
-        <ProviderUsage data={data} />
+    <div className="grid gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-6">
+        <div className="flex items-center gap-4">
+          <ProviderLogo className="size-12 shrink-0" initial={initial} logo={data.provider.logo || null} />
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold leading-tight text-foreground">{displayName}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {description || detailProviderApiUrl(data)}
+            </p>
+          </div>
+        </div>
+        <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
+          <input name="connection" type="hidden" value="default" />
+          <input name="return_url" type="hidden" value={providerDetailHref(data.provider.name)} />
+          <Button type="submit">
+            <LogIn />
+            New connection
+          </Button>
+        </form>
       </div>
-      <div className="grid content-start gap-5">
-        {showsConfiguration ? (
-          data.account.is_admin ? (
-            <ProviderConfigurationForm
-              data={data}
-              key={data.configuration_fields.map((field) => `${field.name}:${field.default || ""}`).join("|")}
-              onRefresh={onRefresh}
-            />
-          ) : (
-            <Card className="border-border/50 shadow-none">
-              <CardHeader>
-                <CardTitle>Configuration</CardTitle>
-                <CardDescription>Managed by the admin.</CardDescription>
-              </CardHeader>
-            </Card>
-          )
-        ) : null}
-        <Card className="border-border/50 shadow-none">
-          <CardHeader>
-            <CardTitle>Connect</CardTitle>
-            <CardDescription>Create a connection in the current vault.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
-              <input name="connection" type="hidden" value="default" />
-              <input name="return_url" type="hidden" value={providerDetailHref(data.provider.name)} />
-              <Button className="w-full" type="submit">
-                <LogIn />
-                Connect
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-5">
+          <Card className="border-border/50 shadow-none">
+            <CardContent className="grid gap-4 p-5 md:grid-cols-2">
+              <KeyValue label="Provider" value={data.provider.name} />
+              <KeyValue label="Auth Type" value={detailAuthTypeLabel(data.provider.auth_type)} />
+              <KeyValue label="API URL" value={detailProviderApiUrl(data) || "-"} />
+              {data.provider.docs_url ? <KeyValue label="Docs" value={data.provider.docs_url} /> : null}
+              {data.show_callback_helper && data.callback_url ? (
+                <KeyValue label="OAuth Callback URL" value={data.callback_url} />
+              ) : null}
+            </CardContent>
+          </Card>
+          <ProviderUsage data={data} />
+        </div>
+        <div className="grid content-start gap-5">
+          {showsConfiguration ? (
+            data.account.is_admin ? (
+              <ProviderConfigurationForm
+                data={data}
+                key={data.configuration_fields.map((field) => `${field.name}:${field.default || ""}`).join("|")}
+                onRefresh={onRefresh}
+              />
+            ) : (
+              <Card className="border-border/50 shadow-none">
+                <CardHeader>
+                  <CardTitle>Configuration</CardTitle>
+                  <CardDescription>Managed by the admin.</CardDescription>
+                </CardHeader>
+              </Card>
+            )
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -1754,7 +1752,7 @@ export function AuthsomeConnectionDetail({
   if (!dashboard || !data) return <LoadingScreen />;
 
   return (
-    <DashboardDetailShell activeView="connections" backHref="/connections" data={dashboard} title={data.connection_name}>
+    <DashboardDetailShell activeView="connections" data={dashboard}>
       <ConnectionDetailBody data={data} onRefresh={() => { void mutate(); void mutateDashboard(); }} principal={principal} />
     </DashboardDetailShell>
   );
@@ -1793,28 +1791,30 @@ function ConnectionDetailBody({
   principal?: string;
 }) {
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
-      <Card className="border-border/50 shadow-none">
-        <CardHeader>
-          <CardTitle>{data.provider_display_name}</CardTitle>
-          <CardDescription>
-            {data.provider} / {data.connection_name}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <KeyValue label="Status" value={data.status} />
-          <KeyValue label="Auth Type" value={data.auth_type} />
-          <KeyValue label="Principal ID" value={data.principal_id || "-"} />
-          <KeyValue label="Identity" value={data.identity || "-"} />
-          <KeyValue label="Scopes" value={data.scopes.join(", ") || "-"} />
-          <KeyValue label="Token Type" value={data.token_type || "-"} />
-          <KeyValue label="Obtained" value={data.obtained_at || "-"} />
-          <KeyValue label="Expires" value={data.expires_at || "-"} />
-          <KeyValue label="Base URL" value={data.base_url || "-"} />
-          <KeyValue label="API URL" value={data.api_url || "-"} />
-        </CardContent>
-      </Card>
-      <div className="grid content-start gap-5">
+    <div className="grid gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-6">
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">{data.provider_display_name}</p>
+          <h1 className="mt-0.5 text-2xl font-semibold leading-tight text-foreground">{data.connection_name}</h1>
+        </div>
+        <ConnectionActions data={data} onRefresh={onRefresh} principal={principal} />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <Card className="border-border/50 shadow-none">
+          <CardContent className="grid gap-4 p-5 md:grid-cols-2">
+            <KeyValue label="Status" value={data.status} />
+            <KeyValue label="Auth Type" value={data.auth_type} />
+            <KeyValue label="Principal ID" value={data.principal_id || "-"} />
+            <KeyValue label="Identity" value={data.identity || "-"} />
+            <KeyValue label="Scopes" value={data.scopes.join(", ") || "-"} />
+            <KeyValue label="Token Type" value={data.token_type || "-"} />
+            <KeyValue label="Obtained" value={data.obtained_at || "-"} />
+            <KeyValue label="Expires" value={data.expires_at || "-"} />
+            <KeyValue label="Base URL" value={data.base_url || "-"} />
+            <KeyValue label="API URL" value={data.api_url || "-"} />
+          </CardContent>
+        </Card>
         <Card className="border-border/50 shadow-none">
           <CardHeader>
             <CardTitle>Secrets</CardTitle>
@@ -1828,7 +1828,6 @@ function ConnectionDetailBody({
             ))}
           </CardContent>
         </Card>
-        <ConnectionActions data={data} onRefresh={onRefresh} principal={principal} />
       </div>
     </div>
   );
@@ -1858,29 +1857,26 @@ function ConnectionActions({
   }
 
   return (
-    <Card className="border-border/50 shadow-none">
-      <CardHeader>
-        <CardTitle>Actions</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3">
+    <>
+      <div className="flex flex-wrap items-center gap-2">
         {data.can_set_default ? (
           <form
             action={`/api/connections/${encodeURIComponent(data.provider)}/${encodeURIComponent(data.connection_name)}/default`}
             method="post"
           >
-            <Button className="w-full" type="submit" variant="outline">
+            <Button size="sm" type="submit" variant="outline">
               Set as default
             </Button>
           </form>
         ) : null}
-        <Button onClick={() => setOpen(true)} type="button" variant="destructive">
+        <Button render={<Link href={providerDetailHref(data.provider)} />} size="sm" type="button" variant="outline">
+          View provider
+        </Button>
+        <Button onClick={() => setOpen(true)} size="sm" type="button" variant="destructive">
           <LogOut />
           Logout
         </Button>
-        <Button render={<Link href={providerDetailHref(data.provider)} />} type="button" variant="outline">
-          View provider
-        </Button>
-      </CardContent>
+      </div>
       <Dialog onOpenChange={setOpen} open={open}>
         <DialogContent>
           <DialogHeader>
@@ -1897,7 +1893,7 @@ function ConnectionActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 }
 
