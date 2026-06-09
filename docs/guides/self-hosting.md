@@ -24,6 +24,8 @@ Authsome clients use hosted Authsome by default. Point agents at this self-hoste
 export AUTHSOME_BASE_URL=http://localhost:7998
 ```
 
+Because this is a self-hosted server, set `AUTHSOME_CALLBACK_BASE_URL` to the URL users can open in their browser for claim, input, and OAuth callback links. The Docker Compose quick start sets it to `http://localhost:7998`. Change it only when you bind the daemon to a different host or port, or put it behind a reverse proxy.
+
 ## Environment variables
 
 | Variable | Default | Description |
@@ -31,7 +33,8 @@ export AUTHSOME_BASE_URL=http://localhost:7998
 | `AUTHSOME_HOME` | `/data/authsome` | Root directory for credentials, keys, and the database |
 | `AUTHSOME_HOST` | `0.0.0.0` | Interface the daemon binds to inside the container |
 | `AUTHSOME_PORT` | `7998` | TCP port |
-| `AUTHSOME_BASE_URL` | _(derived from host:port)_ | Public URL used to build OAuth callback URLs. **Must be set when behind a reverse proxy.** On client machines, set this to point the CLI at a remote daemon. |
+| `AUTHSOME_BASE_URL` | `https://api.authsome.ai` | Client runtime target. On client machines, set this to point the CLI and proxy at a local or self-hosted daemon. |
+| `AUTHSOME_CALLBACK_BASE_URL` | `http://127.0.0.1:7998` | Server public URL used to build claim, input, and OAuth callback links. Set this only for self-hosted servers or local daemons running on a non-default browser-facing host or port. |
 | `AUTHSOME_ENCRYPTION_MODE` | `local_key` | `local_key` stores the master key on disk; `keyring` uses the OS keyring (not available in containers) |
 | `AUTHSOME_LOG_LEVEL` | `info` | Uvicorn log level (`debug`, `info`, `warning`, `error`) |
 | `AUTHSOME_ANALYTICS` | `1` | Set to `0` to disable telemetry |
@@ -83,7 +86,7 @@ services:
     expose:
       - "7998"
     environment:
-      AUTHSOME_BASE_URL: https://auth.example.com
+      AUTHSOME_CALLBACK_BASE_URL: https://auth.example.com
     volumes:
       - authsome-data:/data/authsome
 

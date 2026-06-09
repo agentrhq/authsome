@@ -116,6 +116,8 @@ By default, the CLI talks to hosted Authsome at `https://api.authsome.ai`. To us
 export AUTHSOME_BASE_URL=http://127.0.0.1:7998
 ```
 
+You only need `AUTHSOME_CALLBACK_BASE_URL` when you operate a self-hosted server or run a local daemon on a non-default host or port. Set it to the URL users can open in their browser for claim and OAuth callback links.
+
 ## Self-hosting
 
 Run a persistent daemon in Docker — no Python required on the host:

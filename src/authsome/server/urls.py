@@ -6,15 +6,17 @@ from authsome.server.config import get_server_config
 
 # Invariant: must match the OAuth callback route declared in routes/auth.py.
 DEFAULT_CALLBACK_PATH = "/api/auth/callback/oauth"
+DEFAULT_LOCAL_SERVER_BASE_URL = "http://127.0.0.1:7998"
 
 
 def build_server_base_url() -> str:
     """Return the canonical external base URL for the daemon."""
-    return get_server_config().base_url
+    config = get_server_config()
+    return config.callback_base_url or DEFAULT_LOCAL_SERVER_BASE_URL
 
 
 def _base_url(base_url: str | None = None) -> str:
-    return (base_url or get_server_config().base_url).rstrip("/")
+    return (base_url or build_server_base_url()).rstrip("/")
 
 
 def build_callback_url(base_url: str | None = None) -> str:

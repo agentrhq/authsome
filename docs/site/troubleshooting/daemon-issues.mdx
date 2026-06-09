@@ -63,7 +63,7 @@ echo $AUTHSOME_BASE_URL
 If it's set to a hosted URL that's currently unreachable:
 
 ```bash
-unset AUTHSOME_BASE_URL
+export AUTHSOME_BASE_URL=http://127.0.0.1:7998
 authsome whoami
 ```
 
@@ -72,7 +72,8 @@ The CLI will start a local daemon and verify it's reachable.
 If you do want a hosted daemon and it's unreachable, the fix is on the daemon host. Check that:
 
 - The daemon process is running there.
-- `AUTHSOME_BASE_URL` on the daemon matches the URL you're calling.
+- `AUTHSOME_BASE_URL` on the client matches the URL you're calling.
+- if this is self-hosted, `AUTHSOME_CALLBACK_BASE_URL` on the daemon host matches the browser-facing URL used for claim and OAuth callback links.
 - Ingress is allowed from your client's network (private VPC, VPN, or whatever the team uses).
 
 

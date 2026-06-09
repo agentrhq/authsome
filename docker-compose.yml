@@ -9,9 +9,9 @@ services:
       - authsome-data:/data/authsome
     environment:
       AUTHSOME_HOME: /data/authsome
-      # Set this to the public URL of this server so OAuth callbacks resolve correctly.
-      # Example: AUTHSOME_SERVER_BASE_URL: https://auth.example.com
-      AUTHSOME_SERVER_BASE_URL: ""
+      # Self-hosted servers need this public URL so OAuth callbacks resolve correctly.
+      # Example: AUTHSOME_CALLBACK_BASE_URL: https://auth.example.com
+      AUTHSOME_CALLBACK_BASE_URL: http://localhost:7998
       # Encryption mode: "local_key" (default) or "keyring"
       AUTHSOME_ENCRYPTION_MODE: local_key
       AUTHSOME_LOG_LEVEL: info

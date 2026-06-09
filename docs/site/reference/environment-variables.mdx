@@ -9,23 +9,31 @@ Authsome interacts with environment variables in three roles: **inputs** that ch
 
 | Variable | Purpose |
 |----------|---------|
-| `AUTHSOME_BASE_URL` | Runtime target and public URL. Defaults to `https://api.authsome.ai`. On client machines, set this to point the CLI and proxy at a local or self-hosted daemon. On the daemon host, set this to the public URL when behind a reverse proxy so authsome can build OAuth callback URLs such as `/auth/callback/oauth`. |
+| `AUTHSOME_BASE_URL` | Client runtime target. Defaults to `https://api.authsome.ai`. Set this on client machines to point the CLI and proxy at a local or self-hosted daemon. |
+| `AUTHSOME_CALLBACK_BASE_URL` | Server public URL used to build claim, input, device, success, and OAuth callback links. If unset, the server falls back to the default local daemon URL, `http://127.0.0.1:7998`. Set this only when you operate a self-hosted server or run a local daemon on a non-default browser-facing host or port. |
 | `AUTHSOME_HOME` | Override the default `~/.authsome` directory. Useful for tests, ephemeral environments, and per-project vaults. |
 | `HTTP_PROXY` / `HTTPS_PROXY` | Honored by authsome's own outbound HTTP requests (token endpoints, device flow polling). The proxy started by `authsome run` is **set** as these variables in the child process; it does not chain through them. |
 
-### `AUTHSOME_BASE_URL` for remote daemons
+### Runtime target and callback URL
 
 For remote daemon deployments:
 
 - set `AUTHSOME_BASE_URL` to the full daemon URL on client machines
-- set `AUTHSOME_BASE_URL` to the public-facing URL on the daemon host when behind a reverse proxy
+- set `AUTHSOME_CALLBACK_BASE_URL` on the daemon host only when you are self-hosting, such as behind a reverse proxy
 - when `AUTHSOME_BASE_URL` points at a non-local host, the CLI will not attempt to manage daemon state
 
-Example:
+Client example:
 
 ```bash
 export AUTHSOME_BASE_URL=https://authsome.internal.example.com
-uv run authsome list
+authsome provider list
+```
+
+Server example:
+
+```bash
+export AUTHSOME_CALLBACK_BASE_URL=https://authsome.internal.example.com
+authsome daemon serve
 ```
 
 For local daemon mode, set `AUTHSOME_BASE_URL` explicitly:
@@ -34,6 +42,8 @@ For local daemon mode, set `AUTHSOME_BASE_URL` explicitly:
 export AUTHSOME_BASE_URL=http://127.0.0.1:7998
 authsome login github
 ```
+
+The default local daemon address, `http://127.0.0.1:7998`, does not need `AUTHSOME_CALLBACK_BASE_URL`. If you run the local daemon on a custom host or port, also set `AUTHSOME_CALLBACK_BASE_URL` to the browser-facing URL. Authsome does not infer callback URLs from custom daemon bind flags.
 
 ### Provider-specific input variables
 

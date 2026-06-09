@@ -14,6 +14,7 @@ class ServerConfig(AuthsomeConfig):
     # Network
     host: str = "127.0.0.1"
     port: int = 7998
+    callback_base_url: str | None = None
 
     # Store
     database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
