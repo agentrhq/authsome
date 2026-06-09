@@ -138,19 +138,19 @@ class AuthFlow(ABC):
             "grant_type": "refresh_token",
             "refresh_token": record.refresh_token,
         }
-
-        use_basic = provider.oauth.client_secret_handling == "basic"
-        if not use_basic:
+        auth: tuple[str, str] | None = None
+        if provider.oauth.authorization_method == "basic":
+            auth = (client_id, client_secret or "")
+        else:
             payload["client_id"] = client_id
             if client_secret:
                 payload["client_secret"] = client_secret
 
         resp = http_client.post(
             provider.oauth.token_url,
-            data=None if use_basic else payload,
-            json=payload if use_basic else None,
-            auth=(client_id, client_secret or "") if use_basic else None,
+            data=payload,
             headers={"Accept": "application/json"},
+            auth=auth,
             timeout=30,
         )
         resp.raise_for_status()

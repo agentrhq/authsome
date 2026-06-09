@@ -46,6 +46,7 @@ class PkceFlow(AuthFlow):
 
         state = secrets.token_urlsafe(32)
         auth_params: dict[str, str] = {
+            **provider.oauth.authorization_params,
             "response_type": "code",
             "client_id": client_id,
             "redirect_uri": redirect_uri,
@@ -150,22 +151,22 @@ class PkceFlow(AuthFlow):
             "code_verifier": code_verifier,
         }
 
-        use_basic = provider.oauth.client_secret_handling == "basic"
-        if not use_basic:
+        auth: tuple[str, str] | None = None
+        if provider.oauth.authorization_method == "basic":
+            auth = (client_id, client_secret or "")
+        else:
             body["client_id"] = client_id
             if client_secret:
                 body["client_secret"] = client_secret
 
-        resp = http_client.post(
-            provider.oauth.token_url,
-            data=None if use_basic else body,
-            json=body if use_basic else None,
-            auth=(client_id, client_secret or "") if use_basic else None,
-            headers={"Accept": "application/json"},
-            timeout=30,
-        )
-
         try:
+            resp = http_client.post(
+                provider.oauth.token_url,
+                data=body,
+                headers={"Accept": "application/json"},
+                auth=auth,
+                timeout=30,
+            )
             resp.raise_for_status()
         except http_client.RequestException as exc:
             raise AuthenticationFailedError(f"Token exchange failed: {exc}", provider=provider.name) from exc
