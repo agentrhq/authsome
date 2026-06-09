@@ -49,7 +49,7 @@ import {
   updateProviderConfiguration,
 } from "@/lib/authsome-api";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -223,7 +223,7 @@ export function AuthsomeLogin({ nextPath = NEXT_URL }: { nextPath?: string }) {
       <section className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <div className="max-w-md">
           <div>
-            <img alt="Authsome" className="mb-8 size-11" src="/logo.svg" />
+            <Image alt="Authsome" className="mb-8 size-11" height={44} src="/logo.svg" width={44} />
             <h1 className="text-4xl font-semibold leading-tight text-foreground">
               Authsome
             </h1>
@@ -549,9 +549,9 @@ function AuthsomeSessionSuccess({ errorCode, sessionId }: { errorCode?: string; 
             <p className="truncate text-xs text-muted-foreground">{data.connection}</p>
           </div>
         </div>
-        <Button render={<Link href={isCompleted ? "/connections" : "/"} />}>
+        <Link className={buttonVariants()} href={isCompleted ? "/connections" : "/"}>
           {isCompleted ? "View connection" : "Back to dashboard"}
-        </Button>
+        </Link>
       </div>
     </ClaimShell>
   );
@@ -598,12 +598,14 @@ function AuthsomeSessionDevice({ sessionId }: { sessionId: string }) {
         <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center font-mono text-2xl font-semibold">
           {data.user_code}
         </div>
-        <Button
-          render={<a href={data.verification_uri_complete || data.verification_uri} rel="noreferrer" target="_blank" />}
-          type="button"
+        <Link
+          className={buttonVariants()}
+          href={data.verification_uri_complete || data.verification_uri}
+          rel="noreferrer"
+          target="_blank"
         >
           Open verification page
-        </Button>
+        </Link>
       </div>
     </ClaimShell>
   );
@@ -623,7 +625,7 @@ function ClaimShell({
       <section className="mx-auto w-full max-w-md">
         <Card className="border-border/70 shadow-none">
           <CardHeader>
-            <img alt="Authsome" className="mb-4 size-9" src="/logo.svg" />
+            <Image alt="Authsome" className="mb-4 size-9" height={36} src="/logo.svg" width={36} />
             <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </CardHeader>
@@ -766,7 +768,7 @@ function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/" />}>
-              <img alt="Authsome" className="size-5 shrink-0" src="/logo.svg" />
+              <Image alt="Authsome" className="size-5 shrink-0" height={20} src="/logo.svg" width={20} />
               <span className="font-semibold">Authsome</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -795,19 +797,19 @@ function AppSidebar({
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<a href="https://authsome.ai/docs" rel="noreferrer" target="_blank" />}>
+            <SidebarMenuButton render={<Link href="https://authsome.ai/docs" rel="noreferrer" target="_blank" />}>
               <BookOpen />
               <span>Docs</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<a href="https://github.com/agentrhq/authsome" rel="noreferrer" target="_blank" />}>
+            <SidebarMenuButton render={<Link href="https://github.com/agentrhq/authsome" rel="noreferrer" target="_blank" />}>
               <GitBranch />
               <span>GitHub</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<a href="https://authsome.ai/support" rel="noreferrer" target="_blank" />}>
+            <SidebarMenuButton render={<Link href="https://authsome.ai/support" rel="noreferrer" target="_blank" />}>
               <LifeBuoy />
               <span>Support</span>
             </SidebarMenuButton>
@@ -849,9 +851,9 @@ function DashboardView({ data }: { data: DashboardData }) {
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">Connected Apps</h2>
-          <Button render={<Link href="/providers" />} size="sm" variant="outline">
+          <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/providers">
             Browse
-          </Button>
+          </Link>
         </div>
         {data.connectedProviders.length ? (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -898,9 +900,9 @@ function DashboardView({ data }: { data: DashboardData }) {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold">Recent Events</h2>
-            <Button render={<Link href="/audit" />} size="sm" variant="ghost">
+            <Link className={buttonVariants({ size: "sm", variant: "ghost" })} href="/audit">
               View all
-            </Button>
+            </Link>
           </div>
           <Card className="shadow-none border-border/50">
             <CardContent className="p-0">
@@ -944,10 +946,10 @@ function EmptyBlock({ actionLabel, href, title }: { actionLabel: string; href: s
   return (
     <div className="rounded-lg border border-dashed bg-muted/50 p-6 text-center">
       <div className="font-medium">{title}</div>
-      <Button className="mt-4" render={<Link href={href} />} size="sm">
+      <Link className={cn(buttonVariants({ size: "sm" }), "mt-4")} href={href}>
         <Plus />
         {actionLabel}
-      </Button>
+      </Link>
     </div>
   );
 }
@@ -1452,9 +1454,9 @@ export function AuthsomeProviderDetailRoute() {
             <CardDescription>Open a provider from the dashboard to view its details.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button render={<Link href="/providers" />} type="button" variant="outline">
+            <Link className={buttonVariants({ variant: "outline" })} href="/providers">
               Back to providers
-            </Button>
+            </Link>
           </CardContent>
         </Card>
       </main>
@@ -1713,9 +1715,9 @@ export function AuthsomeConnectionDetailRoute() {
             <CardDescription>Open a connection from the dashboard to view its details.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button render={<Link href="/connections" />} type="button" variant="outline">
+            <Link className={buttonVariants({ variant: "outline" })} href="/connections">
               Back to connections
-            </Button>
+            </Link>
           </CardContent>
         </Card>
       </main>
@@ -1869,9 +1871,9 @@ function ConnectionActions({
             </Button>
           </form>
         ) : null}
-        <Button render={<Link href={providerDetailHref(data.provider)} />} size="sm" type="button" variant="outline">
+        <Link className={buttonVariants({ size: "sm", variant: "outline" })} href={providerDetailHref(data.provider)}>
           View provider
-        </Button>
+        </Link>
         <Button onClick={() => setOpen(true)} size="sm" type="button" variant="destructive">
           <LogOut />
           Logout
