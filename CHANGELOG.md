@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/agentrhq/authsome/compare/authsome-v0.6.2...authsome-v0.6.3) (2026-06-09)
+
+
+### Chores
+
+* manually bump yanked version
+
 ## [0.6.2](https://github.com/agentrhq/authsome/compare/authsome-v0.6.1...authsome-v0.6.2) (2026-06-09)
 
 
