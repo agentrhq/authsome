@@ -18,9 +18,9 @@ Perform a **web search** to determine what authentication methods the target ser
 
 ---
 
-## Step 2: Write the provider JSON
+## Step 2: Write the provider JSON (or JSONC)
 
-Create a `.json` file using one of the templates below.
+Create a `.json` or `.jsonc` file using one of the templates below.  JSONC files support `//` line comments and `/* */` block comments, which is useful for documenting non-obvious field choices.
 
 ### Template A — OAuth2 Provider
 
@@ -31,6 +31,7 @@ Create a `.json` file using one of the templates below.
   "display_name": "<Service Display Name>",
   "description": "Short description shown in the dashboard.",
   "logo": "https://example.com/logo.svg",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "dcr_pkce",
   "api_url": "https://example.com",
@@ -70,6 +71,7 @@ Create a `.json` file using one of the templates below.
   "display_name": "<Service Display Name>",
   "description": "Short description shown in the dashboard.",
   "logo": "https://example.com/logo.svg",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.example.com",
@@ -98,6 +100,7 @@ Create a `.json` file using one of the templates below.
 | `display_name` | Human-readable name (e.g., `"GitHub"`). |
 | `description` | Optional short dashboard description. |
 | `logo` | Optional logo URL shown in the dashboard. If omitted or unreachable, the dashboard falls back to provider initials. |
+| `type` | **Recommended.** Provider category: `"app"`, `"llm"`, or `"mcp"`. Used to filter and display providers by category. |
 | `auth_type` | `"oauth2"` or `"api_key"`. |
 | `flow` | Default flow. See flow selection guide below. |
 | `api_url` | **Recommended.** The API host for proxy routing (e.g., `"api.openai.com"`). Can be a bare host, a full URL, or a host regex prefixed with `regex:` (e.g., `"regex:^api[0-9]+\\.github\\.com$"`). |

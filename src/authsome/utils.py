@@ -2,6 +2,7 @@
 
 import ctypes
 import getpass
+import json
 import os
 import re
 import shutil
@@ -28,6 +29,23 @@ EXIT_CONNECTION_ALREADY_EXISTS = 6
 EXIT_PROVIDER_ALREADY_REGISTERED = 7
 EXIT_ENDPOINT_UNREACHABLE = 8
 EXIT_DAEMON_UNAVAILABLE = 9
+
+
+_JSONC_STRIP_RE = re.compile(r'"(?:[^"\\]|\\.)*"|//[^\n]*|/\*.*?\*/', re.DOTALL)
+
+
+def parse_jsonc(text: str) -> Any:
+    """Parse JSON with C-style comments (JSONC).
+
+    Strips ``//`` line comments and ``/* */`` block comments before passing
+    to the standard JSON parser.  String literals are preserved verbatim so
+    comment-like sequences inside quoted values are never stripped.
+    """
+
+    def _strip(m: re.Match) -> str:
+        return m.group(0) if m.group(0).startswith('"') else ""
+
+    return json.loads(_JSONC_STRIP_RE.sub(_strip, text))
 
 
 def utc_now() -> datetime:

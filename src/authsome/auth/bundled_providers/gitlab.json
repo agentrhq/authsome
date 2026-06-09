@@ -4,6 +4,7 @@
   "display_name": "GitLab",
   "logo": "img.logo.dev/name/gitlab",
   "description": "GitLab repositories, user data, and project automation over OAuth.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "gitlab.com",

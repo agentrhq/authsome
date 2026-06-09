@@ -4,6 +4,7 @@
   "display_name": "Klaviyo",
   "logo": "img.logo.dev/name/klaviyo",
   "description": "Klaviyo profiles, campaigns, and marketing automation API access.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "a.klaviyo.com",

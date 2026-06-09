@@ -4,6 +4,7 @@
   "display_name": "Keywords Everywhere",
   "logo": "img.logo.dev/name/keywords-everywhere",
   "description": "Keyword volume, CPC, and SEO metrics for search workflows.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.keywordseverywhere.com",

@@ -4,6 +4,7 @@
   "display_name": "Microsoft Word",
   "logo": "img.logo.dev/name/microsoft-word",
   "description": "Microsoft Word document access for reading and editing .docx files stored in OneDrive and SharePoint via Microsoft Graph.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://graph.microsoft.com/v1.0/me/drive",

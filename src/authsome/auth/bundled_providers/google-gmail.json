@@ -4,6 +4,7 @@
   "display_name": "Gmail",
   "logo": "img.logo.dev/name/gmail",
   "description": "Gmail access for reading, composing, and managing email via the Gmail API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://gmail.googleapis.com/gmail/v1",

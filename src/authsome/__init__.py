@@ -18,7 +18,7 @@ from importlib.metadata import version as _pkg_version
 from loguru import logger as _logger
 
 from authsome.auth.models.connection import ConnectionRecord, Sensitive
-from authsome.auth.models.enums import AuthType, ConnectionStatus, ExportFormat, FlowType
+from authsome.auth.models.enums import AuthType, ConnectionStatus, ExportFormat, FlowType, ProviderType
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.errors import (
     AuthenticationFailedError,
@@ -56,6 +56,7 @@ __all__ = [
     "ExportFormat",
     "FlowType",
     "ProviderDefinition",
+    "ProviderType",
     "Sensitive",
     # Errors
     "AuthsomeError",

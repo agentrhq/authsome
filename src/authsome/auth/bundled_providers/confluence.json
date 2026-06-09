@@ -4,6 +4,7 @@
   "display_name": "Confluence",
   "logo": "img.logo.dev/name/confluence",
   "description": "Confluence Cloud access for reading and writing pages, spaces, and content via the Confluence REST API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://api.atlassian.com/ex/confluence",

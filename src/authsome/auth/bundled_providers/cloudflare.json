@@ -4,6 +4,7 @@
   "display_name": "Cloudflare",
   "logo": "img.logo.dev/name/cloudflare",
   "description": "Cloudflare API token access for managing zones, DNS, Workers, and account resources.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "https://api.cloudflare.com/client/v4",

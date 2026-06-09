@@ -4,6 +4,7 @@
   "display_name": "Notion (DCR)",
   "logo": "img.logo.dev/name/notion",
   "description": "Notion MCP OAuth access using dynamic client registration.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "dcr_pkce",
   "api_url": "mcp.notion.com",

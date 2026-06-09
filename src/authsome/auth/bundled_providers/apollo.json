@@ -4,6 +4,7 @@
   "display_name": "Apollo",
   "logo": "img.logo.dev/name/apollo",
   "description": "Sales intelligence and prospecting data for go-to-market workflows.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.apollo.io",
