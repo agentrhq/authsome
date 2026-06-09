@@ -178,6 +178,7 @@ class DeviceCodeFlow(AuthFlow):
         deadline = time.monotonic() + effective_expires_in
 
         use_json = provider.oauth.device_token_request == "json"
+        use_basic = provider.oauth.client_secret_handling == "basic"
 
         while time.monotonic() < deadline:
             await asyncio.sleep(poll_interval)
@@ -195,12 +196,18 @@ class DeviceCodeFlow(AuthFlow):
                         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                         "device_code": device_code,
                     }
-                    if client_id:
-                        payload["client_id"] = client_id
-                    if client_secret:
-                        payload["client_secret"] = client_secret
+                    if not use_basic:
+                        if client_id:
+                            payload["client_id"] = client_id
+                        if client_secret:
+                            payload["client_secret"] = client_secret
                     resp = requests.post(
-                        provider.oauth.token_url, data=payload, headers={"Accept": "application/json"}, timeout=30
+                        provider.oauth.token_url,
+                        data=None if use_basic else payload,
+                        json=payload if use_basic else None,
+                        auth=(client_id or "", client_secret or "") if use_basic else None,
+                        headers={"Accept": "application/json"},
+                        timeout=30,
                     )
             except requests.RequestException as exc:
                 logger.warning("Token poll request failed: {}, retrying...", exc)

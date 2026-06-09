@@ -14,6 +14,7 @@
     "device_authorization_url": null,
     "scopes": [],
     "pkce": false,
+    "client_secret_handling": "basic",
     "supports_device_code": false,
     "supports_dcr": false
   },
