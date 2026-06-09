@@ -84,7 +84,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "vault" | "audit" | "settings";
+export type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "vault" | "audit" | "settings";
 
 type NavItem = {
   id: View;
@@ -109,7 +109,7 @@ const NEXT_URL = "/";
 const ADVANCED_SESSION_FIELD_NAMES = new Set(["host_url", "base_url", "api_url", "scopes"]);
 const LOGO_DEV_TOKEN = "pk_BhJg_kBbQPqNGuuWcNs9Cg";
 
-function isUnauthorized(error: unknown): boolean {
+export function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
 }
 
@@ -179,7 +179,7 @@ function StatusBadge({ status }: { status: string }) {
   return null;
 }
 
-function currentBrowserPath(fallback: string): string {
+export function currentBrowserPath(fallback: string): string {
   if (typeof window === "undefined") {
     return fallback;
   }
@@ -668,7 +668,7 @@ function AccountForm({
   );
 }
 
-function LoadingScreen() {
+export function LoadingScreen() {
   return (
     <SidebarProvider>
       <Sidebar collapsible="offcanvas">
@@ -708,7 +708,7 @@ function LoadingScreen() {
   );
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+export function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
       <Card className="max-w-md shadow-sm">
@@ -753,7 +753,7 @@ function DashboardDetailShell({
   );
 }
 
-function AppSidebar({
+export function AppSidebar({
   activeView,
   data,
 }: {
@@ -843,7 +843,7 @@ function Topbar() {
   );
 }
 
-function DashboardView({ data }: { data: DashboardData }) {
+export function DashboardView({ data }: { data: DashboardData }) {
   const recentEvents = data.audit.events.slice(0, 5);
 
   return (
@@ -954,7 +954,7 @@ function EmptyBlock({ actionLabel, href, title }: { actionLabel: string; href: s
   );
 }
 
-function ProvidersView({ providers }: { providers: ProviderView[] }) {
+export function ProvidersView({ providers }: { providers: ProviderView[] }) {
   const [query, setQuery] = useState("");
   const [dialogProvider, setDialogProvider] = useState<ProviderView | null>(null);
 
@@ -1102,7 +1102,7 @@ function NamedConnectionDialog({
   );
 }
 
-function ConnectionsView({
+export function ConnectionsView({
   connections,
   initialFilter,
 }: {
@@ -1171,7 +1171,7 @@ function ConnectionsView({
   );
 }
 
-function AgentsView({ data }: { data: DashboardData }) {
+export function AgentsView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Local Ed25519 key pairs (agents) claimed to this account." title="Agents" />
@@ -1219,7 +1219,7 @@ function AgentsView({ data }: { data: DashboardData }) {
   );
 }
 
-function PrincipalsView() {
+export function PrincipalsView() {
   const { data, error } = useSWR<PrincipalRow[]>("authsome-principals", fetchPrincipals);
 
   return (
@@ -1283,7 +1283,7 @@ function PrincipalsView() {
   );
 }
 
-function VaultView({ data }: { data: DashboardData }) {
+export function VaultView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Credential namespace for this account." title="Vault" />
@@ -1304,7 +1304,7 @@ function VaultView({ data }: { data: DashboardData }) {
   );
 }
 
-function AuditView({ data }: { data: DashboardData }) {
+export function AuditView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Recent administrative and credential events." title="Audit Log" />
@@ -1354,7 +1354,7 @@ function AuditView({ data }: { data: DashboardData }) {
   );
 }
 
-function SettingsView({ data }: { data: DashboardData }) {
+export function SettingsView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Local daemon and account context." title="Settings" />
@@ -1489,7 +1489,7 @@ export function AuthsomeProviderDetail({ provider }: { provider: string }) {
   );
 }
 
-function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; onRefresh: () => void }) {
+export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; onRefresh: () => void }) {
   const displayName = detailProviderDisplayName(data);
   const initial = (displayName[0] || "?").toUpperCase();
   const description = data.provider.description || data.provider.metadata?.description || "";
@@ -1783,7 +1783,7 @@ function SecretValue({ label, value }: { label: string; value: string | null }) 
   );
 }
 
-function ConnectionDetailBody({
+export function ConnectionDetailBody({
   data,
   onRefresh,
   principal,
