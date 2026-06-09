@@ -1936,16 +1936,18 @@ export function AuthsomeDashboard({ connectionFilter, view = "dashboard" }: { co
   if (!data) return <LoadingScreen />;
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar activeView={activeView} data={data} />
-      <SidebarInset>
+      <SidebarInset className="min-h-0">
         <Topbar />
-        <div className="grid gap-6 p-4 md:p-6">
-          <ActiveView
-            connectionFilter={connectionFilter}
-            data={data}
-            view={activeView}
-          />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto grid w-full max-w-[86rem] gap-6 p-4 md:p-6">
+            <ActiveView
+              connectionFilter={connectionFilter}
+              data={data}
+              view={activeView}
+            />
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
