@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "name": "microsoft-calendar",
+  "display_name": "Outlook Calendar",
+  "logo": "img.logo.dev/name/microsoft-outlook",
+  "description": "Outlook Calendar access for reading and managing calendar events and schedules via Microsoft Graph.",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "https://graph.microsoft.com/v1.0/me/calendars",
+  "oauth": {
+    "authorization_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    "revocation_url": null,
+    "device_authorization_url": "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode",
+    "scopes": [
+      "User.Read",
+      "Calendars.ReadWrite",
+      "offline_access"
+    ],
+    "pkce": true,
+    "supports_device_code": true,
+    "supports_dcr": false
+  },
+  "export": {
+    "MICROSOFT_CALENDAR_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}

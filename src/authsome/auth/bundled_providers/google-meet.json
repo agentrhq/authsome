@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "name": "google-meet",
+  "display_name": "Google Meet",
+  "logo": "img.logo.dev/name/google-meet",
+  "description": "Google Meet access for creating and managing video meeting spaces via the Meet REST API.",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "https://meet.googleapis.com/v2",
+  "oauth": {
+    "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
+    "token_url": "https://oauth2.googleapis.com/token",
+    "revocation_url": "https://oauth2.googleapis.com/revoke",
+    "device_authorization_url": "https://oauth2.googleapis.com/device/code",
+    "scopes": [
+      "openid",
+      "profile",
+      "https://www.googleapis.com/auth/meetings.space.created"
+    ],
+    "pkce": true,
+    "supports_device_code": true,
+    "supports_dcr": false
+  },
+  "export": {
+    "GOOGLE_MEET_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}

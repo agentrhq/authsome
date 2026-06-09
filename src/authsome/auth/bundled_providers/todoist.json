@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "name": "todoist",
+  "display_name": "Todoist",
+  "logo": "img.logo.dev/name/todoist",
+  "description": "Todoist access for managing tasks, projects, and labels via the Todoist REST API.",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "https://api.todoist.com/rest/v2",
+  "oauth": {
+    "authorization_url": "https://app.todoist.com/oauth/authorize",
+    "token_url": "https://api.todoist.com/oauth/access_token",
+    "revocation_url": "https://api.todoist.com/api/v1/revoke",
+    "device_authorization_url": null,
+    "scopes": [
+      "data:read_write",
+      "task:add"
+    ],
+    "pkce": true,
+    "supports_device_code": false,
+    "supports_dcr": false
+  },
+  "export": {
+    "TODOIST_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
