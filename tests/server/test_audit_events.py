@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from authsome.audit import emit_event
 from authsome.cli.identity import RuntimeIdentity
-from authsome.server.app import create_app
+from tests.server.helpers import create_server_test_client
 from tests.server.test_pop_auth import _auth_header
 
 
@@ -30,7 +30,7 @@ def _claim_identity(client: TestClient, tmp_path: Path, handle: str, *, email: s
 def test_audit_events_endpoint_returns_internal_events_for_admin(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="dev@example.com")
         whoami = client.get("/api/whoami", headers=_auth_header(tmp_path, "GET", "/api/whoami")).json()
         emit_event(
@@ -58,7 +58,7 @@ def test_external_audit_post_is_enriched_from_pop_identity(monkeypatch, tmp_path
     payload = {"event": {"event": "proxy_deny", "metadata": {"host": "api.example.com", "reason": "no_match"}}}
     body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="dev@example.com")
         posted = client.post(
             "/api/audit/events",
@@ -86,7 +86,7 @@ def test_external_audit_post_is_enriched_from_pop_identity(monkeypatch, tmp_path
 def test_admin_sees_all_audit_events_and_user_sees_only_own_principal(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
         admin_whoami = client.get(

@@ -11,8 +11,8 @@ from authsome.auth.models.connection import ConnectionRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.cli.identity import RuntimeIdentity
 from authsome.identity.proof import create_proof_jwt
-from authsome.server.app import create_app
 from authsome.server.credential_repository import build_store_key
+from tests.server.helpers import create_server_test_client
 
 
 def _auth_header(  # noqa: PLR0913
@@ -63,7 +63,7 @@ def register_and_claim_identity(
 def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         response = client.get("/api/whoami")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -72,7 +72,7 @@ def test_whoami_requires_pop(monkeypatch, tmp_path: Path) -> None:
 def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x01" * 32).decode("ascii"))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         register_and_claim_identity(client, tmp_path, "steady-wisely-boldly-0042")
         response = client.get("/api/whoami", headers=_auth_header(tmp_path, "GET", "/api/whoami"))
 
@@ -90,7 +90,7 @@ def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path)
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x02" * 32).decode("ascii"))
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         register_and_claim_identity(client, tmp_path, "steady-wisely-boldly-0042")
         health_response = client.get("/api/health")
         ready_response = client.get("/api/ready", headers=_auth_header(tmp_path, "GET", "/api/ready"))
@@ -109,7 +109,7 @@ def test_registration_requires_claim(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         response = client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
 
     assert response.status_code == status.HTTP_200_OK
@@ -121,7 +121,7 @@ def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
         response = client.get("/api/whoami", headers=_auth_header(tmp_path, "GET", "/api/connections"))
 
@@ -131,7 +131,7 @@ def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
 def test_whoami_rejects_unknown_subject(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         response = client.get("/api/whoami", headers=_auth_header(tmp_path, "GET", "/api/whoami"))
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -142,7 +142,7 @@ def test_whoami_rejects_registered_handle_with_wrong_issuer(monkeypatch, tmp_pat
     victim = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     attacker = RuntimeIdentity.create(tmp_path, "rapid-brightly-firmly-0007")
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         client.post("/api/identities/register", json={"handle": victim.handle, "did": victim.did})
         client.post("/api/identities/register", json={"handle": attacker.handle, "did": attacker.did})
         response = client.get(
@@ -164,7 +164,7 @@ def test_identity_registration_rejects_duplicate_handle_different_did(monkeypatc
     first = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     second = RuntimeIdentity.create(tmp_path, "rapid-brightly-firmly-0007")
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         assert (
             client.post("/api/identities/register", json={"handle": first.handle, "did": first.did}).status_code
             == status.HTTP_200_OK
@@ -178,7 +178,7 @@ def test_identity_registration_rejects_duplicate_did_different_handle(monkeypatc
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         assert (
             client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did}).status_code
             == status.HTTP_200_OK
@@ -195,7 +195,7 @@ def test_ready_uses_active_identity_connections_for_warning_check(monkeypatch, t
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
 
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         register_and_claim_identity(client, tmp_path, identity.handle)
         resolved = asyncio.run(client.app.state.ownership_resolver.resolve(identity=identity.handle))
         key = build_store_key(

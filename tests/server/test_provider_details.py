@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 from authsome.auth.models.connection import ConnectionRecord, ProviderClientRecord, ProviderMetadataRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.cli.identity import RuntimeIdentity
-from authsome.server.app import create_app
 from authsome.server.credential_repository import build_store_key
+from tests.server.helpers import create_server_test_client
 from tests.server.test_pop_auth import _auth_header
 
 
@@ -69,7 +69,7 @@ def _put_connection(client: TestClient, principal_id: str, vault_id: str, provid
 
 def test_non_admin_provider_detail_hides_config_and_shows_own_connections(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         user = _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
         admin_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity="admin-ready-boldly-0001"))
@@ -94,7 +94,7 @@ def test_non_admin_provider_detail_hides_config_and_shows_own_connections(monkey
 
 def test_admin_provider_detail_shows_config_and_principal_usage(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         admin = _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
         admin_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity=admin.handle))
@@ -126,7 +126,7 @@ def test_admin_provider_detail_shows_config_and_principal_usage(monkeypatch, tmp
 
 def test_admin_can_update_provider_configuration(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         admin = _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         body = b'{"client_id":"new-client","client_secret":"new-secret","scopes":"repo,read:user"}'
         response = client.put(
@@ -144,7 +144,7 @@ def test_admin_can_update_provider_configuration(monkeypatch, tmp_path: Path) ->
 
 def test_non_admin_provider_configuration_update_is_rejected(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         user = _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
         body = b'{"client_id":"new-client"}'

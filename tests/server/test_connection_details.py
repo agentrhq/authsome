@@ -7,9 +7,9 @@ from fastapi.testclient import TestClient
 from authsome.auth.models.connection import ConnectionRecord, ProviderMetadataRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus
 from authsome.cli.identity import RuntimeIdentity
-from authsome.server.app import create_app
 from authsome.server.credential_repository import build_store_key
 from authsome.server.routes._deps import UI_SESSION_COOKIE_NAME
+from tests.server.helpers import create_server_test_client
 from tests.server.test_pop_auth import _auth_header
 
 
@@ -67,7 +67,7 @@ def _put_connection(
 
 def test_user_can_read_own_connection_detail(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         user = _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
         user_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity=user.handle))
         _put_connection(client, user_ctx.principal_id, user_ctx.vault_id, "default")
@@ -85,7 +85,7 @@ def test_user_can_read_own_connection_detail(monkeypatch, tmp_path: Path) -> Non
 
 def test_non_admin_cannot_read_other_principal_connection(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         user = _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
         admin_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity="admin-ready-boldly-0001"))
@@ -98,7 +98,7 @@ def test_non_admin_cannot_read_other_principal_connection(monkeypatch, tmp_path:
 
 def test_admin_can_read_other_principal_connection(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         admin = _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
         user_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity="steady-wisely-boldly-0042"))
@@ -113,7 +113,7 @@ def test_admin_can_read_other_principal_connection(monkeypatch, tmp_path: Path) 
 
 def test_admin_logout_targets_other_principal_connection(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         admin = _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
         user_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity="steady-wisely-boldly-0042"))
@@ -130,7 +130,7 @@ def test_admin_logout_targets_other_principal_connection(monkeypatch, tmp_path: 
 
 def test_admin_browser_session_can_revoke_provider(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    with TestClient(create_app()) as client:
+    with create_server_test_client() as client:
         admin = _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         admin_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity=admin.handle))
         _put_connection(client, admin_ctx.principal_id, admin_ctx.vault_id, "default", auth_type=AuthType.API_KEY)

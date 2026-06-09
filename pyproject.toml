@@ -53,6 +53,7 @@ dev = [
     "pytest>=7.0",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=4.0",
+    "pytest-timeout>=2.4.0",
     "ruff>=0.9",
     "ty",
     "pre-commit>=4.6.0",
@@ -70,6 +71,8 @@ packages = ["src/authsome"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+timeout = 30
+timeout_method = "signal"
 
 [tool.coverage.run]
 source = ["authsome"]
