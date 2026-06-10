@@ -86,6 +86,22 @@ def test_whoami_accepts_valid_pop_and_scopes_identity(monkeypatch, tmp_path: Pat
     assert "Argon2id" in response.json()["encryption_backend"]
 
 
+def test_whoami_rejects_replayed_pop_jwt(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x03" * 32).decode("ascii"))
+
+    with create_server_test_client() as client:
+        register_and_claim_identity(client, tmp_path, "steady-wisely-boldly-0042")
+        headers = _auth_header(tmp_path, "GET", "/api/whoami")
+
+        first_response = client.get("/api/whoami", headers=headers)
+        second_response = client.get("/api/whoami", headers=headers)
+
+    assert first_response.status_code == status.HTTP_200_OK
+    assert second_response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert second_response.json()["detail"] == "Proof JWT was already used"
+
+
 def test_health_and_ready_report_encryption_details(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     monkeypatch.setenv("AUTHSOME_MASTER_KEY", base64.b64encode(b"\x02" * 32).decode("ascii"))
