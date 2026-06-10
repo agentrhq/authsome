@@ -1,0 +1,26 @@
+// OpenRouter
+// Unified API key to route requests across 200+ LLM providers.
+// auth: api_key | flow: api_key
+// Keys begin with "sk-or-v1-". The API is OpenAI-compatible (same endpoint shape).
+// Use OPENAI_BASE_URL=https://openrouter.ai/api/v1 alongside OPENROUTER_API_KEY.
+{
+  "schema_version": 1,
+  "name": "openrouter",
+  "display_name": "OpenRouter",
+  "logo": "img.logo.dev/name/openrouter",
+  "description": "OpenRouter API key for unified access to 200+ LLMs via an OpenAI-compatible API.",
+  "type": "llm",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://openrouter.ai/api/v1",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "env_var": "OPENROUTER_API_KEY",
+    "key_pattern": "^sk-or-v1-[A-Za-z0-9]+$",
+    "key_pattern_hint": "OpenRouter keys start with 'sk-or-v1-'. Generate one at openrouter.ai/keys."
+  },
+  "export": {
+    "OPENROUTER_API_KEY": "API_TOKEN"
+  }
+}

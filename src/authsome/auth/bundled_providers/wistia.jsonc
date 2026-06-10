@@ -1,0 +1,23 @@
+// Wistia
+// Video hosting, media analytics, and Wistia account APIs.
+// auth: api_key | flow: api_key
+// API password tokens are account-level; generate at app.wistia.com/settings/api-password.
+{
+  "schema_version": 1,
+  "name": "wistia",
+  "display_name": "Wistia",
+  "logo": "img.logo.dev/name/wistia",
+  "description": "Video hosting, media analytics, and Wistia account APIs.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.wistia.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "WISTIA_API_KEY": "API_TOKEN"
+  }
+}
+

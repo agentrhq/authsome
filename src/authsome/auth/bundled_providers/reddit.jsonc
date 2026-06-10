@@ -1,0 +1,30 @@
+// Reddit
+// Authenticate with Reddit API.
+// auth: oauth2 | flow: pkce
+// Reddit OAuth uses 'duration=permanent' for long-lived tokens; access tokens expire after 1 hour but are refreshable.
+{
+  "schema_version": 1,
+  "name": "reddit",
+  "display_name": "Reddit",
+  "logo": "img.logo.dev/name/reddit",
+  "description": "Authenticate with Reddit API.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "oauth": {
+    "base_url": "https://oauth.reddit.com",
+    "authorization_url": "https://www.reddit.com/api/v1/authorize",
+    "token_url": "https://www.reddit.com/api/v1/access_token",
+    "authorization_method": "basic",
+    "authorization_params": {
+      "duration": "permanent"
+    },
+    "_comment": "Reddit API strictly requires HTTP Basic Auth for token exchanges rather than payload credentials. See: https://github.com/reddit-archive/reddit/wiki/OAuth2#retrieving-the-access-token"
+  },
+  "api_url": "https://oauth.reddit.com",
+  "docs_url": "https://github.com/reddit-archive/reddit/wiki/OAuth2",
+  "export": {
+    "REDDIT_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

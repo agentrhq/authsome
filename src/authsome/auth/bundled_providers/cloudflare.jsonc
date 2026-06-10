@@ -1,0 +1,26 @@
+// Cloudflare
+// Cloudflare API token access for managing zones, DNS, Workers, and account resources.
+// auth: api_key | flow: api_key
+// Prefer scoped tokens over global API keys. Create at dash.cloudflare.com/profile/api-tokens.
+{
+  "schema_version": 1,
+  "name": "cloudflare",
+  "display_name": "Cloudflare",
+  "logo": "img.logo.dev/name/cloudflare",
+  "description": "Cloudflare API token access for managing zones, DNS, Workers, and account resources.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://api.cloudflare.com/client/v4",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "env_var": "CLOUDFLARE_API_TOKEN",
+    "key_pattern": "^[A-Za-z0-9_-]{40}$",
+    "key_pattern_hint": "Cloudflare API tokens are 40-character alphanumeric strings generated in the Cloudflare dashboard under My Profile > API Tokens."
+  },
+  "export": {
+    "CLOUDFLARE_API_TOKEN": "API_TOKEN"
+  }
+}
+

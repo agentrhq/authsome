@@ -1,0 +1,33 @@
+// Google Tasks
+// Google Tasks access for reading and managing task lists and tasks via the Tasks API.
+// auth: oauth2 | flow: pkce
+// Tasks API only accesses the authenticated user's task lists; no sharing across users.
+{
+  "schema_version": 1,
+  "name": "google-tasks",
+  "display_name": "Google Tasks",
+  "logo": "img.logo.dev/name/google-tasks",
+  "description": "Google Tasks access for reading and managing task lists and tasks via the Tasks API.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "https://tasks.googleapis.com/tasks/v1",
+  "oauth": {
+    "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
+    "token_url": "https://oauth2.googleapis.com/token",
+    "revocation_url": "https://oauth2.googleapis.com/revoke",
+    "device_authorization_url": "https://oauth2.googleapis.com/device/code",
+    "scopes": [
+      "openid",
+      "profile",
+      "https://www.googleapis.com/auth/tasks"
+    ],
+    "pkce": true,
+    "supports_device_code": true,
+    "supports_dcr": false
+  },
+  "export": {
+    "GOOGLE_TASKS_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

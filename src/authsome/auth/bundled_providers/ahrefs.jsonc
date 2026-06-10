@@ -1,0 +1,23 @@
+// Ahrefs
+// SEO intelligence, backlink analysis, and keyword research APIs.
+// auth: api_key | flow: api_key
+// API keys are workspace-level; generate at ahrefs.com/user/api.
+{
+  "schema_version": 1,
+  "name": "ahrefs",
+  "display_name": "Ahrefs",
+  "logo": "img.logo.dev/name/ahrefs",
+  "description": "SEO intelligence, backlink analysis, and keyword research APIs.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.ahrefs.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "AHREFS_API_KEY": "API_TOKEN"
+  }
+}
+

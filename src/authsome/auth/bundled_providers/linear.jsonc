@@ -1,0 +1,32 @@
+// Linear
+// Issues, teams, projects, and product operations through Linear.
+// auth: oauth2 | flow: pkce
+// PKCE OAuth — no client secret needed in public clients. Scopes: 'read' and 'write'.
+{
+  "schema_version": 1,
+  "name": "linear",
+  "display_name": "Linear",
+  "logo": "img.logo.dev/name/linear",
+  "description": "Issues, teams, projects, and product operations through Linear.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "regex:.*\\.linear\\.app",
+  "oauth": {
+    "authorization_url": "https://linear.app/oauth/authorize",
+    "token_url": "https://api.linear.app/oauth/token",
+    "revocation_url": "https://api.linear.app/oauth/revoke",
+    "device_authorization_url": null,
+    "scopes": [
+      "read",
+      "write"
+    ],
+    "pkce": true,
+    "supports_device_code": false,
+    "supports_dcr": false
+  },
+  "export": {
+    "LINEAR_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

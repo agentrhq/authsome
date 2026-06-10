@@ -1,0 +1,23 @@
+// Lemlist
+// Cold outreach campaigns, leads, and email engagement workflows.
+// auth: api_key | flow: api_key
+// API keys are team-level; generate at app.lemlist.com/settings.
+{
+  "schema_version": 1,
+  "name": "lemlist",
+  "display_name": "Lemlist",
+  "logo": "img.logo.dev/name/lemlist",
+  "description": "Cold outreach campaigns, leads, and email engagement workflows.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.lemlist.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "LEMLIST_API_KEY": "API_TOKEN"
+  }
+}
+

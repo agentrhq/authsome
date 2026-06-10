@@ -1,0 +1,24 @@
+// SendGrid
+// SendGrid email delivery, templates, and account API access.
+// auth: api_key | flow: api_key
+// API keys can be scoped per-permission; prefer scoped keys over full-access keys.
+{
+  "schema_version": 1,
+  "name": "sendgrid",
+  "display_name": "SendGrid",
+  "logo": "img.logo.dev/name/sendgrid",
+  "description": "SendGrid email delivery, templates, and account API access.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.sendgrid.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "SENDGRID_API_KEY": "API_TOKEN"
+  },
+  "docs_url": "https://www.twilio.com/docs/sendgrid/ui/account-and-settings/api-keys"
+}
+

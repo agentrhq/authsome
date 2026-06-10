@@ -1,0 +1,23 @@
+// Brevo
+// Email marketing, transactional messaging, and contact management APIs.
+// auth: api_key | flow: api_key
+// Brevo was formerly Sendinblue. Keys at app.brevo.com/settings/keys/api.
+{
+  "schema_version": 1,
+  "name": "brevo",
+  "display_name": "Brevo",
+  "logo": "img.logo.dev/name/brevo",
+  "description": "Email marketing, transactional messaging, and contact management APIs.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.brevo.com",
+  "api_key": {
+    "header_name": "api-key",
+    "header_prefix": ""
+  },
+  "export": {
+    "BREVO_API_KEY": "API_TOKEN"
+  }
+}
+

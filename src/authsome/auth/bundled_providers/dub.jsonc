@@ -1,0 +1,23 @@
+// Dub.co
+// Short links, conversion tracking, and link analytics from Dub.co.
+// auth: api_key | flow: api_key
+// API keys are workspace-level; generate at app.dub.co/settings/tokens.
+{
+  "schema_version": 1,
+  "name": "dub",
+  "display_name": "Dub.co",
+  "logo": "img.logo.dev/name/dub",
+  "description": "Short links, conversion tracking, and link analytics from Dub.co.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.dub.co",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "DUB_API_KEY": "API_TOKEN"
+  }
+}
+

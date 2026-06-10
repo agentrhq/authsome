@@ -1,0 +1,23 @@
+// Keywords Everywhere
+// Keyword volume, CPC, and SEO metrics for search workflows.
+// auth: api_key | flow: api_key
+// API keys are account-level; available only on paid plans.
+{
+  "schema_version": 1,
+  "name": "keywords-everywhere",
+  "display_name": "Keywords Everywhere",
+  "logo": "img.logo.dev/name/keywords-everywhere",
+  "description": "Keyword volume, CPC, and SEO metrics for search workflows.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.keywordseverywhere.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "KEYWORDS_EVERYWHERE_API_KEY": "API_TOKEN"
+  }
+}
+

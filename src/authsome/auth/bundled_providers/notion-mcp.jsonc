@@ -1,0 +1,27 @@
+// Notion MCP
+// Notion integration token for the remote Notion MCP server.
+// auth: api_key | flow: api_key
+// Distinct from the Notion OAuth provider (notion.jsonc) which uses PKCE/basic auth.
+// This provider stores an internal integration token injected as Bearer token.
+// Tokens start with "secret_" and are created at notion.so/my-integrations.
+{
+  "schema_version": 1,
+  "name": "notion-mcp",
+  "display_name": "Notion MCP",
+  "logo": "img.logo.dev/name/notion",
+  "description": "Notion integration token for the remote MCP server — enables agents to read and write pages and databases via MCP.",
+  "type": "mcp",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://mcp.notion.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "env_var": "NOTION_TOKEN",
+    "key_pattern": "^secret_[A-Za-z0-9]+$",
+    "key_pattern_hint": "Notion integration tokens start with 'secret_'. Create an integration at notion.so/my-integrations."
+  },
+  "export": {
+    "NOTION_TOKEN": "API_TOKEN"
+  }
+}

@@ -1,0 +1,46 @@
+// X (Twitter) — Browser Session
+// Extracts the auth_token session cookie from a real X/Twitter browser session.
+// auth: browser | flow: browser
+// ct0 cookie is mapped to x-csrf-token header required by X's API.
+// Works against both x.com and legacy twitter.com API domains.
+{
+  "schema_version": 1,
+  "name": "x-browser",
+  "display_name": "X (Twitter) — Browser Session",
+  "logo": "img.logo.dev/name/x",
+  "description": "X browser-session credentials for authenticated web workflows.",
+  "type": "browser",
+  "auth_type": "browser",
+  "flow": "browser",
+  "api_url": "regex:^(api\\.twitter\\.com|api\\.x\\.com|x\\.com|twitter\\.com)",
+  "browser": {
+    "entry_url": "https://x.com/login",
+    "domains": [
+      ".x.com",
+      "x.com",
+      ".twitter.com",
+      "twitter.com"
+    ],
+    "auth_cookies": [
+      "auth_token"
+    ],
+    "ttl_from_cookie": "auth_token",
+    "ttl_hours": 24,
+    "extra_headers": {
+      "x-twitter-active-user": "yes",
+      "x-twitter-client-language": "en"
+    },
+    "extract": [
+      {
+        "cookie": "ct0",
+        "header": "x-csrf-token"
+      }
+    ]
+  },
+  "export": {
+    "env": {
+      "auth_token": "X_AUTH_TOKEN",
+      "ct0": "X_CT0"
+    }
+  }
+}

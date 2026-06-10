@@ -1,0 +1,36 @@
+// Microsoft
+// Microsoft Graph access for mail, calendars, files, tasks, and identity.
+// auth: oauth2 | flow: pkce
+// Root Microsoft OAuth provider; prefer service-specific providers for narrower scopes.
+{
+  "schema_version": 1,
+  "name": "microsoft",
+  "display_name": "Microsoft",
+  "logo": "img.logo.dev/name/microsoft",
+  "description": "Microsoft Graph access for mail, calendars, files, tasks, and identity.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "graph.microsoft.com",
+  "oauth": {
+    "authorization_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    "revocation_url": null,
+    "device_authorization_url": "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode",
+    "scopes": [
+      "User.Read",
+      "offline_access",
+      "Mail.ReadWrite",
+      "Calendars.ReadWrite",
+      "Files.ReadWrite",
+      "Tasks.ReadWrite"
+    ],
+    "pkce": true,
+    "supports_device_code": true,
+    "supports_dcr": false
+  },
+  "export": {
+    "MICROSOFT_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

@@ -1,0 +1,35 @@
+// Jira
+// Jira Cloud access for reading and managing issues, projects, and workflows via the Jira REST API.
+// auth: oauth2 | flow: pkce
+// Covered by the Atlassian OAuth provider; this standalone provider uses the Jira REST API directly.
+{
+  "schema_version": 1,
+  "name": "jira",
+  "display_name": "Jira",
+  "logo": "img.logo.dev/name/jira",
+  "description": "Jira Cloud access for reading and managing issues, projects, and workflows via the Jira REST API.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "https://api.atlassian.com/ex/jira",
+  "oauth": {
+    "authorization_url": "https://auth.atlassian.com/authorize",
+    "token_url": "https://auth.atlassian.com/oauth/token",
+    "revocation_url": null,
+    "device_authorization_url": null,
+    "scopes": [
+      "read:jira-work",
+      "write:jira-work",
+      "read:jira-user",
+      "manage:jira-project",
+      "offline_access"
+    ],
+    "pkce": true,
+    "supports_device_code": false,
+    "supports_dcr": false
+  },
+  "export": {
+    "JIRA_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

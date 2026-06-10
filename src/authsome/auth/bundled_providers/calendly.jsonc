@@ -1,0 +1,23 @@
+// Calendly
+// Scheduling links, events, invitees, and calendar booking automation.
+// auth: api_key | flow: api_key
+// OAuth token provides access to the user's event types and scheduled events.
+{
+  "schema_version": 1,
+  "name": "calendly",
+  "display_name": "Calendly",
+  "logo": "img.logo.dev/name/calendly",
+  "description": "Scheduling links, events, invitees, and calendar booking automation.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.calendly.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "CALENDLY_API_KEY": "API_TOKEN"
+  }
+}
+

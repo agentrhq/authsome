@@ -1,0 +1,23 @@
+// Instantly
+// Outbound email campaign and lead management automation.
+// auth: api_key | flow: api_key
+// API keys are workspace-level; generate at app.instantly.ai/app/settings/integrations.
+{
+  "schema_version": 1,
+  "name": "instantly",
+  "display_name": "Instantly",
+  "logo": "img.logo.dev/name/instantly",
+  "description": "Outbound email campaign and lead management automation.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.instantly.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "INSTANTLY_API_KEY": "API_TOKEN"
+  }
+}
+

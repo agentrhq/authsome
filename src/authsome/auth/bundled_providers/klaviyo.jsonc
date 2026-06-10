@@ -1,0 +1,23 @@
+// Klaviyo
+// Klaviyo profiles, campaigns, and marketing automation API access.
+// auth: api_key | flow: api_key
+// Private API keys are account-level (full access); prefer OAuth or scoped keys in production.
+{
+  "schema_version": 1,
+  "name": "klaviyo",
+  "display_name": "Klaviyo",
+  "logo": "img.logo.dev/name/klaviyo",
+  "description": "Klaviyo profiles, campaigns, and marketing automation API access.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "a.klaviyo.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Klaviyo-API-Key"
+  },
+  "export": {
+    "KLAVIYO_API_KEY": "API_TOKEN"
+  }
+}
+

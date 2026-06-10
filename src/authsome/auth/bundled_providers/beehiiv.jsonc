@@ -1,0 +1,23 @@
+// Beehiiv
+// Newsletter publishing, subscribers, and audience growth automation.
+// auth: api_key | flow: api_key
+// API keys are publication-level; generate at app.beehiiv.com/settings/integrations.
+{
+  "schema_version": 1,
+  "name": "beehiiv",
+  "display_name": "Beehiiv",
+  "logo": "img.logo.dev/name/beehiiv",
+  "description": "Newsletter publishing, subscribers, and audience growth automation.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.beehiiv.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "BEEHIIV_API_KEY": "API_TOKEN"
+  }
+}
+
