@@ -49,7 +49,7 @@ import {
   updateProviderConfiguration,
 } from "@/lib/authsome-api";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -84,7 +84,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "vault" | "audit" | "settings";
+export type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "vault" | "audit" | "settings";
 
 type NavItem = {
   id: View;
@@ -109,7 +109,7 @@ const NEXT_URL = "/";
 const ADVANCED_SESSION_FIELD_NAMES = new Set(["host_url", "base_url", "api_url", "scopes"]);
 const LOGO_DEV_TOKEN = "pk_BhJg_kBbQPqNGuuWcNs9Cg";
 
-function isUnauthorized(error: unknown): boolean {
+export function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
 }
 
@@ -179,7 +179,7 @@ function StatusBadge({ status }: { status: string }) {
   return null;
 }
 
-function currentBrowserPath(fallback: string): string {
+export function currentBrowserPath(fallback: string): string {
   if (typeof window === "undefined") {
     return fallback;
   }
@@ -223,7 +223,7 @@ export function AuthsomeLogin({ nextPath = NEXT_URL }: { nextPath?: string }) {
       <section className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <div className="max-w-md">
           <div>
-            <img alt="Authsome" className="mb-8 size-11" src="/logo.svg" />
+            <Image alt="Authsome" className="mb-8 size-11" height={44} src="/logo.svg" width={44} />
             <h1 className="text-4xl font-semibold leading-tight text-foreground">
               Authsome
             </h1>
@@ -549,9 +549,9 @@ function AuthsomeSessionSuccess({ errorCode, sessionId }: { errorCode?: string; 
             <p className="truncate text-xs text-muted-foreground">{data.connection}</p>
           </div>
         </div>
-        <Button render={<Link href={isCompleted ? "/connections" : "/"} />}>
+        <Link className={buttonVariants()} href={isCompleted ? "/connections" : "/"}>
           {isCompleted ? "View connection" : "Back to dashboard"}
-        </Button>
+        </Link>
       </div>
     </ClaimShell>
   );
@@ -598,12 +598,14 @@ function AuthsomeSessionDevice({ sessionId }: { sessionId: string }) {
         <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center font-mono text-2xl font-semibold">
           {data.user_code}
         </div>
-        <Button
-          render={<a href={data.verification_uri_complete || data.verification_uri} rel="noreferrer" target="_blank" />}
-          type="button"
+        <Link
+          className={buttonVariants()}
+          href={data.verification_uri_complete || data.verification_uri}
+          rel="noreferrer"
+          target="_blank"
         >
           Open verification page
-        </Button>
+        </Link>
       </div>
     </ClaimShell>
   );
@@ -623,7 +625,7 @@ function ClaimShell({
       <section className="mx-auto w-full max-w-md">
         <Card className="border-border/70 shadow-none">
           <CardHeader>
-            <img alt="Authsome" className="mb-4 size-9" src="/logo.svg" />
+            <Image alt="Authsome" className="mb-4 size-9" height={36} src="/logo.svg" width={36} />
             <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </CardHeader>
@@ -666,7 +668,7 @@ function AccountForm({
   );
 }
 
-function LoadingScreen() {
+export function LoadingScreen() {
   return (
     <SidebarProvider>
       <Sidebar collapsible="offcanvas">
@@ -706,7 +708,7 @@ function LoadingScreen() {
   );
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+export function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
       <Card className="max-w-md shadow-sm">
@@ -729,37 +731,29 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function DashboardDetailShell({
   activeView,
-  backHref,
   children,
   data,
-  title,
 }: {
   activeView: View;
-  backHref: string;
   children: ReactNode;
   data: DashboardData;
-  title: string;
 }) {
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar activeView={activeView} data={data} />
-      <SidebarInset>
+      <SidebarInset className="min-h-0">
         <Topbar />
-        <div className="grid gap-6 p-4 md:p-6">
-          <div>
-            <Button render={<Link href={backHref} />} size="sm" variant="ghost">
-              Back
-            </Button>
-            <h1 className="mt-3 text-2xl font-semibold leading-tight text-foreground">{title}</h1>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto grid w-full max-w-[86rem] gap-6 p-4 md:p-6">
+            {children}
           </div>
-          {children}
         </div>
       </SidebarInset>
     </SidebarProvider>
   );
 }
 
-function AppSidebar({
+export function AppSidebar({
   activeView,
   data,
 }: {
@@ -774,7 +768,7 @@ function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/" />}>
-              <img alt="Authsome" className="size-5 shrink-0" src="/logo.svg" />
+              <Image alt="Authsome" className="size-5 shrink-0" height={20} src="/logo.svg" width={20} />
               <span className="font-semibold">Authsome</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -803,19 +797,19 @@ function AppSidebar({
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<a href="https://authsome.ai/docs" rel="noreferrer" target="_blank" />}>
+            <SidebarMenuButton render={<Link href="https://authsome.ai/docs" rel="noreferrer" target="_blank" />}>
               <BookOpen />
               <span>Docs</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<a href="https://github.com/agentrhq/authsome" rel="noreferrer" target="_blank" />}>
+            <SidebarMenuButton render={<Link href="https://github.com/agentrhq/authsome" rel="noreferrer" target="_blank" />}>
               <GitBranch />
               <span>GitHub</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<a href="https://authsome.ai/support" rel="noreferrer" target="_blank" />}>
+            <SidebarMenuButton render={<Link href="https://authsome.ai/support" rel="noreferrer" target="_blank" />}>
               <LifeBuoy />
               <span>Support</span>
             </SidebarMenuButton>
@@ -849,7 +843,7 @@ function Topbar() {
   );
 }
 
-function DashboardView({ data }: { data: DashboardData }) {
+export function DashboardView({ data }: { data: DashboardData }) {
   const recentEvents = data.audit.events.slice(0, 5);
 
   return (
@@ -857,9 +851,9 @@ function DashboardView({ data }: { data: DashboardData }) {
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">Connected Apps</h2>
-          <Button render={<Link href="/providers" />} size="sm" variant="outline">
+          <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/providers">
             Browse
-          </Button>
+          </Link>
         </div>
         {data.connectedProviders.length ? (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -906,9 +900,9 @@ function DashboardView({ data }: { data: DashboardData }) {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold">Recent Events</h2>
-            <Button render={<Link href="/audit" />} size="sm" variant="ghost">
+            <Link className={buttonVariants({ size: "sm", variant: "ghost" })} href="/audit">
               View all
-            </Button>
+            </Link>
           </div>
           <Card className="shadow-none border-border/50">
             <CardContent className="p-0">
@@ -952,15 +946,15 @@ function EmptyBlock({ actionLabel, href, title }: { actionLabel: string; href: s
   return (
     <div className="rounded-lg border border-dashed bg-muted/50 p-6 text-center">
       <div className="font-medium">{title}</div>
-      <Button className="mt-4" render={<Link href={href} />} size="sm">
+      <Link className={cn(buttonVariants({ size: "sm" }), "mt-4")} href={href}>
         <Plus />
         {actionLabel}
-      </Button>
+      </Link>
     </div>
   );
 }
 
-function ProvidersView({ providers }: { providers: ProviderView[] }) {
+export function ProvidersView({ providers }: { providers: ProviderView[] }) {
   const [query, setQuery] = useState("");
   const [dialogProvider, setDialogProvider] = useState<ProviderView | null>(null);
 
@@ -1002,27 +996,30 @@ function providerSortRank(provider: ProviderView): number {
 }
 
 function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; provider: ProviderView }) {
+  const router = useRouter();
+
   return (
-    <Card className="flex h-full flex-col border-border/50 shadow-none transition-colors hover:border-border">
-      <CardHeader className="gap-4 pb-4">
+    <Card
+      className="flex h-full cursor-pointer flex-col border-border/50 shadow-none transition-all hover:border-border hover:bg-accent hover:shadow-sm"
+      onClick={() => router.push(providerDetailHref(provider.name))}
+    >
+      <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
-          <Link className="min-w-0 flex items-center gap-3" href={providerDetailHref(provider.name)}>
-            <ProviderLogo className="size-10" initial={provider.logoInitial} logo={provider.logo} />
-            <div className="min-w-0">
-              <CardTitle className="truncate text-base">{provider.displayName}</CardTitle>
-              <CardDescription className="truncate text-xs">
-                {provider.source === "custom" ? "Custom provider" : "Bundled provider"}
-              </CardDescription>
-            </div>
-          </Link>
+          <ProviderLogo className="size-10 shrink-0" initial={provider.logoInitial} logo={provider.logo} />
           <StatusBadge status={provider.status} />
         </div>
+        <div className="mt-1">
+          <CardTitle className="text-base leading-tight">{provider.displayName}</CardTitle>
+          <CardDescription className="mt-0.5 text-xs">
+            {provider.source === "custom" ? "Custom provider" : "Bundled provider"}
+          </CardDescription>
+        </div>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4">
-        <p className="min-h-12 text-sm leading-6 text-muted-foreground">
+      <CardContent className="flex flex-1 flex-col gap-4 pt-0">
+        <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
           {provider.description || "Connect this provider to store and inject credentials from your Authsome vault."}
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <Badge variant="outline">{provider.authTypeLabel}</Badge>
           {provider.connectionCount ? (
             <Badge variant="outline">
@@ -1030,21 +1027,27 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
             </Badge>
           ) : null}
         </div>
-        {provider.requiresNamedLogin ? (
-          <Button className="mt-auto w-full" onClick={onNamedLogin} type="button">
-            <LogIn />
-            Connect
-          </Button>
-        ) : (
-          <form action={`/api/auth/providers/${provider.name}/connect`} className="mt-auto" method="post">
-            <input name="connection" type="hidden" value="default" />
-            <input name="return_url" type="hidden" value={`/connections?provider=${provider.name}`} />
-            <Button className="w-full" type="submit">
+        <div className="mt-auto" onClick={(e) => e.stopPropagation()}>
+          {provider.requiresNamedLogin ? (
+            <Button
+              className="w-full"
+              onClick={(e) => { e.preventDefault(); onNamedLogin(); }}
+              type="button"
+            >
               <LogIn />
               Connect
             </Button>
-          </form>
-        )}
+          ) : (
+            <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
+              <input name="connection" type="hidden" value="default" />
+              <input name="return_url" type="hidden" value={`/connections?provider=${provider.name}`} />
+              <Button className="w-full" type="submit">
+                <LogIn />
+                Connect
+              </Button>
+            </form>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -1099,7 +1102,7 @@ function NamedConnectionDialog({
   );
 }
 
-function ConnectionsView({
+export function ConnectionsView({
   connections,
   initialFilter,
 }: {
@@ -1168,7 +1171,7 @@ function ConnectionsView({
   );
 }
 
-function AgentsView({ data }: { data: DashboardData }) {
+export function AgentsView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Local Ed25519 key pairs (agents) claimed to this account." title="Agents" />
@@ -1216,7 +1219,7 @@ function AgentsView({ data }: { data: DashboardData }) {
   );
 }
 
-function PrincipalsView() {
+export function PrincipalsView() {
   const { data, error } = useSWR<PrincipalRow[]>("authsome-principals", fetchPrincipals);
 
   return (
@@ -1280,7 +1283,7 @@ function PrincipalsView() {
   );
 }
 
-function VaultView({ data }: { data: DashboardData }) {
+export function VaultView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Credential namespace for this account." title="Vault" />
@@ -1301,7 +1304,7 @@ function VaultView({ data }: { data: DashboardData }) {
   );
 }
 
-function AuditView({ data }: { data: DashboardData }) {
+export function AuditView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Recent administrative and credential events." title="Audit Log" />
@@ -1351,7 +1354,7 @@ function AuditView({ data }: { data: DashboardData }) {
   );
 }
 
-function SettingsView({ data }: { data: DashboardData }) {
+export function SettingsView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description="Local daemon and account context." title="Settings" />
@@ -1451,9 +1454,9 @@ export function AuthsomeProviderDetailRoute() {
             <CardDescription>Open a provider from the dashboard to view its details.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button render={<Link href="/providers" />} type="button" variant="outline">
+            <Link className={buttonVariants({ variant: "outline" })} href="/providers">
               Back to providers
-            </Button>
+            </Link>
           </CardContent>
         </Card>
       </main>
@@ -1480,76 +1483,73 @@ export function AuthsomeProviderDetail({ provider }: { provider: string }) {
   if (!dashboard || !data) return <LoadingScreen />;
 
   return (
-    <DashboardDetailShell activeView="providers" backHref="/providers" data={dashboard} title={detailProviderDisplayName(data)}>
+    <DashboardDetailShell activeView="providers" data={dashboard}>
       <ProviderDetailBody data={data} onRefresh={() => { void mutate(); void mutateDashboard(); }} />
     </DashboardDetailShell>
   );
 }
 
-function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; onRefresh: () => void }) {
+export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; onRefresh: () => void }) {
   const displayName = detailProviderDisplayName(data);
   const initial = (displayName[0] || "?").toUpperCase();
   const description = data.provider.description || data.provider.metadata?.description || "";
   const showsConfiguration = data.provider.auth_type !== "api_key";
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="grid gap-5">
-        <Card className="border-border/50 shadow-none">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <ProviderLogo className="size-11" initial={initial} logo={data.provider.logo || null} />
-              <div className="min-w-0">
-                <CardTitle>{displayName}</CardTitle>
-                <CardDescription>{description || detailProviderApiUrl(data)}</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <KeyValue label="Provider" value={data.provider.name} />
-            <KeyValue label="Auth Type" value={detailAuthTypeLabel(data.provider.auth_type)} />
-            <KeyValue label="API URL" value={detailProviderApiUrl(data) || "-"} />
-            {data.provider.docs_url ? <KeyValue label="Docs" value={data.provider.docs_url} /> : null}
-            {data.show_callback_helper && data.callback_url ? (
-              <KeyValue label="OAuth Callback URL" value={data.callback_url} />
-            ) : null}
-          </CardContent>
-        </Card>
-        <ProviderUsage data={data} />
+    <div className="grid gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-6">
+        <div className="flex items-center gap-4">
+          <ProviderLogo className="size-12 shrink-0" initial={initial} logo={data.provider.logo || null} />
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold leading-tight text-foreground">{displayName}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {description || detailProviderApiUrl(data)}
+            </p>
+          </div>
+        </div>
+        <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
+          <input name="connection" type="hidden" value="default" />
+          <input name="return_url" type="hidden" value={providerDetailHref(data.provider.name)} />
+          <Button type="submit">
+            <LogIn />
+            New connection
+          </Button>
+        </form>
       </div>
-      <div className="grid content-start gap-5">
-        {showsConfiguration ? (
-          data.account.is_admin ? (
-            <ProviderConfigurationForm
-              data={data}
-              key={data.configuration_fields.map((field) => `${field.name}:${field.default || ""}`).join("|")}
-              onRefresh={onRefresh}
-            />
-          ) : (
-            <Card className="border-border/50 shadow-none">
-              <CardHeader>
-                <CardTitle>Configuration</CardTitle>
-                <CardDescription>Managed by the admin.</CardDescription>
-              </CardHeader>
-            </Card>
-          )
-        ) : null}
-        <Card className="border-border/50 shadow-none">
-          <CardHeader>
-            <CardTitle>Connect</CardTitle>
-            <CardDescription>Create a connection in the current vault.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
-              <input name="connection" type="hidden" value="default" />
-              <input name="return_url" type="hidden" value={providerDetailHref(data.provider.name)} />
-              <Button className="w-full" type="submit">
-                <LogIn />
-                Connect
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-5">
+          <Card className="border-border/50 shadow-none">
+            <CardContent className="grid gap-4 p-5 md:grid-cols-2">
+              <KeyValue label="Provider" value={data.provider.name} />
+              <KeyValue label="Auth Type" value={detailAuthTypeLabel(data.provider.auth_type)} />
+              <KeyValue label="API URL" value={detailProviderApiUrl(data) || "-"} />
+              {data.provider.docs_url ? <KeyValue label="Docs" value={data.provider.docs_url} /> : null}
+              {data.show_callback_helper && data.callback_url ? (
+                <KeyValue label="OAuth Callback URL" value={data.callback_url} />
+              ) : null}
+            </CardContent>
+          </Card>
+          <ProviderUsage data={data} />
+        </div>
+        <div className="grid content-start gap-5">
+          {showsConfiguration ? (
+            data.account.is_admin ? (
+              <ProviderConfigurationForm
+                data={data}
+                key={data.configuration_fields.map((field) => `${field.name}:${field.default || ""}`).join("|")}
+                onRefresh={onRefresh}
+              />
+            ) : (
+              <Card className="border-border/50 shadow-none">
+                <CardHeader>
+                  <CardTitle>Configuration</CardTitle>
+                  <CardDescription>Managed by the admin.</CardDescription>
+                </CardHeader>
+              </Card>
+            )
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -1715,9 +1715,9 @@ export function AuthsomeConnectionDetailRoute() {
             <CardDescription>Open a connection from the dashboard to view its details.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button render={<Link href="/connections" />} type="button" variant="outline">
+            <Link className={buttonVariants({ variant: "outline" })} href="/connections">
               Back to connections
-            </Button>
+            </Link>
           </CardContent>
         </Card>
       </main>
@@ -1754,7 +1754,7 @@ export function AuthsomeConnectionDetail({
   if (!dashboard || !data) return <LoadingScreen />;
 
   return (
-    <DashboardDetailShell activeView="connections" backHref="/connections" data={dashboard} title={data.connection_name}>
+    <DashboardDetailShell activeView="connections" data={dashboard}>
       <ConnectionDetailBody data={data} onRefresh={() => { void mutate(); void mutateDashboard(); }} principal={principal} />
     </DashboardDetailShell>
   );
@@ -1783,7 +1783,7 @@ function SecretValue({ label, value }: { label: string; value: string | null }) 
   );
 }
 
-function ConnectionDetailBody({
+export function ConnectionDetailBody({
   data,
   onRefresh,
   principal,
@@ -1793,28 +1793,30 @@ function ConnectionDetailBody({
   principal?: string;
 }) {
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
-      <Card className="border-border/50 shadow-none">
-        <CardHeader>
-          <CardTitle>{data.provider_display_name}</CardTitle>
-          <CardDescription>
-            {data.provider} / {data.connection_name}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <KeyValue label="Status" value={data.status} />
-          <KeyValue label="Auth Type" value={data.auth_type} />
-          <KeyValue label="Principal ID" value={data.principal_id || "-"} />
-          <KeyValue label="Identity" value={data.identity || "-"} />
-          <KeyValue label="Scopes" value={data.scopes.join(", ") || "-"} />
-          <KeyValue label="Token Type" value={data.token_type || "-"} />
-          <KeyValue label="Obtained" value={data.obtained_at || "-"} />
-          <KeyValue label="Expires" value={data.expires_at || "-"} />
-          <KeyValue label="Base URL" value={data.base_url || "-"} />
-          <KeyValue label="API URL" value={data.api_url || "-"} />
-        </CardContent>
-      </Card>
-      <div className="grid content-start gap-5">
+    <div className="grid gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-6">
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">{data.provider_display_name}</p>
+          <h1 className="mt-0.5 text-2xl font-semibold leading-tight text-foreground">{data.connection_name}</h1>
+        </div>
+        <ConnectionActions data={data} onRefresh={onRefresh} principal={principal} />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <Card className="border-border/50 shadow-none">
+          <CardContent className="grid gap-4 p-5 md:grid-cols-2">
+            <KeyValue label="Status" value={data.status} />
+            <KeyValue label="Auth Type" value={data.auth_type} />
+            <KeyValue label="Principal ID" value={data.principal_id || "-"} />
+            <KeyValue label="Identity" value={data.identity || "-"} />
+            <KeyValue label="Scopes" value={data.scopes.join(", ") || "-"} />
+            <KeyValue label="Token Type" value={data.token_type || "-"} />
+            <KeyValue label="Obtained" value={data.obtained_at || "-"} />
+            <KeyValue label="Expires" value={data.expires_at || "-"} />
+            <KeyValue label="Base URL" value={data.base_url || "-"} />
+            <KeyValue label="API URL" value={data.api_url || "-"} />
+          </CardContent>
+        </Card>
         <Card className="border-border/50 shadow-none">
           <CardHeader>
             <CardTitle>Secrets</CardTitle>
@@ -1828,7 +1830,6 @@ function ConnectionDetailBody({
             ))}
           </CardContent>
         </Card>
-        <ConnectionActions data={data} onRefresh={onRefresh} principal={principal} />
       </div>
     </div>
   );
@@ -1858,29 +1859,26 @@ function ConnectionActions({
   }
 
   return (
-    <Card className="border-border/50 shadow-none">
-      <CardHeader>
-        <CardTitle>Actions</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3">
+    <>
+      <div className="flex flex-wrap items-center gap-2">
         {data.can_set_default ? (
           <form
             action={`/api/connections/${encodeURIComponent(data.provider)}/${encodeURIComponent(data.connection_name)}/default`}
             method="post"
           >
-            <Button className="w-full" type="submit" variant="outline">
+            <Button size="sm" type="submit" variant="outline">
               Set as default
             </Button>
           </form>
         ) : null}
-        <Button onClick={() => setOpen(true)} type="button" variant="destructive">
+        <Link className={buttonVariants({ size: "sm", variant: "outline" })} href={providerDetailHref(data.provider)}>
+          View provider
+        </Link>
+        <Button onClick={() => setOpen(true)} size="sm" type="button" variant="destructive">
           <LogOut />
           Logout
         </Button>
-        <Button render={<Link href={providerDetailHref(data.provider)} />} type="button" variant="outline">
-          View provider
-        </Button>
-      </CardContent>
+      </div>
       <Dialog onOpenChange={setOpen} open={open}>
         <DialogContent>
           <DialogHeader>
@@ -1897,7 +1895,7 @@ function ConnectionActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 }
 
