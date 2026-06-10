@@ -16,7 +16,10 @@ class ServerConfig(AuthsomeConfig):
     port: int = 7998
 
     # Store
-    database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
+    database_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AUTHSOME_DATABASE_URL", "DATABASE_URL"),
+    )
     redis_url: str | None = None
     postgres_pool_min_size: int = Field(default=1, ge=1)
     postgres_pool_max_size: int = Field(default=10, ge=1)

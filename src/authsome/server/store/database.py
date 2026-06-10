@@ -13,6 +13,7 @@ import aiosqlite
 from authsome.server.config import get_server_config
 
 StoreBackend = Literal["sqlite", "postgres"]
+_POSTGRES_SCHEMA_LOCK_ID = 715_504_817_119_338_103
 
 
 @dataclass(frozen=True)
@@ -269,6 +270,15 @@ def build_schema(backend: StoreBackend) -> list[str]:
 
 
 async def initialize_schema(database: StoreDatabase) -> None:
+    if database.backend == "postgres":
+        async with database.transaction():
+            await database.execute("SELECT pg_advisory_xact_lock(?)", [_POSTGRES_SCHEMA_LOCK_ID])
+            await _apply_schema_migrations(database)
+        return
+    await _apply_schema_migrations(database)
+
+
+async def _apply_schema_migrations(database: StoreDatabase) -> None:
     await database.execute("CREATE TABLE IF NOT EXISTS store_schema_version (version INTEGER PRIMARY KEY)")
     applied_rows = await database.fetch_all("SELECT version FROM store_schema_version")
     applied = {int(row["version"]) for row in applied_rows}

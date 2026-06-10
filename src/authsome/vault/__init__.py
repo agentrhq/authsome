@@ -3,7 +3,7 @@
 import builtins
 import json
 
-from key_value.aio.protocols.key_value import AsyncKeyValue
+from key_value.aio.protocols.key_value import AsyncEnumerateKeysProtocol, AsyncKeyValue
 
 
 class Vault:
@@ -39,6 +39,20 @@ class Vault:
     async def _save_index(self, collection: str, keys: builtins.list[str]) -> None:
         await self._kv.put("__index__", {"data": json.dumps(sorted(keys))}, collection=collection)
 
+    def _enumerable_kv(self) -> AsyncEnumerateKeysProtocol | None:
+        if isinstance(self._kv, AsyncEnumerateKeysProtocol):
+            return self._kv
+        wrapped = getattr(self._kv, "key_value", None)
+        if isinstance(wrapped, AsyncEnumerateKeysProtocol):
+            return wrapped
+        return None
+
+    async def _list_indexed_keys(self, collection: str) -> builtins.list[str]:
+        enumerable_kv = self._enumerable_kv()
+        if enumerable_kv is not None:
+            return sorted(key for key in await enumerable_kv.keys(collection=collection) if key != "__index__")
+        return await self._get_index(collection)
+
     # ── Encrypted KV interface ────────────────────────────────────────────
 
     async def get(self, key: str, *, collection: str) -> str | None:
@@ -51,7 +65,7 @@ class Vault:
     async def put(self, key: str, value: str, *, collection: str) -> None:
         """Encrypt and store a value."""
         await self._kv.put(key, {"data": value}, collection=collection)
-        if key != "__index__":
+        if key != "__index__" and self._enumerable_kv() is None:
             idx = set(await self._get_index(collection))
             if key not in idx:
                 idx.add(key)
@@ -60,7 +74,7 @@ class Vault:
     async def delete(self, key: str, *, collection: str) -> bool:
         """Delete a key. Returns True if the key existed."""
         existed = await self._kv.delete(key, collection=collection)
-        if existed and key != "__index__":
+        if existed and key != "__index__" and self._enumerable_kv() is None:
             idx = set(await self._get_index(collection))
             idx.discard(key)
             await self._save_index(collection, builtins.list(idx))
@@ -68,7 +82,7 @@ class Vault:
 
     async def list(self, prefix: str = "", *, collection: str) -> builtins.list[str]:
         """List all keys matching a prefix within a collection."""
-        idx = await self._get_index(collection)
+        idx = await self._list_indexed_keys(collection)
         if prefix:
             return [k for k in idx if k.startswith(prefix)]
         return builtins.list(idx)

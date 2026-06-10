@@ -1,5 +1,8 @@
 """Health and readiness routes."""
 
+from contextlib import suppress
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, Request
 
 from authsome import __version__
@@ -96,10 +99,10 @@ async def _check_providers_and_connections(
 
 
 async def _check_vault(vault, checks: dict[str, str], issues: list[str]) -> None:
+    probe_key = f"__ready_test__:{uuid4()}"
     try:
-        await vault.put("__ready_test__", "ok", collection="vault:__ready__")
-        value = await vault.get("__ready_test__", collection="vault:__ready__")
-        await vault.delete("__ready_test__", collection="vault:__ready__")
+        await vault.put(probe_key, "ok", collection="vault:__ready__")
+        value = await vault.get(probe_key, collection="vault:__ready__")
         if value != "ok":
             issues.append("vault: readiness roundtrip failed")
             checks["vault"] = "failed"
@@ -115,6 +118,9 @@ async def _check_vault(vault, checks: dict[str, str], issues: list[str]) -> None
         checks["vault"] = "failed"
         checks["integrity"] = "failed"
         issues.append(f"vault: {exc}")
+    finally:
+        with suppress(Exception):
+            await vault.delete(probe_key, collection="vault:__ready__")
 
 
 @router.get("/ready", response_model=ReadyResponse)

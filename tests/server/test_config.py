@@ -13,6 +13,25 @@ def test_server_config_reads_redis_url(monkeypatch) -> None:
     assert config.redis_url == "redis://localhost:6379/0"
 
 
+def test_server_config_reads_authsome_database_url(monkeypatch) -> None:
+    monkeypatch.setenv("AUTHSOME_DATABASE_URL", "postgresql://authsome:secret@localhost/authsome")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    config = ServerConfig()
+
+    assert config.database_url == "postgresql://authsome:secret@localhost/authsome"
+    assert config.database == "postgresql://authsome:secret@localhost/authsome"
+
+
+def test_server_config_keeps_legacy_database_url_alias(monkeypatch) -> None:
+    monkeypatch.delenv("AUTHSOME_DATABASE_URL", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://legacy:secret@localhost/authsome")
+
+    config = ServerConfig()
+
+    assert config.database_url == "postgresql://legacy:secret@localhost/authsome"
+
+
 def test_server_config_exposes_postgres_pool_settings(monkeypatch) -> None:
     monkeypatch.setenv("AUTHSOME_POSTGRES_POOL_MIN_SIZE", "2")
     monkeypatch.setenv("AUTHSOME_POSTGRES_POOL_MAX_SIZE", "9")

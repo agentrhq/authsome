@@ -8,6 +8,7 @@ from authsome.server.store.database import (
     StoreDatabase,
     StoreDatabaseConfig,
     build_migrations,
+    initialize_schema,
     open_store_database,
     resolve_store_database_config,
 )
@@ -150,3 +151,19 @@ async def test_postgres_transaction_uses_single_pooled_connection(tmp_path: Path
 
     assert pool.acquire_count == 1
     assert connection.execute_calls == [("INSERT INTO audit_events (event_id) VALUES ($1)", ("evt_1",))]
+
+
+@pytest.mark.asyncio
+async def test_postgres_migrations_take_advisory_lock(tmp_path: Path) -> None:
+    config = StoreDatabaseConfig(backend="postgres", dsn="postgresql://localhost:5432/authsome", home=tmp_path)
+    connection = _FakeConnection()
+    db = StoreDatabase(config=config, connection=connection)
+    try:
+        await initialize_schema(db)
+    finally:
+        await db.close()
+
+    assert connection.transaction_enters == 1
+    assert connection.transaction_exits == 1
+    assert connection.execute_calls[0][0] == "SELECT pg_advisory_xact_lock($1)"
+    assert isinstance(connection.execute_calls[0][1][0], int)

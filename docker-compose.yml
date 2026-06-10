@@ -51,12 +51,13 @@ services:
       AUTHSOME_HOME: /data/authsome
       AUTHSOME_BASE_URL: ${AUTHSOME_BASE_URL:-http://localhost:7998}
       AUTHSOME_DATABASE_URL: postgresql://${AUTHSOME_POSTGRES_USER:-authsome}:${AUTHSOME_POSTGRES_PASSWORD:?set AUTHSOME_POSTGRES_PASSWORD}@postgres:5432/${AUTHSOME_POSTGRES_DB:-authsome}
-      DATABASE_URL: postgresql://${AUTHSOME_POSTGRES_USER:-authsome}:${AUTHSOME_POSTGRES_PASSWORD:?set AUTHSOME_POSTGRES_PASSWORD}@postgres:5432/${AUTHSOME_POSTGRES_DB:-authsome}
       AUTHSOME_REDIS_URL: redis://redis:6379/0
       AUTHSOME_DO_NOT_TRACK: "1"
       # Set AUTHSOME_MASTER_KEY from your platform secret store before production use.
       # AUTHSOME_MASTER_KEY_FILE remains available for platforms that mount a secret file into the container.
       AUTHSOME_MASTER_KEY: ${AUTHSOME_MASTER_KEY:?set AUTHSOME_MASTER_KEY}
+      # Must be identical on every replica because browser sessions are stateless signed JWTs.
+      AUTHSOME_UI_SESSION_KEY: ${AUTHSOME_UI_SESSION_KEY:?set AUTHSOME_UI_SESSION_KEY}
     # Uncomment to use a pre-built image from a registry instead of building locally:
     # image: ghcr.io/agentrhq/authsome:latest
 
