@@ -14,7 +14,7 @@ curl http://localhost:7998/health
 ```
 
 The daemon should answer on `http://localhost:7998`. The root `/health` endpoint is the container health target used by the image and by `docker compose`.
-If your platform mounts a secret file into the container, set `AUTHSOME_MASTER_KEY_FILE` instead of `AUTHSOME_MASTER_KEY` and point it at that mounted path.
+The included compose file reads `AUTHSOME_MASTER_KEY` from the host environment. `AUTHSOME_MASTER_KEY_FILE` is supported by Authsome itself, but if you want to use a file-mounted secret you must add that mount and pass the file path yourself in a custom compose file.
 
 ## What this deployment does
 
@@ -28,9 +28,9 @@ If your platform mounts a secret file into the container, set `AUTHSOME_MASTER_K
 - Docker and Docker Compose v2.
 - Postgres 16.
 - Redis 7.
-- A stable `AUTHSOME_MASTER_KEY` or `AUTHSOME_MASTER_KEY_FILE`.
+- A stable `AUTHSOME_MASTER_KEY` for the included compose file.
 
-Do not commit production master keys. Use your platform secret store, a Docker secret, or a mounted secret file.
+Do not commit production master keys. Use your platform secret store or a Docker secret for the included compose file. If you prefer `AUTHSOME_MASTER_KEY_FILE`, wire up your own secret mount and file path in a custom compose file.
 
 ## Required environment variables
 
@@ -42,7 +42,7 @@ Do not commit production master keys. Use your platform secret store, a Docker s
 | `AUTHSOME_POSTGRES_USER` | `authsome` | Postgres role name used by the bundled compose file. |
 | `AUTHSOME_POSTGRES_DB` | `authsome` | Postgres database name used by the bundled compose file. |
 | `AUTHSOME_MASTER_KEY` | none | Base64-encoded 32-byte master key. Highest priority when set. |
-| `AUTHSOME_MASTER_KEY_FILE` | none | Alternative to `AUTHSOME_MASTER_KEY` when your platform mounts the secret into the container as a file. |
+| `AUTHSOME_MASTER_KEY_FILE` | none | Advanced alternative for custom compose or platform-secret setups where you mount a file into the container and point Authsome at that path yourself. |
 | `AUTHSOME_BASE_URL` | `http://localhost:7998` | Public daemon URL used to build OAuth callback URLs. Set this to the reverse-proxy URL in production. |
 | `AUTHSOME_HOME` | `/data/authsome` | Home directory for logs, generated fallback secrets, and other daemon-local files. |
 | `AUTHSOME_HOST` | `0.0.0.0` | Host interface the daemon binds to inside the container. |
@@ -52,6 +52,7 @@ Do not commit production master keys. Use your platform secret store, a Docker s
 | `AUTHSOME_POSTHOG_HOST` | `https://us.i.posthog.com` | Override the PostHog ingestion host if needed. |
 
 The current daemon settings still read the legacy `DATABASE_URL` alias internally. The compose file sets `AUTHSOME_DATABASE_URL` and mirrors it into `DATABASE_URL` so the deployment contract stays explicit while the current runtime keeps working.
+The included compose file hard-requires `AUTHSOME_MASTER_KEY` from the host environment; it does not mount a secret file or pass a `_FILE` path for you.
 
 ## Master key resolution
 
@@ -62,7 +63,7 @@ On startup, Authsome resolves the master key in this order:
 3. The OS keyring entry
 4. A generated fallback, stored in the keyring when possible, otherwise written to the default server key file
 
-`AUTHSOME_MASTER_KEY` is the strongest and cleanest production option because it avoids writing secret material to disk. If you use `AUTHSOME_MASTER_KEY_FILE`, mount it read-only and keep it outside the repository.
+`AUTHSOME_MASTER_KEY` is the strongest and cleanest production option for the included compose file because it avoids writing secret material to disk. If you use `AUTHSOME_MASTER_KEY_FILE`, mount it read-only, point Authsome at the mounted path, and treat that as a custom compose setup rather than the out-of-the-box quick start.
 
 ## Compose layout
 
@@ -107,7 +108,7 @@ Because schema migrations run at startup, keep the Postgres and Redis services h
 
 ## Example production notes
 
-- Use your platform secret store for `AUTHSOME_MASTER_KEY` or `AUTHSOME_MASTER_KEY_FILE`.
+- Use your platform secret store for `AUTHSOME_MASTER_KEY`. Only switch to `AUTHSOME_MASTER_KEY_FILE` if you have added a real secret mount and file path to your own compose file.
 - Set `AUTHSOME_BASE_URL` to the public URL behind your reverse proxy.
 - Keep `AUTHSOME_HOME` mounted only if you want local logs or fallback key material to persist.
 - Consider pointing `AUTHSOME_POSTHOG_API_KEY` at a real analytics key only if you have opted in to telemetry.
