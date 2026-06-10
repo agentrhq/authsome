@@ -94,6 +94,7 @@ class CredentialResolutionResponse(BaseModel):
     connection: str
     headers: dict[str, str]
     expires_at: datetime | None = None
+    source: Literal["local", "global"]
 
 
 class ProviderRoute(BaseModel):
@@ -126,6 +127,18 @@ class PrincipalVaultBindingRecord(BaseModel):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class GlobalProviderConnectionRecord(BaseModel):
+    """Server-owned pointer to a vault-local connection used as a global fallback."""
+
+    provider: str
+    owner_principal_id: str
+    owner_vault_id: str
+    connection_name: str
+    created_by_identity: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 class ConnectionSummaryResponse(BaseModel):
     provider: str
     provider_display_name: str
@@ -134,6 +147,17 @@ class ConnectionSummaryResponse(BaseModel):
     auth_type: str
     account_label: str | None = None
     principal_id: str | None = None
+
+
+class GlobalConnectionSummaryResponse(BaseModel):
+    provider: str
+    provider_display_name: str
+    connection_name: str
+    status: str
+    auth_type: str
+    account_label: str | None = None
+    api_url: str | None = None
+    source: Literal["global"] = "global"
 
 
 class ProviderClientResponse(BaseModel):
@@ -201,3 +225,4 @@ class ConnectionDetailResponse(BaseModel):
     account: dict[str, Any] | None = None
     secrets: ConnectionSecretsResponse = Field(default_factory=ConnectionSecretsResponse)
     can_set_default: bool = False
+    can_set_global: bool = False

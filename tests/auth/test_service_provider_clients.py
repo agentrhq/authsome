@@ -48,7 +48,12 @@ def _service(vault, **kwargs) -> CredentialService:  # noqa: ANN001, ANN003
     principal_id = kwargs.get("principal_id")
     vault_id = kwargs.get("vault_id", "vault_default")
     credentials = CredentialRepository(vault, identity=identity, principal_id=principal_id, vault_id=vault_id)
-    return CredentialService(credentials=credentials, providers=EmptyProviders(), **kwargs)
+    return CredentialService(
+        credentials=credentials,
+        providers=EmptyProviders(),
+        global_connections=kwargs.pop("global_connections", mock.AsyncMock()),
+        **kwargs,
+    )
 
 
 def _make_provider(*, flow: FlowType = FlowType.PKCE) -> ProviderDefinition:
@@ -397,6 +402,7 @@ async def test_revoke_local_deletes_shared_client_and_all_identity_connections(t
                 vault_id=primary_vault.vault_id,
             ),
             providers=ProviderRepository(store.provider_definitions),
+            global_connections=store.global_provider_connections,
             identity="steady-wisely-boldly-0042",
             principal_id="principal_1",
             principal_role=PrincipalRole.ADMIN,

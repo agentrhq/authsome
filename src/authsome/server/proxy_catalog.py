@@ -42,6 +42,48 @@ def _route_entries(definition: Any, connection_name: str, api_url: str | list[st
     return [{**base_entry, "api_url": api_url} for api_url in api_urls]
 
 
+async def _connected_routes(auth: CredentialService) -> list[dict[str, Any]]:
+    routes: list[dict[str, Any]] = []
+    routed_providers: set[str] = set()
+    for provider_group in await auth.list_connections():
+        provider_name = provider_group["name"]
+        selected_connections = provider_group["connections"]
+
+        try:
+            definition = await auth.get_provider(provider_name)
+        except Exception:
+            continue
+        if not definition.api_url:
+            continue
+
+        default_conn = next((c for c in selected_connections if c.get("is_default")), None)
+        if not default_conn:
+            continue
+
+        routes.extend(
+            _route_entries(
+                definition,
+                default_conn.get("connection_name", "default"),
+                default_conn.get("api_url") or definition.api_url,
+            )
+        )
+        routed_providers.add(provider_name)
+
+    for global_connection in await auth.list_global_connection_summaries():
+        provider_name = global_connection.provider
+        if provider_name in routed_providers:
+            continue
+        try:
+            definition = await auth.get_provider(provider_name)
+        except Exception:
+            continue
+        if not definition.api_url:
+            continue
+        routes.extend(_route_entries(definition, "default", global_connection.api_url or definition.api_url))
+        routed_providers.add(provider_name)
+    return routes
+
+
 async def build_proxy_routes(auth: CredentialService, scope: str = "connected") -> dict[str, Any]:
     """Build the list of routes for proxy routing.
 
@@ -55,28 +97,7 @@ async def build_proxy_routes(auth: CredentialService, scope: str = "connected") 
 
     routes = []
     if scope == "connected":
-        for provider_group in await auth.list_connections():
-            provider_name = provider_group["name"]
-            selected_connections = provider_group["connections"]
-
-            try:
-                definition = await auth.get_provider(provider_name)
-            except Exception:
-                continue
-            if not definition.api_url:
-                continue
-
-            default_conn = next((c for c in selected_connections if c.get("is_default")), None)
-            if not default_conn:
-                continue
-
-            routes.extend(
-                _route_entries(
-                    definition,
-                    default_conn.get("connection_name", "default"),
-                    default_conn.get("api_url") or definition.api_url,
-                )
-            )
+        routes = await _connected_routes(auth)
     else:  # configured
         for definition in await auth.list_providers():
             if not definition.api_url:
