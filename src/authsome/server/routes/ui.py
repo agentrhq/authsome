@@ -204,7 +204,7 @@ async def claim_identity_page(
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
 ) -> dict[str, str | bool]:
     try:
-        pending = ui_sessions.get_pending_claim(token)
+        pending = await ui_sessions.get_pending_claim(token)
     except KeyError:
         return {"token": token, "identity": "", "authenticated": False, "expired": True}
 
@@ -277,7 +277,7 @@ async def claim_identity_confirm(
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
 ) -> Response:
     try:
-        pending = ui_sessions.get_pending_claim(token)
+        pending = await ui_sessions.get_pending_claim(token)
     except KeyError:
         return RedirectResponse(
             url=f"/claim?{urlencode({'token': token, 'error': 'expired'})}", status_code=status.HTTP_303_SEE_OTHER
@@ -290,7 +290,7 @@ async def claim_identity_confirm(
             url=f"/login?{urlencode({'next': f'/claim?token={token}'})}", status_code=status.HTTP_303_SEE_OTHER
         )
 
-    pending = ui_sessions.consume_pending_claim(token)
+    pending = await ui_sessions.consume_pending_claim(token)
     await request.app.state.ownership_resolver.claim_identity_for_principal(
         identity=pending.identity,
         principal_id=principal_id,

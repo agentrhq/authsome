@@ -75,7 +75,7 @@ class IdentityBootstrapService:
     async def _build_status(self, registration: IdentityRegistration) -> IdentityBootstrapStatus:
         claim = await self._claims.resolve(registration.handle)
         if claim is None:
-            pending = self._ui_sessions.create_pending_claim(identity=registration.handle)
+            pending = await self._ui_sessions.create_pending_claim(identity=registration.handle)
             return IdentityBootstrapStatus(
                 identity=registration.handle,
                 did=registration.did,
