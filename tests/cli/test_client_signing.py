@@ -86,6 +86,48 @@ async def test_post_body_is_signed_as_sent(monkeypatch, tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_set_global_connection_request_is_signed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    captured: dict = {}
+
+    def fake_request(method, url, data=None, headers=None, timeout=None):
+        captured.update({"method": method, "url": url, "data": data, "headers": headers, "timeout": timeout})
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"status": "ok", "provider": "github", "connection_name": "work"}
+        return response
+
+    _patch_httpx_request(monkeypatch, fake_request)
+
+    await AuthsomeApiClient("http://127.0.0.1:7998").set_global_connection("github", "work")
+
+    assert captured["method"] == "POST"
+    assert captured["url"].endswith("/api/connections/github/work/global")
+    assert captured["headers"]["Authorization"].startswith("PoP ")
+
+
+@pytest.mark.asyncio
+async def test_unset_global_connection_request_is_signed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    captured: dict = {}
+
+    def fake_request(method, url, data=None, headers=None, timeout=None):
+        captured.update({"method": method, "url": url, "data": data, "headers": headers, "timeout": timeout})
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"status": "ok", "provider": "github", "deleted": True}
+        return response
+
+    _patch_httpx_request(monkeypatch, fake_request)
+
+    await AuthsomeApiClient("http://127.0.0.1:7998").unset_global_connection("github")
+
+    assert captured["method"] == "DELETE"
+    assert captured["url"].endswith("/api/connections/github/global")
+    assert captured["headers"]["Authorization"].startswith("PoP ")
+
+
+@pytest.mark.asyncio
 async def test_proxy_routes_request_is_signed(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     captured: dict = {}
