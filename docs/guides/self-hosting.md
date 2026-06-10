@@ -7,14 +7,14 @@ Run Authsome as a production service with Postgres for the server registries and
 The repository ships a compose file that wires the daemon to Postgres and Redis. Set a stable master key source first, then bring the stack up and verify the root health check.
 
 ```bash
-export AUTHSOME_MASTER_KEY_FILE="$PWD/.secrets/authsome-master.key"
-mkdir -p .secrets
-# Write a stable base64-encoded 32-byte key here.
+export AUTHSOME_POSTGRES_PASSWORD='change-me-to-a-long-random-password'
+export AUTHSOME_MASTER_KEY='base64-encoded-32-byte-key'
 docker compose up -d
 curl http://localhost:7998/health
 ```
 
 The daemon should answer on `http://localhost:7998`. The root `/health` endpoint is the container health target used by the image and by `docker compose`.
+If your platform mounts a secret file into the container, set `AUTHSOME_MASTER_KEY_FILE` instead of `AUTHSOME_MASTER_KEY` and point it at that mounted path.
 
 ## What this deployment does
 
@@ -38,8 +38,11 @@ Do not commit production master keys. Use your platform secret store, a Docker s
 |---|---|---|
 | `AUTHSOME_DATABASE_URL` | none | Postgres DSN for the daemon-owned registries. The compose file points this at the bundled Postgres service. |
 | `AUTHSOME_REDIS_URL` | none | Redis URL for shared runtime state and the encrypted vault raw KV backend. |
+| `AUTHSOME_POSTGRES_PASSWORD` | none | Required password used by the bundled Postgres service and the daemon's database URL. |
+| `AUTHSOME_POSTGRES_USER` | `authsome` | Postgres role name used by the bundled compose file. |
+| `AUTHSOME_POSTGRES_DB` | `authsome` | Postgres database name used by the bundled compose file. |
 | `AUTHSOME_MASTER_KEY` | none | Base64-encoded 32-byte master key. Highest priority when set. |
-| `AUTHSOME_MASTER_KEY_FILE` | none | Path to a file containing the master key. Prefer this for mounted secrets. |
+| `AUTHSOME_MASTER_KEY_FILE` | none | Alternative to `AUTHSOME_MASTER_KEY` when your platform mounts the secret into the container as a file. |
 | `AUTHSOME_BASE_URL` | `http://localhost:7998` | Public daemon URL used to build OAuth callback URLs. Set this to the reverse-proxy URL in production. |
 | `AUTHSOME_HOME` | `/data/authsome` | Home directory for logs, generated fallback secrets, and other daemon-local files. |
 | `AUTHSOME_HOST` | `0.0.0.0` | Host interface the daemon binds to inside the container. |
