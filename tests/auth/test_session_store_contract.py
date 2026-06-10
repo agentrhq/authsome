@@ -1,7 +1,7 @@
 import pytest
 
 from authsome.auth.models.enums import FlowType
-from authsome.auth.sessions import AuthSessionStatus, MemoryAuthSessionStore
+from authsome.auth.sessions import AuthSessionStatus, AuthSessionStore, MemoryAuthSessionStore
 
 
 @pytest.mark.asyncio
@@ -41,3 +41,7 @@ async def test_memory_session_store_indexes_oauth_state() -> None:
     await store.index_oauth_state(session)
 
     assert (await store.get_by_oauth_state("state-123")).session_id == session.session_id
+
+
+def test_auth_session_store_alias_constructs_memory_store() -> None:
+    assert isinstance(AuthSessionStore(), MemoryAuthSessionStore)

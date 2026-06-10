@@ -21,6 +21,9 @@ class RedisAuthSessionStore:
     def _state_key(self, state: str) -> str:
         return f"{self._key_prefix}:oauth-state:{state}"
 
+    def _session_state_key(self, session_id: str) -> str:
+        return f"{self._key_prefix}:session-state:{session_id}"
+
     async def create(  # noqa: PLR0913
         self,
         *,
@@ -59,19 +62,28 @@ class RedisAuthSessionStore:
         await self._client.set(self._session_key(session.session_id), session.model_dump_json(), ex=ttl)
         oauth_state = session.payload.get("internal_state")
         if oauth_state:
-            await self._client.set(self._state_key(str(oauth_state)), session.session_id, ex=ttl)
+            state = str(oauth_state)
+            await self._client.set(self._state_key(state), session.session_id, ex=ttl)
+            await self._client.set(self._session_state_key(session.session_id), state, ex=ttl)
 
     async def delete(self, session_id: str) -> None:
         raw = await self._client.get(self._session_key(session_id))
         if raw is None:
-            await self._client.delete(self._session_key(session_id))
+            state = await self._client.get(self._session_state_key(session_id))
+            keys = [self._session_key(session_id), self._session_state_key(session_id)]
+            if state is not None:
+                if isinstance(state, bytes):
+                    state = state.decode()
+                keys.append(self._state_key(str(state)))
+            await self._client.delete(*keys)
             return
 
         session = AuthSession.model_validate_json(raw)
         keys = [self._session_key(session_id)]
         oauth_state = session.payload.get("internal_state")
         if oauth_state:
-            keys.append(self._state_key(str(oauth_state)))
+            state = str(oauth_state)
+            keys.extend([self._state_key(state), self._session_state_key(session_id)])
         await self._client.delete(*keys)
 
     async def index_oauth_state(self, session: AuthSession) -> None:
