@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 
 from authsome.config import AuthsomeConfig
 
@@ -20,6 +20,12 @@ class ServerConfig(AuthsomeConfig):
     redis_url: str | None = None
     postgres_pool_min_size: int = Field(default=1, ge=1)
     postgres_pool_max_size: int = Field(default=10, ge=1)
+
+    @model_validator(mode="after")
+    def validate_postgres_pool_sizes(self) -> "ServerConfig":
+        if self.postgres_pool_min_size > self.postgres_pool_max_size:
+            raise ValueError("postgres_pool_min_size must be less than or equal to postgres_pool_max_size")
+        return self
 
     # Lifetimes, in seconds
     ui_bootstrap_ttl_seconds: int = 300

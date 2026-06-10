@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from authsome.server.config import ServerConfig
 
 
@@ -29,3 +31,8 @@ def test_server_config_defaults_preserve_local_paths(tmp_path: Path) -> None:
     assert config.redis_url is None
     assert config.database == str(tmp_path / "server" / "authsome.db")
     assert config.kv_store_dir == tmp_path / "server" / "kv_store"
+
+
+def test_server_config_rejects_invalid_postgres_pool_range() -> None:
+    with pytest.raises(ValueError, match="postgres_pool_min_size must be less than or equal to postgres_pool_max_size"):
+        ServerConfig(postgres_pool_min_size=10, postgres_pool_max_size=2)
