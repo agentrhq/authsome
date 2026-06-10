@@ -4,6 +4,7 @@
   "display_name": "Zoom",
   "logo": "img.logo.dev/name/zoom",
   "description": "Zoom access for creating and managing meetings, users, and recordings via the Zoom API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://api.zoom.us/v2",

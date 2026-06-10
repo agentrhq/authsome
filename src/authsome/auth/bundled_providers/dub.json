@@ -4,6 +4,7 @@
   "display_name": "Dub.co",
   "logo": "img.logo.dev/name/dub",
   "description": "Short links, conversion tracking, and link analytics from Dub.co.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.dub.co",

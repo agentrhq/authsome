@@ -4,6 +4,7 @@
   "display_name": "Postmark",
   "logo": "img.logo.dev/name/postmark",
   "description": "Transactional email sending and server token access from Postmark.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.postmarkapp.com",

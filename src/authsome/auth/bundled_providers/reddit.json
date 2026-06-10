@@ -4,6 +4,7 @@
   "display_name": "Reddit",
   "logo": "img.logo.dev/name/reddit",
   "description": "Authenticate with Reddit API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "oauth": {

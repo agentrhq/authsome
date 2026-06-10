@@ -4,6 +4,7 @@
   "display_name": "Discord",
   "logo": "img.logo.dev/name/discord",
   "description": "Discord identity, guild, and messaging integrations over OAuth.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "discord.com",

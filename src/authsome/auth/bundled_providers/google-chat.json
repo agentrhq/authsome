@@ -4,6 +4,7 @@
   "display_name": "Google Chat",
   "logo": "img.logo.dev/name/google-chat",
   "description": "Google Chat access for sending and managing messages and spaces via the Chat API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://chat.googleapis.com/v1",

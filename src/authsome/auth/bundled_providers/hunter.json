@@ -4,6 +4,7 @@
   "display_name": "Hunter",
   "logo": "img.logo.dev/name/hunter",
   "description": "Email discovery and verification data for outreach workflows.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.hunter.io",

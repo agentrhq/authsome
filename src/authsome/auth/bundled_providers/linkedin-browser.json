@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "name": "linkedin-browser",
-  "display_name": "LinkedIn — Browser Session",
+  "display_name": "LinkedIn \u2014 Browser Session",
   "logo": "img.logo.dev/name/linkedin",
   "description": "LinkedIn browser-session credentials for authenticated web workflows.",
+  "type": "app",
   "auth_type": "browser",
   "flow": "browser",
   "api_url": "regex:^(www\\.linkedin\\.com|linkedin\\.com)",

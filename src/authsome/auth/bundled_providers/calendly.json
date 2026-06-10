@@ -4,6 +4,7 @@
   "display_name": "Calendly",
   "logo": "img.logo.dev/name/calendly",
   "description": "Scheduling links, events, invitees, and calendar booking automation.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.calendly.com",

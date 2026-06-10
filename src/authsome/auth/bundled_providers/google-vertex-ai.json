@@ -4,6 +4,7 @@
   "display_name": "Vertex AI",
   "logo": "img.logo.dev/name/google-cloud",
   "description": "Google Vertex AI access for generative models, embeddings, and ML pipelines via the Vertex AI API.",
+  "type": "llm",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://us-central1-aiplatform.googleapis.com/v1",

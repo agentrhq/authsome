@@ -1,6 +1,5 @@
 """Provider CLI commands."""
 
-import json
 import pathlib
 import sys
 
@@ -11,7 +10,7 @@ from loguru import logger
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.cli.context import ContextObj
 from authsome.cli.helpers import _validate_provider_endpoints, auth_command
-from authsome.utils import format_error_code
+from authsome.utils import format_error_code, parse_jsonc
 
 
 @click.group(name="provider")
@@ -127,7 +126,7 @@ async def register(ctx_obj: ContextObj, path: str, force: bool, yes: bool) -> No
         sys.exit(1)
 
     try:
-        data = json.loads(filepath.read_text(encoding="utf-8"))
+        data = parse_jsonc(filepath.read_text(encoding="utf-8"))
         definition = ProviderDefinition.model_validate(data)
 
         endpoints_to_check = _validate_provider_endpoints(definition)

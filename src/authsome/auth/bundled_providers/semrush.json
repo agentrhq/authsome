@@ -4,6 +4,7 @@
   "display_name": "SEMrush",
   "logo": "img.logo.dev/name/semrush",
   "description": "SEO, competitive research, and search analytics from Semrush.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.semrush.com",

@@ -4,6 +4,7 @@
   "display_name": "Brevo",
   "logo": "img.logo.dev/name/brevo",
   "description": "Email marketing, transactional messaging, and contact management APIs.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.brevo.com",

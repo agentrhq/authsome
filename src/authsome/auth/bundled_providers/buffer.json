@@ -4,6 +4,7 @@
   "display_name": "Buffer",
   "logo": "img.logo.dev/name/buffer",
   "description": "Social scheduling and publishing workflows for connected channels.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.bufferapp.com",

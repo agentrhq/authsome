@@ -4,6 +4,7 @@
   "display_name": "Google Meet",
   "logo": "img.logo.dev/name/google-meet",
   "description": "Google Meet access for creating and managing video meeting spaces via the Meet REST API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://meet.googleapis.com/v2",

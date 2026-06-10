@@ -119,10 +119,21 @@ The strongest emotional signals are:
 
 The palette is anchored by **Deep Emerald** and **Obsidian**. We use a dark-first strategy to reduce eye strain for technical work and to evoke a code editor/control plane.
 
-- **Primary:** Emerald (#10B981) used sparingly for successful states, primary actions, verified markers, and active request paths. It represents secure access, not decoration.
+- **Primary:** Emerald (#10B981) used sparingly for successful states, primary actions, verified markers, and active request paths. It represents secure access, not decoration. Maps to `--primary`.
 - **Secondary:** A deep Forest Green (#052E16) used for subtle backgrounds on active navigation items or success-themed containers.
 - **Neutral/Background:** We use a true Obsidian (#09090B) for the primary background to maximize contrast with borders.
 - **Accents:** Slate, zinc, and muted blue-gray tones support borders, secondary text, and architecture diagrams. Use them to create confidence without making the page monochrome.
+
+### Design token rules
+
+| Token | Dark mode value | Use |
+|-------|----------------|-----|
+| `--primary` | Emerald `#10B981` | Primary buttons, focus rings, active states, verified indicators |
+| `--accent` | `#2a2a2c` (surface-container-high) | **Neutral** hover surface for cards, list rows, and menu items. Never set to emerald — that bleeds color into every interactive hover. |
+| `--muted` | `#201f22` | Inactive backgrounds, inset panels, metadata rows |
+| `--border` | `#27272A` | All 1px dividers and card outlines |
+
+`--accent` is intentionally a mid-level neutral surface, not a chromatic tint. Emerald influence on hover comes only from `border-primary` or a very low-opacity `ring` — never from `bg-accent`.
 
 ## Typography
 

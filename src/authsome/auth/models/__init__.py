@@ -14,6 +14,7 @@ from authsome.auth.models.enums import (
     ConnectionStatus,
     ExportFormat,
     FlowType,
+    ProviderType,
 )
 from authsome.auth.models.provider import (
     ApiKeyConfig,
@@ -35,6 +36,7 @@ __all__ = [
     "ProviderClientRecord",
     "ProviderDefinition",
     "ProviderMetadataRecord",
+    "ProviderType",
     "ProviderStateRecord",
     "ServerConfig",
     "Sensitive",

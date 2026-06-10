@@ -4,6 +4,7 @@
   "display_name": "OpenAI",
   "logo": "img.logo.dev/name/openai",
   "description": "OpenAI API keys for model, assistant, and platform automation.",
+  "type": "llm",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.openai.com",
