@@ -4,6 +4,7 @@
   "display_name": "Resend",
   "logo": "img.logo.dev/name/resend",
   "description": "Email sending, domains, audiences, and Resend API automation.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.resend.com",

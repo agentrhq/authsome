@@ -4,6 +4,7 @@
   "display_name": "Lemlist",
   "logo": "img.logo.dev/name/lemlist",
   "description": "Cold outreach campaigns, leads, and email engagement workflows.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.lemlist.com",

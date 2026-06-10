@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "name": "x-browser",
-  "display_name": "X (Twitter) — Browser Session",
+  "display_name": "X (Twitter) \u2014 Browser Session",
   "logo": "img.logo.dev/name/x",
   "description": "X browser-session credentials for authenticated web workflows.",
+  "type": "app",
   "auth_type": "browser",
   "flow": "browser",
   "api_url": "regex:^(api\\.twitter\\.com|api\\.x\\.com|x\\.com|twitter\\.com)",

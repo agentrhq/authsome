@@ -4,6 +4,7 @@
   "display_name": "SendGrid",
   "logo": "img.logo.dev/name/sendgrid",
   "description": "SendGrid email delivery, templates, and account API access.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.sendgrid.com",

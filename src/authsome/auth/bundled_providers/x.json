@@ -4,6 +4,7 @@
   "display_name": "X (Twitter)",
   "logo": "img.logo.dev/name/x",
   "description": "X OAuth access for posts, user data, and social automation.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "api.twitter.com",

@@ -4,6 +4,7 @@
   "display_name": "Google Search Console",
   "logo": "img.logo.dev/name/google-search-console",
   "description": "Google Search Console access for reading search analytics and sitemaps via the Search Console API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://searchconsole.googleapis.com/v1",

@@ -4,6 +4,7 @@
   "display_name": "Google Classroom",
   "logo": "img.logo.dev/name/google-classroom",
   "description": "Google Classroom access for managing courses, assignments, and student rosters via the Classroom API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://classroom.googleapis.com/v1",

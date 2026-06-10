@@ -4,6 +4,7 @@
   "display_name": "Google Docs",
   "logo": "img.logo.dev/name/google-docs",
   "description": "Google Docs access for reading and editing documents via the Docs API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://docs.googleapis.com/v1",

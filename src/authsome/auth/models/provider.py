@@ -4,7 +4,7 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, Field
 
-from authsome.auth.models.enums import AuthType, FlowType
+from authsome.auth.models.enums import AuthType, FlowType, ProviderType
 
 # TODO: Remove hardcoded schema versions everywhere
 
@@ -93,6 +93,7 @@ class ProviderDefinition(BaseModel):
     display_name: str
     logo: str | None = None
     description: str | None = None
+    type: ProviderType | None = None
     auth_type: AuthType
     flow: FlowType
 

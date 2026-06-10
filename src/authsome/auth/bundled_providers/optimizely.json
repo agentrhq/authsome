@@ -4,6 +4,7 @@
   "display_name": "Optimizely",
   "logo": "img.logo.dev/name/optimizely",
   "description": "Experimentation, feature flags, and Optimizely platform APIs.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.optimizely.com",

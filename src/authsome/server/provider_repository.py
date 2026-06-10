@@ -2,13 +2,13 @@
 
 import builtins
 import importlib.resources
-import json
 
 from loguru import logger
 
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.errors import ProviderNotFoundError
 from authsome.server.store.repositories import ProviderDefinitionRepository
+from authsome.utils import parse_jsonc
 
 
 class ProviderRepository:
@@ -26,9 +26,9 @@ class ProviderRepository:
         try:
             files = importlib.resources.files("authsome.auth.bundled_providers")
             for file in files.iterdir():
-                if file.name.endswith(".json"):
+                if file.name.endswith((".json", ".jsonc")):
                     with file.open("r", encoding="utf-8") as handle:
-                        definition = ProviderDefinition.model_validate(json.load(handle))
+                        definition = ProviderDefinition.model_validate(parse_jsonc(handle.read()))
                     bundled[definition.name] = definition
         except Exception as exc:
             logger.warning("Error loading bundled providers: {}", exc)

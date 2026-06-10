@@ -4,6 +4,7 @@
   "display_name": "Mailchimp",
   "logo": "img.logo.dev/name/mailchimp",
   "description": "Audience, campaign, and marketing automation APIs from Mailchimp.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.mailchimp.com",

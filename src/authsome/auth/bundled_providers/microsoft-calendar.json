@@ -4,6 +4,7 @@
   "display_name": "Outlook Calendar",
   "logo": "img.logo.dev/name/microsoft-outlook",
   "description": "Outlook Calendar access for reading and managing calendar events and schedules via Microsoft Graph.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://graph.microsoft.com/v1.0/me/calendars",

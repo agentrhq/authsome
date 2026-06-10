@@ -31,6 +31,14 @@ class ConnectionStatus(StrEnum):
     INVALID = "invalid"
 
 
+class ProviderType(StrEnum):
+    """High-level category for a provider."""
+
+    APP = "app"
+    LLM = "llm"
+    MCP = "mcp"
+
+
 class ExportFormat(StrEnum):
     """Supported credential export formats."""
 

@@ -4,6 +4,7 @@
   "display_name": "G2",
   "logo": "img.logo.dev/name/g2",
   "description": "Review, buyer intent, and marketplace data from G2.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.g2.com",

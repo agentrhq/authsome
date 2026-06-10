@@ -4,6 +4,7 @@
   "display_name": "SavvyCal",
   "logo": "img.logo.dev/name/savvycal",
   "description": "Scheduling links, events, and availability workflows from SavvyCal.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.savvycal.com",

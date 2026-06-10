@@ -4,6 +4,7 @@
   "display_name": "Beehiiv",
   "logo": "img.logo.dev/name/beehiiv",
   "description": "Newsletter publishing, subscribers, and audience growth automation.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.beehiiv.com",

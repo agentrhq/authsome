@@ -4,6 +4,7 @@
   "display_name": "Tolt",
   "logo": "img.logo.dev/name/tolt",
   "description": "Affiliate tracking, partner data, and referral program automation.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.tolt.com",

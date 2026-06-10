@@ -4,6 +4,7 @@
   "display_name": "Zapier",
   "logo": "img.logo.dev/name/zapier",
   "description": "Zapier platform API access for automation and connected workflows.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.zapier.com",

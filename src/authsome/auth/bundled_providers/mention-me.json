@@ -4,6 +4,7 @@
   "display_name": "Mention Me",
   "logo": "img.logo.dev/name/mention-me",
   "description": "Referral marketing campaigns, contacts, and Mention Me data access.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "mention-me.com",

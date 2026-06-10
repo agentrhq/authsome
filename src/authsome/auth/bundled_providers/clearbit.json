@@ -4,6 +4,7 @@
   "display_name": "Clearbit",
   "logo": "img.logo.dev/name/clearbit",
   "description": "Company and contact enrichment data for sales and marketing workflows.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.clearbit.com",

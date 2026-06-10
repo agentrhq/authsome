@@ -4,6 +4,7 @@
   "display_name": "Livestorm",
   "logo": "img.logo.dev/name/livestorm",
   "description": "Webinar, event, registrant, and attendee data from Livestorm.",
+  "type": "app",
   "auth_type": "api_key",
   "flow": "api_key",
   "api_url": "api.livestorm.co",

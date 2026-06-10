@@ -4,6 +4,7 @@
   "display_name": "Google Drive",
   "logo": "img.logo.dev/name/google-drive",
   "description": "Google Drive access for managing files and folders via the Drive API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://www.googleapis.com/drive/v3",

@@ -4,6 +4,7 @@
   "display_name": "Todoist",
   "logo": "img.logo.dev/name/todoist",
   "description": "Todoist access for managing tasks, projects, and labels via the Todoist REST API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://api.todoist.com/rest/v2",

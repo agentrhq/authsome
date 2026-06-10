@@ -4,6 +4,7 @@
   "display_name": "Google Photos",
   "logo": "img.logo.dev/name/google-photos",
   "description": "Google Photos access for reading and managing photo libraries via the Photos Library API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://photoslibrary.googleapis.com/v1",

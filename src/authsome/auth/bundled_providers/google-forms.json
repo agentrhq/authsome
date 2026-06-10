@@ -4,6 +4,7 @@
   "display_name": "Google Forms",
   "logo": "img.logo.dev/name/google-forms",
   "description": "Google Forms access for creating forms and reading responses via the Forms API.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "https://forms.googleapis.com/v1",

@@ -4,6 +4,7 @@
   "display_name": "Klaviyo (OAuth)",
   "logo": "img.logo.dev/name/klaviyo",
   "description": "OAuth access for Klaviyo app integrations and account APIs.",
+  "type": "app",
   "auth_type": "oauth2",
   "flow": "pkce",
   "api_url": "a.klaviyo.com",
