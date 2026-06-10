@@ -1,6 +1,6 @@
 """FastAPI app factory for the Authsome daemon."""
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from importlib.resources import files
 
 from fastapi import FastAPI, Request, status
@@ -36,39 +36,72 @@ from authsome.server.store.repositories import IdentityRegistrationError
 from authsome.server.ui_sessions import UiSessionStore
 
 
+async def _cleanup_startup_resources(store, audit_log, runtime_state) -> None:
+    with suppress(Exception):
+        if audit_log is not None:
+            audit_log.shutdown()
+    with suppress(Exception):
+        if store is not None:
+            await store.close()
+    with suppress(Exception):
+        if runtime_state is not None:
+            await runtime_state.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage daemon lifecycle."""
-    app.state.store = await create_store()
-    app.state.server_config = await load_server_config(app.state.store)
-    app.state.audit_log = app.state.store.audit_events.configure_exporter()
-    app.state.vault = await create_vault(app.state.store.home)
-    app.state.runtime_state = await create_runtime_state()
-    app.state.auth_sessions = app.state.runtime_state.auth_sessions
-    app.state.proof_replay_cache = app.state.runtime_state.replay_cache
-    app.state.ui_sessions = UiSessionStore(
-        load_ui_session_signing_secret(app.state.store.home),
-        pending_claims=app.state.runtime_state.pending_claims,
-    )
-    app.state.provider_repository = ProviderRepository(app.state.store.provider_definitions)
-    app.state.account_auth_service = create_account_auth_service(app.state.store, app.state.ui_sessions)
-    app.state.server_base_url = get_server_base_url()
-    init_posthog()
-    app.state.identity_bootstrap = create_identity_bootstrap_service(
-        app.state.store.identity_registry,
-        app.state.ui_sessions,
-        store=app.state.store,
-        server_base_url=app.state.server_base_url,
-    )
-    app.state.ownership_resolver = create_ownership_resolver(app.state.store)
-    app.state.ownership_cache = {}
+    store = audit_log = runtime_state = None
+    try:
+        store = await create_store()
+        server_config = await load_server_config(store)
+        audit_log = store.audit_events.configure_exporter()
+        vault = await create_vault(store.home)
+        runtime_state = await create_runtime_state()
+        auth_sessions = runtime_state.auth_sessions
+        proof_replay_cache = runtime_state.replay_cache
+        ui_sessions = UiSessionStore(
+            load_ui_session_signing_secret(store.home),
+            pending_claims=runtime_state.pending_claims,
+        )
+        provider_repository = ProviderRepository(store.provider_definitions)
+        account_auth_service = create_account_auth_service(store, ui_sessions)
+        server_base_url = get_server_base_url()
+        init_posthog()
+        identity_bootstrap = create_identity_bootstrap_service(
+            store.identity_registry,
+            ui_sessions,
+            store=store,
+            server_base_url=server_base_url,
+        )
+        ownership_resolver = create_ownership_resolver(store)
+        ownership_cache = {}
+    except Exception:
+        await _cleanup_startup_resources(store, audit_log, runtime_state)
+        raise
+
+    app.state.store = store
+    app.state.server_config = server_config
+    app.state.audit_log = audit_log
+    app.state.vault = vault
+    app.state.runtime_state = runtime_state
+    app.state.auth_sessions = auth_sessions
+    app.state.proof_replay_cache = proof_replay_cache
+    app.state.ui_sessions = ui_sessions
+    app.state.provider_repository = provider_repository
+    app.state.account_auth_service = account_auth_service
+    app.state.server_base_url = server_base_url
+    app.state.identity_bootstrap = identity_bootstrap
+    app.state.ownership_resolver = ownership_resolver
+    app.state.ownership_cache = ownership_cache
     yield
     try:
         shutdown_posthog()
-        app.state.audit_log.shutdown()
-        await app.state.store.close()
+        if audit_log is not None:
+            audit_log.shutdown()
+        if store is not None:
+            await store.close()
     finally:
-        runtime_state = getattr(app.state, "runtime_state", None)
         if runtime_state is not None:
             await runtime_state.close()
 

@@ -56,6 +56,10 @@ async def create_vault(home: Path) -> Vault:
 
         RedisStore = cast(Any, redis_store_module).RedisStore
         raw_kv = RedisStore(url=server_config.redis_url)
+        try:
+            await raw_kv.get("__integrity_probe__", collection="__vault_meta__")
+        except Exception as exc:
+            raise RuntimeError("Redis vault storage is unavailable") from exc
     else:
         raw_kv = DiskStore(directory=str(server_config.kv_store_dir))
     secret = load_master_secret(home)

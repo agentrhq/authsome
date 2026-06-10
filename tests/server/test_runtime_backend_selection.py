@@ -4,8 +4,10 @@ import types
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
 
 from authsome.auth.sessions import MemoryAuthSessionStore
+from authsome.server.app import lifespan
 from authsome.server.auth_sessions import RedisAuthSessionStore
 from authsome.server.config import get_server_config
 from authsome.server.dependencies import create_runtime_state, create_vault
@@ -30,6 +32,37 @@ class FakeRedisClient:
 
     async def aclose(self) -> None:
         self.aclose_called = True
+
+
+class FakeAuditLog:
+    def __init__(self) -> None:
+        self.shutdown_called = False
+
+    def shutdown(self) -> None:
+        self.shutdown_called = True
+
+
+class FakeStore:
+    def __init__(self, home: Path, audit_log: FakeAuditLog) -> None:
+        self.home = home
+        self.close_called = False
+        self.provider_definitions = object()
+        self.identity_registry = object()
+        self.audit_events = types.SimpleNamespace(configure_exporter=lambda: audit_log)
+
+    async def close(self) -> None:
+        self.close_called = True
+
+
+class FakeRuntimeState:
+    def __init__(self) -> None:
+        self.close_called = False
+        self.auth_sessions = object()
+        self.replay_cache = object()
+        self.pending_claims = object()
+
+    async def close(self) -> None:
+        self.close_called = True
 
 
 def _patch_import(monkeypatch: pytest.MonkeyPatch, module_name: str, module: types.ModuleType | None) -> None:
@@ -97,6 +130,47 @@ async def test_runtime_state_uses_redis_stores_and_pings_client(monkeypatch) -> 
 
 
 @pytest.mark.asyncio
+async def test_lifespan_cleans_up_partial_startup_on_failure(monkeypatch, tmp_path: Path) -> None:
+    from authsome.server import app as app_module
+
+    audit_log = FakeAuditLog()
+    store = FakeStore(tmp_path, audit_log)
+    runtime_state = FakeRuntimeState()
+
+    async def create_store(home=None):
+        return store
+
+    async def load_server_config(_store):
+        return object()
+
+    async def create_vault(_home):
+        return object()
+
+    async def create_runtime_state_stub():
+        return runtime_state
+
+    def raise_startup_error(*args, **kwargs):
+        raise RuntimeError("startup boom")
+
+    monkeypatch.setattr(app_module, "create_store", create_store)
+    monkeypatch.setattr(app_module, "load_server_config", load_server_config)
+    monkeypatch.setattr(app_module, "create_vault", create_vault)
+    monkeypatch.setattr(app_module, "create_runtime_state", create_runtime_state_stub)
+    monkeypatch.setattr(app_module, "create_account_auth_service", raise_startup_error)
+    monkeypatch.setattr(app_module, "load_ui_session_signing_secret", lambda home: "secret")
+    monkeypatch.setattr(app_module, "init_posthog", lambda: None)
+    monkeypatch.setattr(app_module, "shutdown_posthog", lambda: None)
+
+    with pytest.raises(RuntimeError, match="startup boom"):
+        async with lifespan(FastAPI()):
+            pass
+
+    assert store.close_called is True
+    assert audit_log.shutdown_called is True
+    assert runtime_state.close_called is True
+
+
+@pytest.mark.asyncio
 async def test_create_vault_uses_disk_store_without_redis(monkeypatch, tmp_path: Path) -> None:
     from authsome.server import dependencies
 
@@ -128,6 +202,10 @@ async def test_create_vault_uses_redis_store_when_redis_configured(monkeypatch, 
     class FakeRedisStore:
         def __init__(self, url: str) -> None:
             self.url = url
+            self.get_calls: list[tuple[str, str | None]] = []
+
+        async def get(self, key: str, *, collection: str | None = None):
+            self.get_calls.append((key, collection))
 
     class FakeDekManager:
         async def load_or_create(self, secret, raw_kv):
@@ -147,3 +225,28 @@ async def test_create_vault_uses_redis_store_when_redis_configured(monkeypatch, 
 
     assert isinstance(vault, FakeRedisStore)
     assert vault.url == "redis://localhost:6379/0"
+    assert vault.get_calls == [("__integrity_probe__", "__vault_meta__")]
+
+
+@pytest.mark.asyncio
+async def test_create_vault_raises_clear_error_when_redis_probe_fails(monkeypatch, tmp_path: Path) -> None:
+    from authsome.server import dependencies
+
+    class FailingRedisStore:
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+        async def get(self, key: str, *, collection: str | None = None):
+            raise ConnectionError("redis down")
+
+    redis_store_module = types.ModuleType("key_value.aio.stores.redis")
+    redis_store_module.RedisStore = FailingRedisStore
+
+    monkeypatch.setenv("AUTHSOME_REDIS_URL", "redis://localhost:6379/0")
+    get_server_config.cache_clear()
+    monkeypatch.setattr(dependencies, "AesGcmEncryptionWrapper", lambda raw_kv, dek: raw_kv)
+    monkeypatch.setattr(dependencies, "Vault", lambda encrypted_kv: encrypted_kv)
+    _patch_import(monkeypatch, "key_value.aio.stores.redis", redis_store_module)
+
+    with pytest.raises(RuntimeError, match="Redis vault storage is unavailable"):
+        await create_vault(tmp_path)
