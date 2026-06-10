@@ -17,6 +17,9 @@ class ServerConfig(AuthsomeConfig):
 
     # Store
     database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
+    redis_url: str | None = None
+    postgres_pool_min_size: int = Field(default=1, ge=1)
+    postgres_pool_max_size: int = Field(default=10, ge=1)
 
     # Lifetimes, in seconds
     ui_bootstrap_ttl_seconds: int = 300
