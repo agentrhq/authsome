@@ -73,6 +73,14 @@ authsome = "authsome.cli.main:cli"
 packages = ["src/authsome"]
 artifacts = ["src/authsome/ui/web/**"]
 
+[tool.hatch.build]
+exclude = [
+    "/.venv*",
+    "/ui/node_modules",
+    "/ui/.next",
+    "/ui/out",
+]
+
 [tool.hatch.build.targets.sdist.force-include]
 "src/authsome/ui/web" = "src/authsome/ui/web"
 
