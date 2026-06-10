@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Database,
   GitBranch,
+  Globe2,
   KeyRound,
   LifeBuoy,
   Link2,
@@ -32,6 +33,7 @@ import {
   ApiError,
   ConnectionDetail,
   DashboardData,
+  GlobalConnectionRow,
   PrincipalRow,
   ProviderDetail,
   ProviderView,
@@ -46,6 +48,8 @@ import {
   fetchSessionInput,
   logoutConnection,
   revokeProvider,
+  setGlobalConnection,
+  unsetGlobalConnection,
   updateProviderConfiguration,
 } from "@/lib/authsome-api";
 import { Badge } from "@/components/ui/badge";
@@ -1029,6 +1033,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
               {provider.connectionCount} connection{provider.connectionCount !== 1 ? "s" : ""}
             </Badge>
           ) : null}
+          {provider.globalConnectionCount ? <Badge variant="outline">Global</Badge> : null}
         </div>
         {provider.requiresNamedLogin ? (
           <Button className="mt-auto w-full" onClick={onNamedLogin} type="button">
@@ -1101,10 +1106,16 @@ function NamedConnectionDialog({
 
 function ConnectionsView({
   connections,
+  globalConnections,
   initialFilter,
+  isAdmin,
+  onRefresh,
 }: {
   connections: DashboardData["connections"];
+  globalConnections: DashboardData["globalConnections"];
   initialFilter?: string;
+  isAdmin: boolean;
+  onRefresh: () => void;
 }) {
   const [query, setQuery] = useState(() => {
     if (initialFilter) {
@@ -1122,12 +1133,26 @@ function ConnectionsView({
       `${row.connectionName} ${row.providerDisplayName} ${row.authTypeLabel}`.toLowerCase().includes(normalized),
     );
   }, [connections, query]);
+  const filteredGlobalConnections = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return globalConnections;
+    return globalConnections.filter((row) =>
+      `${row.connectionName} ${row.providerDisplayName} ${row.authTypeLabel} ${row.accountLabel || ""}`
+        .toLowerCase()
+        .includes(normalized),
+    );
+  }, [globalConnections, query]);
 
   return (
     <div className="grid gap-5">
-      <SectionHeader description="Named connections in the current vault." title="Connections" />
+      <SectionHeader description="Connection fallbacks and named connections in the current vault." title="Connections" />
       <SearchInput onChange={setQuery} placeholder="Search connections..." value={query} />
+      <GlobalConnectionsSection connections={filteredGlobalConnections} isAdmin={isAdmin} onRefresh={onRefresh} />
       <Card className="shadow-none border-border/50">
+        <CardHeader>
+          <CardTitle>Your Connections</CardTitle>
+          <CardDescription>Named connections in the current vault.</CardDescription>
+        </CardHeader>
         <CardContent className="p-0">
           {filteredConnections.length ? (
             <Table>
@@ -1165,6 +1190,89 @@ function ConnectionsView({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function GlobalConnectionsSection({
+  connections,
+  isAdmin,
+  onRefresh,
+}: {
+  connections: GlobalConnectionRow[];
+  isAdmin: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <Card className="shadow-none border-border/50">
+      <CardHeader>
+        <CardTitle>Global Connections</CardTitle>
+        <CardDescription>Deployment-wide fallback connections available to accepted identities.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {connections.length ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Connection</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                {isAdmin ? <TableHead className="w-24">Actions</TableHead> : null}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {connections.map((row) => (
+                <TableRow key={`${row.providerName}:${row.connectionName}`}>
+                  <TableCell>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Globe2 className="size-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{row.connectionName}</div>
+                        {row.accountLabel ? (
+                          <div className="truncate text-xs text-muted-foreground">{row.accountLabel}</div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{row.providerDisplayName}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.authTypeLabel}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={row.status} />
+                  </TableCell>
+                  {isAdmin ? (
+                    <TableCell>
+                      <RemoveGlobalConnectionButton onRefresh={onRefresh} provider={row.providerName} />
+                    </TableCell>
+                  ) : null}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="p-8 text-center text-muted-foreground">No global connections found.</div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RemoveGlobalConnectionButton({ onRefresh, provider }: { onRefresh: () => void; provider: string }) {
+  const [working, setWorking] = useState(false);
+
+  async function remove() {
+    setWorking(true);
+    try {
+      await unsetGlobalConnection(provider);
+      onRefresh();
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  return (
+    <Button disabled={working} onClick={() => void remove()} size="sm" type="button" variant="outline">
+      Remove
+    </Button>
   );
 }
 
@@ -1845,6 +1953,8 @@ function ConnectionActions({
 }) {
   const [open, setOpen] = useState(false);
   const [working, setWorking] = useState(false);
+  const [globalWorking, setGlobalWorking] = useState(false);
+  const [globalMessage, setGlobalMessage] = useState("");
 
   async function logout() {
     setWorking(true);
@@ -1854,6 +1964,20 @@ function ConnectionActions({
       onRefresh();
     } finally {
       setWorking(false);
+    }
+  }
+
+  async function makeGlobal() {
+    setGlobalWorking(true);
+    setGlobalMessage("");
+    try {
+      await setGlobalConnection(data.provider, data.connection_name);
+      setGlobalMessage("Global connection updated.");
+      onRefresh();
+    } catch (error) {
+      setGlobalMessage(error instanceof Error ? error.message : "Global connection could not be updated.");
+    } finally {
+      setGlobalWorking(false);
     }
   }
 
@@ -1873,6 +1997,13 @@ function ConnectionActions({
             </Button>
           </form>
         ) : null}
+        {data.can_set_global ? (
+          <Button disabled={globalWorking} onClick={() => void makeGlobal()} type="button" variant="outline">
+            <Globe2 />
+            Make global
+          </Button>
+        ) : null}
+        {globalMessage ? <div className="text-sm text-muted-foreground">{globalMessage}</div> : null}
         <Button onClick={() => setOpen(true)} type="button" variant="destructive">
           <LogOut />
           Logout
@@ -1901,13 +2032,24 @@ function ConnectionActions({
   );
 }
 
-function ActiveView({ connectionFilter, data, view }: {
+function ActiveView({ connectionFilter, data, onRefresh, view }: {
   connectionFilter?: string;
   data: DashboardData;
+  onRefresh: () => void;
   view: View;
 }) {
   if (view === "providers") return <ProvidersView providers={data.providers} />;
-  if (view === "connections") return <ConnectionsView connections={data.connections} initialFilter={connectionFilter} />;
+  if (view === "connections") {
+    return (
+      <ConnectionsView
+        connections={data.connections}
+        globalConnections={data.globalConnections}
+        initialFilter={connectionFilter}
+        isAdmin={data.account.isAdmin}
+        onRefresh={onRefresh}
+      />
+    );
+  }
   if (view === "agents") return <AgentsView data={data} />;
   if (view === "principals") return <PrincipalsView />;
   if (view === "vault") return <VaultView data={data} />;
@@ -1945,6 +2087,7 @@ export function AuthsomeDashboard({ connectionFilter, view = "dashboard" }: { co
             <ActiveView
               connectionFilter={connectionFilter}
               data={data}
+              onRefresh={() => void mutate()}
               view={activeView}
             />
           </div>
