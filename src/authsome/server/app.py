@@ -7,20 +7,19 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from authsome.auth.sessions import AuthSessionStore
 from authsome.errors import AuthsomeError
 from authsome.server.analytics import init_posthog, shutdown_posthog
 from authsome.server.dependencies import (
     create_account_auth_service,
     create_identity_bootstrap_service,
     create_ownership_resolver,
+    create_runtime_state,
     create_store,
     create_vault,
     get_server_base_url,
     load_server_config,
 )
 from authsome.server.provider_repository import ProviderRepository
-from authsome.server.replay_cache import MemoryReplayCache
 from authsome.server.routes.audit import router as audit_router
 from authsome.server.routes.auth import browser_router as auth_browser_router
 from authsome.server.routes.auth import router as auth_router
@@ -44,9 +43,13 @@ async def lifespan(app: FastAPI):
     app.state.server_config = await load_server_config(app.state.store)
     app.state.audit_log = app.state.store.audit_events.configure_exporter()
     app.state.vault = await create_vault(app.state.store.home)
-    app.state.auth_sessions = AuthSessionStore()
-    app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.store.home))
-    app.state.proof_replay_cache = MemoryReplayCache()
+    app.state.runtime_state = await create_runtime_state()
+    app.state.auth_sessions = app.state.runtime_state.auth_sessions
+    app.state.proof_replay_cache = app.state.runtime_state.replay_cache
+    app.state.ui_sessions = UiSessionStore(
+        load_ui_session_signing_secret(app.state.store.home),
+        pending_claims=app.state.runtime_state.pending_claims,
+    )
     app.state.provider_repository = ProviderRepository(app.state.store.provider_definitions)
     app.state.account_auth_service = create_account_auth_service(app.state.store, app.state.ui_sessions)
     app.state.server_base_url = get_server_base_url()
@@ -60,9 +63,14 @@ async def lifespan(app: FastAPI):
     app.state.ownership_resolver = create_ownership_resolver(app.state.store)
     app.state.ownership_cache = {}
     yield
-    shutdown_posthog()
-    app.state.audit_log.shutdown()
-    await app.state.store.close()
+    try:
+        shutdown_posthog()
+        app.state.audit_log.shutdown()
+        await app.state.store.close()
+    finally:
+        runtime_state = getattr(app.state, "runtime_state", None)
+        if runtime_state is not None:
+            await runtime_state.close()
 
 
 def create_app() -> FastAPI:

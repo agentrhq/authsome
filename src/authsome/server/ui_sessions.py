@@ -169,7 +169,7 @@ class RedisPendingClaimStore:
 
 
 class UiSessionStore:
-    """In-memory UI session helper with signed JWT cookies."""
+    """Browser session helper with pluggable pending-claim storage."""
 
     def __init__(
         self,
