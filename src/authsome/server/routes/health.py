@@ -23,7 +23,6 @@ def _describe_vault_encryption(vault) -> tuple[str, str]:
         return "unavailable", f"Unavailable ({exc})"
 
 
-@router.get("/health", response_model=HealthResponse)
 def build_health_response(request: Request) -> HealthResponse:
     effective_source, backend_description = _describe_vault_encryption(request.app.state.vault)
     return HealthResponse(
