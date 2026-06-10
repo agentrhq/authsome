@@ -100,7 +100,7 @@ For restores, bring back the master key first, then restore Postgres and Redis, 
 
 ## Upgrades
 
-Pull the new image, restart the stack, and watch the health endpoint until it reports ready:
+Pull the new image, restart the stack, and watch the health endpoint until it responds:
 
 ```bash
 docker compose pull

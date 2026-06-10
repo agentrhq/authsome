@@ -20,7 +20,9 @@ RUN mkdir -p src/authsome/ui/web && \
 FROM python:3.13-slim AS runtime
 
 RUN groupadd -r authsome && \
-    useradd -r -g authsome -d /home/authsome -m -s /sbin/nologin authsome
+    useradd -r -g authsome -d /home/authsome -m -s /sbin/nologin authsome && \
+    mkdir -p /data/authsome && \
+    chown -R authsome:authsome /data/authsome
 
 COPY --from=py-builder /dist /dist
 COPY --from=ghcr.io/astral-sh/uv:python3.13-bookworm-slim /usr/local/bin/uv /usr/local/bin/uv
@@ -38,5 +40,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 USER authsome
 
-ENTRYPOINT ["authsome", "daemon", "serve"]
+ENTRYPOINT ["authsome", "--log-file", "", "daemon", "serve"]
 CMD ["--host", "0.0.0.0", "--port", "7998"]
