@@ -95,7 +95,11 @@ async def create_runtime_state() -> RuntimeState:
 
     Redis = cast(Any, redis_module).Redis
     client = Redis.from_url(config.redis_url, decode_responses=True)
-    await client.ping()
+    try:
+        await client.ping()
+    except Exception:
+        await client.aclose()
+        raise
     return RuntimeState(
         auth_sessions=RedisAuthSessionStore(client),
         replay_cache=RedisReplayCache(client),

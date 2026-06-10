@@ -16,6 +16,8 @@ from authsome.server.ui_sessions import MemoryPendingClaimStore, RedisPendingCla
 
 
 class FakeRedisClient:
+    last_created = None
+
     def __init__(self) -> None:
         self.ping_called = False
         self.aclose_called = False
@@ -23,6 +25,7 @@ class FakeRedisClient:
     @classmethod
     def from_url(cls, url: str, decode_responses: bool = False):
         client = cls()
+        cls.last_created = client
         client.url = url
         client.decode_responses = decode_responses
         return client
@@ -32,6 +35,12 @@ class FakeRedisClient:
 
     async def aclose(self) -> None:
         self.aclose_called = True
+
+
+class FailingPingRedisClient(FakeRedisClient):
+    async def ping(self) -> None:
+        self.ping_called = True
+        raise ConnectionError("ping failed")
 
 
 class FakeAuditLog:
@@ -127,6 +136,24 @@ async def test_runtime_state_uses_redis_stores_and_pings_client(monkeypatch) -> 
         await state.close()
 
     assert state.redis_client.aclose_called is True
+
+
+@pytest.mark.asyncio
+async def test_runtime_state_closes_redis_client_when_ping_fails(monkeypatch) -> None:
+    monkeypatch.setenv("AUTHSOME_REDIS_URL", "redis://localhost:6379/0")
+    get_server_config.cache_clear()
+    redis_asyncio = types.ModuleType("redis.asyncio")
+    redis_asyncio.Redis = FailingPingRedisClient
+    monkeypatch.setitem(sys.modules, "redis.asyncio", redis_asyncio)
+    monkeypatch.setitem(sys.modules, "redis", types.ModuleType("redis"))
+    _patch_import(monkeypatch, "redis", sys.modules["redis"])
+    sys.modules["redis"].asyncio = redis_asyncio
+
+    with pytest.raises(ConnectionError, match="ping failed"):
+        await create_runtime_state()
+
+    assert FailingPingRedisClient.last_created is not None
+    assert FailingPingRedisClient.last_created.aclose_called is True
 
 
 @pytest.mark.asyncio
