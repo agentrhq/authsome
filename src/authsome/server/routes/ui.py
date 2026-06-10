@@ -10,7 +10,7 @@ from fastapi.responses import RedirectResponse
 
 from authsome import audit
 from authsome.auth.models.enums import FlowType
-from authsome.auth.sessions import AuthSessionStore
+from authsome.auth.sessions import AuthSessionRepository
 from authsome.server.analytics import capture_event
 from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
@@ -108,7 +108,7 @@ async def connect_provider(  # noqa: PLR0913
     request: Request,
     background_tasks: BackgroundTasks,
     auth: CredentialService = Depends(require_ui_auth("/")),
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
     """Start a provider connection from the static dashboard."""

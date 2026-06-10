@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from fastapi import Depends, HTTPException, Request, status
 
-from authsome.auth.sessions import AuthSession, AuthSessionStore
+from authsome.auth.sessions import AuthSession, AuthSessionRepository
 from authsome.identity.principal import PrincipalRole
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
 from authsome.server.credential_repository import CredentialRepository
@@ -206,7 +206,7 @@ def get_vault_registry(request: Request) -> VaultRegistry:
     return request.app.state.store.vaults
 
 
-def get_auth_sessions(request: Request) -> AuthSessionStore:
+def get_auth_sessions(request: Request) -> AuthSessionRepository:
     return request.app.state.auth_sessions
 
 

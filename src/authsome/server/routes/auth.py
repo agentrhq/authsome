@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse, Response
 
 from authsome.auth.input_provider import InputField
 from authsome.auth.models.enums import AuthType, FlowType
-from authsome.auth.sessions import AuthSession, AuthSessionStatus, AuthSessionStore
+from authsome.auth.sessions import AuthSession, AuthSessionRepository, AuthSessionStatus
 from authsome.server.analytics import capture_event
 from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
@@ -43,7 +43,7 @@ async def _ensure_browser_session_identity(request: Request, session: AuthSessio
     return getattr(request.state, "ui_principal_id", None) == session.principal_id
 
 
-async def _load_session_or_404(sessions: AuthSessionStore, session_id: str) -> AuthSession:
+async def _load_session_or_404(sessions: AuthSessionRepository, session_id: str) -> AuthSession:
     """Return an auth session or raise the route-level not-found response."""
     try:
         return await sessions.get(session_id)
@@ -85,7 +85,7 @@ async def start_session(
     body: StartAuthSessionRequest,
     background_tasks: BackgroundTasks,
     auth: CredentialService = Depends(get_protected_auth_service),
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> AuthSessionResponse:
     definition = await auth.get_provider(body.provider)
@@ -140,7 +140,7 @@ async def start_session(
 async def get_session(
     session_id: str,
     auth: CredentialService = Depends(get_protected_auth_service),
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> AuthSessionResponse:
     session = await _load_session_or_404(sessions, session_id)
@@ -154,7 +154,7 @@ async def resume_session(
     session_id: str,
     body: ResumeAuthSessionRequest,
     auth: CredentialService = Depends(get_protected_auth_service),
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> AuthSessionResponse:
     session = await _load_session_or_404(sessions, session_id)
@@ -177,7 +177,7 @@ async def resume_session(
 @router.get("/callback/oauth")
 async def oauth_callback(
     request: Request,
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
     state = request.query_params.get("state")
@@ -217,7 +217,7 @@ async def oauth_callback(
 async def get_session_input(
     session_id: str,
     request: Request,
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Any:
     try:
@@ -254,7 +254,7 @@ async def get_session_input(
 async def get_session_device_code(
     session_id: str,
     request: Request,
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
 ) -> Any:
     try:
         session = await sessions.get(session_id)
@@ -287,7 +287,7 @@ async def get_session_device_code(
 async def get_browser_session_status(
     session_id: str,
     request: Request,
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
 ) -> Any:
     try:
         session = await sessions.get(session_id)
@@ -310,7 +310,7 @@ async def submit_input(
     session_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ):
     return await _submit_session_input(
@@ -327,7 +327,7 @@ async def submit_browser_input(
     request: Request,
     background_tasks: BackgroundTasks,
     session: str,
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ):
     return await _submit_session_input(
@@ -344,7 +344,7 @@ async def _submit_session_input(  # noqa: PLR0911
     session_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    sessions: AuthSessionStore,
+    sessions: AuthSessionRepository,
     server_base_url: str,
 ):
     try:
