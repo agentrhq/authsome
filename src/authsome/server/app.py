@@ -24,6 +24,7 @@ from authsome.server.routes.audit import router as audit_router
 from authsome.server.routes.auth import browser_router as auth_browser_router
 from authsome.server.routes.auth import router as auth_router
 from authsome.server.routes.connections import router as connections_router
+from authsome.server.routes.health import HealthResponse, build_health_response
 from authsome.server.routes.health import router as health_router
 from authsome.server.routes.identities import router as identities_router
 from authsome.server.routes.principals import router as principals_router
@@ -142,6 +143,10 @@ def create_app() -> FastAPI:
     @app.get("/claim/{token}", include_in_schema=False)
     def claim_page_redirect(token: str) -> RedirectResponse:
         return RedirectResponse(url=f"/claim?token={token}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    @app.get("/health", response_model=HealthResponse)
+    def root_health(request: Request) -> HealthResponse:
+        return build_health_response(request)
 
     app.include_router(auth_browser_router)
     app.include_router(health_router, prefix="/api")
