@@ -78,13 +78,14 @@ class MemoryPendingClaimStore:
         identity: str,
         ttl_seconds: int = DEFAULT_UI_BOOTSTRAP_TTL_SECONDS,
     ) -> PendingClaimToken:
-        self.cleanup_expired()
         pending = PendingClaimToken(
             token=f"claim_{secrets.token_urlsafe(24)}",
             identity=identity,
             expires_at=utc_now() + timedelta(seconds=ttl_seconds),
         )
-        self._pending_claims[pending.token] = pending
+        if ttl_seconds > 0:
+            self.cleanup_expired()
+            self._pending_claims[pending.token] = pending
         return pending
 
     async def get(self, token: str) -> PendingClaimToken:
@@ -127,11 +128,12 @@ class RedisPendingClaimStore:
             identity=identity,
             expires_at=utc_now() + timedelta(seconds=ttl_seconds),
         )
-        await self._client.set(
-            self._pending_claim_key(pending.token),
-            pending.model_dump_json(),
-            ex=max(int(ttl_seconds), 1),
-        )
+        if ttl_seconds > 0:
+            await self._client.set(
+                self._pending_claim_key(pending.token),
+                pending.model_dump_json(),
+                ex=max(int(ttl_seconds), 1),
+            )
         return pending
 
     async def get(self, token: str) -> PendingClaimToken:
@@ -147,8 +149,22 @@ class RedisPendingClaimStore:
         return pending
 
     async def consume(self, token: str) -> PendingClaimToken:
-        pending = await self.get(token)
-        await self._client.delete(self._pending_claim_key(token))
+        key = self._pending_claim_key(token)
+        getdel = getattr(self._client, "getdel", None)
+        if callable(getdel):
+            raw = await getdel(key)
+        else:
+            # Compatibility fallback for fake clients that do not implement GETDEL.
+            raw = await self._client.get(key)
+            if raw is not None:
+                await self._client.delete(key)
+        if raw is None:
+            raise KeyError(f"Pending claim token not found: {token}")
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        pending = PendingClaimToken.model_validate_json(raw)
+        if pending.is_expired:
+            raise KeyError(f"Pending claim token not found: {token}")
         return pending
 
 

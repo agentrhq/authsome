@@ -7,9 +7,14 @@ class FakeRedisClient:
     def __init__(self) -> None:
         self.data: dict[str, str] = {}
         self.ttls: dict[str, int | None] = {}
+        self.getdel_calls: list[str] = []
 
     async def get(self, key: str):
         return self.data.get(key)
+
+    async def getdel(self, key: str):
+        self.getdel_calls.append(key)
+        return self.data.pop(key, None)
 
     async def set(self, key: str, value: str, *, ex: int | None = None, nx: bool | None = None):
         if nx and key in self.data:
@@ -58,5 +63,23 @@ async def test_redis_pending_claim_store_consumes_once() -> None:
 
     assert (await store.get(pending.token)).identity == "agent-1"
     assert (await store.consume(pending.token)).identity == "agent-1"
+    assert client.getdel_calls == [f"authsome:ui-session:pending-claim:{pending.token}"]
     with pytest.raises(KeyError):
         await store.get(pending.token)
+
+
+@pytest.mark.asyncio
+async def test_zero_ttl_pending_claim_is_immediately_expired() -> None:
+    memory_store = MemoryPendingClaimStore()
+    redis_store = RedisPendingClaimStore(FakeRedisClient())
+
+    memory_pending = await memory_store.create(identity="agent-1", ttl_seconds=0)
+    redis_pending = await redis_store.create(identity="agent-1", ttl_seconds=0)
+
+    assert memory_pending.is_expired
+    assert redis_pending.is_expired
+
+    with pytest.raises(KeyError):
+        await memory_store.get(memory_pending.token)
+    with pytest.raises(KeyError):
+        await redis_store.get(redis_pending.token)
