@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from authsome.server.store.database import (
+    StoreDatabase,
     StoreDatabaseConfig,
     build_migrations,
     open_store_database,
@@ -39,11 +40,11 @@ async def test_sqlite_migrations_create_schema_version(tmp_path: Path) -> None:
     database = await open_store_database(config)
 
     try:
-        row = await database.fetch_one("SELECT version FROM store_schema_version")
+        row = await database.fetch_one("SELECT MAX(version) AS version FROM store_schema_version")
     finally:
         await database.close()
 
-    assert row == {"version": len(build_migrations("sqlite"))}
+    assert row == {"version": max(migration.version for migration in build_migrations("sqlite"))}
 
 
 @pytest.mark.asyncio
@@ -69,3 +70,83 @@ def test_postgres_url_uses_postgres_backend(tmp_path: Path) -> None:
 
     assert config.backend == "postgres"
     assert config.dsn.startswith("postgresql://")
+
+
+class _FakeTransaction:
+    def __init__(self, connection) -> None:
+        self._connection = connection
+
+    async def __aenter__(self):
+        self._connection.transaction_enters += 1
+        return self._connection
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self._connection.transaction_exits += 1
+        return False
+
+
+class _FakeConnection:
+    def __init__(self) -> None:
+        self.execute_calls: list[tuple[str, tuple[object, ...]]] = []
+        self.fetchrow_calls: list[tuple[str, tuple[object, ...]]] = []
+        self.fetch_calls: list[tuple[str, tuple[object, ...]]] = []
+        self.transaction_enters = 0
+        self.transaction_exits = 0
+
+    def transaction(self) -> _FakeTransaction:
+        return _FakeTransaction(self)
+
+    async def execute(self, sql: str, *params: object):
+        self.execute_calls.append((sql, params))
+
+    async def fetchrow(self, sql: str, *params: object):
+        self.fetchrow_calls.append((sql, params))
+
+    async def fetch(self, sql: str, *params: object):
+        self.fetch_calls.append((sql, params))
+        return []
+
+    async def close(self) -> None:
+        return None
+
+
+class _FakeAcquire:
+    def __init__(self, pool, connection) -> None:
+        self._pool = pool
+        self._connection = connection
+
+    async def __aenter__(self):
+        self._pool.acquire_count += 1
+        return self._connection
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
+class _FakePool:
+    def __init__(self, connection) -> None:
+        self._connection = connection
+        self.acquire_count = 0
+        self.close_count = 0
+
+    def acquire(self) -> _FakeAcquire:
+        return _FakeAcquire(self, self._connection)
+
+    async def close(self) -> None:
+        self.close_count += 1
+
+
+@pytest.mark.asyncio
+async def test_postgres_transaction_uses_single_pooled_connection(tmp_path: Path) -> None:
+    config = StoreDatabaseConfig(backend="postgres", dsn="postgresql://localhost:5432/authsome", home=tmp_path)
+    connection = _FakeConnection()
+    pool = _FakePool(connection)
+    db = StoreDatabase(config=config, pool=pool)
+    try:
+        async with db.transaction():
+            await db.execute("INSERT INTO audit_events (event_id) VALUES (?)", ["evt_1"])
+    finally:
+        await db.close()
+
+    assert pool.acquire_count == 1
+    assert connection.execute_calls == [("INSERT INTO audit_events (event_id) VALUES ($1)", ("evt_1",))]

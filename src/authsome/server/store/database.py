@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -46,6 +47,7 @@ class StoreDatabase:
         self.config = config
         self._connection = connection
         self._pool = pool
+        self._transaction_connection: ContextVar[Any | None] = ContextVar("store_transaction_connection", default=None)
 
     @property
     def backend(self) -> StoreBackend:
@@ -66,6 +68,10 @@ class StoreDatabase:
 
     @asynccontextmanager
     async def _postgres_connection(self) -> AsyncIterator[Any]:
+        connection = self._transaction_connection.get()
+        if connection is not None:
+            yield connection
+            return
         if self._pool is not None:
             async with self._pool.acquire() as connection:
                 yield connection
@@ -126,7 +132,23 @@ class StoreDatabase:
             else:
                 await connection.commit()
             return
-        async with self._postgres_connection() as connection, connection.transaction():
+        connection = self._transaction_connection.get()
+        if connection is not None:
+            async with connection.transaction():
+                yield
+            return
+        if self._pool is not None:
+            async with self._pool.acquire() as connection:
+                token = self._transaction_connection.set(connection)
+                try:
+                    async with connection.transaction():
+                        yield
+                finally:
+                    self._transaction_connection.reset(token)
+            return
+        if self._connection is None:
+            raise RuntimeError("Postgres Store connection is not configured")
+        async with self._connection.transaction():
             yield
 
     async def is_healthy(self) -> bool:
