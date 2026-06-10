@@ -143,10 +143,11 @@ async def verify_pop_caller(request: Request) -> ResolvedOwnership:
             method=request.method,
             path_query=path_query,
             body=body,
-            replay_cache=request.app.state.proof_replay_cache,
         )
     except (ProofValidationError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+    await request.app.state.proof_replay_cache.check_and_store(claims.jwt_id, claims.expires_at)
 
     registration = await request.app.state.store.identity_registry.resolve(claims.subject)
     if registration is None:

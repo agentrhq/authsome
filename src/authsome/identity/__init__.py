@@ -20,7 +20,6 @@ from authsome.identity.proof import (
     POP_AUTH_SCHEME,
     ProofClaims,
     ProofValidationError,
-    ReplayCache,
     create_proof_jwt,
     validate_proof_jwt,
 )
@@ -36,7 +35,6 @@ __all__ = [
     "POP_AUTH_SCHEME",
     "ProofClaims",
     "ProofValidationError",
-    "ReplayCache",
     "create_identity_material",
     "create_proof_jwt",
     "generate_handle",

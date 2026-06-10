@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from authsome.cli.identity import RuntimeIdentity
-from authsome.identity.proof import ReplayCache, create_proof_jwt, validate_proof_jwt
+from authsome.identity.proof import create_proof_jwt, validate_proof_jwt
 
 
 def _token(tmp_path: Path, *, method: str = "POST", path: str = "/connections", body: bytes = b"{}") -> str:
@@ -42,10 +42,10 @@ def test_validate_proof_jwt_rejects_wrong_body(tmp_path: Path) -> None:
         validate_proof_jwt(token=token, method="POST", path_query="/connections", body=b'{"x":1}')
 
 
-def test_validate_proof_jwt_rejects_replay(tmp_path: Path) -> None:
+def test_validate_proof_jwt_returns_jti_for_server_replay_check(tmp_path: Path) -> None:
     token = _token(tmp_path)
-    cache = ReplayCache()
 
-    validate_proof_jwt(token=token, method="POST", path_query="/connections", body=b"{}", replay_cache=cache)
-    with pytest.raises(ValueError, match="already used"):
-        validate_proof_jwt(token=token, method="POST", path_query="/connections", body=b"{}", replay_cache=cache)
+    claims = validate_proof_jwt(token=token, method="POST", path_query="/connections", body=b"{}")
+
+    assert claims.jwt_id
+    assert claims.expires_at > 0

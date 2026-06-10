@@ -9,7 +9,6 @@ from fastapi.staticfiles import StaticFiles
 
 from authsome.auth.sessions import AuthSessionStore
 from authsome.errors import AuthsomeError
-from authsome.identity.proof import ReplayCache
 from authsome.server.analytics import init_posthog, shutdown_posthog
 from authsome.server.dependencies import (
     create_account_auth_service,
@@ -21,6 +20,7 @@ from authsome.server.dependencies import (
     load_server_config,
 )
 from authsome.server.provider_repository import ProviderRepository
+from authsome.server.replay_cache import MemoryReplayCache
 from authsome.server.routes.audit import router as audit_router
 from authsome.server.routes.auth import browser_router as auth_browser_router
 from authsome.server.routes.auth import router as auth_router
@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     app.state.vault = await create_vault(app.state.store.home)
     app.state.auth_sessions = AuthSessionStore()
     app.state.ui_sessions = UiSessionStore(load_ui_session_signing_secret(app.state.store.home))
-    app.state.proof_replay_cache = ReplayCache()
+    app.state.proof_replay_cache = MemoryReplayCache()
     app.state.provider_repository = ProviderRepository(app.state.store.provider_definitions)
     app.state.account_auth_service = create_account_auth_service(app.state.store, app.state.ui_sessions)
     app.state.server_base_url = get_server_base_url()
