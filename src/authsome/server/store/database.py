@@ -124,13 +124,13 @@ async def open_store_database(config: StoreDatabaseConfig) -> StoreDatabase:
     if config.backend == "sqlite":
         db_path = Path(config.dsn)
         db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = await aiosqlite.connect(db_path)
-    connection.row_factory = aiosqlite.Row
-    await connection.execute("PRAGMA foreign_keys = ON")
-    await connection.commit()
-    database = StoreDatabase(config=config, connection=connection)
-    await initialize_schema(database)
-    return database
+        connection = await aiosqlite.connect(db_path)
+        connection.row_factory = aiosqlite.Row
+        await connection.execute("PRAGMA foreign_keys = ON")
+        await connection.commit()
+        database = StoreDatabase(config=config, connection=connection)
+        await initialize_schema(database)
+        return database
 
     try:
         import asyncpg  # noqa: PLC0415
