@@ -1,28 +1,65 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: authsome
+      POSTGRES_USER: authsome
+      POSTGRES_PASSWORD: authsome
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authsome -d authsome"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   authsome:
     build: .
     image: authsome:latest
     restart: unless-stopped
     ports:
       - "7998:7998"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - authsome-data:/data/authsome
     environment:
+      AUTHSOME_HOST: 0.0.0.0
+      AUTHSOME_PORT: "7998"
       AUTHSOME_HOME: /data/authsome
-      # Set this to the public URL of this server so OAuth callbacks resolve correctly.
-      # Example: AUTHSOME_SERVER_BASE_URL: https://auth.example.com
-      AUTHSOME_SERVER_BASE_URL: ""
-      # Encryption mode: "local_key" (default) or "keyring"
-      AUTHSOME_ENCRYPTION_MODE: local_key
-      AUTHSOME_LOG_LEVEL: info
+      AUTHSOME_BASE_URL: ${AUTHSOME_BASE_URL:-http://localhost:7998}
+      AUTHSOME_DATABASE_URL: postgresql://authsome:authsome@postgres:5432/authsome
+      DATABASE_URL: postgresql://authsome:authsome@postgres:5432/authsome
+      AUTHSOME_REDIS_URL: redis://redis:6379/0
+      AUTHSOME_DO_NOT_TRACK: "1"
+      # Set one of the master-key variables from your platform secret store before production use.
+      AUTHSOME_MASTER_KEY: ${AUTHSOME_MASTER_KEY:-}
+      AUTHSOME_MASTER_KEY_FILE: ${AUTHSOME_MASTER_KEY_FILE:-}
     # Uncomment to use a pre-built image from a registry instead of building locally:
     # image: ghcr.io/agentrhq/authsome:latest
 
-    # ── Optional: Caddy reverse proxy for TLS ─────────────────────────
-    # Uncomment the block below and add a caddy service to terminate TLS.
-    # labels:
-    #   caddy: auth.example.com
-    #   caddy.reverse_proxy: "{{upstreams 7998}}"
+    # The authsome home volume is retained for logs and fallback key material.
+    # Postgres and Redis carry the primary production state.
 
 volumes:
   authsome-data:
+  postgres-data:
+  redis-data:
