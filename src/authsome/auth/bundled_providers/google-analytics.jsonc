@@ -1,0 +1,33 @@
+// Google Analytics
+// Google Analytics access for reading web analytics data via the Analytics Data API.
+// auth: oauth2 | flow: pkce
+// Scopes cover GA4; UA properties use different APIs and are deprecated.
+{
+  "schema_version": 1,
+  "name": "google-analytics",
+  "display_name": "Google Analytics",
+  "logo": "img.logo.dev/name/google-analytics",
+  "description": "Google Analytics access for reading web analytics data via the Analytics Data API.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "https://analyticsdata.googleapis.com/v1beta",
+  "oauth": {
+    "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
+    "token_url": "https://oauth2.googleapis.com/token",
+    "revocation_url": "https://oauth2.googleapis.com/revoke",
+    "device_authorization_url": "https://oauth2.googleapis.com/device/code",
+    "scopes": [
+      "openid",
+      "profile",
+      "https://www.googleapis.com/auth/analytics.readonly"
+    ],
+    "pkce": true,
+    "supports_device_code": true,
+    "supports_dcr": false
+  },
+  "export": {
+    "GOOGLE_ANALYTICS_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

@@ -1,0 +1,23 @@
+// SavvyCal
+// Scheduling links, events, and availability workflows from SavvyCal.
+// auth: api_key | flow: api_key
+// API keys are user-level; generate at savvycal.com/personal/api.
+{
+  "schema_version": 1,
+  "name": "savvycal",
+  "display_name": "SavvyCal",
+  "logo": "img.logo.dev/name/savvycal",
+  "description": "Scheduling links, events, and availability workflows from SavvyCal.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.savvycal.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "SAVVYCAL_API_KEY": "API_TOKEN"
+  }
+}
+

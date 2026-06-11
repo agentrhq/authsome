@@ -1,0 +1,23 @@
+// Ashby
+// Recruiting operations, candidate data, and hiring workflow automation.
+// auth: api_key | flow: api_key
+// API keys are org-level; generate at app.ashbyhq.com/settings/api-keys.
+{
+  "schema_version": 1,
+  "name": "ashby",
+  "display_name": "Ashby",
+  "logo": "img.logo.dev/name/ashby",
+  "description": "Recruiting operations, candidate data, and hiring workflow automation.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.ashbyhq.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Basic"
+  },
+  "export": {
+    "ASHBY_API_KEY": "API_TOKEN"
+  }
+}
+

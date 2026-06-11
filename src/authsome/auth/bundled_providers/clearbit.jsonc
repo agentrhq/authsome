@@ -1,0 +1,23 @@
+// Clearbit
+// Company and contact enrichment data for sales and marketing workflows.
+// auth: api_key | flow: api_key
+// API keys are account-level; some endpoints require different keys (Enrichment vs. Reveal).
+{
+  "schema_version": 1,
+  "name": "clearbit",
+  "display_name": "Clearbit",
+  "logo": "img.logo.dev/name/clearbit",
+  "description": "Company and contact enrichment data for sales and marketing workflows.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.clearbit.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "CLEARBIT_API_KEY": "API_TOKEN"
+  }
+}
+

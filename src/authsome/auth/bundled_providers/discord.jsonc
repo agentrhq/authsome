@@ -1,0 +1,34 @@
+// Discord
+// Discord identity, guild, and messaging integrations over OAuth.
+// auth: oauth2 | flow: pkce
+// Scopes needed vary by bot — guilds.members.read requires privileged intent approval.
+{
+  "schema_version": 1,
+  "name": "discord",
+  "display_name": "Discord",
+  "logo": "img.logo.dev/name/discord",
+  "description": "Discord identity, guild, and messaging integrations over OAuth.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "discord.com",
+  "oauth": {
+    "authorization_url": "https://discord.com/oauth2/authorize",
+    "token_url": "https://discord.com/api/oauth2/token",
+    "revocation_url": "https://discord.com/api/oauth2/token/revoke",
+    "device_authorization_url": null,
+    "scopes": [
+      "identify",
+      "email",
+      "guilds",
+      "connections"
+    ],
+    "pkce": false,
+    "supports_device_code": false,
+    "supports_dcr": false
+  },
+  "export": {
+    "DISCORD_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

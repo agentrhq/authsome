@@ -1,0 +1,32 @@
+// Notion MCP
+// Notion MCP OAuth access using dynamic client registration.
+// auth: oauth2 | flow: dcr_pkce
+// Distinct from the Notion OAuth provider (notion.jsonc) which uses the standard Notion API.
+// DCR handles public OAuth without requiring a pre-registered client.
+{
+  "schema_version": 1,
+  "name": "notion-mcp",
+  "display_name": "Notion MCP",
+  "logo": "img.logo.dev/name/notion",
+  "description": "Notion MCP OAuth access using dynamic client registration.",
+  "type": "mcp",
+  "auth_type": "oauth2",
+  "flow": "dcr_pkce",
+  "api_url": "mcp.notion.com",
+  "oauth": {
+    "authorization_url": "https://mcp.notion.com/authorize",
+    "token_url": "https://mcp.notion.com/token",
+    "revocation_url": "https://mcp.notion.com/token",
+    "device_authorization_url": null,
+    "scopes": [],
+    "pkce": true,
+    "supports_device_code": false,
+    "supports_dcr": true
+  },
+  "registration": {
+    "registration_endpoint": "https://mcp.notion.com/register"
+  },
+  "export": {
+    "NOTION_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}

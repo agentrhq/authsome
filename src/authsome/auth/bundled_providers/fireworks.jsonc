@@ -1,0 +1,24 @@
+// Fireworks AI
+// API key access to open-source and fine-tuned models via Fireworks AI.
+// auth: api_key | flow: api_key
+// OpenAI-compatible API. Keys are generated at fireworks.ai/account/api-keys.
+{
+  "schema_version": 1,
+  "name": "fireworks",
+  "display_name": "Fireworks AI",
+  "logo": "img.logo.dev/name/fireworks-ai",
+  "description": "Fireworks AI API key for fast inference on open-source and fine-tuned models.",
+  "type": "llm",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://api.fireworks.ai/inference/v1",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "env_var": "FIREWORKS_API_KEY",
+    "key_pattern_hint": "Fireworks AI keys are generated at fireworks.ai/account/api-keys."
+  },
+  "export": {
+    "FIREWORKS_API_KEY": "API_TOKEN"
+  }
+}

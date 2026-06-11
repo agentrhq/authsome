@@ -1,0 +1,24 @@
+// Mistral AI
+// API key access to Mistral models via la Plateforme.
+// auth: api_key | flow: api_key
+// Keys are generated at console.mistral.ai. Standard Authorization Bearer scheme.
+{
+  "schema_version": 1,
+  "name": "mistral",
+  "display_name": "Mistral AI",
+  "logo": "img.logo.dev/name/mistral-ai",
+  "description": "Mistral AI API key for chat completions and embedding models via la Plateforme.",
+  "type": "llm",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://api.mistral.ai",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "env_var": "MISTRAL_API_KEY",
+    "key_pattern_hint": "Mistral API keys are generated at console.mistral.ai."
+  },
+  "export": {
+    "MISTRAL_API_KEY": "API_TOKEN"
+  }
+}

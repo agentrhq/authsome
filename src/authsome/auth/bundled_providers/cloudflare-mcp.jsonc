@@ -1,0 +1,27 @@
+// Cloudflare MCP
+// Cloudflare API token for the remote Cloudflare MCP server.
+// auth: api_key | flow: api_key
+// Distinct from the cloudflare.jsonc app provider which covers the REST API.
+// This provider targets the Cloudflare remote MCP server endpoint.
+// Create a scoped API token at dash.cloudflare.com/profile/api-tokens.
+{
+  "schema_version": 1,
+  "name": "cloudflare-mcp",
+  "display_name": "Cloudflare MCP",
+  "logo": "img.logo.dev/name/cloudflare",
+  "description": "Cloudflare API token for the remote MCP server — enables agents to manage zones, Workers, and DNS records via MCP.",
+  "type": "mcp",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://mcp.cloudflare.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "env_var": "CLOUDFLARE_API_TOKEN",
+    "key_pattern": "^[A-Za-z0-9_-]{40}$",
+    "key_pattern_hint": "Cloudflare API tokens are 40-character strings. Create a scoped token at dash.cloudflare.com/profile/api-tokens."
+  },
+  "export": {
+    "CLOUDFLARE_API_TOKEN": "API_TOKEN"
+  }
+}

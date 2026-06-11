@@ -1,0 +1,35 @@
+// X (Twitter)
+// X OAuth access for posts, user data, and social automation.
+// auth: oauth2 | flow: pkce
+// X OAuth 2.0 with PKCE. Use fine-grained scopes — 'tweet.read', 'tweet.write', 'users.read' etc.
+{
+  "schema_version": 1,
+  "name": "x",
+  "display_name": "X (Twitter)",
+  "logo": "img.logo.dev/name/x",
+  "description": "X OAuth access for posts, user data, and social automation.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "api.twitter.com",
+  "oauth": {
+    "authorization_url": "https://twitter.com/i/oauth2/authorize",
+    "token_url": "https://api.twitter.com/2/oauth2/token",
+    "revocation_url": "https://api.twitter.com/2/oauth2/revoke",
+    "device_authorization_url": null,
+    "scopes": [
+      "tweet.read",
+      "tweet.write",
+      "users.read",
+      "offline.access"
+    ],
+    "pkce": true,
+    "authorization_method": "basic",
+    "supports_device_code": false,
+    "supports_dcr": false
+  },
+  "export": {
+    "X_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

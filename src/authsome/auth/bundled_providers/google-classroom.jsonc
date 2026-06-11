@@ -1,0 +1,34 @@
+// Google Classroom
+// Google Classroom access for managing courses, assignments, and student rosters via the Classroom API.
+// auth: oauth2 | flow: pkce
+// Requires an approved Google Workspace for Education account; consumer accounts are blocked.
+{
+  "schema_version": 1,
+  "name": "google-classroom",
+  "display_name": "Google Classroom",
+  "logo": "img.logo.dev/name/google-classroom",
+  "description": "Google Classroom access for managing courses, assignments, and student rosters via the Classroom API.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "https://classroom.googleapis.com/v1",
+  "oauth": {
+    "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth",
+    "token_url": "https://oauth2.googleapis.com/token",
+    "revocation_url": "https://oauth2.googleapis.com/revoke",
+    "device_authorization_url": "https://oauth2.googleapis.com/device/code",
+    "scopes": [
+      "openid",
+      "profile",
+      "https://www.googleapis.com/auth/classroom.courses",
+      "https://www.googleapis.com/auth/classroom.rosters"
+    ],
+    "pkce": true,
+    "supports_device_code": true,
+    "supports_dcr": false
+  },
+  "export": {
+    "GOOGLE_CLASSROOM_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

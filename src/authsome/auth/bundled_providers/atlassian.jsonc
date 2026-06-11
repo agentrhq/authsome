@@ -1,0 +1,35 @@
+// Atlassian
+// Jira and Atlassian workspace APIs for project and issue management.
+// auth: oauth2 | flow: pkce
+// OAuth scopes cover both Jira and Confluence — add granular scopes as needed.
+{
+  "schema_version": 1,
+  "name": "atlassian",
+  "display_name": "Atlassian",
+  "logo": "img.logo.dev/name/atlassian",
+  "description": "Jira and Atlassian workspace APIs for project and issue management.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "api.atlassian.com",
+  "oauth": {
+    "authorization_url": "https://auth.atlassian.com/authorize",
+    "token_url": "https://auth.atlassian.com/oauth/token",
+    "revocation_url": null,
+    "device_authorization_url": null,
+    "scopes": [
+      "read:jira-work",
+      "write:jira-work",
+      "read:jira-user",
+      "manage:jira-project",
+      "manage:jira-configuration"
+    ],
+    "pkce": true,
+    "supports_device_code": false,
+    "supports_dcr": false
+  },
+  "export": {
+    "ATLASSIAN_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

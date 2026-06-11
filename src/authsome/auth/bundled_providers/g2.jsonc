@@ -1,0 +1,23 @@
+// G2
+// Review, buyer intent, and marketplace data from G2.
+// auth: api_key | flow: api_key
+// G2 has two key types: public (read) and private (write). Use private only if needed.
+{
+  "schema_version": 1,
+  "name": "g2",
+  "display_name": "G2",
+  "logo": "img.logo.dev/name/g2",
+  "description": "Review, buyer intent, and marketplace data from G2.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.g2.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Token"
+  },
+  "export": {
+    "G2_API_TOKEN": "API_TOKEN"
+  }
+}
+

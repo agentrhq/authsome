@@ -1,0 +1,23 @@
+// Livestorm
+// Webinar, event, registrant, and attendee data from Livestorm.
+// auth: api_key | flow: api_key
+// API keys are account-level; generate at app.livestorm.co/settings/integrations.
+{
+  "schema_version": 1,
+  "name": "livestorm",
+  "display_name": "Livestorm",
+  "logo": "img.logo.dev/name/livestorm",
+  "description": "Webinar, event, registrant, and attendee data from Livestorm.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.livestorm.co",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "LIVESTORM_API_TOKEN": "API_TOKEN"
+  }
+}
+

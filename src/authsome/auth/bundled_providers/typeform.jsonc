@@ -1,0 +1,23 @@
+// Typeform
+// Forms, responses, and Typeform workspace automation.
+// auth: api_key | flow: api_key
+// OAuth scopes cover form responses, workspaces, and webhooks.
+{
+  "schema_version": 1,
+  "name": "typeform",
+  "display_name": "Typeform",
+  "logo": "img.logo.dev/name/typeform",
+  "description": "Forms, responses, and Typeform workspace automation.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.typeform.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "TYPEFORM_API_KEY": "API_TOKEN"
+  }
+}
+

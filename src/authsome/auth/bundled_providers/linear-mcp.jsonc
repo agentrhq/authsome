@@ -1,0 +1,27 @@
+// Linear MCP
+// Linear API key for the remote Linear MCP server.
+// auth: api_key | flow: api_key
+// Distinct from the Linear OAuth provider (linear.jsonc) which uses PKCE.
+// This provider stores a personal API key injected as Bearer token at mcp.linear.app.
+// Keys are generated at linear.app/settings/api.
+{
+  "schema_version": 1,
+  "name": "linear-mcp",
+  "display_name": "Linear MCP",
+  "logo": "img.logo.dev/name/linear",
+  "description": "Linear API key for the remote MCP server — enables agents to manage issues, projects, and teams via MCP.",
+  "type": "mcp",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://mcp.linear.app",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "env_var": "LINEAR_API_KEY",
+    "key_pattern": "^lin_api_[A-Za-z0-9]+$",
+    "key_pattern_hint": "Linear API keys start with 'lin_api_'. Generate one at linear.app/settings/api."
+  },
+  "export": {
+    "LINEAR_API_KEY": "API_TOKEN"
+  }
+}

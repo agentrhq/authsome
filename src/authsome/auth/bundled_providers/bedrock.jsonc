@@ -1,0 +1,26 @@
+// AWS Bedrock
+// AWS IAM access key for invoking foundation models via Amazon Bedrock.
+// auth: api_key | flow: api_key
+// The "API key" stored here is the AWS_ACCESS_KEY_ID. You must also set
+// AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION in your environment.
+// Bedrock uses AWS Signature V4 — the sdk/boto3 picks up credentials from env automatically.
+{
+  "schema_version": 1,
+  "name": "bedrock",
+  "display_name": "AWS Bedrock",
+  "logo": "img.logo.dev/name/amazon-web-services",
+  "description": "AWS IAM credentials for Amazon Bedrock foundation model inference.",
+  "type": "llm",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://bedrock-runtime.us-east-1.amazonaws.com",
+  "api_key": {
+    "header_name": "X-Amz-Security-Token",
+    "header_prefix": null,
+    "env_var": "AWS_ACCESS_KEY_ID",
+    "key_pattern_hint": "Enter your AWS Access Key ID (AKIA... or ASIA...). Also set AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION."
+  },
+  "export": {
+    "AWS_ACCESS_KEY_ID": "API_TOKEN"
+  }
+}
