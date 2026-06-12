@@ -1,7 +1,7 @@
 """Tests for BROWSER auth handling in credential_service.py."""
 
 from datetime import timedelta
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -39,6 +39,7 @@ def _svc() -> CredentialService:
     return CredentialService(
         credentials=CredentialRepository(vault, identity="agent", principal_id="p1", vault_id="v1"),
         providers=StaticProviders(),
+        global_connections=AsyncMock(),
         identity="agent",
         principal_id="p1",
         vault_id="v1",

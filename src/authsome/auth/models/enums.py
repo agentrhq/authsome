@@ -37,6 +37,7 @@ class ProviderType(StrEnum):
     APP = "app"
     LLM = "llm"
     MCP = "mcp"
+    BROWSER = "browser"
 
 
 class ExportFormat(StrEnum):

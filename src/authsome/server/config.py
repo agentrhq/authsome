@@ -75,8 +75,8 @@ class ServerConfig(AuthsomeConfig):
 
     @property
     def analytics_enabled(self) -> bool:
-        """True when daemon telemetry has not been opted out."""
-        return bool(self.posthog_api_key) and not self.do_not_track
+        """True only in prod when telemetry has not been opted out."""
+        return self.env == "prod" and bool(self.posthog_api_key) and not self.do_not_track
 
     @property
     def database(self) -> str:

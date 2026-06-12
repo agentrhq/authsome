@@ -25,11 +25,15 @@ async def list_cmd(ctx_obj: ContextObj) -> None:
     actx = await ctx_obj.initialize()
     data = await actx.runtime_client.list_connections()
     raw_list = data["connections"]
+    global_list = data.get("global_connections", [])
     by_source = data["by_source"]
 
     connected: dict[str, list[dict]] = {}
     for provider_group in raw_list:
         connected[provider_group["name"]] = provider_group["connections"]
+    global_connected: dict[str, list[dict]] = {}
+    for conn in global_list:
+        global_connected.setdefault(conn["provider"], []).append(conn)
 
     def build_provider_entry(provider_data, source: str) -> dict:
         provider_definition = ProviderDefinition.model_validate(provider_data)
@@ -53,6 +57,7 @@ async def list_cmd(ctx_obj: ContextObj) -> None:
             "auth_type": provider_definition.auth_type.value,
             "source": source,
             "connections": connections_out,
+            "global_connections": global_connected.get(provider_definition.name, []),
         }
 
     bundled_out = [build_provider_entry(p, "bundled") for p in by_source["bundled"]]
@@ -93,11 +98,15 @@ async def inspect_provider(ctx_obj: ContextObj, provider: str) -> None:
     definition_dict = await actx.runtime_client.get_provider(provider)
     data = definition_dict
     data["connections"] = []
+    data["global_connections"] = []
     connections_data = await actx.runtime_client.list_connections()
     for provider_group in connections_data["connections"]:
         if provider_group["name"] == provider:
             data["connections"] = provider_group["connections"]
             break
+    data["global_connections"] = [
+        conn for conn in connections_data.get("global_connections", []) if conn["provider"] == provider
+    ]
 
     data.pop("schema_version", None)
     ctx_obj.print_json(data)

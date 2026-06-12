@@ -1,0 +1,23 @@
+// SEMrush
+// SEO, competitive research, and search analytics from Semrush.
+// auth: api_key | flow: api_key
+// API keys are account-level and tied to SEMrush usage units; generate at semrush.com/my_reports/.
+{
+  "schema_version": 1,
+  "name": "semrush",
+  "display_name": "SEMrush",
+  "logo": "img.logo.dev/name/semrush",
+  "description": "SEO, competitive research, and search analytics from Semrush.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.semrush.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "SEMRUSH_API_KEY": "API_TOKEN"
+  }
+}
+

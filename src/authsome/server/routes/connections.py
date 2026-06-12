@@ -28,6 +28,7 @@ async def _connection_detail(
     connection: str,
     *,
     can_set_default: bool,
+    can_set_global: bool,
 ) -> ConnectionDetailResponse:
     definition = await auth.get_provider(provider)
     record = await auth.get_connection(provider, connection)
@@ -54,6 +55,7 @@ async def _connection_detail(
             credentials=dict(record.credentials or {}),
         ),
         can_set_default=can_set_default,
+        can_set_global=can_set_global,
     )
 
 
@@ -62,6 +64,7 @@ async def list_connections(auth: CredentialService = Depends(get_daemon_or_brows
     by_source = await auth.list_providers_by_source()
     return {
         "connections": await auth.list_connections(),
+        "global_connections": [row.model_dump(mode="json") for row in await auth.list_global_connection_summaries()],
         "by_source": {
             source: [provider.model_dump(mode="json") for provider in providers]
             for source, providers in by_source.items()
@@ -94,6 +97,7 @@ async def get_connection_detail(
         provider,
         connection,
         can_set_default=target.principal_id == auth.principal_id,
+        can_set_global=auth.principal_role == PrincipalRole.ADMIN and target.principal_id == auth.principal_id,
     )
 
 
@@ -156,6 +160,51 @@ async def set_default_connection(
 ):
     await auth.set_default_connection(provider, connection)
     return {"status": "ok", "provider": provider, "default_connection": connection}
+
+
+@router.post("/connections/{provider}/{connection}/global")
+async def set_global_connection(
+    provider: str,
+    connection: str,
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
+):
+    if auth.principal_role != PrincipalRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
+    record = await auth.set_global_connection(provider, connection)
+    capture_event(
+        _actor(auth),
+        "connection made global",
+        {
+            "provider": provider,
+            "connection": connection,
+            "principal_id": auth.principal_id,
+        },
+    )
+    return {
+        "status": "ok",
+        "provider": record.provider,
+        "connection_name": record.connection_name,
+    }
+
+
+@router.delete("/connections/{provider}/global")
+async def unset_global_connection(
+    provider: str,
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
+):
+    if auth.principal_role != PrincipalRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
+    deleted = await auth.unset_global_connection(provider)
+    capture_event(
+        _actor(auth),
+        "global connection removed",
+        {
+            "provider": provider,
+            "principal_id": auth.principal_id,
+            "deleted": deleted,
+        },
+    )
+    return {"status": "ok", "provider": provider, "deleted": deleted}
 
 
 @router.post("/credentials/export")

@@ -1,0 +1,23 @@
+// Intercom
+// Customer conversations, contacts, and support automation APIs.
+// auth: api_key | flow: api_key
+// OAuth scopes cover workspace inbox, contacts, and conversations.
+{
+  "schema_version": 1,
+  "name": "intercom",
+  "display_name": "Intercom",
+  "logo": "img.logo.dev/name/intercom",
+  "description": "Customer conversations, contacts, and support automation APIs.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.intercom.io",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "INTERCOM_API_KEY": "API_TOKEN"
+  }
+}
+

@@ -116,6 +116,14 @@ class CredentialRepository:
         return self._vault_id
 
     @property
+    def identity(self) -> str | None:
+        return self._identity
+
+    @property
+    def principal_id(self) -> str | None:
+        return self._principal_id
+
+    @property
     def collection(self) -> str:
         return f"vault:{self._vault_id}"
 

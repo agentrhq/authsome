@@ -1,0 +1,30 @@
+// Notion
+// Notion workspace content and integration access over OAuth.
+// auth: oauth2 | flow: pkce
+// Notion OAuth uses HTTP Basic auth at the token endpoint — set authorization_method: basic.
+{
+  "schema_version": 1,
+  "name": "notion",
+  "display_name": "Notion",
+  "logo": "img.logo.dev/name/notion",
+  "description": "Notion workspace content and integration access over OAuth.",
+  "type": "app",
+  "auth_type": "oauth2",
+  "flow": "pkce",
+  "api_url": "api.notion.com",
+  "oauth": {
+    "authorization_url": "https://api.notion.com/v1/oauth/authorize",
+    "token_url": "https://api.notion.com/v1/oauth/token",
+    "revocation_url": null,
+    "device_authorization_url": null,
+    "scopes": [],
+    "pkce": false,
+    "authorization_method": "basic",
+    "supports_device_code": false,
+    "supports_dcr": false
+  },
+  "export": {
+    "NOTION_ACCESS_TOKEN": "ACCESS_TOKEN"
+  }
+}
+

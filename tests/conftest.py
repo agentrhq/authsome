@@ -10,6 +10,7 @@ TEST_AUTHSOME_BASE_URL = "http://127.0.0.1:7998"
 _tmp_dir = tempfile.TemporaryDirectory(prefix="authsome_test_home_")
 os.environ["AUTHSOME_HOME"] = _tmp_dir.name
 os.environ["AUTHSOME_BASE_URL"] = TEST_AUTHSOME_BASE_URL
+os.environ["AUTHSOME_ENV"] = "test"
 os.environ["AUTHSOME_DO_NOT_TRACK"] = "true"
 os.environ.pop("AUTHSOME_POSTHOG_API_KEY", None)
 os.environ.pop("POSTHOG_API_KEY", None)
@@ -23,6 +24,7 @@ def _disable_analytics(monkeypatch: pytest.MonkeyPatch) -> None:
 
     get_server_config.cache_clear()
     monkeypatch.setenv("AUTHSOME_BASE_URL", TEST_AUTHSOME_BASE_URL)
+    monkeypatch.setenv("AUTHSOME_ENV", "test")
     monkeypatch.setenv("AUTHSOME_DO_NOT_TRACK", "true")
     monkeypatch.delenv("AUTHSOME_POSTHOG_API_KEY", raising=False)
     monkeypatch.delenv("POSTHOG_API_KEY", raising=False)

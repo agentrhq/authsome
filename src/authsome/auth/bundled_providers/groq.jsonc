@@ -1,0 +1,25 @@
+// Groq
+// API key access to Groq LPU inference — ultra-low latency completions.
+// auth: api_key | flow: api_key
+// Keys begin with "gsk_" and are generated at console.groq.com/keys.
+{
+  "schema_version": 1,
+  "name": "groq",
+  "display_name": "Groq",
+  "logo": "img.logo.dev/name/groq",
+  "description": "Groq API key for ultra-fast LPU inference via the OpenAI-compatible completions API.",
+  "type": "llm",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://api.groq.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "env_var": "GROQ_API_KEY",
+    "key_pattern": "^gsk_[A-Za-z0-9]+$",
+    "key_pattern_hint": "Groq API keys start with 'gsk_'. Generate one at console.groq.com/keys."
+  },
+  "export": {
+    "GROQ_API_KEY": "API_TOKEN"
+  }
+}

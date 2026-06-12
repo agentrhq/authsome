@@ -1,0 +1,23 @@
+// Buffer
+// Social scheduling and publishing workflows for connected channels.
+// auth: api_key | flow: api_key
+// Scopes cover multiple social channels; remove scopes for channels you don't need.
+{
+  "schema_version": 1,
+  "name": "buffer",
+  "display_name": "Buffer",
+  "logo": "img.logo.dev/name/buffer",
+  "description": "Social scheduling and publishing workflows for connected channels.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.bufferapp.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "BUFFER_API_KEY": "API_TOKEN"
+  }
+}
+

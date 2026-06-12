@@ -1,0 +1,23 @@
+// Mailchimp
+// Audience, campaign, and marketing automation APIs from Mailchimp.
+// auth: api_key | flow: api_key
+// OAuth gives workspace-level access; the data center (us1, us2, etc.) must be included in API URLs.
+{
+  "schema_version": 1,
+  "name": "mailchimp",
+  "display_name": "Mailchimp",
+  "logo": "img.logo.dev/name/mailchimp",
+  "description": "Audience, campaign, and marketing automation APIs from Mailchimp.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.mailchimp.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "MAILCHIMP_API_KEY": "API_TOKEN"
+  }
+}
+

@@ -1,0 +1,41 @@
+// LinkedIn — Browser Session
+// Extracts the li_at session cookie from a real LinkedIn browser session.
+// auth: browser | flow: browser
+// JSESSIONID is mapped to the csrf-token header required by LinkedIn's API.
+// ttl_from_cookie: li_at — expiry is read from the cookie itself, not a fixed TTL.
+{
+  "schema_version": 1,
+  "name": "linkedin-browser",
+  "display_name": "LinkedIn — Browser Session",
+  "logo": "img.logo.dev/name/linkedin",
+  "description": "LinkedIn browser-session credentials for authenticated web workflows.",
+  "type": "browser",
+  "auth_type": "browser",
+  "flow": "browser",
+  "api_url": "regex:^(www\\.linkedin\\.com|linkedin\\.com)",
+  "browser": {
+    "entry_url": "https://www.linkedin.com/login",
+    "domains": [
+      ".linkedin.com",
+      "linkedin.com"
+    ],
+    "auth_cookies": [
+      "li_at"
+    ],
+    "ttl_from_cookie": "li_at",
+    "ttl_hours": 24,
+    "extra_headers": {},
+    "extract": [
+      {
+        "cookie": "JSESSIONID",
+        "header": "csrf-token"
+      }
+    ]
+  },
+  "export": {
+    "env": {
+      "li_at": "LINKEDIN_LI_AT",
+      "JSESSIONID": "LINKEDIN_JSESSIONID"
+    }
+  }
+}

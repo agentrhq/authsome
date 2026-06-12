@@ -5,7 +5,8 @@ Lives in server/ because it coordinates auth/ flows with vault/ storage and audi
 """
 
 import json
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any, Self
 from urllib.parse import urlparse
 
@@ -47,6 +48,8 @@ from authsome.identity.principal import PrincipalRole
 from authsome.server.config import get_server_config
 from authsome.server.credential_repository import CredentialRepository, parse_store_key
 from authsome.server.provider_repository import ProviderRepository
+from authsome.server.schemas import GlobalConnectionSummaryResponse, GlobalProviderConnectionRecord
+from authsome.server.store.repositories import GlobalProviderConnectionRegistry
 from authsome.utils import format_duration, utc_now
 from authsome.vault import Vault
 
@@ -57,6 +60,13 @@ _FLOW_HANDLERS = {
     FlowType.API_KEY: ApiKeyFlow,
     FlowType.BROWSER: BrowserFlow,
 }
+
+
+@dataclass(slots=True)
+class EffectiveConnection:
+    record: ConnectionRecord
+    credentials: CredentialRepository
+    source: str
 
 
 class CredentialService:
@@ -71,6 +81,7 @@ class CredentialService:
         *,
         credentials: CredentialRepository,
         providers: ProviderRepository,
+        global_connections: GlobalProviderConnectionRegistry,
         identity: str | None = None,
         principal_id: str | None = None,
         principal_role: PrincipalRole = PrincipalRole.USER,
@@ -82,6 +93,7 @@ class CredentialService:
         self._vault_id = vault_id or credentials.vault_id
         self._principal_role = principal_role
         self._providers = providers
+        self._global_connections = global_connections
 
     @property
     def vault(self) -> Vault:
@@ -106,6 +118,10 @@ class CredentialService:
         return self._principal_role
 
     @property
+    def global_connections(self) -> GlobalProviderConnectionRegistry:
+        return self._global_connections
+
+    @property
     def vault_id(self) -> str | None:
         return self._vault_id
 
@@ -126,14 +142,19 @@ class CredentialService:
 
     async def resolve_credentials(self, *, provider: str, connection: str | None = None) -> dict[str, Any]:
         """Resolve credentials for a provider/connection pair."""
-        resolved_connection = await self.resolve_connection_name(provider, connection)
-        record = await self.get_connection(provider, resolved_connection)
-        headers = await self.get_auth_headers(provider, resolved_connection)
+        effective = await self.resolve_effective_connection(provider, connection)
+        definition = await self.get_provider(provider)
+        headers = await self._get_auth_headers_from_record_with_credentials(
+            effective.record,
+            definition,
+            effective.credentials,
+        )
         return {
             "provider": provider,
-            "connection": resolved_connection,
+            "connection": effective.record.connection_name,
             "headers": headers,
-            "expires_at": record.expires_at.isoformat() if record.expires_at else None,
+            "expires_at": effective.record.expires_at.isoformat() if effective.record.expires_at else None,
+            "source": effective.source,
         }
 
     async def register_provider(self, definition: ProviderDefinition, *, force: bool = False) -> None:
@@ -241,12 +262,93 @@ class CredentialService:
                 records.append(record)
         return records
 
+    async def list_global_connection_summaries(self) -> list[GlobalConnectionSummaryResponse]:
+        """Return redacted summaries for deployment-wide global connection fallbacks."""
+        summaries: list[GlobalConnectionSummaryResponse] = []
+        for pointer in await self._global_connections.list_all():
+            credentials = self._credentials_for_vault(
+                pointer.owner_vault_id,
+                identity=pointer.created_by_identity,
+                principal_id=pointer.owner_principal_id,
+            )
+            record = await credentials.get_connection(pointer.provider, pointer.connection_name)
+            if record is None:
+                await self._global_connections.delete_if_target(
+                    pointer.provider,
+                    pointer.owner_vault_id,
+                    pointer.connection_name,
+                    updated_at=pointer.updated_at,
+                )
+                continue
+            definition = await self.get_provider(pointer.provider)
+            summaries.append(
+                GlobalConnectionSummaryResponse(
+                    provider=record.provider,
+                    provider_display_name=definition.display_name,
+                    connection_name=record.connection_name,
+                    status=record.status.value,
+                    auth_type=record.auth_type.value,
+                    account_label=record.account.label if record.account else None,
+                    api_url=record.api_url,
+                )
+            )
+        return sorted(summaries, key=lambda row: (row.provider_display_name.lower(), row.connection_name))
+
     async def resolve_connection_name(self, provider: str, connection: str | None = None) -> str:
         """Resolve an optional connection name to the provider default."""
         if connection:
             return connection
         metadata = await self._credentials.get_provider_metadata(provider)
         return metadata.default_connection if metadata else "default"
+
+    async def resolve_effective_connection(
+        self,
+        provider: str,
+        connection: str | None = None,
+    ) -> EffectiveConnection:
+        """Resolve the connection used for credential access, including global fallback."""
+        if connection is not None and connection != "default":
+            record = await self.get_connection(provider, connection)
+            return EffectiveConnection(record=record, credentials=self._credentials, source="local")
+
+        local_default = "default" if connection == "default" else await self.resolve_connection_name(provider, None)
+        record = await self._credentials.get_connection(provider, local_default)
+        if record is not None:
+            return EffectiveConnection(record=record, credentials=self._credentials, source="local")
+
+        pointer = await self._global_connections.get(provider)
+        if pointer is None:
+            raise ConnectionNotFoundError(
+                provider=provider,
+                connection=local_default,
+                identity=self._identity or self._principal_id or "account-ui",
+            )
+
+        pointer_credentials = self._credentials_for_vault(
+            pointer.owner_vault_id,
+            identity=pointer.created_by_identity,
+            principal_id=pointer.owner_principal_id,
+        )
+        target = await pointer_credentials.get_connection(provider, pointer.connection_name)
+        if target is None:
+            await self._global_connections.delete_if_target(
+                provider,
+                pointer.owner_vault_id,
+                pointer.connection_name,
+                updated_at=pointer.updated_at,
+            )
+            raise ConnectionNotFoundError(
+                provider=provider,
+                connection=local_default,
+                identity=self._identity or self._principal_id or "account-ui",
+            )
+
+        write_credentials = self._credentials_for_vault(
+            pointer.owner_vault_id,
+            identity=target.identity or pointer.created_by_identity,
+            principal_id=target.principal_id or pointer.owner_principal_id,
+        )
+        return EffectiveConnection(record=target, credentials=write_credentials, source="global")
 
     async def get_provider_client(self, provider: str) -> ProviderClientRecord | None:
         """Return stored client credentials for a provider, or None if absent.
@@ -350,6 +452,75 @@ class CredentialService:
         metadata.default_connection = connection
         metadata.last_used_connection = connection
         await self._credentials.save_provider_metadata(metadata)
+
+    async def set_global_connection(self, provider: str, connection: str) -> GlobalProviderConnectionRecord:
+        """Point a provider's global fallback at a local connection owned by this service."""
+        self._require_admin(
+            "set_global_connection",
+            "setting a global connection requires an admin principal",
+            provider,
+        )
+        if self._principal_id is None:
+            raise OperationNotAllowedError(
+                "set_global_connection",
+                "setting a global connection requires a principal id",
+                provider=provider,
+            )
+
+        target_connection = (
+            await self.resolve_connection_name(provider, None) if connection == "default" else connection
+        )
+        target = await self.get_connection(provider, target_connection)
+        record = await self._global_connections.upsert(
+            GlobalProviderConnectionRecord(
+                provider=provider,
+                owner_principal_id=self._principal_id,
+                owner_vault_id=self._vault_id,
+                connection_name=target.connection_name,
+                created_by_identity=self._identity,
+            )
+        )
+        audit.emit_event(
+            "provider.global_connection_set",
+            provider=provider,
+            connection=target.connection_name,
+            identity=self._identity,
+            principal_id=self._principal_id,
+            owner_vault_id=self._vault_id,
+            status="success",
+        )
+        return record
+
+    async def unset_global_connection(self, provider: str) -> bool:
+        """Remove a provider's global fallback pointer."""
+        self._require_admin(
+            "unset_global_connection",
+            "unsetting a global connection requires an admin principal",
+            provider,
+        )
+        existing = await self._global_connections.get(provider)
+        deleted = (
+            False
+            if existing is None
+            else await self._global_connections.delete_if_target(
+                provider=provider,
+                owner_vault_id=existing.owner_vault_id,
+                connection_name=existing.connection_name,
+                updated_at=existing.updated_at,
+            )
+        )
+        audit.emit_event(
+            "provider.global_connection_unset",
+            provider=provider,
+            identity=self._identity,
+            principal_id=self._principal_id,
+            owner_principal_id=existing.owner_principal_id if deleted and existing is not None else None,
+            owner_vault_id=existing.owner_vault_id if deleted and existing is not None else None,
+            connection=existing.connection_name if deleted and existing is not None else None,
+            status="success",
+            deleted=deleted,
+        )
+        return deleted
 
     # ── Authentication ────────────────────────────────────────────────────
 
@@ -619,6 +790,12 @@ class CredentialService:
             record = await self.get_connection(provider, connection)
         except ConnectionNotFoundError:
             return
+        global_pointer = await self._global_connections.get(provider) if self._vault_id is not None else None
+        remove_global_pointer = (
+            global_pointer is not None
+            and global_pointer.owner_vault_id == self._vault_id
+            and global_pointer.connection_name == connection
+        )
 
         if record.auth_type == AuthType.OAUTH2 and (record.access_token or record.refresh_token):
             handler_cls = _FLOW_HANDLERS.get(definition.flow)
@@ -638,6 +815,24 @@ class CredentialService:
 
         await self._credentials.delete_connection(provider, connection)
         await self._remove_from_provider_metadata(provider, connection)
+        if self._vault_id is not None and remove_global_pointer and global_pointer is not None:
+            deleted = await self._global_connections.delete_if_target(
+                provider=provider,
+                owner_vault_id=self._vault_id,
+                connection_name=connection,
+                updated_at=global_pointer.updated_at,
+            )
+            if deleted:
+                audit.emit_event(
+                    "provider.global_connection_unset",
+                    provider=provider,
+                    connection=connection,
+                    identity=self._identity,
+                    principal_id=self._principal_id,
+                    owner_vault_id=self._vault_id,
+                    status="success",
+                    reason="target_deleted",
+                )
 
     async def revoke(self, provider: str, vault_ids: list[str] | None = None) -> None:
         """Revoke all tokens for a provider across the given vault IDs.
@@ -676,16 +871,30 @@ class CredentialService:
     def _for_vault(self, vault_id: str) -> Self:
         """Return a sibling service scoped to another vault of the same principal."""
         return type(self)(
-            credentials=CredentialRepository(
-                self.vault,
+            credentials=self._credentials_for_vault(
+                vault_id,
                 identity=self._identity,
                 principal_id=self._principal_id,
-                vault_id=vault_id,
             ),
             providers=self._providers,
             identity=self._identity,
             principal_id=self._principal_id,
             principal_role=self._principal_role,
+            global_connections=self._global_connections,
+            vault_id=vault_id,
+        )
+
+    def _credentials_for_vault(
+        self,
+        vault_id: str,
+        *,
+        identity: str | None,
+        principal_id: str | None,
+    ) -> CredentialRepository:
+        return CredentialRepository(
+            self.vault,
+            identity=identity,
+            principal_id=principal_id,
             vault_id=vault_id,
         )
 
@@ -826,73 +1035,120 @@ class CredentialService:
             raise CredentialMissingError("No API key stored in connection record", provider=record.provider)
         return record.api_key
 
-    async def _get_oauth_token(self, record: ConnectionRecord, provider: str, connection: str) -> str:  # noqa: PLR0912
+    async def _get_oauth_token_with_credentials(
+        self,
+        record: ConnectionRecord,
+        provider: str,
+        connection: str,
+        credentials: CredentialRepository,
+        *,
+        refresh_with_credentials: bool = True,
+    ) -> str:  # noqa: PLR0912
         if record.access_token is None:
             raise CredentialMissingError("No access token stored", provider=provider)
 
         now = utc_now()
-        if record.expires_at:
-            near_expiry = record.expires_at - timedelta(seconds=get_server_config().token_near_expiry_seconds)
-            if now < near_expiry:
-                return record.access_token
-
-            if record.refresh_token:
-                try:
-                    refreshed = await self._refresh_token(record, provider)
-                    if refreshed.access_token is None:
-                        raise RefreshFailedError("Refreshed record missing access token", provider=provider)
-                    return refreshed.access_token
-                except RefreshFailedError as exc:
-                    fallback_available = record.expires_at and now < record.expires_at
-                    audit.emit_event(
-                        "provider.refresh_failed",
-                        provider=provider,
-                        connection=connection,
-                        identity=self._identity,
-                        principal_id=self._principal_id,
-                        status="failure",
-                        error=str(exc),
-                        fallback_available=bool(fallback_available),
-                    )
-
-                    if record.expires_at:
-                        duration_secs = int((record.expires_at - now).total_seconds())
-                        time_desc = format_duration(max(0, duration_secs))
-                        if fallback_available:
-                            msg = (
-                                f"Warning: token refresh failed for {provider}/{connection} "
-                                f"— using existing token (expires in {time_desc}). Re-authenticate soon."
-                            )
-                        else:
-                            msg = (
-                                f"Warning: token refresh failed for {provider}/{connection} "
-                                f"— token expired {time_desc} ago. Re-authenticate soon."
-                            )
-                    else:
-                        msg = f"Warning: token refresh failed for {provider}/{connection}. Re-authenticate soon."
-
-                    logger.warning(msg)
-
-                    if fallback_available:
-                        return record.access_token
-
-                    record.status = ConnectionStatus.EXPIRED
-                    await self._credentials.save_connection(record)
-                    raise
-            else:
-                if now >= record.expires_at:
-                    record.status = ConnectionStatus.EXPIRED
-                    await self._credentials.save_connection(record)
-                    raise TokenExpiredError(provider=provider)
-                return record.access_token
-        else:
+        if record.expires_at is None:
             return record.access_token
 
-    async def _refresh_token(self, record: ConnectionRecord, provider_name: str) -> ConnectionRecord:
-        definition = await self.get_provider(provider_name)
-        state_record = await self._get_or_create_provider_state(provider_name)
+        near_expiry = record.expires_at - timedelta(seconds=get_server_config().token_near_expiry_seconds)
+        if now < near_expiry:
+            return record.access_token
 
-        client_record = await self._credentials.get_provider_client(provider_name)
+        if record.refresh_token:
+            try:
+                refreshed = (
+                    await self._refresh_token_with_credentials(record, provider, credentials)
+                    if refresh_with_credentials
+                    else await self._refresh_token(record, provider)
+                )
+                if refreshed.access_token is None:
+                    raise RefreshFailedError("Refreshed record missing access token", provider=provider)
+                return refreshed.access_token
+            except RefreshFailedError as exc:
+                return await self._handle_refresh_failure(
+                    record=record,
+                    connection=connection,
+                    credentials=credentials,
+                    now=now,
+                    error=exc,
+                )
+
+        if now >= record.expires_at:
+            record.status = ConnectionStatus.EXPIRED
+            await credentials.save_connection(record)
+            raise TokenExpiredError(provider=provider)
+
+        return record.access_token
+
+    async def _handle_refresh_failure(
+        self,
+        *,
+        record: ConnectionRecord,
+        connection: str,
+        credentials: CredentialRepository,
+        now: datetime,
+        error: RefreshFailedError,
+    ) -> str:
+        fallback_available = bool(record.expires_at and now < record.expires_at)
+        audit.emit_event(
+            "provider.refresh_failed",
+            provider=record.provider,
+            connection=connection,
+            identity=self._identity,
+            principal_id=self._principal_id,
+            status="failure",
+            error=str(error),
+            fallback_available=fallback_available,
+        )
+
+        logger.warning(
+            self._refresh_failure_message(record.provider, connection, record.expires_at, now, fallback_available)
+        )
+
+        if fallback_available and record.access_token is not None:
+            return record.access_token
+
+        record.status = ConnectionStatus.EXPIRED
+        await credentials.save_connection(record)
+        raise error
+
+    @staticmethod
+    def _refresh_failure_message(
+        provider: str,
+        connection: str,
+        expires_at: datetime | None,
+        now: datetime,
+        fallback_available: bool,
+    ) -> str:
+        if expires_at is None:
+            return f"Warning: token refresh failed for {provider}/{connection}. Re-authenticate soon."
+
+        duration_secs = int((expires_at - now).total_seconds())
+        time_desc = format_duration(max(0, duration_secs))
+        if fallback_available:
+            return (
+                f"Warning: token refresh failed for {provider}/{connection} "
+                f"— using existing token (expires in {time_desc}). Re-authenticate soon."
+            )
+        return (
+            f"Warning: token refresh failed for {provider}/{connection} "
+            f"— token expired {time_desc} ago. Re-authenticate soon."
+        )
+
+    async def _refresh_token(self, record: ConnectionRecord, provider_name: str) -> ConnectionRecord:
+        return await self._refresh_token_with_credentials(record, provider_name, self._credentials)
+
+    async def _refresh_token_with_credentials(
+        self,
+        record: ConnectionRecord,
+        provider_name: str,
+        credentials: CredentialRepository,
+    ) -> ConnectionRecord:
+        definition = await self.get_provider(provider_name)
+        state_record = await self._get_or_create_provider_state_with_credentials(provider_name, credentials)
+
+        client_record = await credentials.get_provider_client(provider_name)
         client_id = client_record.client_id if client_record else None
         client_secret = client_record.client_secret if client_record else None
         base_url = record.base_url or (client_record.base_url if client_record else None)
@@ -913,41 +1169,65 @@ class CredentialService:
         except Exception as exc:
             state_record.last_refresh_at = utc_now()
             state_record.last_refresh_error = str(exc)
-            await self._credentials.save_provider_state(state_record)
+            await credentials.save_provider_state(state_record)
             if isinstance(exc, RefreshFailedError):
                 raise
             raise RefreshFailedError(str(exc), provider=provider_name) from exc
 
-        await self._credentials.save_connection(record)
+        await credentials.save_connection(record)
 
         now = utc_now()
         state_record.last_refresh_at = now
         state_record.last_refresh_error = None
-        await self._credentials.save_provider_state(state_record)
+        await credentials.save_provider_state(state_record)
 
         logger.info("Token refreshed: provider={}", provider_name)
         return record
 
-    async def _get_or_create_provider_state(self, provider: str) -> ProviderStateRecord:
-        existing = await self._credentials.get_provider_state(provider)
+    async def _get_or_create_provider_state_with_credentials(
+        self,
+        provider: str,
+        credentials: CredentialRepository,
+    ) -> ProviderStateRecord:
+        existing = await credentials.get_provider_state(provider)
         if existing:
             return existing
         return ProviderStateRecord(
             provider=provider,
-            identity=self._identity,
-            principal_id=self._principal_id,
-            vault_id=self._vault_id,
+            identity=credentials.identity,
+            principal_id=credentials.principal_id,
+            vault_id=credentials.vault_id,
         )
 
     async def _get_access_token_from_record(self, record: ConnectionRecord) -> str:
+        return await self._get_access_token_from_record_with_credentials(record, self._credentials)
+
+    async def _get_access_token_from_record_with_credentials(
+        self,
+        record: ConnectionRecord,
+        credentials: CredentialRepository,
+    ) -> str:
         if record.auth_type == AuthType.API_KEY:
             return self._get_api_key(record)
         if record.auth_type == AuthType.OAUTH2:
-            return await self._get_oauth_token(record, record.provider, record.connection_name)
+            return await self._get_oauth_token_with_credentials(
+                record,
+                record.provider,
+                record.connection_name,
+                credentials,
+            )
         raise CredentialMissingError(f"Unsupported auth type: {record.auth_type}", provider=record.provider)
 
     async def _get_auth_headers_from_record(
         self, record: ConnectionRecord, definition: ProviderDefinition
+    ) -> dict[str, str]:
+        return await self._get_auth_headers_from_record_with_credentials(record, definition, self._credentials)
+
+    async def _get_auth_headers_from_record_with_credentials(
+        self,
+        record: ConnectionRecord,
+        definition: ProviderDefinition,
+        credentials: CredentialRepository,
     ) -> dict[str, str]:
         if record.auth_type == AuthType.BROWSER:
             if not record.credentials:
@@ -964,7 +1244,7 @@ class CredentialService:
             headers["Cookie"] = "; ".join(f"{k}={v}" for k, v in record.credentials.items())
             return headers
 
-        token = await self._get_access_token_from_record(record)
+        token = await self._get_access_token_from_record_with_credentials(record, credentials)
 
         if record.auth_type == AuthType.OAUTH2:
             return {"Authorization": f"Bearer {token}"}

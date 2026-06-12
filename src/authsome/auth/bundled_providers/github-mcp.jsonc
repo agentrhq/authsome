@@ -1,0 +1,28 @@
+// GitHub MCP
+// GitHub personal access token for the remote GitHub MCP server.
+// auth: api_key | flow: api_key
+// Distinct from the GitHub OAuth provider (github.jsonc) which uses PKCE/device-code.
+// This provider stores a fine-grained PAT injected as Bearer token at the MCP endpoint.
+// Prefer fine-grained tokens scoped to only the repos and permissions the agent needs.
+{
+  "schema_version": 1,
+  "name": "github-mcp",
+  "display_name": "GitHub MCP",
+  "logo": "img.logo.dev/name/github",
+  "description": "GitHub personal access token for the remote MCP server — enables agents to manage repos, issues, and PRs via MCP.",
+  "type": "mcp",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://api.githubcopilot.com/mcp",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "env_var": "GITHUB_TOKEN",
+    "key_pattern": "^(ghp_|github_pat_)[A-Za-z0-9_]+$",
+    "key_pattern_hint": "GitHub tokens start with 'ghp_' (classic) or 'github_pat_' (fine-grained). Create one at github.com/settings/tokens."
+  },
+  "export": {
+    "GITHUB_TOKEN": "API_TOKEN",
+    "GH_TOKEN": "API_TOKEN"
+  }
+}

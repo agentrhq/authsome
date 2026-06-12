@@ -1,0 +1,23 @@
+// Rewardful
+// Affiliate and referral tracking data from Rewardful.
+// auth: api_key | flow: api_key
+// API keys are account-level; generate at app.getrewardful.com/settings/developer.
+{
+  "schema_version": 1,
+  "name": "rewardful",
+  "display_name": "Rewardful",
+  "logo": "img.logo.dev/name/rewardful",
+  "description": "Affiliate and referral tracking data from Rewardful.",
+  "type": "app",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "api.getrewardful.com",
+  "api_key": {
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "export": {
+    "REWARDFUL_API_KEY": "API_TOKEN"
+  }
+}
+

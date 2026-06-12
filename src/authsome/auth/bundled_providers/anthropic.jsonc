@@ -1,0 +1,26 @@
+// Anthropic
+// API key access to Claude models via the Anthropic Messages API.
+// auth: api_key | flow: api_key
+// Anthropic uses x-api-key header — NOT Authorization Bearer like most providers.
+// Keys begin with "sk-ant-" and are generated at console.anthropic.com/keys.
+{
+  "schema_version": 1,
+  "name": "anthropic",
+  "display_name": "Anthropic",
+  "logo": "img.logo.dev/name/anthropic",
+  "description": "Anthropic API key for Claude model inference and the Messages API.",
+  "type": "llm",
+  "auth_type": "api_key",
+  "flow": "api_key",
+  "api_url": "https://api.anthropic.com",
+  "api_key": {
+    "header_name": "x-api-key",
+    "header_prefix": null,
+    "env_var": "ANTHROPIC_API_KEY",
+    "key_pattern": "^sk-ant-[A-Za-z0-9_-]+$",
+    "key_pattern_hint": "Anthropic API keys start with 'sk-ant-'. Generate one at console.anthropic.com/keys."
+  },
+  "export": {
+    "ANTHROPIC_API_KEY": "API_TOKEN"
+  }
+}

@@ -68,6 +68,7 @@ def _put_connection(
 def test_user_can_read_own_connection_detail(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     with create_server_test_client() as client:
+        _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
         user = _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
         user_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity=user.handle))
         _put_connection(client, user_ctx.principal_id, user_ctx.vault_id, "default")
@@ -81,6 +82,7 @@ def test_user_can_read_own_connection_detail(monkeypatch, tmp_path: Path) -> Non
     assert body["connection_name"] == "default"
     assert body["secrets"]["access_token"] == "access-default"
     assert body["secrets"]["refresh_token"] == "refresh-default"
+    assert body["can_set_global"] is False
 
 
 def test_non_admin_cannot_read_other_principal_connection(monkeypatch, tmp_path: Path) -> None:
@@ -109,6 +111,22 @@ def test_admin_can_read_other_principal_connection(monkeypatch, tmp_path: Path) 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["principal_id"] == user_ctx.principal_id
     assert response.json()["secrets"]["access_token"] == "access-user-main"
+    assert response.json()["can_set_global"] is False
+
+
+def test_admin_can_make_own_connection_global_from_detail(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    with create_server_test_client() as client:
+        admin = _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
+        admin_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity=admin.handle))
+        _put_connection(client, admin_ctx.principal_id, admin_ctx.vault_id, "default")
+        response = client.get(
+            "/api/connections/github/default/detail",
+            headers=_auth_header(tmp_path, "GET", "/api/connections/github/default/detail", handle=admin.handle),
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["can_set_global"] is True
 
 
 def test_admin_logout_targets_other_principal_connection(monkeypatch, tmp_path: Path) -> None:

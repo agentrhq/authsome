@@ -115,6 +115,18 @@ class StoreDatabase:
         async with self._postgres_connection() as connection:
             await connection.execute(self._sql(sql), *params)
 
+    async def execute_rowcount(self, sql: str, params: Sequence[Any] = ()) -> int:
+        if self.backend == "sqlite":
+            cursor = await self._connection.execute(sql, params)
+            await self._connection.commit()
+            rowcount = cursor.rowcount
+            await cursor.close()
+            return rowcount
+
+        status = await self._connection.execute(self._sql(sql), *params)
+        _, _, count = status.partition(" ")
+        return int(count) if count else 0
+
     async def execute_many(self, statements: Sequence[str]) -> None:
         for statement in statements:
             await self.execute(statement)
@@ -252,6 +264,15 @@ def build_schema(backend: StoreBackend) -> list[str]:
         "CREATE TABLE IF NOT EXISTS custom_provider_definitions ("
         "name TEXT PRIMARY KEY, definition_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL"
         ")",
+        "CREATE TABLE IF NOT EXISTS global_provider_connections ("
+        "provider TEXT PRIMARY KEY, "
+        "owner_principal_id TEXT NOT NULL REFERENCES principals(principal_id) ON DELETE CASCADE, "
+        "owner_vault_id TEXT NOT NULL REFERENCES vaults(vault_id) ON DELETE CASCADE, "
+        "connection_name TEXT NOT NULL, "
+        "created_by_identity TEXT, "
+        "created_at TEXT NOT NULL, "
+        "updated_at TEXT NOT NULL"
+        ")",
         "CREATE TABLE IF NOT EXISTS audit_events ("
         "event_id TEXT PRIMARY KEY, "
         "timestamp TEXT NOT NULL, "
@@ -294,6 +315,7 @@ async def create_server_store(home: Path | None = None, database_url: str | None
     """Create the server-owned relational Store."""
     from authsome.server.store.repositories import (  # noqa: PLC0415
         AuditEventRegistry,
+        GlobalProviderConnectionRegistry,
         IdentityClaimRegistry,
         IdentityRegistry,
         PrincipalRegistry,
@@ -314,6 +336,7 @@ async def create_server_store(home: Path | None = None, database_url: str | None
         vaults=VaultRegistry(database),
         identity_claims=IdentityClaimRegistry(database),
         principal_vault_bindings=PrincipalVaultBindingRegistry(database),
+        global_provider_connections=GlobalProviderConnectionRegistry(database),
         server_config=ServerConfigRepository(database),
         provider_definitions=ProviderDefinitionRepository(database),
         audit_events=AuditEventRegistry(database),

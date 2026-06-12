@@ -1,6 +1,7 @@
 """Process-wide configuration for Authsome."""
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -14,6 +15,7 @@ class AuthsomeConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AUTHSOME_")
 
     version: str = __version__
+    env: Literal["prod", "dev", "test"] = "prod"
     home: Path = Field(default=Path.home() / ".authsome")
     base_url: str = Field(default="http://127.0.0.1:7998")
 
