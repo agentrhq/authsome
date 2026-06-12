@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowLeft,
   AppWindow,
   BookOpen,
   Check,
@@ -8,7 +9,8 @@ import {
   CircleAlert,
   Clipboard,
   ClipboardList,
-  Database,
+  Eye,
+  EyeOff,
   GitBranch,
   Globe2,
   KeyRound,
@@ -88,7 +90,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "vault" | "audit" | "settings";
+export type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "audit" | "settings";
 
 type NavItem = {
   id: View;
@@ -104,7 +106,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: "connections", href: "/connections", label: "Connections", icon: <Link2 /> },
   { id: "agents", href: "/agents", label: "Agents", icon: <UserRound /> },
   { id: "principals", href: "/principal", label: "Principals", icon: <Users />, adminOnly: true },
-  { id: "vault", href: "/vault", label: "Vault", icon: <Database /> },
   { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList />, adminOnly: true },
   { id: "settings", href: "/settings", label: "Settings", icon: <Settings /> },
 ];
@@ -933,7 +934,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
 function ProviderSummary({ provider }: { provider: ProviderView }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
+    <Link
+      className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3 transition-colors hover:border-primary/50 hover:bg-muted/50"
+      href={providerDetailHref(provider.name)}
+    >
       <div className="flex items-center gap-3">
         <ProviderLogo className="size-8" initial={provider.logoInitial} logo={provider.logo} />
         <div>
@@ -942,7 +946,7 @@ function ProviderSummary({ provider }: { provider: ProviderView }) {
         </div>
       </div>
       <StatusBadge status={provider.status} />
-    </div>
+    </Link>
   );
 }
 
@@ -960,7 +964,7 @@ function EmptyBlock({ actionLabel, href, title }: { actionLabel: string; href: s
 
 export function ProvidersView({ providers }: { providers: ProviderView[] }) {
   const [query, setQuery] = useState("");
-  const [dialogProvider, setDialogProvider] = useState<ProviderView | null>(null);
+  const [dialogProvider, setDialogProvider] = useState<NamedConnectionProvider | null>(null);
 
   const filteredProviders = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -1058,12 +1062,14 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
   );
 }
 
+type NamedConnectionProvider = Pick<ProviderView, "displayName" | "name">;
+
 function NamedConnectionDialog({
   onOpenChange,
   provider,
 }: {
-  onOpenChange: (provider: ProviderView | null) => void;
-  provider: ProviderView | null;
+  onOpenChange: (provider: NamedConnectionProvider | null) => void;
+  provider: NamedConnectionProvider | null;
 }) {
   const [connectionName, setConnectionName] = useState("");
 
@@ -1074,7 +1080,15 @@ function NamedConnectionDialog({
   }
 
   return (
-    <Dialog open={Boolean(provider)} onOpenChange={(open) => onOpenChange(open ? provider : null)}>
+    <Dialog
+      open={Boolean(provider)}
+      onOpenChange={(open) => {
+        if (!open) {
+          setConnectionName("");
+        }
+        onOpenChange(open ? provider : null);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Connection name</DialogTitle>
@@ -1120,6 +1134,7 @@ export function ConnectionsView({
   isAdmin: boolean;
   onRefresh: () => void;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState(() => {
     if (initialFilter) {
       return initialFilter;
@@ -1168,12 +1183,27 @@ export function ConnectionsView({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredConnections.map((row) => (
-                  <TableRow key={`${row.providerName}:${row.connectionName}`}>
+                {filteredConnections.map((row) => {
+                  const href = connectionDetailHref(row.providerName, row.connectionName);
+                  return (
+                    <TableRow
+                      className="cursor-pointer transition-colors hover:bg-muted/40"
+                      key={`${row.providerName}:${row.connectionName}`}
+                      onClick={() => router.push(href)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          router.push(href);
+                        }
+                      }}
+                      role="link"
+                      tabIndex={0}
+                    >
                     <TableCell>
                       <Link
                         className="font-medium hover:underline underline-offset-4"
-                        href={connectionDetailHref(row.providerName, row.connectionName)}
+                        href={href}
+                        onClick={(event) => event.stopPropagation()}
                       >
                         {row.connectionName}
                       </Link>
@@ -1184,7 +1214,8 @@ export function ConnectionsView({
                       <StatusBadge status={row.status} />
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (
@@ -1205,6 +1236,8 @@ function GlobalConnectionsSection({
   isAdmin: boolean;
   onRefresh: () => void;
 }) {
+  const router = useRouter();
+
   return (
     <Card className="shadow-none border-border/50">
       <CardHeader>
@@ -1224,8 +1257,22 @@ function GlobalConnectionsSection({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {connections.map((row) => (
-                <TableRow key={`${row.providerName}:${row.connectionName}`}>
+              {connections.map((row) => {
+                const href = connectionDetailHref(row.providerName, row.connectionName);
+                return (
+                  <TableRow
+                    className="cursor-pointer transition-colors hover:bg-muted/40"
+                    key={`${row.providerName}:${row.connectionName}`}
+                    onClick={() => router.push(href)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        router.push(href);
+                      }
+                    }}
+                    role="link"
+                    tabIndex={0}
+                  >
                   <TableCell>
                     <div className="flex min-w-0 items-center gap-2">
                       <Globe2 className="size-4 shrink-0 text-muted-foreground" />
@@ -1243,12 +1290,13 @@ function GlobalConnectionsSection({
                     <StatusBadge status={row.status} />
                   </TableCell>
                   {isAdmin ? (
-                    <TableCell>
+                    <TableCell onClick={(event) => event.stopPropagation()}>
                       <RemoveGlobalConnectionButton onRefresh={onRefresh} provider={row.providerName} />
                     </TableCell>
                   ) : null}
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         ) : (
@@ -1387,27 +1435,6 @@ export function PrincipalsView() {
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-export function VaultView({ data }: { data: DashboardData }) {
-  return (
-    <div className="grid gap-5">
-      <SectionHeader description="Credential namespace for this account." title="Vault" />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-none border-border/50">
-          <CardHeader>
-            <CardTitle>Default Vault</CardTitle>
-            <CardDescription>{data.vault.isDefault ? "Active for this account" : "Vault binding"}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <KeyValue label="Handle" value={data.vault.handle} />
-            <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
-            <KeyValue label="Principal ID" value={data.account.principalId || "-"} />
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
@@ -1602,9 +1629,16 @@ export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; 
   const initial = (displayName[0] || "?").toUpperCase();
   const description = data.provider.description || data.provider.metadata?.description || "";
   const showsConfiguration = data.provider.auth_type !== "api_key";
+  const [dialogProvider, setDialogProvider] = useState<NamedConnectionProvider | null>(null);
+  const hasDefaultConnection = data.connections.some((connection) => connection.connection_name === "default");
+  const dialogData = { displayName, name: data.provider.name };
 
   return (
     <div className="grid gap-6">
+      <Link className={cn(buttonVariants({ size: "sm" }), "w-fit")} href="/providers">
+        <ArrowLeft />
+        Back to providers
+      </Link>
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-6">
         <div className="flex items-center gap-4">
           <ProviderLogo className="size-12 shrink-0" initial={initial} logo={data.provider.logo || null} />
@@ -1615,15 +1649,23 @@ export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; 
             </p>
           </div>
         </div>
-        <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
-          <input name="connection" type="hidden" value="default" />
-          <input name="return_url" type="hidden" value={providerDetailHref(data.provider.name)} />
-          <Button type="submit">
+        {hasDefaultConnection ? (
+          <Button onClick={() => setDialogProvider(dialogData)} type="button">
             <LogIn />
             New connection
           </Button>
-        </form>
+        ) : (
+          <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
+            <input name="connection" type="hidden" value="default" />
+            <input name="return_url" type="hidden" value={`/connections?provider=${data.provider.name}`} />
+            <Button type="submit">
+              <LogIn />
+              New connection
+            </Button>
+          </form>
+        )}
       </div>
+      <NamedConnectionDialog onOpenChange={setDialogProvider} provider={dialogProvider} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid gap-5">
@@ -1702,16 +1744,12 @@ function ProviderConfigurationForm({ data, onRefresh }: { data: ProviderDetail; 
           </div>
         ) : null}
         {data.configuration_fields.map((field) => (
-          <label className="grid gap-2 text-sm" key={field.name}>
-            <span className="text-muted-foreground">{field.label}</span>
-            <Input
-              onChange={(event) => setValues((current) => ({ ...current, [field.name]: event.target.value }))}
-              pattern={field.pattern || undefined}
-              type="text"
-              value={values[field.name] || ""}
-            />
-            {field.pattern_hint ? <span className="text-xs text-muted-foreground">{field.pattern_hint}</span> : null}
-          </label>
+          <ConfigurationFieldInput
+            field={field}
+            key={field.name}
+            onChange={(value) => setValues((current) => ({ ...current, [field.name]: value }))}
+            value={values[field.name] || ""}
+          />
         ))}
         {message ? <div className="text-sm text-muted-foreground">{message}</div> : null}
         <Button disabled={saving} onClick={() => void save()} type="button">
@@ -1868,8 +1906,53 @@ export function AuthsomeConnectionDetail({
   );
 }
 
+function ConfigurationFieldInput({
+  field,
+  onChange,
+  value,
+}: {
+  field: ProviderDetail["configuration_fields"][number];
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const isSecret = field.secret;
+
+  return (
+    <label className="grid gap-2 text-sm">
+      <span className="text-muted-foreground">{field.label}</span>
+      <div className="flex items-center gap-2">
+        <Input
+          className="min-w-0 flex-1"
+          onChange={(event) => onChange(event.target.value)}
+          pattern={field.pattern || undefined}
+          type={isSecret && !revealed ? "password" : "text"}
+          value={value}
+        />
+        {isSecret ? (
+          <Button
+            aria-label={revealed ? "Hide secret" : "Reveal secret"}
+            onClick={() => setRevealed((current) => !current)}
+            size="icon"
+            type="button"
+            variant="outline"
+          >
+            {revealed ? <EyeOff /> : <Eye />}
+          </Button>
+        ) : null}
+      </div>
+      {field.pattern_hint ? <span className="text-xs text-muted-foreground">{field.pattern_hint}</span> : null}
+    </label>
+  );
+}
+
+function redactedValue(value: string): string {
+  return value.length <= 8 ? "********" : `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
 function SecretValue({ label, value }: { label: string; value: string | null }) {
   const [copied, setCopied] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   if (!value) return null;
 
   async function copy() {
@@ -1882,8 +1965,24 @@ function SecretValue({ label, value }: { label: string; value: string | null }) 
     <div className="grid gap-2">
       <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
       <div className="flex min-w-0 items-start gap-2 rounded-lg border bg-muted p-3">
-        <code className="min-w-0 flex-1 break-all text-xs">{value}</code>
-        <Button onClick={() => void copy()} size="icon-sm" type="button" variant="ghost">
+        <code className="min-w-0 flex-1 break-all text-xs">{revealed ? value : redactedValue(value)}</code>
+        <Button
+          aria-label={revealed ? "Hide secret" : "Reveal secret"}
+          onClick={() => setRevealed((current) => !current)}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
+          {revealed ? <EyeOff /> : <Eye />}
+        </Button>
+        <Button
+          aria-label="Copy secret"
+          disabled={!revealed}
+          onClick={() => void copy()}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
           {copied ? <Check /> : <Clipboard />}
         </Button>
       </div>
@@ -1902,6 +2001,10 @@ export function ConnectionDetailBody({
 }) {
   return (
     <div className="grid gap-6">
+      <Link className={cn(buttonVariants({ size: "sm" }), "w-fit")} href="/connections">
+        <ArrowLeft />
+        Back to connections
+      </Link>
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-6">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">{data.provider_display_name}</p>
@@ -1952,6 +2055,7 @@ function ConnectionActions({
   onRefresh: () => void;
   principal?: string;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [working, setWorking] = useState(false);
   const [globalWorking, setGlobalWorking] = useState(false);
@@ -1963,6 +2067,7 @@ function ConnectionActions({
       await logoutConnection(data.provider, data.connection_name, principal);
       setOpen(false);
       onRefresh();
+      router.replace("/connections");
     } finally {
       setWorking(false);
     }
@@ -2050,7 +2155,6 @@ function ActiveView({ connectionFilter, data, onRefresh, view }: {
   }
   if (view === "agents") return <AgentsView data={data} />;
   if (view === "principals") return <PrincipalsView />;
-  if (view === "vault") return <VaultView data={data} />;
   if (view === "audit" && data.account.isAdmin) return <AuditView data={data} />;
   if (view === "settings") return <SettingsView data={data} />;
   return <DashboardView data={data} />;
