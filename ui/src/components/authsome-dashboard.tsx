@@ -113,6 +113,10 @@ const NAV_ITEMS: NavItem[] = [
 const NEXT_URL = "/";
 const ADVANCED_SESSION_FIELD_NAMES = new Set(["host_url", "base_url", "api_url", "scopes"]);
 const LOGO_DEV_TOKEN = "pk_BhJg_kBbQPqNGuuWcNs9Cg";
+const INTERACTIVE_CARD_CLASS =
+  "cursor-pointer border-border/50 shadow-none transition-all hover:border-primary/60 hover:bg-primary/[0.03] hover:shadow-sm";
+const INTERACTIVE_ROW_CLASS =
+  "cursor-pointer border-border/60 transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:border-primary/50 focus-visible:bg-primary/[0.03] focus-visible:outline-none";
 
 export function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
@@ -1008,7 +1012,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
 
   return (
     <Card
-      className="flex h-full cursor-pointer flex-col border-border/50 shadow-none transition-all hover:border-border hover:bg-accent hover:shadow-sm"
+      className={cn("flex h-full flex-col", INTERACTIVE_CARD_CLASS)}
       onClick={() => router.push(providerDetailHref(provider.name))}
     >
       <CardHeader className="pb-3">
@@ -1179,7 +1183,7 @@ export function ConnectionsView({
                   const href = connectionDetailHref(row.providerName, row.connectionName);
                   return (
                     <TableRow
-                      className="cursor-pointer transition-colors hover:bg-muted/40"
+                      className={INTERACTIVE_ROW_CLASS}
                       key={`${row.providerName}:${row.connectionName}`}
                       onClick={() => router.push(href)}
                       onKeyDown={(event) => {
@@ -1253,7 +1257,7 @@ function GlobalConnectionsSection({
                 const href = connectionDetailHref(row.providerName, row.connectionName);
                 return (
                   <TableRow
-                    className="cursor-pointer transition-colors hover:bg-muted/40"
+                    className={INTERACTIVE_ROW_CLASS}
                     key={`${row.providerName}:${row.connectionName}`}
                     onClick={() => router.push(href)}
                     onKeyDown={(event) => {
