@@ -4,8 +4,9 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from urllib.parse import urlparse
 
 import aiosqlite
@@ -213,12 +214,13 @@ async def open_store_database(config: StoreDatabaseConfig) -> StoreDatabase:
         return database
 
     try:
-        import asyncpg  # noqa: PLC0415
+        asyncpg = import_module("asyncpg")
     except ImportError as exc:
         raise RuntimeError("Postgres Store requires installing authsome[postgres]") from exc
 
     server_config = get_server_config(config.home)
-    pool = await asyncpg.create_pool(
+    asyncpg_module = cast(Any, asyncpg)
+    pool = await asyncpg_module.create_pool(
         config.dsn,
         min_size=server_config.postgres_pool_min_size,
         max_size=server_config.postgres_pool_max_size,
