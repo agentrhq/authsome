@@ -720,13 +720,13 @@ export function LoadingScreen() {
 export function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
-      <Card className="max-w-md shadow-sm">
+      <Card className="w-full max-w-md shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CircleAlert className="size-5 text-destructive" />
-            Dashboard Unavailable
+          <CardTitle className="flex items-start gap-2">
+            <CircleAlert className="mt-0.5 size-5 shrink-0 text-destructive" />
+            <span>Dashboard Unavailable</span>
           </CardTitle>
-          <CardDescription>The daemon did not return dashboard data.</CardDescription>
+          <CardDescription>The local daemon is not reachable. Start it again, then retry.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={onRetry} type="button">
