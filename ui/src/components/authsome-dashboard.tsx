@@ -116,7 +116,7 @@ const LOGO_DEV_TOKEN = "pk_BhJg_kBbQPqNGuuWcNs9Cg";
 const INTERACTIVE_CARD_CLASS =
   "cursor-pointer border-border/50 shadow-none transition-all hover:border-primary/60 hover:bg-primary/[0.03] hover:shadow-sm";
 const INTERACTIVE_ROW_CLASS =
-  "cursor-pointer border-border/60 transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:border-primary/50 focus-visible:bg-primary/[0.03] focus-visible:outline-none";
+  "cursor-pointer transition-colors hover:bg-primary/[0.03] focus-visible:bg-primary/[0.03] focus-visible:outline-none";
 
 export function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
@@ -1028,10 +1028,10 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4 pt-0">
-        <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+        <p className="line-clamp-2 min-h-12 text-sm leading-relaxed text-muted-foreground">
           {provider.description || "Connect this provider to store and inject credentials from your Authsome vault."}
         </p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex min-h-7 flex-wrap content-start gap-1.5">
           <Badge variant="outline">{provider.authTypeLabel}</Badge>
           {provider.connectionCount ? (
             <Badge variant="outline">
@@ -1547,7 +1547,7 @@ function SearchInput({
   value: string;
 }) {
   return (
-    <label className="relative block max-w-md">
+    <label className="relative block w-full">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         className="h-9 pl-9"
@@ -2069,12 +2069,17 @@ function ConnectionActions({
     }
   }
 
-  async function makeGlobal() {
+  async function toggleGlobal() {
     setGlobalWorking(true);
     setGlobalMessage(null);
     try {
-      await setGlobalConnection(data.provider, data.connection_name);
-      setGlobalMessage({ text: "Global connection updated.", tone: "success" });
+      if (data.is_global) {
+        await unsetGlobalConnection(data.provider);
+        setGlobalMessage({ text: "Global connection removed.", tone: "success" });
+      } else {
+        await setGlobalConnection(data.provider, data.connection_name);
+        setGlobalMessage({ text: "Global connection updated.", tone: "success" });
+      }
       onRefresh();
     } catch (error) {
       setGlobalMessage({
@@ -2101,9 +2106,9 @@ function ConnectionActions({
             </form>
           ) : null}
           {data.can_set_global ? (
-            <Button disabled={globalWorking} onClick={() => void makeGlobal()} type="button" variant="outline">
+            <Button disabled={globalWorking} onClick={() => void toggleGlobal()} type="button" variant="outline">
               <Globe2 />
-              Make global
+              {data.is_global ? "Unset global" : "Make global"}
             </Button>
           ) : null}
           <Link className={buttonVariants({ size: "sm", variant: "outline" })} href={providerDetailHref(data.provider)}>

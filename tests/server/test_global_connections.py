@@ -114,6 +114,32 @@ def test_admin_can_make_connection_global_and_user_sees_redacted_summary(monkeyp
     assert raw_response.status_code == status.HTTP_404_NOT_FOUND
 
 
+def test_admin_connections_include_provider_counts_across_principals(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    with create_server_test_client() as client:
+        admin = _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
+        _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
+        _claim_identity(client, tmp_path, "calmly-simply-boldly-0043", email="second@example.com")
+        user_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity="steady-wisely-boldly-0042"))
+        second_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity="calmly-simply-boldly-0043"))
+        _put_connection(client, user_ctx.principal_id, user_ctx.vault_id, "default")
+        _put_connection(client, second_ctx.principal_id, second_ctx.vault_id, "team")
+
+        admin_response = client.get(
+            "/api/connections",
+            headers=_auth_header(tmp_path, "GET", "/api/connections", handle=admin.handle),
+        )
+        user_response = client.get(
+            "/api/connections",
+            headers=_auth_header(tmp_path, "GET", "/api/connections", handle="steady-wisely-boldly-0042"),
+        )
+
+    assert admin_response.status_code == status.HTTP_200_OK
+    assert admin_response.json()["provider_connection_counts"] == {"github": 2}
+    assert user_response.status_code == status.HTTP_200_OK
+    assert user_response.json()["provider_connection_counts"] == {}
+
+
 def test_global_connection_resolves_for_explicit_default_and_proxy_routes(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     with create_server_test_client() as client:

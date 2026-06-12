@@ -226,3 +226,4 @@ class ConnectionDetailResponse(BaseModel):
     secrets: ConnectionSecretsResponse = Field(default_factory=ConnectionSecretsResponse)
     can_set_default: bool = False
     can_set_global: bool = False
+    is_global: bool = False
