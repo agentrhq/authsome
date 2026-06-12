@@ -2051,7 +2051,7 @@ function ConnectionActions({
   const [open, setOpen] = useState(false);
   const [working, setWorking] = useState(false);
   const [globalWorking, setGlobalWorking] = useState(false);
-  const [globalMessage, setGlobalMessage] = useState("");
+  const [globalMessage, setGlobalMessage] = useState<{ text: string; tone: "error" | "success" } | null>(null);
 
   async function logout() {
     setWorking(true);
@@ -2067,13 +2067,16 @@ function ConnectionActions({
 
   async function makeGlobal() {
     setGlobalWorking(true);
-    setGlobalMessage("");
+    setGlobalMessage(null);
     try {
       await setGlobalConnection(data.provider, data.connection_name);
-      setGlobalMessage("Global connection updated.");
+      setGlobalMessage({ text: "Global connection updated.", tone: "success" });
       onRefresh();
     } catch (error) {
-      setGlobalMessage(error instanceof Error ? error.message : "Global connection could not be updated.");
+      setGlobalMessage({
+        text: error instanceof Error ? error.message : "Global connection could not be updated.",
+        tone: "error",
+      });
     } finally {
       setGlobalWorking(false);
     }
@@ -2081,31 +2084,41 @@ function ConnectionActions({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        {data.can_set_default ? (
-          <form
-            action={`/api/connections/${encodeURIComponent(data.provider)}/${encodeURIComponent(data.connection_name)}/default`}
-            method="post"
-          >
-            <Button size="sm" type="submit" variant="outline">
-              Set as default
+      <div className="flex flex-col items-start gap-1 sm:items-end">
+        <div className="flex flex-wrap items-center gap-2">
+          {data.can_set_default ? (
+            <form
+              action={`/api/connections/${encodeURIComponent(data.provider)}/${encodeURIComponent(data.connection_name)}/default`}
+              method="post"
+            >
+              <Button size="sm" type="submit" variant="outline">
+                Set as default
+              </Button>
+            </form>
+          ) : null}
+          {data.can_set_global ? (
+            <Button disabled={globalWorking} onClick={() => void makeGlobal()} type="button" variant="outline">
+              <Globe2 />
+              Make global
             </Button>
-          </form>
-        ) : null}
-        {data.can_set_global ? (
-          <Button disabled={globalWorking} onClick={() => void makeGlobal()} type="button" variant="outline">
-            <Globe2 />
-            Make global
+          ) : null}
+          <Link className={buttonVariants({ size: "sm", variant: "outline" })} href={providerDetailHref(data.provider)}>
+            View provider
+          </Link>
+          <Button onClick={() => setOpen(true)} size="sm" type="button" variant="destructive">
+            <LogOut />
+            Logout
           </Button>
-        ) : null}
-        {globalMessage ? <div className="text-sm text-muted-foreground">{globalMessage}</div> : null}
-        <Link className={buttonVariants({ size: "sm", variant: "outline" })} href={providerDetailHref(data.provider)}>
-          View provider
-        </Link>
-        <Button onClick={() => setOpen(true)} size="sm" type="button" variant="destructive">
-          <LogOut />
-          Logout
-        </Button>
+        </div>
+        <div
+          aria-live="polite"
+          className={cn(
+            "min-h-5 text-sm",
+            globalMessage?.tone === "success" ? "text-emerald-400" : "text-destructive"
+          )}
+        >
+          {globalMessage?.text}
+        </div>
       </div>
       <Dialog onOpenChange={setOpen} open={open}>
         <DialogContent>
