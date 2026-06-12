@@ -117,13 +117,16 @@ class StoreDatabase:
 
     async def execute_rowcount(self, sql: str, params: Sequence[Any] = ()) -> int:
         if self.backend == "sqlite":
-            cursor = await self._connection.execute(sql, params)
-            await self._connection.commit()
+            connection = self._connection
+            assert connection is not None
+            cursor = await connection.execute(sql, params)
+            await connection.commit()
             rowcount = cursor.rowcount
             await cursor.close()
             return rowcount
 
-        status = await self._connection.execute(self._sql(sql), *params)
+        async with self._postgres_connection() as connection:
+            status = await connection.execute(self._sql(sql), *params)
         _, _, count = status.partition(" ")
         return int(count) if count else 0
 

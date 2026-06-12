@@ -28,6 +28,13 @@ class ServerConfig(AuthsomeConfig):
     def validate_postgres_pool_sizes(self) -> "ServerConfig":
         if self.postgres_pool_min_size > self.postgres_pool_max_size:
             raise ValueError("postgres_pool_min_size must be less than or equal to postgres_pool_max_size")
+        if self.env == "prod":
+            if not self.database_url:
+                raise ValueError("AUTHSOME_DATABASE_URL is required when AUTHSOME_ENV=prod")
+            if not self.database_url.startswith(("postgresql://", "postgres://")):
+                raise ValueError("AUTHSOME_DATABASE_URL must be a Postgres URL when AUTHSOME_ENV=prod")
+            if not self.redis_url:
+                raise ValueError("AUTHSOME_REDIS_URL is required when AUTHSOME_ENV=prod")
         return self
 
     # Lifetimes, in seconds

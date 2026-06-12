@@ -49,6 +49,7 @@ services:
       AUTHSOME_HOST: 0.0.0.0
       AUTHSOME_PORT: "7998"
       AUTHSOME_HOME: /data/authsome
+      AUTHSOME_ENV: prod
       AUTHSOME_BASE_URL: ${AUTHSOME_BASE_URL:-http://localhost:7998}
       AUTHSOME_DATABASE_URL: postgresql://${AUTHSOME_POSTGRES_USER:-authsome}:${AUTHSOME_POSTGRES_PASSWORD:?set AUTHSOME_POSTGRES_PASSWORD}@postgres:5432/${AUTHSOME_POSTGRES_DB:-authsome}
       AUTHSOME_REDIS_URL: redis://redis:6379/0

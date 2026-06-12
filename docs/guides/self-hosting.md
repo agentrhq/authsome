@@ -37,6 +37,7 @@ Do not commit production secrets. Use your platform secret store or Docker secre
 
 | Variable | Default | Description |
 |---|---|---|
+| `AUTHSOME_ENV` | `dev` | Runtime mode. Set to `prod` for production deployments; in `prod`, `AUTHSOME_DATABASE_URL` and `AUTHSOME_REDIS_URL` are required. |
 | `AUTHSOME_DATABASE_URL` | none | Postgres DSN for the daemon-owned registries. The compose file points this at the bundled Postgres service. |
 | `AUTHSOME_REDIS_URL` | none | Redis URL for shared runtime state and the encrypted vault raw KV backend. |
 | `AUTHSOME_POSTGRES_PASSWORD` | none | Required password used by the bundled Postgres service and the daemon's database URL. |
@@ -54,7 +55,7 @@ Do not commit production secrets. Use your platform secret store or Docker secre
 | `AUTHSOME_POSTHOG_API_KEY` | none | Enables PostHog analytics when present and telemetry is not opted out. |
 | `AUTHSOME_POSTHOG_HOST` | `https://us.i.posthog.com` | Override the PostHog ingestion host if needed. |
 
-The daemon still accepts the legacy `DATABASE_URL` alias, but production deployments should set `AUTHSOME_DATABASE_URL`.
+The daemon still accepts the legacy `DATABASE_URL` alias, but production deployments should set `AUTHSOME_DATABASE_URL`. The included compose file sets `AUTHSOME_ENV=prod`, which makes the Postgres and Redis URLs mandatory at startup.
 The included compose file hard-requires `AUTHSOME_MASTER_KEY` and `AUTHSOME_UI_SESSION_KEY` from the host environment; it does not mount secret files or pass `_FILE` paths for you.
 
 ## Secret resolution
