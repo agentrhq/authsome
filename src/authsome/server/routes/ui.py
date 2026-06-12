@@ -10,7 +10,7 @@ from fastapi.responses import RedirectResponse
 
 from authsome import audit
 from authsome.auth.models.enums import FlowType
-from authsome.auth.sessions import AuthSessionStore
+from authsome.auth.sessions import AuthSessionRepository
 from authsome.server.analytics import capture_event
 from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
@@ -108,7 +108,7 @@ async def connect_provider(  # noqa: PLR0913
     request: Request,
     background_tasks: BackgroundTasks,
     auth: CredentialService = Depends(require_ui_auth("/")),
-    sessions: AuthSessionStore = Depends(get_auth_sessions),
+    sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> Response:
     """Start a provider connection from the static dashboard."""
@@ -204,7 +204,7 @@ async def claim_identity_page(
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
 ) -> dict[str, str | bool]:
     try:
-        pending = ui_sessions.get_pending_claim(token)
+        pending = await ui_sessions.get_pending_claim(token)
     except KeyError:
         return {"token": token, "identity": "", "authenticated": False, "expired": True}
 
@@ -277,7 +277,7 @@ async def claim_identity_confirm(
     ui_sessions: UiSessionStore = Depends(get_ui_sessions),
 ) -> Response:
     try:
-        pending = ui_sessions.get_pending_claim(token)
+        pending = await ui_sessions.get_pending_claim(token)
     except KeyError:
         return RedirectResponse(
             url=f"/claim?{urlencode({'token': token, 'error': 'expired'})}", status_code=status.HTTP_303_SEE_OTHER
@@ -290,7 +290,7 @@ async def claim_identity_confirm(
             url=f"/login?{urlencode({'next': f'/claim?token={token}'})}", status_code=status.HTTP_303_SEE_OTHER
         )
 
-    pending = ui_sessions.consume_pending_claim(token)
+    pending = await ui_sessions.consume_pending_claim(token)
     await request.app.state.ownership_resolver.claim_identity_for_principal(
         identity=pending.identity,
         principal_id=principal_id,

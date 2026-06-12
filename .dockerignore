@@ -8,6 +8,7 @@ __pycache__
 *.egg-info
 dist/
 .venv/
+.venv*/
 .uv/
 
 # Node build artefacts

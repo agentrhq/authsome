@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
@@ -48,7 +48,31 @@ class AuthSession(BaseModel):
         return utc_now() >= self.expires_at
 
 
-class AuthSessionStore:
+@runtime_checkable
+class AuthSessionRepository(Protocol):
+    async def create(  # noqa: PLR0913
+        self,
+        *,
+        provider: str,
+        identity: str | None,
+        principal_id: str | None,
+        connection_name: str,
+        flow_type: str,
+        ttl_seconds: int = DEFAULT_SESSION_TTL_SECONDS,
+    ) -> AuthSession: ...
+
+    async def get(self, session_id: str) -> AuthSession: ...
+
+    async def save(self, session: AuthSession) -> None: ...
+
+    async def delete(self, session_id: str) -> None: ...
+
+    async def index_oauth_state(self, session: AuthSession) -> None: ...
+
+    async def get_by_oauth_state(self, state: str) -> AuthSession: ...
+
+
+class MemoryAuthSessionStore:
     """In-memory auth session state for the daemon process."""
 
     def __init__(self) -> None:
@@ -127,3 +151,6 @@ class AuthSessionStore:
                 oauth_state = session.payload.get("internal_state")
                 if oauth_state:
                     self._state_index.pop(str(oauth_state), None)
+
+
+AuthSessionStore = MemoryAuthSessionStore

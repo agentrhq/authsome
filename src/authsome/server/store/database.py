@@ -2,17 +2,19 @@
 
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from urllib.parse import urlparse
 
 import aiosqlite
-import asyncpg
 
 from authsome.server.config import get_server_config
 
 StoreBackend = Literal["sqlite", "postgres"]
+_POSTGRES_SCHEMA_LOCK_ID = 715_504_817_119_338_103
 
 
 @dataclass(frozen=True)
@@ -24,12 +26,30 @@ class StoreDatabaseConfig:
     home: Path
 
 
+@dataclass(frozen=True)
+class StoreMigration:
+    version: int
+    statements: tuple[str, ...]
+
+
+def build_migrations(backend: StoreBackend) -> list[StoreMigration]:
+    return [StoreMigration(version=1, statements=tuple(build_schema(backend)))]
+
+
 class StoreDatabase:
     """Small async database adapter shared by Store repositories."""
 
-    def __init__(self, *, config: StoreDatabaseConfig, connection: Any) -> None:
+    def __init__(
+        self,
+        *,
+        config: StoreDatabaseConfig,
+        connection: Any | None = None,
+        pool: Any | None = None,
+    ) -> None:
         self.config = config
         self._connection = connection
+        self._pool = pool
+        self._transaction_connection: ContextVar[Any | None] = ContextVar("store_transaction_connection", default=None)
 
     @property
     def backend(self) -> StoreBackend:
@@ -48,40 +68,66 @@ class StoreDatabase:
                 parts.append(char)
         return "".join(parts)
 
+    @asynccontextmanager
+    async def _postgres_connection(self) -> AsyncIterator[Any]:
+        connection = self._transaction_connection.get()
+        if connection is not None:
+            yield connection
+            return
+        if self._pool is not None:
+            async with self._pool.acquire() as connection:
+                yield connection
+            return
+        if self._connection is None:
+            raise RuntimeError("Postgres Store connection is not configured")
+        yield self._connection
+
     async def fetch_one(self, sql: str, params: Sequence[Any] = ()) -> dict[str, Any] | None:
         if self.backend == "sqlite":
-            cursor = await self._connection.execute(sql, params)
+            connection = self._connection
+            assert connection is not None
+            cursor = await connection.execute(sql, params)
             row = await cursor.fetchone()
             await cursor.close()
             return dict(row) if row is not None else None
-        row = await self._connection.fetchrow(self._sql(sql), *params)
-        return dict(row) if row is not None else None
+        async with self._postgres_connection() as connection:
+            row = await connection.fetchrow(self._sql(sql), *params)
+            return dict(row) if row is not None else None
 
     async def fetch_all(self, sql: str, params: Sequence[Any] = ()) -> list[dict[str, Any]]:
         if self.backend == "sqlite":
-            cursor = await self._connection.execute(sql, params)
+            connection = self._connection
+            assert connection is not None
+            cursor = await connection.execute(sql, params)
             rows = await cursor.fetchall()
             await cursor.close()
             return [dict(row) for row in rows]
-        rows = await self._connection.fetch(self._sql(sql), *params)
-        return [dict(row) for row in rows]
+        async with self._postgres_connection() as connection:
+            rows = await connection.fetch(self._sql(sql), *params)
+            return [dict(row) for row in rows]
 
     async def execute(self, sql: str, params: Sequence[Any] = ()) -> None:
         if self.backend == "sqlite":
-            await self._connection.execute(sql, params)
-            await self._connection.commit()
+            connection = self._connection
+            assert connection is not None
+            await connection.execute(sql, params)
+            await connection.commit()
             return
-        await self._connection.execute(self._sql(sql), *params)
+        async with self._postgres_connection() as connection:
+            await connection.execute(self._sql(sql), *params)
 
     async def execute_rowcount(self, sql: str, params: Sequence[Any] = ()) -> int:
         if self.backend == "sqlite":
-            cursor = await self._connection.execute(sql, params)
-            await self._connection.commit()
+            connection = self._connection
+            assert connection is not None
+            cursor = await connection.execute(sql, params)
+            await connection.commit()
             rowcount = cursor.rowcount
             await cursor.close()
             return rowcount
 
-        status = await self._connection.execute(self._sql(sql), *params)
+        async with self._postgres_connection() as connection:
+            status = await connection.execute(self._sql(sql), *params)
         _, _, count = status.partition(" ")
         return int(count) if count else 0
 
@@ -92,15 +138,33 @@ class StoreDatabase:
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator[None]:
         if self.backend == "sqlite":
-            await self._connection.execute("BEGIN")
+            connection = self._connection
+            assert connection is not None
+            await connection.execute("BEGIN")
             try:
                 yield
             except Exception:
-                await self._connection.rollback()
+                await connection.rollback()
                 raise
             else:
-                await self._connection.commit()
+                await connection.commit()
             return
+        connection = self._transaction_connection.get()
+        if connection is not None:
+            async with connection.transaction():
+                yield
+            return
+        if self._pool is not None:
+            async with self._pool.acquire() as connection:
+                token = self._transaction_connection.set(connection)
+                try:
+                    async with connection.transaction():
+                        yield
+                finally:
+                    self._transaction_connection.reset(token)
+            return
+        if self._connection is None:
+            raise RuntimeError("Postgres Store connection is not configured")
         async with self._connection.transaction():
             yield
 
@@ -112,7 +176,11 @@ class StoreDatabase:
             return False
 
     async def close(self) -> None:
-        await self._connection.close()
+        if self._pool is not None:
+            await self._pool.close()
+            return
+        if self._connection is not None:
+            await self._connection.close()
 
 
 def resolve_store_database_config(home: Path | None = None, database_url: str | None = None) -> StoreDatabaseConfig:
@@ -145,8 +213,19 @@ async def open_store_database(config: StoreDatabaseConfig) -> StoreDatabase:
         await initialize_schema(database)
         return database
 
-    connection = await asyncpg.connect(config.dsn)
-    database = StoreDatabase(config=config, connection=connection)
+    try:
+        asyncpg = import_module("asyncpg")
+    except ImportError as exc:
+        raise RuntimeError("Postgres Store requires installing authsome[postgres]") from exc
+
+    server_config = get_server_config(config.home)
+    asyncpg_module = cast(Any, asyncpg)
+    pool = await asyncpg_module.create_pool(
+        config.dsn,
+        min_size=server_config.postgres_pool_min_size,
+        max_size=server_config.postgres_pool_max_size,
+    )
+    database = StoreDatabase(config=config, pool=pool)
     await initialize_schema(database)
     return database
 
@@ -161,9 +240,6 @@ def build_schema(backend: StoreBackend) -> list[str]:
         true_predicate = "1"
 
     return [
-        "CREATE TABLE IF NOT EXISTS store_schema_version (version INTEGER PRIMARY KEY)",
-        "INSERT INTO store_schema_version (version) SELECT 1 "
-        "WHERE NOT EXISTS (SELECT 1 FROM store_schema_version WHERE version = 1)",
         "CREATE TABLE IF NOT EXISTS identity_registrations ("
         "handle TEXT PRIMARY KEY, did TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL"
         ")",
@@ -220,7 +296,24 @@ def build_schema(backend: StoreBackend) -> list[str]:
 
 
 async def initialize_schema(database: StoreDatabase) -> None:
-    await database.execute_many(build_schema(database.backend))
+    if database.backend == "postgres":
+        async with database.transaction():
+            await database.execute("SELECT pg_advisory_xact_lock(?)", [_POSTGRES_SCHEMA_LOCK_ID])
+            await _apply_schema_migrations(database)
+        return
+    await _apply_schema_migrations(database)
+
+
+async def _apply_schema_migrations(database: StoreDatabase) -> None:
+    await database.execute("CREATE TABLE IF NOT EXISTS store_schema_version (version INTEGER PRIMARY KEY)")
+    applied_rows = await database.fetch_all("SELECT version FROM store_schema_version")
+    applied = {int(row["version"]) for row in applied_rows}
+    for migration in build_migrations(database.backend):
+        if migration.version in applied:
+            continue
+        for statement in migration.statements:
+            await database.execute(statement)
+        await database.execute("INSERT INTO store_schema_version (version) VALUES (?)", [migration.version])
 
 
 async def create_server_store(home: Path | None = None, database_url: str | None = None):

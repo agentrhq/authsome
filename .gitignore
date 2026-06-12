@@ -153,6 +153,7 @@ activemq-data/
 .env
 .envrc
 .venv
+.venv*/
 env/
 venv/
 ENV/
@@ -208,6 +209,11 @@ cython_debug/
 
 # Generated static dashboard bundle — run scripts/build-ui.sh before uv build
 src/authsome/ui/web/*
+
+# Local UI dependency installs and builds
+ui/node_modules/
+ui/.next/
+ui/out/
 
 # PyPI configuration file
 .pypirc

@@ -28,20 +28,6 @@ class ProofClaims:
     jwt_id: str
 
 
-class ReplayCache:
-    """Small in-memory jti replay cache."""
-
-    def __init__(self) -> None:
-        self._seen: dict[str, int] = {}
-
-    def check_and_store(self, jti: str, exp: int) -> None:
-        now = int(time.time())
-        self._seen = {key: value for key, value in self._seen.items() if value > now}
-        if jti in self._seen:
-            raise ProofValidationError("Proof JWT was already used")
-        self._seen[jti] = exp
-
-
 def body_sha256(body: bytes) -> str:
     return hashlib.sha256(body).hexdigest()
 
@@ -78,7 +64,6 @@ def validate_proof_jwt(  # noqa: PLR0913
     method: str,
     path_query: str,
     body: bytes,
-    replay_cache: ReplayCache | None = None,
     audience: str = DEFAULT_AUDIENCE,
 ) -> ProofClaims:
     unverified = _unverified_claims(token)
@@ -101,8 +86,6 @@ def validate_proof_jwt(  # noqa: PLR0913
     exp = claims.get("exp")
     if not isinstance(exp, int):
         raise ProofValidationError("Proof JWT exp must be an integer")
-    if replay_cache is not None:
-        replay_cache.check_and_store(jwt_id, exp)
     return ProofClaims(issuer=issuer, subject=subject, expires_at=exp, jwt_id=jwt_id)
 
 

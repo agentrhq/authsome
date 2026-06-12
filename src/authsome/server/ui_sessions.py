@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any, Protocol
 
 import jwt
 from pydantic import BaseModel, Field
@@ -33,6 +34,24 @@ class PendingClaimToken(BaseModel):
         return utc_now() >= self.expires_at
 
 
+class PendingClaimStore(Protocol):
+    """Async storage for short-lived identity claim tokens."""
+
+    async def create(
+        self,
+        *,
+        identity: str,
+        ttl_seconds: int = DEFAULT_UI_BOOTSTRAP_TTL_SECONDS,
+    ) -> PendingClaimToken:
+        """Create a claim token for an identity."""
+
+    async def get(self, token: str) -> PendingClaimToken:
+        """Return a claim token by value."""
+
+    async def consume(self, token: str) -> PendingClaimToken:
+        """Return and remove a claim token by value."""
+
+
 class BrowserSession(BaseModel):
     """Principal-scoped browser session."""
 
@@ -47,29 +66,29 @@ class BrowserSession(BaseModel):
         return utc_now() >= self.expires_at
 
 
-class UiSessionStore:
-    """In-memory UI session helper with signed JWT cookies."""
+class MemoryPendingClaimStore:
+    """In-memory pending claim token store."""
 
-    def __init__(self, signing_secret: str | bytes) -> None:
-        self._secret = signing_secret.encode("utf-8") if isinstance(signing_secret, str) else signing_secret
+    def __init__(self) -> None:
         self._pending_claims: dict[str, PendingClaimToken] = {}
 
-    def create_pending_claim(
+    async def create(
         self,
         *,
         identity: str,
         ttl_seconds: int = DEFAULT_UI_BOOTSTRAP_TTL_SECONDS,
     ) -> PendingClaimToken:
-        self.cleanup_expired()
         pending = PendingClaimToken(
             token=f"claim_{secrets.token_urlsafe(24)}",
             identity=identity,
             expires_at=utc_now() + timedelta(seconds=ttl_seconds),
         )
-        self._pending_claims[pending.token] = pending
+        if ttl_seconds > 0:
+            self.cleanup_expired()
+            self._pending_claims[pending.token] = pending
         return pending
 
-    def get_pending_claim(self, token: str) -> PendingClaimToken:
+    async def get(self, token: str) -> PendingClaimToken:
         self.cleanup_expired()
         pending = self._pending_claims.get(token)
         if pending is None or pending.is_expired:
@@ -77,10 +96,102 @@ class UiSessionStore:
             raise KeyError(f"Pending claim token not found: {token}")
         return pending
 
-    def consume_pending_claim(self, token: str) -> PendingClaimToken:
-        pending = self.get_pending_claim(token)
+    async def consume(self, token: str) -> PendingClaimToken:
+        pending = await self.get(token)
         self._pending_claims.pop(token, None)
         return pending
+
+    def cleanup_expired(self) -> None:
+        expired_claims = [token for token, pending in self._pending_claims.items() if pending.is_expired]
+        for token in expired_claims:
+            self._pending_claims.pop(token, None)
+
+
+class RedisPendingClaimStore:
+    """Redis-backed pending claim token store shared across server replicas."""
+
+    def __init__(self, client: Any, *, key_prefix: str = "authsome:ui-session") -> None:
+        self._client = client
+        self._key_prefix = key_prefix.rstrip(":")
+
+    def _pending_claim_key(self, token: str) -> str:
+        return f"{self._key_prefix}:pending-claim:{token}"
+
+    async def create(
+        self,
+        *,
+        identity: str,
+        ttl_seconds: int = DEFAULT_UI_BOOTSTRAP_TTL_SECONDS,
+    ) -> PendingClaimToken:
+        pending = PendingClaimToken(
+            token=f"claim_{secrets.token_urlsafe(24)}",
+            identity=identity,
+            expires_at=utc_now() + timedelta(seconds=ttl_seconds),
+        )
+        if ttl_seconds > 0:
+            await self._client.set(
+                self._pending_claim_key(pending.token),
+                pending.model_dump_json(),
+                ex=max(int(ttl_seconds), 1),
+            )
+        return pending
+
+    async def get(self, token: str) -> PendingClaimToken:
+        raw = await self._client.get(self._pending_claim_key(token))
+        if raw is None:
+            raise KeyError(f"Pending claim token not found: {token}")
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        pending = PendingClaimToken.model_validate_json(raw)
+        if pending.is_expired:
+            await self._client.delete(self._pending_claim_key(token))
+            raise KeyError(f"Pending claim token not found: {token}")
+        return pending
+
+    async def consume(self, token: str) -> PendingClaimToken:
+        key = self._pending_claim_key(token)
+        getdel = getattr(self._client, "getdel", None)
+        if callable(getdel):
+            raw = await getdel(key)
+        else:
+            # Compatibility fallback for fake clients that do not implement GETDEL.
+            raw = await self._client.get(key)
+            if raw is not None:
+                await self._client.delete(key)
+        if raw is None:
+            raise KeyError(f"Pending claim token not found: {token}")
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        pending = PendingClaimToken.model_validate_json(raw)
+        if pending.is_expired:
+            raise KeyError(f"Pending claim token not found: {token}")
+        return pending
+
+
+class UiSessionStore:
+    """Browser session helper with pluggable pending-claim storage."""
+
+    def __init__(
+        self,
+        signing_secret: str | bytes,
+        pending_claims: PendingClaimStore | None = None,
+    ) -> None:
+        self._secret = signing_secret.encode("utf-8") if isinstance(signing_secret, str) else signing_secret
+        self._pending_claim_store = pending_claims or MemoryPendingClaimStore()
+
+    async def create_pending_claim(
+        self,
+        *,
+        identity: str,
+        ttl_seconds: int = DEFAULT_UI_BOOTSTRAP_TTL_SECONDS,
+    ) -> PendingClaimToken:
+        return await self._pending_claim_store.create(identity=identity, ttl_seconds=ttl_seconds)
+
+    async def get_pending_claim(self, token: str) -> PendingClaimToken:
+        return await self._pending_claim_store.get(token)
+
+    async def consume_pending_claim(self, token: str) -> PendingClaimToken:
+        return await self._pending_claim_store.consume(token)
 
     def create_browser_session(
         self,
@@ -131,11 +242,6 @@ class UiSessionStore:
 
     def delete_browser_session(self, cookie_value: str) -> None:
         self._verify_cookie(cookie_value)
-
-    def cleanup_expired(self) -> None:
-        expired_claims = [token for token, pending in self._pending_claims.items() if pending.is_expired]
-        for token in expired_claims:
-            self._pending_claims.pop(token, None)
 
     def _verify_cookie(self, cookie_value: str) -> str:
         token, sep, signature = cookie_value.rpartition(".")

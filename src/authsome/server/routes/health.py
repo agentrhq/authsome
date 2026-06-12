@@ -1,5 +1,8 @@
 """Health and readiness routes."""
 
+from contextlib import suppress
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, Request
 
 from authsome import __version__
@@ -23,8 +26,7 @@ def _describe_vault_encryption(vault) -> tuple[str, str]:
         return "unavailable", f"Unavailable ({exc})"
 
 
-@router.get("/health", response_model=HealthResponse)
-def health(request: Request) -> HealthResponse:
+def build_health_response(request: Request) -> HealthResponse:
     effective_source, backend_description = _describe_vault_encryption(request.app.state.vault)
     return HealthResponse(
         status="ok",
@@ -36,32 +38,48 @@ def health(request: Request) -> HealthResponse:
     )
 
 
-@router.get("/ready", response_model=ReadyResponse)
-async def ready(
-    request: Request,
-    auth: CredentialService = Depends(get_protected_auth_service),
-) -> ReadyResponse:
-    checks: dict[str, str] = {}
-    issues: list[str] = []
-    warnings: list[str] = []
+@router.get("/health", response_model=HealthResponse)
+def health(request: Request) -> HealthResponse:
+    return build_health_response(request)
 
-    checks["spec_version"] = "ok"
 
+async def _check_store(
+    store,
+    checks: dict[str, str],
+    issues: list[str],
+) -> None:
     try:
-        checks["store"] = "ok" if await request.app.state.store.is_healthy() else "failed"
+        checks["store"] = "ok" if await store.is_healthy() else "failed"
         if checks["store"] == "failed":
             issues.append("store: readiness check failed")
     except Exception as exc:
         checks["store"] = "failed"
         issues.append(f"store: {exc}")
 
-    vault = request.app.state.vault
-    configured_mode = vault.crypto_source
 
-    # 1. Active Identity Check — scoped to the authenticated caller
-    checks["identity"] = "ok"
+async def _check_redis_alive(
+    runtime_state,
+    checks: dict[str, str],
+    issues: list[str],
+) -> None:
+    redis_client = getattr(runtime_state, "redis_client", None)
+    if redis_client is None:
+        return
+    try:
+        await redis_client.ping()
+    except Exception as exc:
+        checks["redis"] = "failed"
+        issues.append(f"redis: {exc}")
+    else:
+        checks["redis"] = "ok"
 
-    # 2. Providers List Check
+
+async def _check_providers_and_connections(
+    auth: CredentialService,
+    checks: dict[str, str],
+    issues: list[str],
+    warnings: list[str],
+) -> None:
     try:
         await auth.list_providers()
         checks["providers"] = "ok"
@@ -69,7 +87,6 @@ async def ready(
         checks["providers"] = "failed"
         issues.append(f"providers: {exc}")
 
-    # 3. Connected Providers Check
     try:
         conn_list = await auth.list_connections()
         checks["connections"] = "ok"
@@ -80,11 +97,12 @@ async def ready(
         checks["connections"] = "failed"
         issues.append(f"connections: {exc}")
 
-    # 4. Vault Roundtrip & Store Integrity Check
+
+async def _check_vault(vault, checks: dict[str, str], issues: list[str]) -> None:
+    probe_key = f"__ready_test__:{uuid4()}"
     try:
-        await vault.put("__ready_test__", "ok", collection="vault:__ready__")
-        value = await vault.get("__ready_test__", collection="vault:__ready__")
-        await vault.delete("__ready_test__", collection="vault:__ready__")
+        await vault.put(probe_key, "ok", collection="vault:__ready__")
+        value = await vault.get(probe_key, collection="vault:__ready__")
         if value != "ok":
             issues.append("vault: readiness roundtrip failed")
             checks["vault"] = "failed"
@@ -100,6 +118,36 @@ async def ready(
         checks["vault"] = "failed"
         checks["integrity"] = "failed"
         issues.append(f"vault: {exc}")
+    finally:
+        with suppress(Exception):
+            await vault.delete(probe_key, collection="vault:__ready__")
+
+
+@router.get("/ready", response_model=ReadyResponse)
+async def ready(
+    request: Request,
+    auth: CredentialService = Depends(get_protected_auth_service),
+) -> ReadyResponse:
+    checks: dict[str, str] = {}
+    issues: list[str] = []
+    warnings: list[str] = []
+
+    checks["spec_version"] = "ok"
+
+    store = request.app.state.store
+    runtime_state = request.app.state.runtime_state
+    vault = request.app.state.vault
+
+    await _check_store(store, checks, issues)
+    await _check_redis_alive(runtime_state, checks, issues)
+    configured_mode = vault.crypto_source
+
+    # 1. Active Identity Check — scoped to the authenticated caller
+    checks["identity"] = "ok"
+
+    # 2. Providers List Check
+    await _check_providers_and_connections(auth, checks, issues, warnings)
+    await _check_vault(vault, checks, issues)
 
     status = "ready" if not issues else "not_ready"
     effective_source, backend_description = _describe_vault_encryption(vault)

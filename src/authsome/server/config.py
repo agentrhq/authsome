@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 
 from authsome.config import AuthsomeConfig
 
@@ -16,7 +16,26 @@ class ServerConfig(AuthsomeConfig):
     port: int = 7998
 
     # Store
-    database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
+    database_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AUTHSOME_DATABASE_URL", "DATABASE_URL"),
+    )
+    redis_url: str | None = None
+    postgres_pool_min_size: int = Field(default=1, ge=1)
+    postgres_pool_max_size: int = Field(default=10, ge=1)
+
+    @model_validator(mode="after")
+    def validate_postgres_pool_sizes(self) -> "ServerConfig":
+        if self.postgres_pool_min_size > self.postgres_pool_max_size:
+            raise ValueError("postgres_pool_min_size must be less than or equal to postgres_pool_max_size")
+        if self.env == "prod":
+            if not self.database_url:
+                raise ValueError("AUTHSOME_DATABASE_URL is required when AUTHSOME_ENV=prod")
+            if not self.database_url.startswith(("postgresql://", "postgres://")):
+                raise ValueError("AUTHSOME_DATABASE_URL must be a Postgres URL when AUTHSOME_ENV=prod")
+            if not self.redis_url:
+                raise ValueError("AUTHSOME_REDIS_URL is required when AUTHSOME_ENV=prod")
+        return self
 
     # Lifetimes, in seconds
     ui_bootstrap_ttl_seconds: int = 300

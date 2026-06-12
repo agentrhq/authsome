@@ -15,7 +15,7 @@ class AuthsomeConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AUTHSOME_")
 
     version: str = __version__
-    env: Literal["prod", "dev", "test"] = "prod"
+    env: Literal["prod", "dev", "test"] = "dev"
     home: Path = Field(default=Path.home() / ".authsome")
     base_url: str = Field(default="http://127.0.0.1:7998")
 

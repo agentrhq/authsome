@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from fastapi import Depends, HTTPException, Request, status
 
-from authsome.auth.sessions import AuthSession, AuthSessionStore
+from authsome.auth.sessions import AuthSession, AuthSessionRepository
 from authsome.identity.principal import PrincipalRole
 from authsome.identity.proof import POP_AUTH_SCHEME, ProofValidationError, validate_proof_jwt
 from authsome.server.credential_repository import CredentialRepository
@@ -144,8 +144,8 @@ async def verify_pop_caller(request: Request) -> ResolvedOwnership:
             method=request.method,
             path_query=path_query,
             body=body,
-            replay_cache=request.app.state.proof_replay_cache,
         )
+        await request.app.state.proof_replay_cache.check_and_store(claims.jwt_id, claims.expires_at)
     except (ProofValidationError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
@@ -207,7 +207,7 @@ def get_vault_registry(request: Request) -> VaultRegistry:
     return request.app.state.store.vaults
 
 
-def get_auth_sessions(request: Request) -> AuthSessionStore:
+def get_auth_sessions(request: Request) -> AuthSessionRepository:
     return request.app.state.auth_sessions
 
 
