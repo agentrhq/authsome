@@ -18,6 +18,7 @@ export type ProviderView = {
   status: "available" | "connected" | "reauth" | string;
   scopeCount: number;
   connectionCount: number;
+  globalConnectionCount: number;
   requiresNamedLogin: boolean;
 };
 
@@ -27,6 +28,10 @@ export type ConnectionRow = {
   connectionName: string;
   status: string;
   authTypeLabel: string;
+};
+
+export type GlobalConnectionRow = ConnectionRow & {
+  accountLabel: string | null;
 };
 
 export type IdentityRow = {
@@ -59,6 +64,7 @@ export type DashboardData = {
   providers: ProviderView[];
   connectedProviders: ProviderView[];
   connections: ConnectionRow[];
+  globalConnections: GlobalConnectionRow[];
   identities: IdentityRow[];
   vault: {
     vaultId: string | null;
@@ -95,6 +101,17 @@ type ConnectionSummary = {
   status?: string;
   scopes?: string[];
   expires_at?: string | null;
+};
+
+type GlobalConnectionSummary = {
+  provider: string;
+  provider_display_name: string;
+  connection_name: string;
+  status: string;
+  auth_type: string;
+  account_label: string | null;
+  api_url?: string | null;
+  source: "global";
 };
 
 export type ProviderResponse = {
@@ -185,6 +202,7 @@ export type ConnectionDetail = {
     credentials: Record<string, string>;
   };
   can_set_default: boolean;
+  can_set_global: boolean;
 };
 
 type ConnectionsResponse = {
@@ -192,6 +210,7 @@ type ConnectionsResponse = {
     name: string;
     connections: ConnectionSummary[];
   }>;
+  global_connections: GlobalConnectionSummary[];
   by_source: Record<string, ProviderResponse[]>;
 };
 
@@ -318,11 +337,11 @@ function providerApiUrl(provider: ProviderResponse): string {
   return provider.api_url || provider.oauth?.base_url || provider.name;
 }
 
-function providerStatus(connections: ConnectionSummary[]): ProviderView["status"] {
-  if (!connections.length) {
+function providerStatus(connections: ConnectionSummary[], globalConnections: GlobalConnectionSummary[]): ProviderView["status"] {
+  if (!connections.length && !globalConnections.length) {
     return "available";
   }
-  return connections.some((connection) => ["error", "expired"].includes(connection.status || ""))
+  return [...connections, ...globalConnections].some((connection) => ["error", "expired"].includes(connection.status || ""))
     ? "reauth"
     : "connected";
 }
@@ -331,6 +350,7 @@ function providerView(
   provider: ProviderResponse,
   source: string,
   connections: ConnectionSummary[],
+  globalConnections: GlobalConnectionSummary[],
 ): ProviderView {
   const displayName = provider.display_name || provider.name;
   return {
@@ -343,17 +363,26 @@ function providerView(
     source,
     logo: provider.logo || null,
     logoInitial: (displayName[0] || "?").toUpperCase(),
-    status: providerStatus(connections),
+    status: providerStatus(connections, globalConnections),
     scopeCount: connections[0]?.scopes?.length || 0,
-    connectionCount: connections.length,
+    connectionCount: connections.length + globalConnections.length,
+    globalConnectionCount: globalConnections.length,
     requiresNamedLogin: connections.some((connection) => connection.connection_name === "default"),
   };
 }
 
 function buildProviders(data: ConnectionsResponse): ProviderView[] {
   const connectionMap = new Map(data.connections.map((group) => [group.name, group.connections]));
+  const globalConnectionMap = new Map<string, GlobalConnectionSummary[]>();
+  for (const connection of data.global_connections || []) {
+    const entries = globalConnectionMap.get(connection.provider) || [];
+    entries.push(connection);
+    globalConnectionMap.set(connection.provider, entries);
+  }
   return Object.entries(data.by_source).flatMap(([source, providers]) =>
-    providers.map((provider) => providerView(provider, source, connectionMap.get(provider.name) || [])),
+    providers.map((provider) =>
+      providerView(provider, source, connectionMap.get(provider.name) || [], globalConnectionMap.get(provider.name) || []),
+    ),
   );
 }
 
@@ -370,6 +399,19 @@ function buildConnectionRows(data: ConnectionsResponse, providers: ProviderView[
         authTypeLabel: authTypeLabel(connection.auth_type || provider?.authType),
       }));
     })
+    .sort((a, b) => `${a.providerDisplayName}:${a.connectionName}`.localeCompare(`${b.providerDisplayName}:${b.connectionName}`));
+}
+
+function buildGlobalConnectionRows(data: ConnectionsResponse): GlobalConnectionRow[] {
+  return (data.global_connections || [])
+    .map((connection) => ({
+      providerName: connection.provider,
+      providerDisplayName: connection.provider_display_name,
+      connectionName: connection.connection_name,
+      status: connection.status || "unknown",
+      authTypeLabel: authTypeLabel(connection.auth_type),
+      accountLabel: connection.account_label,
+    }))
     .sort((a, b) => `${a.providerDisplayName}:${a.connectionName}`.localeCompare(`${b.providerDisplayName}:${b.connectionName}`));
 }
 
@@ -457,6 +499,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
   const audit = isAdmin ? await requestJson<AuditResponse>("/api/audit/events?limit=100") : { entries: [] };
   const providers = buildProviders(connectionsData);
   const connections = buildConnectionRows(connectionsData, providers);
+  const globalConnections = buildGlobalConnectionRows(connectionsData);
   const connectedProviders = providers.filter((provider) => provider.status !== "available");
   const activeIdentity = whoami.identity || whoami.active_identity || null;
   const identityHandles = new Set(identitiesData.identities.map((identity) => identity.handle));
@@ -483,6 +526,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
     providers,
     connectedProviders: connectedProviders.slice(0, 6),
     connections,
+    globalConnections,
     identities: Array.from(identityHandles, (handle) => ({ handle, isActive: handle === activeIdentity })),
     vault: {
       vaultId: whoami.vault_id || null,
@@ -551,6 +595,23 @@ export async function logoutConnection(
   const query = principal ? `?principal=${encodeURIComponent(principal)}` : "";
   return sendJson(`/api/connections/${encodeURIComponent(provider)}/${encodeURIComponent(connection)}/logout${query}`, {
     method: "POST",
+    body: "{}",
+  });
+}
+
+export async function setGlobalConnection(
+  provider: string,
+  connection: string,
+): Promise<{ status: string; provider: string; connection_name: string }> {
+  return sendJson(`/api/connections/${encodeURIComponent(provider)}/${encodeURIComponent(connection)}/global`, {
+    method: "POST",
+    body: "{}",
+  });
+}
+
+export async function unsetGlobalConnection(provider: string): Promise<{ status: string; provider: string; deleted: boolean }> {
+  return sendJson(`/api/connections/${encodeURIComponent(provider)}/global`, {
+    method: "DELETE",
     body: "{}",
   });
 }

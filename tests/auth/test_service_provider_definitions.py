@@ -37,6 +37,7 @@ async def test_custom_provider_definition_is_stored_in_store_not_vault(tmp_path:
                 vault_id="vault_test",
             ),
             providers=ProviderRepository(store.provider_definitions),
+            global_connections=store.global_provider_connections,
             identity="steady-wisely-boldly-0042",
             principal_role=PrincipalRole.ADMIN,
             vault_id="vault_test",
@@ -63,6 +64,7 @@ async def test_provider_client_credentials_still_use_vault(tmp_path: Path) -> No
                 vault_id="vault_test",
             ),
             providers=ProviderRepository(store.provider_definitions),
+            global_connections=store.global_provider_connections,
             identity="steady-wisely-boldly-0042",
             vault_id="vault_test",
         )

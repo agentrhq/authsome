@@ -49,6 +49,7 @@ def build_auth_service(
     return CredentialService(
         credentials=credentials,
         providers=request.app.state.provider_repository,
+        global_connections=request.app.state.store.global_provider_connections,
         identity=identity,
         principal_id=principal_id,
         principal_role=principal_role,

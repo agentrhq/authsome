@@ -6,7 +6,14 @@ import { ConnectionsView } from "@/components/authsome-dashboard";
 import { fetchDashboard } from "@/lib/authsome-api";
 
 export default function ConnectionsPage() {
-  const { data } = useSWR("authsome-dashboard", fetchDashboard);
+  const { data, mutate } = useSWR("authsome-dashboard", fetchDashboard);
   if (!data) return null;
-  return <ConnectionsView connections={data.connections} />;
+  return (
+    <ConnectionsView
+      connections={data.connections}
+      globalConnections={data.globalConnections}
+      isAdmin={data.account.isAdmin}
+      onRefresh={() => void mutate()}
+    />
+  );
 }

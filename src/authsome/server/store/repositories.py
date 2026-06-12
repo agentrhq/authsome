@@ -29,7 +29,7 @@ from authsome.identity.principal import (
     PrincipalRole,
 )
 from authsome.identity.registry import IdentityRegistration
-from authsome.server.schemas import PrincipalVaultBindingRecord, VaultRecord
+from authsome.server.schemas import GlobalProviderConnectionRecord, PrincipalVaultBindingRecord, VaultRecord
 from authsome.server.store.database import StoreBackend, StoreDatabase
 from authsome.utils import utc_now
 
@@ -595,6 +595,90 @@ class PrincipalVaultBindingRegistry:
         )
 
 
+class GlobalProviderConnectionRegistry:
+    """Relational registry for global provider connection pointers."""
+
+    def __init__(self, database: StoreDatabase) -> None:
+        self._db = database
+
+    async def get(self, provider: str) -> GlobalProviderConnectionRecord | None:
+        row = await self._db.fetch_one("SELECT * FROM global_provider_connections WHERE provider = ?", [provider])
+        return self._record(row) if row else None
+
+    async def list_all(self) -> list[GlobalProviderConnectionRecord]:
+        rows = await self._db.fetch_all("SELECT * FROM global_provider_connections ORDER BY provider")
+        return [self._record(row) for row in rows]
+
+    async def upsert(self, record: GlobalProviderConnectionRecord) -> GlobalProviderConnectionRecord:
+        existing = await self.get(record.provider)
+        updated_at = utc_now()
+        created_at = existing.created_at if existing is not None else updated_at
+        stored = record.model_copy(update={"created_at": created_at, "updated_at": updated_at})
+        await self._db.execute(
+            "INSERT INTO global_provider_connections "
+            "(provider, owner_principal_id, owner_vault_id, connection_name, created_by_identity, created_at, "
+            "updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(provider) DO UPDATE SET "
+            "owner_principal_id = excluded.owner_principal_id, "
+            "owner_vault_id = excluded.owner_vault_id, "
+            "connection_name = excluded.connection_name, "
+            "created_by_identity = excluded.created_by_identity, "
+            "created_at = excluded.created_at, "
+            "updated_at = excluded.updated_at",
+            [
+                stored.provider,
+                stored.owner_principal_id,
+                stored.owner_vault_id,
+                stored.connection_name,
+                stored.created_by_identity,
+                _dump_dt(stored.created_at),
+                _dump_dt(stored.updated_at),
+            ],
+        )
+        return stored
+
+    async def delete(self, provider: str) -> bool:
+        existing = await self.get(provider)
+        if existing is None:
+            return False
+        await self._db.execute("DELETE FROM global_provider_connections WHERE provider = ?", [provider])
+        return True
+
+    async def delete_if_target(
+        self,
+        provider: str,
+        owner_vault_id: str,
+        connection_name: str,
+        *,
+        updated_at: datetime | None = None,
+    ) -> bool:
+        sql = (
+            "DELETE FROM global_provider_connections WHERE provider = ? AND owner_vault_id = ? AND connection_name = ?"
+        )
+        params: list[Any] = [provider, owner_vault_id, connection_name]
+        if updated_at is not None:
+            sql = f"{sql} AND updated_at = ?"
+            params.append(_dump_dt(updated_at))
+        deleted = await self._db.execute_rowcount(
+            sql,
+            params,
+        )
+        return deleted > 0
+
+    @staticmethod
+    def _record(row: dict[str, Any]) -> GlobalProviderConnectionRecord:
+        return GlobalProviderConnectionRecord(
+            provider=row["provider"],
+            owner_principal_id=row["owner_principal_id"],
+            owner_vault_id=row["owner_vault_id"],
+            connection_name=row["connection_name"],
+            created_by_identity=row["created_by_identity"],
+            created_at=_dt(row["created_at"]),
+            updated_at=_dt(row["updated_at"]),
+        )
+
+
 class ServerConfigRepository:
     """Relational server config repository."""
 
@@ -665,6 +749,7 @@ class ServerStore:
     vaults: VaultRegistry
     identity_claims: IdentityClaimRegistry
     principal_vault_bindings: PrincipalVaultBindingRegistry
+    global_provider_connections: GlobalProviderConnectionRegistry
     server_config: ServerConfigRepository
     provider_definitions: ProviderDefinitionRepository
     audit_events: AuditEventRegistry

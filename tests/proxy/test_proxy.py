@@ -27,6 +27,7 @@ async def _make_auth(tmp_path: Path) -> AuthLayer:
     return AuthLayer(
         credentials=CredentialRepository(vault, identity=identity, principal_id=None, vault_id=identity),
         providers=ProviderRepository(store.provider_definitions),
+        global_connections=store.global_provider_connections,
         identity=identity,
         vault_id=identity,
     )

@@ -235,6 +235,12 @@ class AuthsomeApiClient:
     async def set_default_connection(self, provider: str, connection_name: str) -> None:
         await self._post(f"{API_PREFIX}/connections/{provider}/{connection_name}/default")
 
+    async def set_global_connection(self, provider: str, connection_name: str) -> dict[str, Any]:
+        return await self._post(f"{API_PREFIX}/connections/{provider}/{connection_name}/global")
+
+    async def unset_global_connection(self, provider: str) -> dict[str, Any]:
+        return await self._delete(f"{API_PREFIX}/connections/{provider}/global")
+
     async def get_provider(self, provider: str) -> dict[str, Any]:
         return await self._get(f"{API_PREFIX}/providers/{provider}")
 

@@ -50,6 +50,7 @@ def mock_client() -> AsyncMock:
     # Default empty connections
     client.list_connections.return_value = {
         "connections": [],
+        "global_connections": [],
         "by_source": {"bundled": [], "custom": []},
     }
     client.ensure_identity_ready.return_value = SimpleNamespace(

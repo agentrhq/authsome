@@ -26,6 +26,27 @@ async def set_default_connection(ctx_obj: ContextObj, provider: str, connection:
     ctx_obj.print_json({"status": "ok", "provider": provider, "default_connection": connection})
 
 
+@connections.command(name="set-global")
+@click.argument("provider")
+@click.argument("connection")
+@auth_command
+async def set_global_connection(ctx_obj: ContextObj, provider: str, connection: str) -> None:
+    """Make CONNECTION the global fallback for PROVIDER."""
+    actx = await ctx_obj.initialize()
+    result = await actx.runtime_client.set_global_connection(provider, connection)
+    ctx_obj.print_json(result)
+
+
+@connections.command(name="unset-global")
+@click.argument("provider")
+@auth_command
+async def unset_global_connection(ctx_obj: ContextObj, provider: str) -> None:
+    """Remove PROVIDER's global fallback connection."""
+    actx = await ctx_obj.initialize()
+    result = await actx.runtime_client.unset_global_connection(provider)
+    ctx_obj.print_json(result)
+
+
 @connections.command(name="inspect")
 @click.argument("provider")
 @click.option("--connection", default="default", metavar="NAME", help="Connection name.")
