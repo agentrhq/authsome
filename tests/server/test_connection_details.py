@@ -129,6 +129,36 @@ def test_admin_can_make_own_connection_global_from_detail(monkeypatch, tmp_path:
     assert response.json()["can_set_global"] is True
 
 
+def test_connection_detail_marks_current_global_connection(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    with create_server_test_client() as client:
+        admin = _claim_identity(client, tmp_path, "admin-ready-boldly-0001", email="admin@example.com")
+        admin_ctx = asyncio.run(client.app.state.ownership_resolver.resolve(identity=admin.handle))
+        _put_connection(client, admin_ctx.principal_id, admin_ctx.vault_id, "secondary")
+        _put_connection(client, admin_ctx.principal_id, admin_ctx.vault_id, "default")
+        assert (
+            client.post(
+                "/api/connections/github/default/global",
+                headers=_auth_header(tmp_path, "POST", "/api/connections/github/default/global", handle=admin.handle),
+            ).status_code
+            == status.HTTP_200_OK
+        )
+
+        global_response = client.get(
+            "/api/connections/github/default/detail",
+            headers=_auth_header(tmp_path, "GET", "/api/connections/github/default/detail", handle=admin.handle),
+        )
+        secondary_response = client.get(
+            "/api/connections/github/secondary/detail",
+            headers=_auth_header(tmp_path, "GET", "/api/connections/github/secondary/detail", handle=admin.handle),
+        )
+
+    assert global_response.status_code == status.HTTP_200_OK
+    assert global_response.json()["is_global"] is True
+    assert secondary_response.status_code == status.HTTP_200_OK
+    assert secondary_response.json()["is_global"] is False
+
+
 def test_admin_logout_targets_other_principal_connection(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     with create_server_test_client() as client:

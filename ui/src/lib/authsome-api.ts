@@ -203,6 +203,7 @@ export type ConnectionDetail = {
   };
   can_set_default: boolean;
   can_set_global: boolean;
+  is_global: boolean;
 };
 
 type ConnectionsResponse = {
@@ -211,6 +212,7 @@ type ConnectionsResponse = {
     connections: ConnectionSummary[];
   }>;
   global_connections: GlobalConnectionSummary[];
+  provider_connection_counts: Record<string, number>;
   by_source: Record<string, ProviderResponse[]>;
 };
 
@@ -351,8 +353,11 @@ function providerView(
   source: string,
   connections: ConnectionSummary[],
   globalConnections: GlobalConnectionSummary[],
+  providerConnectionCount?: number,
 ): ProviderView {
   const displayName = provider.display_name || provider.name;
+  const localConnectionCount = connections.length + globalConnections.length;
+  const connectionCount = providerConnectionCount ?? localConnectionCount;
   return {
     name: provider.name,
     displayName,
@@ -363,9 +368,9 @@ function providerView(
     source,
     logo: provider.logo || null,
     logoInitial: (displayName[0] || "?").toUpperCase(),
-    status: providerStatus(connections, globalConnections),
+    status: providerConnectionCount && providerConnectionCount > 0 ? "connected" : providerStatus(connections, globalConnections),
     scopeCount: connections[0]?.scopes?.length || 0,
-    connectionCount: connections.length + globalConnections.length,
+    connectionCount,
     globalConnectionCount: globalConnections.length,
     requiresNamedLogin: connections.some((connection) => connection.connection_name === "default"),
   };
@@ -373,6 +378,7 @@ function providerView(
 
 function buildProviders(data: ConnectionsResponse): ProviderView[] {
   const connectionMap = new Map(data.connections.map((group) => [group.name, group.connections]));
+  const providerConnectionCounts = data.provider_connection_counts || {};
   const globalConnectionMap = new Map<string, GlobalConnectionSummary[]>();
   for (const connection of data.global_connections || []) {
     const entries = globalConnectionMap.get(connection.provider) || [];
@@ -381,7 +387,13 @@ function buildProviders(data: ConnectionsResponse): ProviderView[] {
   }
   return Object.entries(data.by_source).flatMap(([source, providers]) =>
     providers.map((provider) =>
-      providerView(provider, source, connectionMap.get(provider.name) || [], globalConnectionMap.get(provider.name) || []),
+      providerView(
+        provider,
+        source,
+        connectionMap.get(provider.name) || [],
+        globalConnectionMap.get(provider.name) || [],
+        providerConnectionCounts[provider.name],
+      ),
     ),
   );
 }
