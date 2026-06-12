@@ -1049,7 +1049,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
           ) : (
             <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
               <input name="connection" type="hidden" value="default" />
-              <input name="return_url" type="hidden" value={`/connections?provider=${provider.name}`} />
+              <input name="return_url" type="hidden" value="/connections" />
               <Button className="w-full" type="submit">
                 <LogIn />
                 Connect
@@ -1100,7 +1100,7 @@ function NamedConnectionDialog({
           method="post"
           onSubmit={handleSubmit}
         >
-          <input name="return_url" type="hidden" value={provider ? `/connections?provider=${provider.name}` : NEXT_URL} />
+          <input name="return_url" type="hidden" value="/connections" />
           <label className="grid gap-2 text-sm">
             <span className="text-muted-foreground">Connection name</span>
             <Input
@@ -1135,15 +1135,7 @@ export function ConnectionsView({
   onRefresh: () => void;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState(() => {
-    if (initialFilter) {
-      return initialFilter;
-    }
-    if (typeof window === "undefined") {
-      return "";
-    }
-    return new URLSearchParams(window.location.search).get("provider") ?? "";
-  });
+  const [query, setQuery] = useState(initialFilter ?? "");
   const filteredConnections = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return connections;
@@ -1657,7 +1649,7 @@ export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; 
         ) : (
           <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
             <input name="connection" type="hidden" value="default" />
-            <input name="return_url" type="hidden" value={`/connections?provider=${data.provider.name}`} />
+            <input name="return_url" type="hidden" value="/connections" />
             <Button type="submit">
               <LogIn />
               New connection
