@@ -147,27 +147,17 @@ class AuditEventRegistry:
         cursor: str | None = None,
     ) -> AuditEventPage:
         bounded_limit = min(max(limit, 1), 500)
-        conditions: list[str] = []
-        params: list[Any] = []
+        filter_specs = (
+            ("principal_id = ?", principal_id, principal_id is not None),
+            ("event = ?", event, bool(event)),
+            ("provider = ?", provider, bool(provider)),
+            ("identity = ?", identity, bool(identity)),
+            ("timestamp >= ?", _dump_dt(since) if since is not None else None, since is not None),
+            ("timestamp < ?", _dump_dt(until) if until is not None else None, until is not None),
+        )
+        conditions = [condition for condition, _value, enabled in filter_specs if enabled]
+        params = [value for _condition, value, enabled in filter_specs if enabled]
 
-        if principal_id is not None:
-            conditions.append("principal_id = ?")
-            params.append(principal_id)
-        if event:
-            conditions.append("event = ?")
-            params.append(event)
-        if provider:
-            conditions.append("provider = ?")
-            params.append(provider)
-        if identity:
-            conditions.append("identity = ?")
-            params.append(identity)
-        if since is not None:
-            conditions.append("timestamp >= ?")
-            params.append(_dump_dt(since))
-        if until is not None:
-            conditions.append("timestamp < ?")
-            params.append(_dump_dt(until))
         if cursor:
             cursor_timestamp, cursor_event_id = _decode_audit_cursor(cursor)
             conditions.append("(timestamp < ? OR (timestamp = ? AND event_id < ?))")
