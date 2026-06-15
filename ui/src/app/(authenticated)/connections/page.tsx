@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 
-import { ConnectionsView } from "@/components/authsome-dashboard";
+import { ConnectionsView } from "@/components/dashboard/connection-views";
 import { fetchDashboard } from "@/lib/authsome-api";
 
 export default function ConnectionsPage() {

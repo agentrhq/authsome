@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 
-import { SettingsView } from "@/components/authsome-dashboard";
+import { SettingsView } from "@/components/dashboard/settings-view";
 import { fetchDashboard } from "@/lib/authsome-api";
 
 export default function SettingsPage() {
