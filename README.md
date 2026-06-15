@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <b>Credential broker and vault for AI Agents</b>
+  <b>Credential Gateway for AI Agents</b>
 </p>
 
 <p align="center">
