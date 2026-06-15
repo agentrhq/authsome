@@ -45,7 +45,7 @@ def _emit_audit_event(  # noqa: PLR0913
     emit(
         AuditEvent(
             event_id=event_id,
-            timestamp=timestamp or datetime(2026, 6, 15, 8, 0, tzinfo=UTC),
+            timestamp=timestamp or datetime(2099, 1, 1, 8, 0, tzinfo=UTC),
             event=event,
             principal_id=principal_id,
             identity=identity,
@@ -80,6 +80,17 @@ def test_audit_events_endpoint_returns_internal_events_for_admin(monkeypatch, tm
     assert entries[0]["identity"] == "steady-wisely-boldly-0042"
     assert entries[0]["principal_id"] == whoami["principal_id"]
     assert entries[0]["provider"] == "github"
+
+
+def test_audit_events_endpoint_only_documents_pagination_params(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+
+    with create_server_test_client() as client:
+        response = client.get("/openapi.json")
+
+    assert response.status_code == status.HTTP_200_OK
+    params = response.json()["paths"]["/api/audit/events"]["get"]["parameters"]
+    assert {param["name"] for param in params} == {"limit", "cursor"}
 
 
 def test_external_audit_post_is_enriched_from_pop_identity(monkeypatch, tmp_path: Path) -> None:
@@ -156,7 +167,7 @@ def test_admin_sees_all_audit_events_and_user_sees_only_own_principal(monkeypatc
     assert all(entry["principal_id"] == user_whoami["principal_id"] for entry in user_entries)
 
 
-def test_non_admin_audit_filters_stay_within_own_principal(monkeypatch, tmp_path: Path) -> None:
+def test_non_admin_audit_query_params_do_not_filter_or_widen_scope(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with create_server_test_client() as client:
@@ -205,10 +216,9 @@ def test_non_admin_audit_filters_stay_within_own_principal(monkeypatch, tmp_path
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
     assert body["scope"] == "principal"
-    assert body["next_cursor"] is None
-    assert [entry["event_id"] for entry in body["entries"]] == ["audit_002"]
-    assert body["entries"][0]["principal_id"] == user_whoami["principal_id"]
-    assert body["entries"][0]["provider"] == "github"
+    manual_entries = [entry for entry in body["entries"] if entry["event_id"].startswith("audit_00")]
+    assert [entry["event_id"] for entry in manual_entries] == ["audit_003", "audit_002"]
+    assert all(entry["principal_id"] == user_whoami["principal_id"] for entry in body["entries"])
 
 
 def test_non_admin_audit_query_cannot_widen_scope_with_principal_or_identity(
@@ -259,10 +269,13 @@ def test_non_admin_audit_query_cannot_widen_scope_with_principal_or_identity(
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
     assert body["scope"] == "principal"
-    assert body["entries"] == []
+    event_ids = {entry["event_id"] for entry in body["entries"]}
+    assert "audit_011" in event_ids
+    assert "audit_010" not in event_ids
+    assert all(entry["principal_id"] == user_whoami["principal_id"] for entry in body["entries"])
 
 
-def test_admin_audit_events_support_filters_and_cursor_pagination(monkeypatch, tmp_path: Path) -> None:
+def test_admin_audit_events_support_cursor_pagination(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with create_server_test_client() as client:
@@ -282,7 +295,15 @@ def test_admin_audit_events_support_filters_and_cursor_pagination(monkeypatch, t
             principal_id=admin_whoami["principal_id"],
             identity="admin-ready-boldly-0001",
             provider="github",
-            timestamp=datetime(2026, 6, 15, 8, 0, tzinfo=UTC),
+            timestamp=datetime(2099, 1, 1, 8, 0, tzinfo=UTC),
+        )
+        _emit_audit_event(
+            "audit_099",
+            "connection.logout",
+            principal_id=admin_whoami["principal_id"],
+            identity="admin-ready-boldly-0001",
+            provider="linear",
+            timestamp=datetime(2099, 1, 1, 7, 59, tzinfo=UTC),
         )
         _emit_audit_event(
             "audit_101",
@@ -290,7 +311,7 @@ def test_admin_audit_events_support_filters_and_cursor_pagination(monkeypatch, t
             principal_id=user_whoami["principal_id"],
             identity="steady-wisely-boldly-0042",
             provider="github",
-            timestamp=datetime(2026, 6, 15, 8, 1, tzinfo=UTC),
+            timestamp=datetime(2099, 1, 1, 8, 1, tzinfo=UTC),
         )
         _emit_audit_event(
             "audit_102",
@@ -298,10 +319,10 @@ def test_admin_audit_events_support_filters_and_cursor_pagination(monkeypatch, t
             principal_id=user_whoami["principal_id"],
             identity="steady-wisely-boldly-0042",
             provider="github",
-            timestamp=datetime(2026, 6, 15, 8, 2, tzinfo=UTC),
+            timestamp=datetime(2099, 1, 1, 8, 2, tzinfo=UTC),
         )
 
-        first_path = "/api/audit/events?provider=github&limit=2"
+        first_path = "/api/audit/events?limit=2"
         first_response = client.get(
             first_path,
             headers=_auth_header(
@@ -313,7 +334,7 @@ def test_admin_audit_events_support_filters_and_cursor_pagination(monkeypatch, t
         )
         assert first_response.status_code == status.HTTP_200_OK
         first_body = first_response.json()
-        second_path = f"/api/audit/events?provider=github&limit=2&cursor={first_body['next_cursor']}"
+        second_path = f"/api/audit/events?limit=2&cursor={first_body['next_cursor']}"
         second_response = client.get(
             second_path,
             headers=_auth_header(
@@ -331,8 +352,7 @@ def test_admin_audit_events_support_filters_and_cursor_pagination(monkeypatch, t
     assert second_response.status_code == status.HTTP_200_OK
     second_body = second_response.json()
     assert second_body["scope"] == "global"
-    assert [entry["event_id"] for entry in second_body["entries"]] == ["audit_100"]
-    assert second_body["next_cursor"] is None
+    assert [entry["event_id"] for entry in second_body["entries"]] == ["audit_100", "audit_099"]
 
 
 @pytest.mark.asyncio

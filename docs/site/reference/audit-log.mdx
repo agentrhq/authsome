@@ -53,8 +53,7 @@ authsome log --json       # Output JSON format
 
 `GET /api/audit/events` is role-aware. Admin principals can review the global audit log.
 Non-admin principals receive only events scoped to their own principal, including their
-claimed identities, vault, providers, and credential lifecycle activity. Passing another
-`principal_id`, vault, or identity in query parameters cannot widen a non-admin query.
+claimed identities, vault, providers, and credential lifecycle activity.
 
 Supported query parameters:
 
@@ -62,11 +61,6 @@ Supported query parameters:
 | --- | --- |
 | `limit` | Number of events to return, clamped to the server maximum. |
 | `cursor` | Cursor returned by the previous page. |
-| `event` | Exact event name. |
-| `provider` | Exact provider name, such as `github`. |
-| `identity` | Exact identity handle. |
-| `from` | Inclusive lower timestamp bound. |
-| `to` | Exclusive upper timestamp bound. |
 
 Results are sorted newest-first and include `next_cursor` when another page is available.
 

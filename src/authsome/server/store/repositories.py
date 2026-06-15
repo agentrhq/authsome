@@ -134,29 +134,20 @@ class AuditEventRegistry:
                 ],
             )
 
-    async def query_events(  # noqa: PLR0913
+    async def query_events(
         self,
         *,
         limit: int = 50,
         principal_id: str | None = None,
-        event: str | None = None,
-        provider: str | None = None,
-        identity: str | None = None,
-        since: datetime | None = None,
-        until: datetime | None = None,
         cursor: str | None = None,
     ) -> AuditEventPage:
         bounded_limit = min(max(limit, 1), 500)
-        filter_specs = (
-            ("principal_id = ?", principal_id, principal_id is not None),
-            ("event = ?", event, bool(event)),
-            ("provider = ?", provider, bool(provider)),
-            ("identity = ?", identity, bool(identity)),
-            ("timestamp >= ?", _dump_dt(since) if since is not None else None, since is not None),
-            ("timestamp < ?", _dump_dt(until) if until is not None else None, until is not None),
-        )
-        conditions = [condition for condition, _value, enabled in filter_specs if enabled]
-        params = [value for _condition, value, enabled in filter_specs if enabled]
+        conditions: list[str] = []
+        params: list[Any] = []
+
+        if principal_id is not None:
+            conditions.append("principal_id = ?")
+            params.append(principal_id)
 
         if cursor:
             cursor_timestamp, cursor_event_id = _decode_audit_cursor(cursor)
@@ -339,27 +330,17 @@ class ServerAuditLog:
         _delegating_audit_exporter.set_active(None)
         self._exporter.close()
 
-    async def query_events(  # noqa: PLR0913
+    async def query_events(
         self,
         *,
         limit: int = 50,
         principal_id: str | None = None,
-        event: str | None = None,
-        provider: str | None = None,
-        identity: str | None = None,
-        since: datetime | None = None,
-        until: datetime | None = None,
         cursor: str | None = None,
     ) -> AuditEventPage:
         await self.async_force_flush()
         return await self._registry.query_events(
             limit=limit,
             principal_id=principal_id,
-            event=event,
-            provider=provider,
-            identity=identity,
-            since=since,
-            until=until,
             cursor=cursor,
         )
 

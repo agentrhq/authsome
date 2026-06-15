@@ -51,12 +51,7 @@ export type AuditRow = {
   metadata: Record<string, unknown>;
 };
 
-export type AuditFilters = {
-  event?: string;
-  provider?: string;
-  identity?: string;
-  from?: string;
-  to?: string;
+export type AuditEventsQuery = {
   cursor?: string | null;
   limit?: number;
 };
@@ -517,20 +512,15 @@ function buildAuditRows(entries: AuditResponse["entries"]): AuditRow[] {
   });
 }
 
-function auditQueryString(filters: AuditFilters = {}): string {
+function auditQueryString(query: AuditEventsQuery = {}): string {
   const params = new URLSearchParams();
-  params.set("limit", String(filters.limit ?? 50));
-  if (filters.event) params.set("event", filters.event);
-  if (filters.provider) params.set("provider", filters.provider);
-  if (filters.identity) params.set("identity", filters.identity);
-  if (filters.from) params.set("from", filters.from);
-  if (filters.to) params.set("to", filters.to);
-  if (filters.cursor) params.set("cursor", filters.cursor);
+  params.set("limit", String(query.limit ?? 50));
+  if (query.cursor) params.set("cursor", query.cursor);
   return params.toString();
 }
 
-export async function fetchAuditEvents(filters: AuditFilters = {}): Promise<AuditEventsData> {
-  const data = await requestJson<AuditResponse>(`/api/audit/events?${auditQueryString(filters)}`);
+export async function fetchAuditEvents(query: AuditEventsQuery = {}): Promise<AuditEventsData> {
+  const data = await requestJson<AuditResponse>(`/api/audit/events?${auditQueryString(query)}`);
   const events = buildAuditRows(data.entries);
   return {
     scope: data.scope ?? "principal",

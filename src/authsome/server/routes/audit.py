@@ -1,9 +1,8 @@
 """Audit event routes."""
 
-from datetime import datetime
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from authsome import audit
 from authsome.identity.principal import PrincipalRole
@@ -17,29 +16,18 @@ router = APIRouter(prefix="/audit", tags=["audit"])
 
 
 @router.get("/events")
-async def list_audit_events(  # noqa: PLR0913
+async def list_audit_events(
     request: Request,
     limit: int = 50,
     cursor: str | None = None,
-    event: str | None = None,
-    provider: str | None = None,
-    identity: str | None = None,
-    principal_id: str | None = None,
-    from_: Annotated[datetime | None, Query(alias="from")] = None,
-    to: datetime | None = None,
     auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
 ) -> dict[str, Any]:
-    effective_principal_id = principal_id if auth.principal_role == PrincipalRole.ADMIN else auth.principal_id
+    effective_principal_id = None if auth.principal_role == PrincipalRole.ADMIN else auth.principal_id
     scope: Literal["global", "principal"] = "global" if effective_principal_id is None else "principal"
     try:
         page = await request.app.state.audit_log.query_events(
             limit=limit,
             principal_id=effective_principal_id,
-            event=event,
-            provider=provider,
-            identity=identity,
-            since=from_,
-            until=to,
             cursor=cursor,
         )
     except ValueError as exc:
