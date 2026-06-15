@@ -155,7 +155,6 @@ class _StoreAuditExporter(LogRecordExporter):
             future = asyncio.run_coroutine_threadsafe(self._registry.insert_many(rows), self._loop)
             with self._lock:
                 self._futures.append(future)
-            future.result()
         except Exception as exc:
             logger.warning("Could not persist audit events: {}", exc)
             return LogRecordExportResult.FAILURE
