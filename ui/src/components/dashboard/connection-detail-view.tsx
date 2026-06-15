@@ -103,7 +103,7 @@ export function ConnectionDetailBody({
 }) {
   return (
     <div className="grid gap-6">
-      <Link className={cn(buttonVariants({ size: "sm" }), "w-fit")} href="/connections">
+      <Link className={cn(buttonVariants({ size: "sm", variant: "outline" }), "w-fit")} href="/connections">
         <ArrowLeft />
         Back to connections
       </Link>

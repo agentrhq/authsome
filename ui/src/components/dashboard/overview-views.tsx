@@ -68,7 +68,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold">Recent Events</h2>
-            <Link className={buttonVariants({ size: "sm", variant: "ghost" })} href="/audit">
+            <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/audit">
               View all
             </Link>
           </div>

@@ -111,7 +111,7 @@ export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; 
 
   return (
     <div className="grid gap-6">
-      <Link className={cn(buttonVariants({ size: "sm" }), "w-fit")} href="/providers">
+      <Link className={cn(buttonVariants({ size: "sm", variant: "outline" }), "w-fit")} href="/providers">
         <ArrowLeft />
         Back to providers
       </Link>

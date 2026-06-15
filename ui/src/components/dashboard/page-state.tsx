@@ -23,13 +23,13 @@ export function PageEmptyState({
   const action = actionLabel
     ? href
       ? (
-        <Link className={cn(buttonVariants({ size: "sm" }), "mt-4")} href={href}>
+        <Link className={cn(buttonVariants({ size: "sm", variant: "outline" }), "mt-4")} href={href}>
           <Plus />
           {actionLabel}
         </Link>
       )
       : (
-        <Button className="mt-4" onClick={onAction} size="sm" type="button">
+        <Button className="mt-4" onClick={onAction} size="sm" type="button" variant="outline">
           {actionLabel}
         </Button>
       )
