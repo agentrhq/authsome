@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { AuthsomeClaimFromUrl } from "@/components/authsome-dashboard";
+import { AuthsomeClaimFromUrl } from "@/components/dashboard/auth-flows";
 
 export default function ClaimPage() {
   return (

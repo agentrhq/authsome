@@ -1,4 +1,4 @@
-import { AuthsomeLogin } from "@/components/authsome-dashboard";
+import { AuthsomeLogin } from "@/components/dashboard/auth-flows";
 
 export default function LoginPage() {
   return <AuthsomeLogin />;

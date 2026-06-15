@@ -6,14 +6,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LogOut } from "lucide-react";
 import useSWR from "swr";
 
+import { currentBrowserPath, isUnauthorized } from "@/components/dashboard/dashboard-routing";
 import {
   AppSidebar,
   ErrorState,
   LoadingScreen,
-  View,
-  currentBrowserPath,
-  isUnauthorized,
-} from "@/components/authsome-dashboard";
+} from "@/components/dashboard/dashboard-shell";
+import type { View } from "@/components/dashboard/dashboard-shell";
 import {
   Breadcrumb,
   BreadcrumbItem,

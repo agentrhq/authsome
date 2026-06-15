@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { AuthsomeSessionInputFromUrl } from "@/components/authsome-dashboard";
+import { AuthsomeSessionInputFromUrl } from "@/components/dashboard/auth-flows";
 
 export default function AuthInputPage() {
   return (

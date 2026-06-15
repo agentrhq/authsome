@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 
-import { AuditView } from "@/components/authsome-dashboard";
+import { AuditView } from "@/components/dashboard/overview-views";
 import { fetchDashboard } from "@/lib/authsome-api";
 
 export default function AuditPage() {

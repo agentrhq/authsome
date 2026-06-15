@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 
-import { DashboardView } from "@/components/authsome-dashboard";
+import { DashboardView } from "@/components/dashboard/overview-views";
 import { fetchDashboard } from "@/lib/authsome-api";
 
 export default function DashboardPage() {

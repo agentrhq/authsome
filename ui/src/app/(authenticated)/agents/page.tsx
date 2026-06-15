@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 
-import { AgentsView } from "@/components/authsome-dashboard";
+import { AgentsView } from "@/components/dashboard/overview-views";
 import { fetchDashboard } from "@/lib/authsome-api";
 
 export default function AgentsPage() {
