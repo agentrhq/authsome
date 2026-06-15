@@ -7,6 +7,6 @@ import { fetchDashboard } from "@/lib/authsome-api";
 
 export default function AuditPage() {
   const { data } = useSWR("authsome-dashboard", fetchDashboard);
-  if (!data || !data.account.isAdmin) return null;
+  if (!data) return null;
   return <AuditView data={data} />;
 }

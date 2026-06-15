@@ -26,11 +26,12 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 
 import {
   ApiError,
+  AuditFilters,
   ConnectionDetail,
   DashboardData,
   GlobalConnectionRow,
@@ -38,6 +39,7 @@ import {
   ProviderDetail,
   ProviderView,
   SessionInputField,
+  fetchAuditEvents,
   fetchAuthSessionStatus,
   fetchClaimStatus,
   fetchConnectionDetail,
@@ -105,7 +107,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "agents", href: "/agents", label: "Agents", icon: <UserRound /> },
   { id: "principals", href: "/principal", label: "Principals", icon: <Users />, adminOnly: true },
   { id: "vault", href: "/vault", label: "Vault", icon: <Database /> },
-  { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList />, adminOnly: true },
+  { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList /> },
   { id: "settings", href: "/settings", label: "Settings", icon: <Settings /> },
 ];
 
@@ -1412,13 +1414,222 @@ export function VaultView({ data }: { data: DashboardData }) {
   );
 }
 
+function normalizeAuditFilters(filters: AuditFilters): AuditFilters {
+  return Object.fromEntries(
+    Object.entries(filters)
+      .map(([key, value]) => [key, typeof value === "string" ? value.trim() : value])
+      .filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== ""),
+  ) as AuditFilters;
+}
+
+function localDateTimeToIso(value: string): string | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.valueOf()) ? undefined : parsed.toISOString();
+}
+
 export function AuditView({ data }: { data: DashboardData }) {
+  const [filters, setFilters] = useState<AuditFilters>({
+    event: "",
+    provider: "",
+    identity: "",
+    from: "",
+    to: "",
+  });
+  const [auditResult, setAuditResult] = useState<{
+    activeFilters: AuditFilters;
+    events: DashboardData["audit"]["events"];
+    nextCursor: string | null;
+  } | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loadingAction, setLoadingAction] = useState<"apply" | "more" | null>(null);
+  const requestSequence = useRef(0);
+  const events = auditResult?.events ?? data.audit.events;
+  const nextCursor = auditResult?.nextCursor ?? data.audit.nextCursor;
+  const activeFilters = auditResult?.activeFilters ?? {};
+  const providerNames = useMemo(() => data.providers.map((provider) => provider.name).sort(), [data.providers]);
+  const identityHandles = useMemo(() => data.identities.map((identity) => identity.handle).sort(), [data.identities]);
+  const eventNames = useMemo(() => Array.from(new Set(events.map((event) => event.eventName))).sort(), [events]);
+  const description = data.account.isAdmin
+    ? "Recent administrative and credential events."
+    : "Recent account, identity, vault, and credential events for this principal.";
+
+  function updateFilter(name: keyof Pick<AuditFilters, "event" | "provider" | "identity" | "from" | "to">, value: string) {
+    setFilters((current) => ({ ...current, [name]: value }));
+  }
+
+  function filtersForRequest(cursor?: string | null): AuditFilters {
+    return normalizeAuditFilters({
+      event: filters.event,
+      provider: filters.provider,
+      identity: filters.identity,
+      from: localDateTimeToIso(filters.from || ""),
+      to: localDateTimeToIso(filters.to || ""),
+      cursor,
+      limit: 50,
+    });
+  }
+
+  function nextRequestId(): number {
+    requestSequence.current += 1;
+    return requestSequence.current;
+  }
+
+  function isLatestRequest(requestId: number): boolean {
+    return requestSequence.current === requestId;
+  }
+
+  async function applyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const requestFilters = filtersForRequest();
+    const requestId = nextRequestId();
+    setLoadingAction("apply");
+    setErrorMessage("");
+    try {
+      const result = await fetchAuditEvents(requestFilters);
+      if (!isLatestRequest(requestId)) return;
+      setAuditResult({
+        activeFilters: requestFilters,
+        events: result.events,
+        nextCursor: result.nextCursor,
+      });
+    } catch (error) {
+      if (!isLatestRequest(requestId)) return;
+      setErrorMessage(error instanceof Error ? error.message : "Failed to load audit events.");
+    } finally {
+      if (isLatestRequest(requestId)) {
+        setLoadingAction(null);
+      }
+    }
+  }
+
+  async function clearFilters() {
+    const emptyFilters = { event: "", provider: "", identity: "", from: "", to: "" };
+    const requestId = nextRequestId();
+    setFilters(emptyFilters);
+    setLoadingAction("apply");
+    setErrorMessage("");
+    try {
+      const result = await fetchAuditEvents({ limit: 50 });
+      if (!isLatestRequest(requestId)) return;
+      setAuditResult({
+        activeFilters: {},
+        events: result.events,
+        nextCursor: result.nextCursor,
+      });
+    } catch (error) {
+      if (!isLatestRequest(requestId)) return;
+      setErrorMessage(error instanceof Error ? error.message : "Failed to load audit events.");
+    } finally {
+      if (isLatestRequest(requestId)) {
+        setLoadingAction(null);
+      }
+    }
+  }
+
+  async function loadMore() {
+    if (!nextCursor) return;
+    const requestId = nextRequestId();
+    setLoadingAction("more");
+    setErrorMessage("");
+    try {
+      const result = await fetchAuditEvents({ ...activeFilters, cursor: nextCursor, limit: 50 });
+      if (!isLatestRequest(requestId)) return;
+      setAuditResult({
+        activeFilters,
+        events: [...events, ...result.events],
+        nextCursor: result.nextCursor,
+      });
+    } catch (error) {
+      if (!isLatestRequest(requestId)) return;
+      setErrorMessage(error instanceof Error ? error.message : "Failed to load more audit events.");
+    } finally {
+      if (isLatestRequest(requestId)) {
+        setLoadingAction(null);
+      }
+    }
+  }
+
   return (
     <div className="grid gap-5">
-      <SectionHeader description="Recent administrative and credential events." title="Audit Log" />
+      <SectionHeader description={description} title="Audit Log" />
+      <Card className="shadow-none border-border/50">
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+          <CardDescription>{data.audit.scope === "global" ? "Global audit scope" : "Principal audit scope"}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-5" onSubmit={(event) => void applyFilters(event)}>
+            <label className="grid gap-2 text-sm">
+              <span className="text-muted-foreground">Event</span>
+              <Input
+                list="audit-event-options"
+                onChange={(event) => updateFilter("event", event.target.value)}
+                value={filters.event || ""}
+              />
+            </label>
+            <label className="grid gap-2 text-sm">
+              <span className="text-muted-foreground">Provider</span>
+              <Input
+                list="audit-provider-options"
+                onChange={(event) => updateFilter("provider", event.target.value)}
+                value={filters.provider || ""}
+              />
+            </label>
+            <label className="grid gap-2 text-sm">
+              <span className="text-muted-foreground">Identity</span>
+              <Input
+                list="audit-identity-options"
+                onChange={(event) => updateFilter("identity", event.target.value)}
+                value={filters.identity || ""}
+              />
+            </label>
+            <label className="grid gap-2 text-sm">
+              <span className="text-muted-foreground">From</span>
+              <Input
+                onChange={(event) => updateFilter("from", event.target.value)}
+                type="datetime-local"
+                value={filters.from || ""}
+              />
+            </label>
+            <label className="grid gap-2 text-sm">
+              <span className="text-muted-foreground">To</span>
+              <Input
+                onChange={(event) => updateFilter("to", event.target.value)}
+                type="datetime-local"
+                value={filters.to || ""}
+              />
+            </label>
+            <datalist id="audit-event-options">
+              {eventNames.map((event) => (
+                <option key={event} value={event} />
+              ))}
+            </datalist>
+            <datalist id="audit-provider-options">
+              {providerNames.map((provider) => (
+                <option key={provider} value={provider} />
+              ))}
+            </datalist>
+            <datalist id="audit-identity-options">
+              {identityHandles.map((identity) => (
+                <option key={identity} value={identity} />
+              ))}
+            </datalist>
+            <div className="flex items-end gap-2 md:col-span-2 xl:col-span-5">
+              <Button disabled={loadingAction !== null} type="submit">
+                Apply filters
+              </Button>
+              <Button disabled={loadingAction !== null} onClick={() => void clearFilters()} type="button" variant="outline">
+                Clear
+              </Button>
+            </div>
+          </form>
+          {errorMessage ? <p className="mt-4 text-sm text-destructive">{errorMessage}</p> : null}
+        </CardContent>
+      </Card>
       <Card className="shadow-none border-border/50">
         <CardContent className="p-0">
-          {data.audit.events.length ? (
+          {events.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1430,7 +1641,7 @@ export function AuditView({ data }: { data: DashboardData }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.audit.events.map((event) => (
+                {events.map((event) => (
                   <TableRow key={event.eventId}>
                     <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{event.time}</TableCell>
                     <TableCell className="font-medium">{event.event}</TableCell>
@@ -1458,6 +1669,13 @@ export function AuditView({ data }: { data: DashboardData }) {
           )}
         </CardContent>
       </Card>
+      {nextCursor ? (
+        <div className="flex justify-center">
+          <Button disabled={loadingAction !== null} onClick={() => void loadMore()} type="button" variant="outline">
+            {loadingAction === "more" ? "Loading..." : "Load more"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2051,7 +2269,7 @@ function ActiveView({ connectionFilter, data, onRefresh, view }: {
   if (view === "agents") return <AgentsView data={data} />;
   if (view === "principals") return <PrincipalsView />;
   if (view === "vault") return <VaultView data={data} />;
-  if (view === "audit" && data.account.isAdmin) return <AuditView data={data} />;
+  if (view === "audit") return <AuditView data={data} />;
   if (view === "settings") return <SettingsView data={data} />;
   return <DashboardView data={data} />;
 }

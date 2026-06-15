@@ -42,12 +42,30 @@ export type IdentityRow = {
 export type AuditRow = {
   eventId: string;
   time: string;
+  eventName: string;
   event: string;
   source: string;
   actor: string;
   target: string;
   status: string;
   metadata: Record<string, unknown>;
+};
+
+export type AuditFilters = {
+  event?: string;
+  provider?: string;
+  identity?: string;
+  from?: string;
+  to?: string;
+  cursor?: string | null;
+  limit?: number;
+};
+
+export type AuditEventsData = {
+  scope: "global" | "principal";
+  nextCursor: string | null;
+  events: AuditRow[];
+  total: number;
 };
 
 export type DashboardData = {
@@ -73,6 +91,8 @@ export type DashboardData = {
   };
   audit: {
     canView: boolean;
+    scope: "global" | "principal";
+    nextCursor: string | null;
     total: number;
     events: AuditRow[];
   };
@@ -216,6 +236,8 @@ type ConnectionsResponse = {
 
 type AuditResponse = {
   entries: Array<Record<string, unknown>>;
+  next_cursor?: string | null;
+  scope?: "global" | "principal";
 };
 
 export type PrincipalRow = {
@@ -472,6 +494,7 @@ function buildAuditRows(entries: AuditResponse["entries"]): AuditRow[] {
     return {
       eventId: String(entry.event_id || `${entry.timestamp || "event"}-${index}`),
       time: formatAuditTime(entry.timestamp),
+      eventName: String(entry.event || "audit_event"),
       event: humanize(entry.event),
       source: String(entry.source || "internal"),
       actor: String(entry.identity || entry.principal_id || "system"),
@@ -480,6 +503,29 @@ function buildAuditRows(entries: AuditResponse["entries"]): AuditRow[] {
       metadata,
     };
   });
+}
+
+function auditQueryString(filters: AuditFilters = {}): string {
+  const params = new URLSearchParams();
+  params.set("limit", String(filters.limit ?? 50));
+  if (filters.event) params.set("event", filters.event);
+  if (filters.provider) params.set("provider", filters.provider);
+  if (filters.identity) params.set("identity", filters.identity);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
+  if (filters.cursor) params.set("cursor", filters.cursor);
+  return params.toString();
+}
+
+export async function fetchAuditEvents(filters: AuditFilters = {}): Promise<AuditEventsData> {
+  const data = await requestJson<AuditResponse>(`/api/audit/events?${auditQueryString(filters)}`);
+  const events = buildAuditRows(data.entries);
+  return {
+    scope: data.scope ?? "principal",
+    nextCursor: data.next_cursor ?? null,
+    events,
+    total: events.length,
+  };
 }
 
 function roleLabel(role: string | undefined): string | null {
@@ -496,7 +542,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
     requestJson<ConnectionsResponse>("/api/connections"),
   ]);
   const isAdmin = whoami.principal_role === "admin";
-  const audit = isAdmin ? await requestJson<AuditResponse>("/api/audit/events?limit=100") : { entries: [] };
+  const audit = await fetchAuditEvents({ limit: 100 });
   const providers = buildProviders(connectionsData);
   const connections = buildConnectionRows(connectionsData, providers);
   const globalConnections = buildGlobalConnectionRows(connectionsData);
@@ -534,9 +580,11 @@ export async function fetchDashboard(): Promise<DashboardData> {
       isDefault: true,
     },
     audit: {
-      canView: isAdmin,
-      total: audit.entries.length,
-      events: buildAuditRows(audit.entries),
+      canView: true,
+      scope: audit.scope,
+      nextCursor: audit.nextCursor,
+      total: audit.total,
+      events: audit.events,
     },
   };
 }
