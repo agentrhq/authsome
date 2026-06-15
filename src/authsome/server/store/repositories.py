@@ -271,6 +271,10 @@ class _StoreAuditExporter(LogRecordExporter):
         self._closed = True
         self.force_flush()
 
+    def close(self) -> None:
+        self._closed = True
+        self._drop_finished_futures()
+
     def _is_loop_thread(self) -> bool:
         try:
             return asyncio.get_running_loop() is self._loop
@@ -337,8 +341,13 @@ class ServerAuditLog:
         self._exporter.force_flush()
 
     async def async_force_flush(self) -> None:
-        self._provider.force_flush()
+        await asyncio.to_thread(self._provider.force_flush)
         await self._exporter.async_force_flush()
+
+    async def async_shutdown(self) -> None:
+        await self.async_force_flush()
+        _delegating_audit_exporter.set_active(None)
+        self._exporter.close()
 
     async def query_events(  # noqa: PLR0913
         self,

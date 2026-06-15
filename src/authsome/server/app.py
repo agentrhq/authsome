@@ -40,7 +40,7 @@ from authsome.server.ui_sessions import UiSessionStore
 async def _cleanup_startup_resources(store, audit_log, runtime_state) -> None:
     with suppress(Exception):
         if audit_log is not None:
-            audit_log.shutdown()
+            await audit_log.async_shutdown()
     with suppress(Exception):
         if store is not None:
             await store.close()
@@ -99,7 +99,7 @@ async def lifespan(app: FastAPI):
     try:
         shutdown_posthog()
         if audit_log is not None:
-            audit_log.shutdown()
+            await audit_log.async_shutdown()
         if store is not None:
             await store.close()
     finally:

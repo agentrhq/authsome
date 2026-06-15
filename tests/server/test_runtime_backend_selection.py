@@ -50,6 +50,9 @@ class FakeAuditLog:
     def shutdown(self) -> None:
         self.shutdown_called = True
 
+    async def async_shutdown(self) -> None:
+        self.shutdown()
+
 
 class FakeStore:
     def __init__(self, home: Path, audit_log: FakeAuditLog) -> None:

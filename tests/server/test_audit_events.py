@@ -1,13 +1,16 @@
+import asyncio
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
 from authsome.audit import AuditEvent, emit, emit_event
 from authsome.cli.identity import RuntimeIdentity
+from authsome.server.store import create_server_store
 from tests.server.helpers import create_server_test_client
 from tests.server.test_pop_auth import _auth_header
 
@@ -330,3 +333,19 @@ def test_admin_audit_events_support_filters_and_cursor_pagination(monkeypatch, t
     assert second_body["scope"] == "global"
     assert [entry["event_id"] for entry in second_body["entries"]] == ["audit_100"]
     assert second_body["next_cursor"] is None
+
+
+@pytest.mark.asyncio
+async def test_audit_log_async_shutdown_flushes_events_without_blocking_loop(tmp_path: Path) -> None:
+    store = await create_server_store(home=tmp_path)
+    audit_log = store.audit_events.configure_exporter()
+    try:
+        emit_event("shutdown.flush", identity="agent-a", principal_id="principal_a", provider="github")
+
+        await asyncio.wait_for(audit_log.async_shutdown(), timeout=1)
+
+        entries = await store.audit_events.list_recent(limit=10, principal_id="principal_a")
+    finally:
+        await store.close()
+
+    assert [entry["event"] for entry in entries] == ["shutdown.flush"]
