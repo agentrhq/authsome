@@ -15,4 +15,3 @@ def test_root_health_alias_matches_api_health(monkeypatch, tmp_path) -> None:
     assert root.status_code == status.HTTP_200_OK
     assert root.json()["status"] == "ok"
     assert root.json()["version"] == api.json()["version"]
-
