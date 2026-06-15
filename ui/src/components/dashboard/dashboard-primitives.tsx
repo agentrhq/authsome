@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
+const LOGO_DEV_TOKEN = "pk_BhJg_kBbQPqNGuuWcNs9Cg";
+
 export const INTERACTIVE_CARD_CLASS =
   "cursor-pointer border border-border/50 shadow-none transition-all hover:border-primary/60 hover:bg-primary/[0.03] hover:shadow-sm";
 export const INTERACTIVE_ROW_CLASS =
@@ -55,7 +57,7 @@ function providerLogoUrl(logo: string): string {
     return logo;
   }
   if (logo.startsWith("img.logo.dev")) {
-    return `https://${logo}`;
+    return `https://${logo}?token=${LOGO_DEV_TOKEN}`;
   }
   return logo;
 }
