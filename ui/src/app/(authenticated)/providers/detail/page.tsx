@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 
-import { ProviderDetailBody } from "@/components/authsome-dashboard";
+import { ProviderDetailBody } from "@/components/dashboard/provider-detail-view";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchDashboard, fetchProviderDetail } from "@/lib/authsome-api";

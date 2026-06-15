@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 
-import { ProvidersView } from "@/components/authsome-dashboard";
+import { ProvidersView } from "@/components/dashboard/provider-views";
 import { fetchDashboard } from "@/lib/authsome-api";
 
 export default function ProvidersPage() {
