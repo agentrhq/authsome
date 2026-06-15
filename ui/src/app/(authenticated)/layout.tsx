@@ -37,7 +37,6 @@ function pathToView(pathname: string): View {
     connections: "connections",
     agents: "agents",
     principal: "principals",
-    vault: "vault",
     audit: "audit",
     settings: "settings",
   };
@@ -57,7 +56,6 @@ function buildBreadcrumbs(
     connections: "Connections",
     agents: "Agents",
     principal: "Principals",
-    vault: "Vault",
     audit: "Audit Log",
     settings: "Settings",
   };

@@ -7,6 +7,7 @@ from authsome.identity.principal import PrincipalRole
 from authsome.server.analytics import capture_event
 from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
+    build_auth_service,
     get_daemon_or_browser_auth_service,
     get_protected_auth_service,
     get_vault_registry,
@@ -32,6 +33,13 @@ async def _connection_detail(
 ) -> ConnectionDetailResponse:
     definition = await auth.get_provider(provider)
     record = await auth.get_connection(provider, connection)
+    global_pointer = await auth.global_connections.get(provider)
+    is_global = (
+        global_pointer is not None
+        and global_pointer.owner_principal_id == record.principal_id
+        and global_pointer.owner_vault_id == record.vault_id
+        and global_pointer.connection_name == record.connection_name
+    )
     return ConnectionDetailResponse(
         provider=record.provider,
         provider_display_name=definition.display_name,
@@ -56,15 +64,41 @@ async def _connection_detail(
         ),
         can_set_default=can_set_default,
         can_set_global=can_set_global,
+        is_global=is_global,
     )
 
 
+async def _provider_connection_counts(request: Request, auth: CredentialService) -> dict[str, int]:
+    if auth.principal_role != PrincipalRole.ADMIN:
+        return {}
+
+    counts: dict[str, int] = {}
+    for principal in await request.app.state.store.principals.list_all():
+        resolved = await request.app.state.ownership_resolver.resolve_for_principal(principal_id=principal.principal_id)
+        if resolved is None:
+            continue
+        principal_auth = build_auth_service(
+            request,
+            identity=None,
+            principal_id=principal.principal_id,
+            principal_role=principal.role,
+            vault_id=resolved.vault_id,
+        )
+        for group in await principal_auth.list_connections():
+            counts[group["name"]] = counts.get(group["name"], 0) + len(group["connections"])
+    return counts
+
+
 @router.get("/connections")
-async def list_connections(auth: CredentialService = Depends(get_daemon_or_browser_auth_service)):
+async def list_connections(
+    request: Request,
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
+):
     by_source = await auth.list_providers_by_source()
     return {
         "connections": await auth.list_connections(),
         "global_connections": [row.model_dump(mode="json") for row in await auth.list_global_connection_summaries()],
+        "provider_connection_counts": await _provider_connection_counts(request, auth),
         "by_source": {
             source: [provider.model_dump(mode="json") for provider in providers]
             for source, providers in by_source.items()

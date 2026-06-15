@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowLeft,
   AppWindow,
   BookOpen,
   Check,
@@ -8,7 +9,8 @@ import {
   CircleAlert,
   Clipboard,
   ClipboardList,
-  Database,
+  Eye,
+  EyeOff,
   GitBranch,
   Globe2,
   KeyRound,
@@ -90,7 +92,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "vault" | "audit" | "settings";
+export type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "audit" | "settings";
 
 type NavItem = {
   id: View;
@@ -106,7 +108,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: "connections", href: "/connections", label: "Connections", icon: <Link2 /> },
   { id: "agents", href: "/agents", label: "Agents", icon: <UserRound /> },
   { id: "principals", href: "/principal", label: "Principals", icon: <Users />, adminOnly: true },
-  { id: "vault", href: "/vault", label: "Vault", icon: <Database /> },
   { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList /> },
   { id: "settings", href: "/settings", label: "Settings", icon: <Settings /> },
 ];
@@ -114,6 +115,10 @@ const NAV_ITEMS: NavItem[] = [
 const NEXT_URL = "/";
 const ADVANCED_SESSION_FIELD_NAMES = new Set(["host_url", "base_url", "api_url", "scopes"]);
 const LOGO_DEV_TOKEN = "pk_BhJg_kBbQPqNGuuWcNs9Cg";
+const INTERACTIVE_CARD_CLASS =
+  "cursor-pointer border-border/50 shadow-none transition-all hover:border-primary/60 hover:bg-primary/[0.03] hover:shadow-sm";
+const INTERACTIVE_ROW_CLASS =
+  "cursor-pointer transition-colors hover:bg-primary/[0.03] focus-visible:bg-primary/[0.03] focus-visible:outline-none";
 
 export function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
@@ -717,13 +722,13 @@ export function LoadingScreen() {
 export function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
-      <Card className="max-w-md shadow-sm">
+      <Card className="w-full max-w-md shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CircleAlert className="size-5 text-destructive" />
-            Dashboard Unavailable
+          <CardTitle className="flex items-start gap-2">
+            <CircleAlert className="mt-0.5 size-5 shrink-0 text-destructive" />
+            <span>Dashboard Unavailable</span>
           </CardTitle>
-          <CardDescription>The daemon did not return dashboard data.</CardDescription>
+          <CardDescription>The local daemon is not reachable. Start it again, then retry.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={onRetry} type="button">
@@ -935,7 +940,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
 function ProviderSummary({ provider }: { provider: ProviderView }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
+    <Link
+      className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3 transition-colors hover:border-primary/50 hover:bg-muted/50"
+      href={providerDetailHref(provider.name)}
+    >
       <div className="flex items-center gap-3">
         <ProviderLogo className="size-8" initial={provider.logoInitial} logo={provider.logo} />
         <div>
@@ -944,7 +952,7 @@ function ProviderSummary({ provider }: { provider: ProviderView }) {
         </div>
       </div>
       <StatusBadge status={provider.status} />
-    </div>
+    </Link>
   );
 }
 
@@ -962,7 +970,7 @@ function EmptyBlock({ actionLabel, href, title }: { actionLabel: string; href: s
 
 export function ProvidersView({ providers }: { providers: ProviderView[] }) {
   const [query, setQuery] = useState("");
-  const [dialogProvider, setDialogProvider] = useState<ProviderView | null>(null);
+  const [dialogProvider, setDialogProvider] = useState<NamedConnectionProvider | null>(null);
 
   const filteredProviders = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -1006,7 +1014,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
 
   return (
     <Card
-      className="flex h-full cursor-pointer flex-col border-border/50 shadow-none transition-all hover:border-border hover:bg-accent hover:shadow-sm"
+      className={cn("flex h-full flex-col", INTERACTIVE_CARD_CLASS)}
       onClick={() => router.push(providerDetailHref(provider.name))}
     >
       <CardHeader className="pb-3">
@@ -1022,10 +1030,10 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4 pt-0">
-        <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+        <p className="line-clamp-2 min-h-12 text-sm leading-relaxed text-muted-foreground">
           {provider.description || "Connect this provider to store and inject credentials from your Authsome vault."}
         </p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex min-h-7 flex-wrap content-start gap-1.5">
           <Badge variant="outline">{provider.authTypeLabel}</Badge>
           {provider.connectionCount ? (
             <Badge variant="outline">
@@ -1047,7 +1055,7 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
           ) : (
             <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
               <input name="connection" type="hidden" value="default" />
-              <input name="return_url" type="hidden" value={`/connections?provider=${provider.name}`} />
+              <input name="return_url" type="hidden" value="/connections" />
               <Button className="w-full" type="submit">
                 <LogIn />
                 Connect
@@ -1060,12 +1068,14 @@ function ProviderCard({ onNamedLogin, provider }: { onNamedLogin: () => void; pr
   );
 }
 
+type NamedConnectionProvider = Pick<ProviderView, "displayName" | "name">;
+
 function NamedConnectionDialog({
   onOpenChange,
   provider,
 }: {
-  onOpenChange: (provider: ProviderView | null) => void;
-  provider: ProviderView | null;
+  onOpenChange: (provider: NamedConnectionProvider | null) => void;
+  provider: NamedConnectionProvider | null;
 }) {
   const [connectionName, setConnectionName] = useState("");
 
@@ -1076,7 +1086,15 @@ function NamedConnectionDialog({
   }
 
   return (
-    <Dialog open={Boolean(provider)} onOpenChange={(open) => onOpenChange(open ? provider : null)}>
+    <Dialog
+      open={Boolean(provider)}
+      onOpenChange={(open) => {
+        if (!open) {
+          setConnectionName("");
+        }
+        onOpenChange(open ? provider : null);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Connection name</DialogTitle>
@@ -1088,7 +1106,7 @@ function NamedConnectionDialog({
           method="post"
           onSubmit={handleSubmit}
         >
-          <input name="return_url" type="hidden" value={provider ? `/connections?provider=${provider.name}` : NEXT_URL} />
+          <input name="return_url" type="hidden" value="/connections" />
           <label className="grid gap-2 text-sm">
             <span className="text-muted-foreground">Connection name</span>
             <Input
@@ -1122,15 +1140,8 @@ export function ConnectionsView({
   isAdmin: boolean;
   onRefresh: () => void;
 }) {
-  const [query, setQuery] = useState(() => {
-    if (initialFilter) {
-      return initialFilter;
-    }
-    if (typeof window === "undefined") {
-      return "";
-    }
-    return new URLSearchParams(window.location.search).get("provider") ?? "";
-  });
+  const router = useRouter();
+  const [query, setQuery] = useState(initialFilter ?? "");
   const filteredConnections = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return connections;
@@ -1170,23 +1181,39 @@ export function ConnectionsView({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredConnections.map((row) => (
-                  <TableRow key={`${row.providerName}:${row.connectionName}`}>
-                    <TableCell>
-                      <Link
-                        className="font-medium hover:underline underline-offset-4"
-                        href={connectionDetailHref(row.providerName, row.connectionName)}
-                      >
-                        {row.connectionName}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{row.providerDisplayName}</TableCell>
-                    <TableCell className="text-muted-foreground">{row.authTypeLabel}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={row.status} />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredConnections.map((row) => {
+                  const href = connectionDetailHref(row.providerName, row.connectionName);
+                  return (
+                    <TableRow
+                      className={INTERACTIVE_ROW_CLASS}
+                      key={`${row.providerName}:${row.connectionName}`}
+                      onClick={() => router.push(href)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          router.push(href);
+                        }
+                      }}
+                      role="link"
+                      tabIndex={0}
+                    >
+                      <TableCell>
+                        <Link
+                          className="font-medium hover:underline underline-offset-4"
+                          href={href}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {row.connectionName}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{row.providerDisplayName}</TableCell>
+                      <TableCell className="text-muted-foreground">{row.authTypeLabel}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={row.status} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (
@@ -1207,6 +1234,8 @@ function GlobalConnectionsSection({
   isAdmin: boolean;
   onRefresh: () => void;
 }) {
+  const router = useRouter();
+
   return (
     <Card className="shadow-none border-border/50">
       <CardHeader>
@@ -1226,31 +1255,46 @@ function GlobalConnectionsSection({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {connections.map((row) => (
-                <TableRow key={`${row.providerName}:${row.connectionName}`}>
-                  <TableCell>
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Globe2 className="size-4 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{row.connectionName}</div>
-                        {row.accountLabel ? (
-                          <div className="truncate text-xs text-muted-foreground">{row.accountLabel}</div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{row.providerDisplayName}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.authTypeLabel}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={row.status} />
-                  </TableCell>
-                  {isAdmin ? (
+              {connections.map((row) => {
+                const href = connectionDetailHref(row.providerName, row.connectionName);
+                return (
+                  <TableRow
+                    className={INTERACTIVE_ROW_CLASS}
+                    key={`${row.providerName}:${row.connectionName}`}
+                    onClick={() => router.push(href)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        router.push(href);
+                      }
+                    }}
+                    role="link"
+                    tabIndex={0}
+                  >
                     <TableCell>
-                      <RemoveGlobalConnectionButton onRefresh={onRefresh} provider={row.providerName} />
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Globe2 className="size-4 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{row.connectionName}</div>
+                          {row.accountLabel ? (
+                            <div className="truncate text-xs text-muted-foreground">{row.accountLabel}</div>
+                          ) : null}
+                        </div>
+                      </div>
                     </TableCell>
-                  ) : null}
-                </TableRow>
-              ))}
+                    <TableCell className="text-muted-foreground">{row.providerDisplayName}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.authTypeLabel}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={row.status} />
+                    </TableCell>
+                    {isAdmin ? (
+                      <TableCell onClick={(event) => event.stopPropagation()}>
+                        <RemoveGlobalConnectionButton onRefresh={onRefresh} provider={row.providerName} />
+                      </TableCell>
+                    ) : null}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         ) : (
@@ -1389,27 +1433,6 @@ export function PrincipalsView() {
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-export function VaultView({ data }: { data: DashboardData }) {
-  return (
-    <div className="grid gap-5">
-      <SectionHeader description="Credential namespace for this account." title="Vault" />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-none border-border/50">
-          <CardHeader>
-            <CardTitle>Default Vault</CardTitle>
-            <CardDescription>{data.vault.isDefault ? "Active for this account" : "Vault binding"}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <KeyValue label="Handle" value={data.vault.handle} />
-            <KeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
-            <KeyValue label="Principal ID" value={data.account.principalId || "-"} />
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
@@ -1742,7 +1765,7 @@ function SearchInput({
   value: string;
 }) {
   return (
-    <label className="relative block max-w-md">
+    <label className="relative block w-full">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         className="h-9 pl-9"
@@ -1820,9 +1843,16 @@ export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; 
   const initial = (displayName[0] || "?").toUpperCase();
   const description = data.provider.description || data.provider.metadata?.description || "";
   const showsConfiguration = data.provider.auth_type !== "api_key";
+  const [dialogProvider, setDialogProvider] = useState<NamedConnectionProvider | null>(null);
+  const hasDefaultConnection = data.connections.some((connection) => connection.connection_name === "default");
+  const dialogData = { displayName, name: data.provider.name };
 
   return (
     <div className="grid gap-6">
+      <Link className={cn(buttonVariants({ size: "sm" }), "w-fit")} href="/providers">
+        <ArrowLeft />
+        Back to providers
+      </Link>
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-6">
         <div className="flex items-center gap-4">
           <ProviderLogo className="size-12 shrink-0" initial={initial} logo={data.provider.logo || null} />
@@ -1833,15 +1863,23 @@ export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; 
             </p>
           </div>
         </div>
-        <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
-          <input name="connection" type="hidden" value="default" />
-          <input name="return_url" type="hidden" value={providerDetailHref(data.provider.name)} />
-          <Button type="submit">
+        {hasDefaultConnection ? (
+          <Button onClick={() => setDialogProvider(dialogData)} type="button">
             <LogIn />
             New connection
           </Button>
-        </form>
+        ) : (
+          <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
+            <input name="connection" type="hidden" value="default" />
+            <input name="return_url" type="hidden" value="/connections" />
+            <Button type="submit">
+              <LogIn />
+              New connection
+            </Button>
+          </form>
+        )}
       </div>
+      <NamedConnectionDialog onOpenChange={setDialogProvider} provider={dialogProvider} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid gap-5">
@@ -1920,16 +1958,12 @@ function ProviderConfigurationForm({ data, onRefresh }: { data: ProviderDetail; 
           </div>
         ) : null}
         {data.configuration_fields.map((field) => (
-          <label className="grid gap-2 text-sm" key={field.name}>
-            <span className="text-muted-foreground">{field.label}</span>
-            <Input
-              onChange={(event) => setValues((current) => ({ ...current, [field.name]: event.target.value }))}
-              pattern={field.pattern || undefined}
-              type="text"
-              value={values[field.name] || ""}
-            />
-            {field.pattern_hint ? <span className="text-xs text-muted-foreground">{field.pattern_hint}</span> : null}
-          </label>
+          <ConfigurationFieldInput
+            field={field}
+            key={field.name}
+            onChange={(value) => setValues((current) => ({ ...current, [field.name]: value }))}
+            value={values[field.name] || ""}
+          />
         ))}
         {message ? <div className="text-sm text-muted-foreground">{message}</div> : null}
         <Button disabled={saving} onClick={() => void save()} type="button">
@@ -2086,8 +2120,53 @@ export function AuthsomeConnectionDetail({
   );
 }
 
+function ConfigurationFieldInput({
+  field,
+  onChange,
+  value,
+}: {
+  field: ProviderDetail["configuration_fields"][number];
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const isSecret = field.secret;
+
+  return (
+    <label className="grid gap-2 text-sm">
+      <span className="text-muted-foreground">{field.label}</span>
+      <div className="flex items-center gap-2">
+        <Input
+          className="min-w-0 flex-1"
+          onChange={(event) => onChange(event.target.value)}
+          pattern={field.pattern || undefined}
+          type={isSecret && !revealed ? "password" : "text"}
+          value={value}
+        />
+        {isSecret ? (
+          <Button
+            aria-label={revealed ? "Hide secret" : "Reveal secret"}
+            onClick={() => setRevealed((current) => !current)}
+            size="icon"
+            type="button"
+            variant="outline"
+          >
+            {revealed ? <EyeOff /> : <Eye />}
+          </Button>
+        ) : null}
+      </div>
+      {field.pattern_hint ? <span className="text-xs text-muted-foreground">{field.pattern_hint}</span> : null}
+    </label>
+  );
+}
+
+function redactedValue(value: string): string {
+  return value.length <= 8 ? "********" : `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
 function SecretValue({ label, value }: { label: string; value: string | null }) {
   const [copied, setCopied] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   if (!value) return null;
 
   async function copy() {
@@ -2100,8 +2179,24 @@ function SecretValue({ label, value }: { label: string; value: string | null }) 
     <div className="grid gap-2">
       <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
       <div className="flex min-w-0 items-start gap-2 rounded-lg border bg-muted p-3">
-        <code className="min-w-0 flex-1 break-all text-xs">{value}</code>
-        <Button onClick={() => void copy()} size="icon-sm" type="button" variant="ghost">
+        <code className="min-w-0 flex-1 break-all text-xs">{revealed ? value : redactedValue(value)}</code>
+        <Button
+          aria-label={revealed ? "Hide secret" : "Reveal secret"}
+          onClick={() => setRevealed((current) => !current)}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
+          {revealed ? <EyeOff /> : <Eye />}
+        </Button>
+        <Button
+          aria-label="Copy secret"
+          disabled={!revealed}
+          onClick={() => void copy()}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
           {copied ? <Check /> : <Clipboard />}
         </Button>
       </div>
@@ -2120,6 +2215,10 @@ export function ConnectionDetailBody({
 }) {
   return (
     <div className="grid gap-6">
+      <Link className={cn(buttonVariants({ size: "sm" }), "w-fit")} href="/connections">
+        <ArrowLeft />
+        Back to connections
+      </Link>
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-6">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">{data.provider_display_name}</p>
@@ -2170,10 +2269,11 @@ function ConnectionActions({
   onRefresh: () => void;
   principal?: string;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [working, setWorking] = useState(false);
   const [globalWorking, setGlobalWorking] = useState(false);
-  const [globalMessage, setGlobalMessage] = useState("");
+  const [globalMessage, setGlobalMessage] = useState<{ text: string; tone: "error" | "success" } | null>(null);
 
   async function logout() {
     setWorking(true);
@@ -2181,20 +2281,29 @@ function ConnectionActions({
       await logoutConnection(data.provider, data.connection_name, principal);
       setOpen(false);
       onRefresh();
+      router.replace("/connections");
     } finally {
       setWorking(false);
     }
   }
 
-  async function makeGlobal() {
+  async function toggleGlobal() {
     setGlobalWorking(true);
-    setGlobalMessage("");
+    setGlobalMessage(null);
     try {
-      await setGlobalConnection(data.provider, data.connection_name);
-      setGlobalMessage("Global connection updated.");
+      if (data.is_global) {
+        await unsetGlobalConnection(data.provider);
+        setGlobalMessage({ text: "Global connection removed.", tone: "success" });
+      } else {
+        await setGlobalConnection(data.provider, data.connection_name);
+        setGlobalMessage({ text: "Global connection updated.", tone: "success" });
+      }
       onRefresh();
     } catch (error) {
-      setGlobalMessage(error instanceof Error ? error.message : "Global connection could not be updated.");
+      setGlobalMessage({
+        text: error instanceof Error ? error.message : "Global connection could not be updated.",
+        tone: "error",
+      });
     } finally {
       setGlobalWorking(false);
     }
@@ -2202,31 +2311,41 @@ function ConnectionActions({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        {data.can_set_default ? (
-          <form
-            action={`/api/connections/${encodeURIComponent(data.provider)}/${encodeURIComponent(data.connection_name)}/default`}
-            method="post"
-          >
-            <Button size="sm" type="submit" variant="outline">
-              Set as default
+      <div className="flex flex-col items-start gap-1 sm:items-end">
+        <div className="flex flex-wrap items-center gap-2">
+          {data.can_set_default ? (
+            <form
+              action={`/api/connections/${encodeURIComponent(data.provider)}/${encodeURIComponent(data.connection_name)}/default`}
+              method="post"
+            >
+              <Button size="sm" type="submit" variant="outline">
+                Set as default
+              </Button>
+            </form>
+          ) : null}
+          {data.can_set_global ? (
+            <Button disabled={globalWorking} onClick={() => void toggleGlobal()} type="button" variant="outline">
+              <Globe2 />
+              {data.is_global ? "Unset global" : "Make global"}
             </Button>
-          </form>
-        ) : null}
-        {data.can_set_global ? (
-          <Button disabled={globalWorking} onClick={() => void makeGlobal()} type="button" variant="outline">
-            <Globe2 />
-            Make global
+          ) : null}
+          <Link className={buttonVariants({ size: "sm", variant: "outline" })} href={providerDetailHref(data.provider)}>
+            View provider
+          </Link>
+          <Button onClick={() => setOpen(true)} size="sm" type="button" variant="destructive">
+            <LogOut />
+            Logout
           </Button>
-        ) : null}
-        {globalMessage ? <div className="text-sm text-muted-foreground">{globalMessage}</div> : null}
-        <Link className={buttonVariants({ size: "sm", variant: "outline" })} href={providerDetailHref(data.provider)}>
-          View provider
-        </Link>
-        <Button onClick={() => setOpen(true)} size="sm" type="button" variant="destructive">
-          <LogOut />
-          Logout
-        </Button>
+        </div>
+        <div
+          aria-live="polite"
+          className={cn(
+            "min-h-5 text-sm",
+            globalMessage?.tone === "success" ? "text-emerald-400" : "text-destructive"
+          )}
+        >
+          {globalMessage?.text}
+        </div>
       </div>
       <Dialog onOpenChange={setOpen} open={open}>
         <DialogContent>
@@ -2268,7 +2387,6 @@ function ActiveView({ connectionFilter, data, onRefresh, view }: {
   }
   if (view === "agents") return <AgentsView data={data} />;
   if (view === "principals") return <PrincipalsView />;
-  if (view === "vault") return <VaultView data={data} />;
   if (view === "audit") return <AuditView data={data} />;
   if (view === "settings") return <SettingsView data={data} />;
   return <DashboardView data={data} />;
