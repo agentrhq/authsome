@@ -147,7 +147,7 @@ class TestAuthServiceRefreshLogs:
         try:
             yield log
         finally:
-            log.shutdown()
+            await log.async_shutdown()
             await store.close()
 
     @pytest.fixture

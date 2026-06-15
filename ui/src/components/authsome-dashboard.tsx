@@ -81,7 +81,7 @@ function ActiveView({
   }
   if (view === "agents") return <AgentsView data={data} />;
   if (view === "principals") return <PrincipalsView />;
-  if (view === "audit" && data.account.isAdmin) return <AuditView data={data} />;
+  if (view === "audit") return <AuditView data={data} />;
   if (view === "settings") return <SettingsView data={data} />;
   return <DashboardView data={data} />;
 }

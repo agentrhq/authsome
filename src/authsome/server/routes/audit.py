@@ -1,8 +1,8 @@
 """Audit event routes."""
 
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from authsome import audit
 from authsome.identity.principal import PrincipalRole
@@ -19,10 +19,20 @@ router = APIRouter(prefix="/audit", tags=["audit"])
 async def list_audit_events(
     request: Request,
     limit: int = 50,
+    cursor: str | None = None,
     auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
 ) -> dict[str, Any]:
-    principal_id = None if auth.principal_role == PrincipalRole.ADMIN else auth.principal_id
-    return {"entries": await request.app.state.audit_log.list_events(limit=limit, principal_id=principal_id)}
+    effective_principal_id = None if auth.principal_role == PrincipalRole.ADMIN else auth.principal_id
+    scope: Literal["global", "principal"] = "global" if effective_principal_id is None else "principal"
+    try:
+        page = await request.app.state.audit_log.query_events(
+            limit=limit,
+            principal_id=effective_principal_id,
+            cursor=cursor,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    return {"entries": page.entries, "next_cursor": page.next_cursor, "scope": scope}
 
 
 @router.post("/events")

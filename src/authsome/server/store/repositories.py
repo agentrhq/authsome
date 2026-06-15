@@ -1,6 +1,8 @@
 """Typed repositories for server-owned relational Store records."""
 
 import asyncio
+import base64
+import binascii
 import builtins
 import json
 import threading
@@ -65,6 +67,42 @@ class AuditEventInsert:
     payload: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class AuditEventPage:
+    """Paged audit event query result."""
+
+    entries: list[dict[str, Any]]
+    next_cursor: str | None
+
+
+def _encode_audit_cursor(*, timestamp: str, event_id: str) -> str:
+    payload = json.dumps(
+        {"event_id": event_id, "timestamp": timestamp},
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+
+
+def _decode_audit_cursor(cursor: str) -> tuple[str, str]:
+    valid_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    if not cursor or any(char not in valid_chars for char in cursor):
+        raise ValueError("Invalid audit cursor")
+    try:
+        padded_cursor = cursor + "=" * (-len(cursor) % 4)
+        decoded = base64.urlsafe_b64decode(padded_cursor.encode("ascii")).decode("utf-8")
+        payload = json.loads(decoded)
+        if not isinstance(payload, dict):
+            raise ValueError
+        timestamp = payload.get("timestamp")
+        event_id = payload.get("event_id")
+        if not isinstance(timestamp, str) or not timestamp or not isinstance(event_id, str) or not event_id:
+            raise ValueError
+    except (binascii.Error, json.JSONDecodeError, UnicodeError, ValueError, TypeError):
+        raise ValueError("Invalid audit cursor") from None
+    return timestamp, event_id
+
+
 class AuditEventRegistry:
     """Relational audit event registry."""
 
@@ -96,21 +134,44 @@ class AuditEventRegistry:
                 ],
             )
 
-    async def list_recent(self, *, limit: int = 50, principal_id: str | None = None) -> list[dict[str, Any]]:
+    async def query_events(
+        self,
+        *,
+        limit: int = 50,
+        principal_id: str | None = None,
+        cursor: str | None = None,
+    ) -> AuditEventPage:
         bounded_limit = min(max(limit, 1), 500)
-        if principal_id is None:
-            rows = await self._db.fetch_all(
-                "SELECT payload_json FROM audit_events ORDER BY timestamp DESC, event_id DESC LIMIT ?",
-                [bounded_limit],
-            )
-        else:
-            rows = await self._db.fetch_all(
-                "SELECT payload_json FROM audit_events "
-                "WHERE principal_id = ? "
-                "ORDER BY timestamp DESC, event_id DESC LIMIT ?",
-                [principal_id, bounded_limit],
-            )
-        return [json.loads(row["payload_json"]) for row in rows]
+        conditions: list[str] = []
+        params: list[Any] = []
+
+        if principal_id is not None:
+            conditions.append("principal_id = ?")
+            params.append(principal_id)
+
+        if cursor:
+            cursor_timestamp, cursor_event_id = _decode_audit_cursor(cursor)
+            conditions.append("(timestamp < ? OR (timestamp = ? AND event_id < ?))")
+            params.extend([cursor_timestamp, cursor_timestamp, cursor_event_id])
+
+        where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+        rows = await self._db.fetch_all(
+            "SELECT event_id, timestamp, payload_json FROM audit_events"
+            f"{where_clause} "
+            "ORDER BY timestamp DESC, event_id DESC LIMIT ?",
+            [*params, bounded_limit + 1],
+        )
+        visible_rows = rows[:bounded_limit]
+        entries = [json.loads(row["payload_json"]) for row in visible_rows]
+        next_cursor = None
+        if len(rows) > bounded_limit and visible_rows:
+            last = visible_rows[-1]
+            next_cursor = _encode_audit_cursor(timestamp=last["timestamp"], event_id=last["event_id"])
+        return AuditEventPage(entries=entries, next_cursor=next_cursor)
+
+    async def list_recent(self, *, limit: int = 50, principal_id: str | None = None) -> list[dict[str, Any]]:
+        page = await self.query_events(limit=limit, principal_id=principal_id)
+        return page.entries
 
     def configure_exporter(self, loop: asyncio.AbstractEventLoop | None = None):
         """Configure the process OTel logger provider to export audit logs to Store."""
@@ -190,6 +251,10 @@ class _StoreAuditExporter(LogRecordExporter):
         self._closed = True
         self.force_flush()
 
+    def close(self) -> None:
+        self._closed = True
+        self._drop_finished_futures()
+
     def _is_loop_thread(self) -> bool:
         try:
             return asyncio.get_running_loop() is self._loop
@@ -256,8 +321,27 @@ class ServerAuditLog:
         self._exporter.force_flush()
 
     async def async_force_flush(self) -> None:
-        self._provider.force_flush()
+        await asyncio.to_thread(self._provider.force_flush)
         await self._exporter.async_force_flush()
+
+    async def async_shutdown(self) -> None:
+        await self.async_force_flush()
+        _delegating_audit_exporter.set_active(None)
+        self._exporter.close()
+
+    async def query_events(
+        self,
+        *,
+        limit: int = 50,
+        principal_id: str | None = None,
+        cursor: str | None = None,
+    ) -> AuditEventPage:
+        await self.async_force_flush()
+        return await self._registry.query_events(
+            limit=limit,
+            principal_id=principal_id,
+            cursor=cursor,
+        )
 
     async def list_events(self, *, limit: int = 50, principal_id: str | None = None) -> list[dict[str, Any]]:
         await self.async_force_flush()

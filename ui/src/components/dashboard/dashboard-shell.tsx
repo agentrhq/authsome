@@ -56,7 +56,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "connections", href: "/connections", label: "Connections", icon: <Link2 /> },
   { id: "agents", href: "/agents", label: "Agents", icon: <UserRound /> },
   { id: "principals", href: "/principal", label: "Principals", icon: <Users />, adminOnly: true },
-  { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList />, adminOnly: true },
+  { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList /> },
   { id: "settings", href: "/settings", label: "Settings", icon: <Settings /> },
 ];
 

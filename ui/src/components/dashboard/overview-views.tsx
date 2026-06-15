@@ -2,16 +2,17 @@
 
 import { UserRound } from "lucide-react";
 import Link from "next/link";
+import { useRef, useState } from "react";
 import useSWR from "swr";
 
 import { PageEmptyState, PageErrorState, PageLoadingState } from "@/components/dashboard/page-state";
 import { ProviderSummary } from "@/components/dashboard/provider-views";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DashboardData, PrincipalRow, fetchPrincipals } from "@/lib/authsome-api";
+import { DashboardData, PrincipalRow, fetchAuditEvents, fetchPrincipals } from "@/lib/authsome-api";
 
 export function DashboardView({ data }: { data: DashboardData }) {
   const recentEvents = data.audit.events.slice(0, 5);
@@ -182,12 +183,57 @@ export function PrincipalsView() {
 }
 
 export function AuditView({ data }: { data: DashboardData }) {
+  const [auditResult, setAuditResult] = useState<{
+    events: DashboardData["audit"]["events"];
+    nextCursor: string | null;
+  } | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const requestSequence = useRef(0);
+  const events = auditResult?.events ?? data.audit.events;
+  const nextCursor = auditResult?.nextCursor ?? data.audit.nextCursor;
+  const description = data.account.isAdmin
+    ? "Recent administrative and credential events."
+    : "Recent account, identity, vault, and credential events for this principal.";
+
+  function nextRequestId(): number {
+    requestSequence.current += 1;
+    return requestSequence.current;
+  }
+
+  function isLatestRequest(requestId: number): boolean {
+    return requestSequence.current === requestId;
+  }
+
+  async function loadMore() {
+    if (!nextCursor) return;
+    const requestId = nextRequestId();
+    setLoadingMore(true);
+    setErrorMessage("");
+    try {
+      const result = await fetchAuditEvents({ cursor: nextCursor, limit: 50 });
+      if (!isLatestRequest(requestId)) return;
+      setAuditResult({
+        events: [...events, ...result.events],
+        nextCursor: result.nextCursor,
+      });
+    } catch (error) {
+      if (!isLatestRequest(requestId)) return;
+      setErrorMessage(error instanceof Error ? error.message : "Failed to load more audit events.");
+    } finally {
+      if (isLatestRequest(requestId)) {
+        setLoadingMore(false);
+      }
+    }
+  }
+
   return (
     <div className="grid gap-5">
-      <SectionHeader description="Recent administrative and credential events." title="Audit Log" />
+      <SectionHeader description={description} title="Audit Log" />
+      {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
       <Card className="shadow-none border-border/50">
         <CardContent className="p-0">
-          {data.audit.events.length ? (
+          {events.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -199,7 +245,7 @@ export function AuditView({ data }: { data: DashboardData }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.audit.events.map((event) => (
+                {events.map((event) => (
                   <TableRow key={event.eventId}>
                     <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{event.time}</TableCell>
                     <TableCell className="font-medium">{event.event}</TableCell>
@@ -225,6 +271,13 @@ export function AuditView({ data }: { data: DashboardData }) {
           ) : <PageEmptyState title="No audit events found" />}
         </CardContent>
       </Card>
+      {nextCursor ? (
+        <div className="flex justify-center">
+          <Button disabled={loadingMore} onClick={() => void loadMore()} type="button" variant="outline">
+            {loadingMore ? "Loading..." : "Load more"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -49,6 +49,21 @@ authsome log              # Print recent audit events
 authsome log --json       # Output JSON format
 ```
 
+### User-scoped access
+
+`GET /api/audit/events` is role-aware. Admin principals can review the global audit log.
+Non-admin principals receive only events scoped to their own principal, including their
+claimed identities, vault, providers, and credential lifecycle activity.
+
+Supported query parameters:
+
+| Parameter | Description |
+| --- | --- |
+| `limit` | Number of events to return, clamped to the server maximum. |
+| `cursor` | Cursor returned by the previous page. |
+
+Results are sorted newest-first and include `next_cursor` when another page is available.
+
 ## Privacy and Secrets
 
 **What the log contains:**
