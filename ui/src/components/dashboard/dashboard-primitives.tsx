@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 const LOGO_DEV_TOKEN = "pk_BhJg_kBbQPqNGuuWcNs9Cg";
 
 export const INTERACTIVE_CARD_CLASS =
-  "cursor-pointer border-border/50 shadow-none transition-all hover:border-primary/60 hover:bg-primary/[0.03] hover:shadow-sm";
+  "cursor-pointer border border-border/50 shadow-none transition-all hover:border-primary/60 hover:bg-primary/[0.03] hover:shadow-sm";
 export const INTERACTIVE_ROW_CLASS =
   "cursor-pointer transition-colors hover:bg-primary/[0.03] focus-visible:bg-primary/[0.03] focus-visible:outline-none";
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { Globe2 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -89,13 +88,7 @@ export function ConnectionsView({
                       tabIndex={0}
                     >
                     <TableCell>
-                      <Link
-                        className="font-medium hover:underline underline-offset-4"
-                        href={href}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        {row.connectionName}
-                      </Link>
+                      <span className="font-medium">{row.connectionName}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{row.providerDisplayName}</TableCell>
                     <TableCell className="text-muted-foreground">{row.authTypeLabel}</TableCell>

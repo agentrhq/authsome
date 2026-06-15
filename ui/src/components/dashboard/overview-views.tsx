@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 
@@ -106,7 +106,6 @@ export function AgentsView({ data }: { data: DashboardData }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Agent</TableHead>
-                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -119,16 +118,6 @@ export function AgentsView({ data }: { data: DashboardData }) {
                         </span>
                         <span className="font-medium">{identity.handle}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {identity.isActive ? (
-                        <Badge className="border-emerald-800 bg-emerald-950/50 text-emerald-400" variant="outline">
-                          <CheckCircle2 />
-                          Active
-                        </Badge>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Inactive</span>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))}
