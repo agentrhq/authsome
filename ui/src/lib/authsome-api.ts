@@ -34,7 +34,7 @@ export type GlobalConnectionRow = ConnectionRow & {
   accountLabel: string | null;
 };
 
-export type IdentityRow = {
+export type AgentRow = {
   handle: string;
   isActive: boolean;
 };
@@ -57,15 +57,15 @@ export type DashboardData = {
     roleLabel: string | null;
     isAdmin: boolean;
     principalId: string | null;
-    identity: string | null;
+    agent: string | null;
   };
   stats: DashboardStats;
-  lastActivity: string;
+  latestTokenExpiry: string;
   providers: ProviderView[];
   connectedProviders: ProviderView[];
   connections: ConnectionRow[];
   globalConnections: GlobalConnectionRow[];
-  identities: IdentityRow[];
+  agents: AgentRow[];
   vault: {
     vaultId: string | null;
     handle: string;
@@ -450,7 +450,7 @@ function formatRelative(value: string | null | undefined): string | null {
   return direction === "in" ? `in ${label}` : `${label} ago`;
 }
 
-function lastActivity(data: ConnectionsResponse): string {
+function latestTokenExpiry(data: ConnectionsResponse): string {
   const latest = data.connections
     .flatMap((group) => group.connections)
     .map((connection) => connection.expires_at)
@@ -513,10 +513,10 @@ export async function fetchDashboard(): Promise<DashboardData> {
   const connections = buildConnectionRows(connectionsData, providers);
   const globalConnections = buildGlobalConnectionRows(connectionsData);
   const connectedProviders = providers.filter((provider) => provider.status !== "available");
-  const activeIdentity = whoami.identity || whoami.active_identity || null;
-  const identityHandles = new Set(identitiesData.identities.map((identity) => identity.handle));
-  if (activeIdentity) {
-    identityHandles.add(activeIdentity);
+  const activeAgent = whoami.identity || whoami.active_identity || null;
+  const agentHandles = new Set(identitiesData.identities.map((identity) => identity.handle));
+  if (activeAgent) {
+    agentHandles.add(activeAgent);
   }
 
   return {
@@ -526,7 +526,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
       roleLabel: roleLabel(whoami.principal_role),
       isAdmin,
       principalId: whoami.principal_id || null,
-      identity: activeIdentity,
+      agent: activeAgent,
     },
     stats: {
       connected: connectedProviders.length,
@@ -534,12 +534,12 @@ export async function fetchDashboard(): Promise<DashboardData> {
       oauth: connectedProviders.filter((provider) => provider.authType === "oauth2").length,
       apiKey: connectedProviders.filter((provider) => provider.authType === "api_key").length,
     },
-    lastActivity: lastActivity(connectionsData),
+    latestTokenExpiry: latestTokenExpiry(connectionsData),
     providers,
     connectedProviders: connectedProviders.slice(0, 6),
     connections,
     globalConnections,
-    identities: Array.from(identityHandles, (handle) => ({ handle, isActive: handle === activeIdentity })),
+    agents: Array.from(agentHandles, (handle) => ({ handle, isActive: handle === activeAgent })),
     vault: {
       vaultId: whoami.vault_id || null,
       handle: "default",

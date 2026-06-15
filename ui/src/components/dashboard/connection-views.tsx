@@ -122,7 +122,7 @@ function GlobalConnectionsSection({
     <Card className="shadow-none border-border/50">
       <CardHeader>
         <CardTitle>Global Connections</CardTitle>
-        <CardDescription>Deployment-wide fallback connections available to accepted identities.</CardDescription>
+        <CardDescription>Deployment-wide fallback connections available to accepted agents.</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
         {connections.length ? (

@@ -269,7 +269,7 @@ async def run(ctx_obj: ContextObj, command: tuple[str]) -> None:
 @click.command()
 @auth_command
 async def init(ctx_obj: ContextObj) -> None:
-    """Initialize local storage and register a fresh profile."""
+    """Initialize local storage and register a fresh agent."""
     home = get_authsome_config().home
     RuntimeIdentity.ensure_local(home)
 
@@ -280,7 +280,7 @@ async def init(ctx_obj: ContextObj) -> None:
     data = {
         "status": "initialized",
         "home": str(home),
-        "profile": identity.handle,
+        "agent": identity.handle,
         "did": identity.did,
         "registration_status": "registered",
         "configured_encryption_mode": whoami_data.get("configured_encryption_mode"),
@@ -319,10 +319,11 @@ async def whoami(ctx_obj: ContextObj) -> None:
         issues.append(f"connections: {exc}")
         vault_status = "ERROR"
 
+    agent = whoami_data.get("identity", whoami_data.get("active_identity"))
     data = {
         "authsome_version": whoami_data["version"],
         "home_directory": whoami_data["home"],
-        "profile": whoami_data.get("identity", whoami_data.get("active_identity")),
+        "agent": agent,
         "principal_id": whoami_data.get("principal_id"),
         "vault_id": whoami_data.get("vault_id"),
         "did": whoami_data.get("did"),

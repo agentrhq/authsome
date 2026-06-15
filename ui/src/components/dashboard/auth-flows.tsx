@@ -134,7 +134,7 @@ export function AuthsomeClaim({ token }: { token: string }) {
   if (!data) {
     return (
       <AuthFlowShell
-        description="Checking this identity claim."
+        description="Checking this agent claim."
         title="Loading claim"
       />
     );
@@ -156,7 +156,7 @@ export function AuthsomeClaim({ token }: { token: string }) {
   return (
     <AuthFlowShell
       description={`Confirm that ${data.identity} should be linked to ${data.email || "this account"}.`}
-      title="Claim identity"
+      title="Claim agent"
     >
       <form action={`/api/claim/${encodeURIComponent(token)}/confirm`} method="post">
         <Button className="w-full" type="submit">
