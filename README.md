@@ -29,7 +29,7 @@
 
 ---
 
-An open-source credential broker that sits between your agents and the services they call. Instead of sharing credentials with every agent, log in once via OAuth2 or API keys. Authsome stores credentials securely and injects them via an HTTP proxy. You get one place to manage access, rotate keys, and see what every agent is doing.
+An open-source credential gateway that sits between your agents and the services they call. Instead of sharing credentials with every agent, log in once via OAuth2 or API keys. Authsome stores credentials securely and injects them via an HTTP proxy. You get one place to manage access, rotate keys, and see what every agent is doing.
 
 Bundled providers out of the box — OAuth2 and API key. [See the full list](https://authsome.ai/docs/reference/bundled-providers).
 
