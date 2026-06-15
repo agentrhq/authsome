@@ -102,6 +102,11 @@ def _account_auth_next_url(value: Any) -> str:
     return next_url
 
 
+def _append_query(url: str, values: dict[str, str]) -> str:
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{urlencode(values)}"
+
+
 @router.post("/auth/providers/{provider_name}/connect", include_in_schema=False)
 async def connect_provider(  # noqa: PLR0913
     provider_name: str,
@@ -241,6 +246,35 @@ async def register_account(
     response = RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
     _set_ui_session_cookie(response, session.token, ui_sessions, server_base_url)
     return response
+
+
+@router.post("/auth/password", include_in_schema=False)
+async def change_account_password(request: Request) -> Response:
+    await resolve_ui_request_identity(request)
+    principal_id = getattr(request.state, "ui_principal_id", None)
+    form = await request.form()
+    next_url = _account_auth_next_url(form.get("next") or "/settings?tab=security")
+    if not principal_id:
+        return RedirectResponse(url=_account_auth_entry_url(next_url), status_code=status.HTTP_303_SEE_OTHER)
+
+    try:
+        await request.app.state.account_auth_service.change_password(
+            principal_id=principal_id,
+            current_password=str(form.get("current_password", "")),
+            new_password=str(form.get("new_password", "")),
+        )
+    except ValueError as exc:
+        return RedirectResponse(
+            url=_append_query(next_url, {"password_error": str(exc)}),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    audit.emit_event("account.password_changed", principal_id=principal_id, status="success")
+    capture_event(getattr(request.state, "ui_email", ""), "account_password_changed", {"principal_id": principal_id})
+    return RedirectResponse(
+        url=_append_query(next_url, {"password_changed": "1"}),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 @router.post("/auth/login", include_in_schema=False)

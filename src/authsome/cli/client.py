@@ -53,7 +53,7 @@ def raise_for_error(response: httpx.Response) -> None:
         try:
             data = response.json()
             if response.status_code == status.HTTP_401_UNAUTHORIZED and data.get("detail") == "Unknown identity handle":
-                raise err_mod.IdentityNotRegisteredError("current identity") from exc
+                raise err_mod.IdentityNotRegisteredError("current agent") from exc
             error_name = data.get("error")
             message = data.get("message")
             if error_name and message:
@@ -175,15 +175,15 @@ class AuthsomeApiClient:
                 self._open_claim_url(claim_url)
             await self._poll_claim_completion(runtime.handle)
         elif reg_status == "rejected":
-            raise RuntimeError(f"Identity '{runtime.handle}' claim was rejected by the server")
+            raise RuntimeError(f"Agent '{runtime.handle}' claim was rejected by the server")
 
     def _open_claim_url(self, claim_url: str) -> None:
-        print(f"Open this URL in your browser to claim this identity:\n  {claim_url}", file=sys.stderr)
+        print(f"Open this URL in your browser to claim this agent:\n  {claim_url}", file=sys.stderr)
         with suppress(Exception):
             webbrowser.open(claim_url)
 
     async def _poll_claim_completion(self, handle: str, *, timeout_seconds: int = 300) -> None:
-        print("Waiting for identity to be claimed...", file=sys.stderr)
+        print("Waiting for agent to be claimed...", file=sys.stderr)
         deadline = asyncio.get_running_loop().time() + timeout_seconds
         while True:
             status = await self.get_identity_status(handle)
@@ -191,9 +191,9 @@ class AuthsomeApiClient:
             if reg_status == "claimed":
                 return
             if reg_status == "rejected":
-                raise RuntimeError(f"Identity '{handle}' claim was rejected")
+                raise RuntimeError(f"Agent '{handle}' claim was rejected")
             if asyncio.get_running_loop().time() >= deadline:
-                raise TimeoutError(f"Timed out waiting for identity '{handle}' to be claimed")
+                raise TimeoutError(f"Timed out waiting for agent '{handle}' to be claimed")
             await asyncio.sleep(1)
 
     async def _get(self, path: str, *, protected: bool = True) -> dict[str, Any]:

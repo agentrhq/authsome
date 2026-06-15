@@ -73,9 +73,9 @@ Docs say default: `~/.authsome/logs/authsome.log`.
 
 ---
 
-### 1e. `profile` command exists but is not documented
+### 1e. Legacy `profile` command is removed
 
-`authsome profile` with subcommands `create` and `use` appears in the CLI but is absent from `docs/site/reference/cli.mdx`.
+The local signing-key command surface is `authsome agent create` and `authsome agent use`.
 
 ---
 
@@ -224,7 +224,7 @@ If the behavior differs for bundled vs. custom providers, the `--help` text shou
 | P1 | Fix `--quiet` — stop suppressing data output | Medium |
 | P1 | Fix `--force` on `register` — imply `--yes` or document split | Small |
 | P1 | Add `connection set-default` subgroup (or alias to match docs) | Small |
-| P1 | Document `profile` command, `shell` export format, corrected `--log-file` path | Small |
+| P1 | Document `shell` export format and corrected `--log-file` path | Small |
 | P2 | Resolve `inspect` vs `get` overlap — pick a clear model | Medium |
 | P2 | Add human-readable default to `inspect` and `daemon status` | Medium |
 | P2 | Fix `daemon stop` — wait for actual stop before returning | Medium |

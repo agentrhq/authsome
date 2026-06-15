@@ -121,7 +121,7 @@ export function ConnectionDetailBody({
             <KeyValue label="Status" value={data.status} />
             <KeyValue label="Auth Type" value={data.auth_type} />
             <KeyValue label="Principal ID" value={data.principal_id || "-"} />
-            <KeyValue label="Identity" value={data.identity || "-"} />
+            <KeyValue label="Agent" value={data.identity || "-"} />
             <KeyValue label="Scopes" value={data.scopes.join(", ") || "-"} />
             <KeyValue label="Token Type" value={data.token_type || "-"} />
             <KeyValue label="Obtained" value={data.obtained_at || "-"} />

@@ -45,23 +45,23 @@ export function DashboardView({ data }: { data: DashboardData }) {
         <div className="mb-4">
           <h2 className="text-base font-semibold">Agents</h2>
         </div>
-        {data.identities.length ? (
+        {data.agents.length ? (
           <div className="grid gap-2">
-            {data.identities.map((identity) => (
+            {data.agents.map((agent) => (
               <div
                 className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3"
-                key={identity.handle}
+                key={agent.handle}
               >
                 <div className="flex items-center gap-3">
                   <UserRound className="size-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{identity.handle}</span>
+                  <span className="text-sm font-medium">{agent.handle}</span>
                 </div>
-                {identity.isActive ? <Badge variant="outline">Active</Badge> : null}
+                {agent.isActive ? <Badge variant="outline">Active</Badge> : null}
               </div>
             ))}
           </div>
         ) : (
-          <PageEmptyState title="No identities found" />
+          <PageEmptyState title="No agents found" />
         )}
       </section>
 
@@ -102,7 +102,7 @@ export function AgentsView({ data }: { data: DashboardData }) {
       <SectionHeader description="Local Ed25519 key pairs (agents) claimed to this account." title="Agents" />
       <Card className="shadow-none border-border/50">
         <CardContent className="p-0">
-          {data.identities.length ? (
+          {data.agents.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -110,14 +110,14 @@ export function AgentsView({ data }: { data: DashboardData }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.identities.map((identity) => (
-                  <TableRow key={identity.handle}>
+                {data.agents.map((agent) => (
+                  <TableRow key={agent.handle}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
                           <UserRound className="size-3.5 text-muted-foreground" />
                         </span>
-                        <span className="font-medium">{identity.handle}</span>
+                        <span className="font-medium">{agent.handle}</span>
                       </div>
                     </TableCell>
                   </TableRow>

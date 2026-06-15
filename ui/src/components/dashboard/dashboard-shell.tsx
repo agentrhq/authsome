@@ -215,7 +215,7 @@ export function AppSidebar({
         </SidebarMenu>
         <SidebarSeparator />
         <div className="px-2 py-1">
-          <div className="truncate text-sm font-medium">{data.account.email || data.account.identity}</div>
+          <div className="truncate text-sm font-medium">{data.account.email || data.account.agent}</div>
           {data.account.roleLabel ? (
             <div className="mt-0.5 text-xs text-muted-foreground">{data.account.roleLabel}</div>
           ) : null}

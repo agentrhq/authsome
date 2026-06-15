@@ -98,3 +98,32 @@ async def test_login_rejects_wrong_password(tmp_path: Path) -> None:
             await service.login(email="dev@example.com", password="wrong-password")
     finally:
         await _close(store)
+
+
+@pytest.mark.asyncio
+async def test_change_password_requires_current_password_and_updates_login(tmp_path: Path) -> None:
+    service, store = await _service(tmp_path)
+
+    try:
+        principal = await service.register(email="dev@example.com", password="password-1")
+
+        with pytest.raises(ValueError, match="Invalid current password"):
+            await service.change_password(
+                principal_id=principal.principal_id,
+                current_password="wrong-password",
+                new_password="password-2",
+            )
+
+        await service.change_password(
+            principal_id=principal.principal_id,
+            current_password="password-1",
+            new_password="password-2",
+        )
+
+        with pytest.raises(ValueError, match="Invalid email or password"):
+            await service.login(email="dev@example.com", password="password-1")
+
+        session = await service.login(email="dev@example.com", password="password-2")
+        assert session.principal_id == principal.principal_id
+    finally:
+        await _close(store)

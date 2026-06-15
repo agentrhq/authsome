@@ -40,7 +40,8 @@ class TestWhoamiCommand:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["authsome_version"] == "1.2.3"
-        assert data["profile"] == "steady-wisely-boldly-0042"
+        assert data["agent"] == "steady-wisely-boldly-0042"
+        assert "profile" not in data
         assert data["principal_id"] == "principal_1"
         assert data["vault_id"] == "vault_default"
         assert data["vault_status"] == "OK"
@@ -90,7 +91,8 @@ class TestWhoamiCommand:
 
         assert result.exit_code == 0
         data = json.loads(result.output)
-        assert data["profile"] == "steady-wisely-boldly-0042"
+        assert data["agent"] == "steady-wisely-boldly-0042"
+        assert "profile" not in data
         assert data["vault_status"] == "ERROR"
         assert data["connected_providers_count"] == 0
         assert any("connections:" in issue for issue in data["issues"])

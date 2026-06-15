@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Authsome Dashboard",
-  description: "Local dashboard for Authsome identities, providers, and connections.",
+  description: "Local dashboard for Authsome agents, providers, and connections.",
 };
 
 export default function RootLayout({

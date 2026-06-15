@@ -244,7 +244,7 @@ async def test_unregistered_identity_registers_on_first_use(monkeypatch, tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_bootstrapped_identity_is_saved_as_active_profile(monkeypatch, tmp_path: Path) -> None:
+async def test_bootstrapped_identity_is_saved_as_active_agent(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     captured: dict = {}
 
@@ -322,7 +322,7 @@ async def test_env_identity_private_key_without_handle_errors(monkeypatch, tmp_p
 
 
 @pytest.mark.asyncio
-async def test_env_identity_does_not_update_active_profile(monkeypatch, tmp_path: Path) -> None:
+async def test_env_identity_does_not_update_active_agent(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     stored = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     ClientConfig(active_identity=stored.handle).save(tmp_path)
