@@ -21,6 +21,7 @@ def test_api_health_route_is_registered_once(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
 
     with create_server_test_client() as client:
-        api_health_routes = [route for route in client.app.router.routes if getattr(route, "path", "") == "/api/health"]
+        openapi = client.get("/openapi.json")
 
-    assert len(api_health_routes) == 1
+    assert openapi.status_code == status.HTTP_200_OK
+    assert list(openapi.json()["paths"]).count("/api/health") == 1

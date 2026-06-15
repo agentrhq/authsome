@@ -12,6 +12,9 @@ os.environ["AUTHSOME_HOME"] = _tmp_dir.name
 os.environ["AUTHSOME_BASE_URL"] = TEST_AUTHSOME_BASE_URL
 os.environ["AUTHSOME_ENV"] = "test"
 os.environ["AUTHSOME_DO_NOT_TRACK"] = "true"
+os.environ.pop("AUTHSOME_DATABASE_URL", None)
+os.environ.pop("DATABASE_URL", None)
+os.environ.pop("AUTHSOME_REDIS_URL", None)
 os.environ.pop("AUTHSOME_POSTHOG_API_KEY", None)
 os.environ.pop("POSTHOG_API_KEY", None)
 
@@ -26,6 +29,9 @@ def _disable_analytics(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AUTHSOME_BASE_URL", TEST_AUTHSOME_BASE_URL)
     monkeypatch.setenv("AUTHSOME_ENV", "test")
     monkeypatch.setenv("AUTHSOME_DO_NOT_TRACK", "true")
+    monkeypatch.delenv("AUTHSOME_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("AUTHSOME_REDIS_URL", raising=False)
     monkeypatch.delenv("AUTHSOME_POSTHOG_API_KEY", raising=False)
     monkeypatch.delenv("POSTHOG_API_KEY", raising=False)
     analytics.shutdown_posthog()
