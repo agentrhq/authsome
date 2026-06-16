@@ -12,16 +12,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { H4, Muted } from "@/components/ui/typography";
 import { DashboardData, PrincipalRow, fetchAuditEvents, fetchPrincipals } from "@/lib/authsome-api";
 
 export function DashboardView({ data }: { data: DashboardData }) {
   const recentEvents = data.audit.events.slice(0, 5);
 
   return (
-    <div className="grid gap-8">
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold">Connected Apps</h2>
+    <div className="grid gap-5">
+      <section aria-labelledby="connected-apps-heading">
+        <div className="mb-3 flex items-center justify-between">
+          <H4 id="connected-apps-heading">Connected Apps</H4>
           <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/providers">
             Browse
           </Link>
@@ -41,18 +42,18 @@ export function DashboardView({ data }: { data: DashboardData }) {
         )}
       </section>
 
-      <section>
-        <div className="mb-4">
-          <h2 className="text-base font-semibold">Agents</h2>
+      <section aria-labelledby="agents-heading">
+        <div className="mb-3">
+          <H4 id="agents-heading">Agents</H4>
         </div>
         {data.agents.length ? (
-          <div className="grid gap-2">
+          <div className="grid gap-1.5">
             {data.agents.map((agent) => (
               <div
-                className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3"
+                className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2.5"
                 key={agent.handle}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <UserRound className="size-4 text-muted-foreground" />
                   <span className="text-sm font-medium">{agent.handle}</span>
                 </div>
@@ -66,9 +67,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
       </section>
 
       {data.audit.canView && recentEvents.length > 0 ? (
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold">Recent Events</h2>
+        <section aria-labelledby="recent-events-heading">
+          <div className="mb-3 flex items-center justify-between">
+            <H4 id="recent-events-heading">Recent Events</H4>
             <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/audit">
               View all
             </Link>
@@ -82,8 +83,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                         {event.time}
                       </TableCell>
-                      <TableCell className="text-sm font-medium">{event.event}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{event.target}</TableCell>
+                      <TableCell className="font-medium">{event.event}</TableCell>
+                      <TableCell className="text-muted-foreground">{event.target}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -113,7 +114,7 @@ export function AgentsView({ data }: { data: DashboardData }) {
                 {data.agents.map((agent) => (
                   <TableRow key={agent.handle}>
                     <TableCell>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
                           <UserRound className="size-3.5 text-muted-foreground" />
                         </span>
@@ -158,11 +159,11 @@ export function PrincipalsView() {
                   <TableRow key={principal.principal_id}>
                     <TableCell className="font-medium">{principal.email || "-"}</TableCell>
                     <TableCell>
-                      <span className="font-mono text-xs text-muted-foreground">{principal.principal_id}</span>
+                      <code className="font-mono text-xs text-muted-foreground">{principal.principal_id}</code>
                     </TableCell>
                     <TableCell>
                       <Badge
-                        className={principal.role === "admin" ? "border-amber-800 bg-amber-950/50 text-amber-400" : ""}
+                        className={principal.role === "admin" ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-400" : ""}
                         variant="outline"
                       >
                         {principal.role}
@@ -230,7 +231,9 @@ export function AuditView({ data }: { data: DashboardData }) {
   return (
     <div className="grid gap-5">
       <SectionHeader description={description} title="Audit Log" />
-      {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p className="text-sm text-destructive" role="alert">{errorMessage}</p>
+      ) : null}
       <Card className="shadow-none border-border/50">
         <CardContent className="p-0">
           {events.length ? (
@@ -253,7 +256,7 @@ export function AuditView({ data }: { data: DashboardData }) {
                     <TableCell className="text-muted-foreground">{event.target}</TableCell>
                     <TableCell>
                       {event.status === "success" ? (
-                        <Badge className="border-emerald-800 bg-emerald-950/50 text-emerald-400" variant="outline">
+                        <Badge className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400" variant="outline">
                           {event.status}
                         </Badge>
                       ) : event.status === "failure" || event.status === "error" ? (

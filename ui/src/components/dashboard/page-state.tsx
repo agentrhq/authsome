@@ -36,9 +36,9 @@ export function PageEmptyState({
     : null;
 
   return (
-    <div className="rounded-lg border border-dashed bg-muted/40 p-8 text-center">
-      <div className="font-medium">{title}</div>
-      {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+    <div className="rounded-lg border border-dashed bg-muted/40 p-6 text-center">
+      <div className="text-sm font-medium">{title}</div>
+      {description ? <p className="mt-1 text-xs text-muted-foreground">{description}</p> : null}
       {action}
     </div>
   );
@@ -46,8 +46,8 @@ export function PageEmptyState({
 
 export function PageErrorState({ title }: { title: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-8 text-center text-sm text-destructive">
-      <CircleAlert className="size-4 shrink-0" />
+    <div className="flex items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-6 text-center text-sm text-destructive" role="alert">
+      <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
       {title}
     </div>
   );

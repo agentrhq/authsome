@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCircle2, CircleAlert, LogIn, Plus, UserRound } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, CheckCircle2, CircleAlert, LogIn, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -10,7 +11,6 @@ import { AuthFlowShell } from "@/components/dashboard/auth-flow-shell";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   SessionInputField,
   fetchAuthSessionStatus,
@@ -43,69 +43,117 @@ export function AuthsomeLogin({ nextPath = NEXT_URL }: { nextPath?: string }) {
     return tab === "register" ? "create" : "signin";
   });
 
+  const [mode, setMode] = useState<"signin" | "create">(defaultTab === "create" ? "create" : "signin");
+  const isSignIn = mode === "signin";
+
   return (
     <AuthFlowShell
-      description="Sign in to manage account access, connected providers, and credential vaults."
+      description="Manage credentials, connected providers, and agent access from a single dashboard."
       size="wide"
       title="Authsome"
     >
-      <Card className="border-border/70 shadow-none">
-        <CardHeader>
-          <CardTitle>Open Dashboard</CardTitle>
-          <CardDescription>Use your Authsome account to continue.</CardDescription>
+      <Card className="overflow-hidden border-border/50 shadow-lg shadow-black/5 dark:shadow-black/20">
+        <CardHeader className="space-y-1 pb-6">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15 }}
+            >
+              <CardTitle className="text-xl font-semibold tracking-tight">
+                {isSignIn ? "Sign in" : "Create account"}
+              </CardTitle>
+              <CardDescription className="mt-1">
+                {isSignIn
+                  ? "Enter your credentials to access the dashboard."
+                  : "Set up a new account to get started."}
+              </CardDescription>
+            </motion.div>
+          </AnimatePresence>
         </CardHeader>
-        <CardContent>
-          <Tabs className="gap-6" defaultValue={defaultTab}>
-            <TabsList className="grid h-9 w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign in</TabsTrigger>
-              <TabsTrigger value="create">Create account</TabsTrigger>
-            </TabsList>
-            <TabsContent className="grid gap-5" value="signin">
-              <div>
-                <h2 className="text-base font-semibold">Sign in</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Continue with an existing Authsome account.
-                </p>
-              </div>
-              {defaultTab === "signin" && errorMessage ? (
-                <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  <CircleAlert className="size-4 shrink-0" />
-                  {errorMessage}
+        <CardContent className="pb-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, x: isSignIn ? -12 : 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: isSignIn ? 12 : -12 }}
+              transition={{ duration: 0.2, ease: "easeInOut" as const }}
+            >
+              {errorMessage ? <ErrorBanner message={errorMessage} /> : null}
+              <form
+                action={isSignIn ? "/api/auth/login" : "/api/auth/register"}
+                className="grid gap-5"
+                method="post"
+              >
+                <input name="next" type="hidden" value={safeNextPath} />
+                <div className="grid gap-2">
+                  <label htmlFor="email" className="text-sm font-medium">
+                    Email
+                  </label>
+                  <Input
+                    id="email"
+                    autoComplete="email"
+                    className="h-10"
+                    name="email"
+                    placeholder="you@example.com"
+                    required
+                    type="email"
+                  />
                 </div>
-              ) : null}
-              <AccountForm
-                action="/api/auth/login"
-                autoComplete="current-password"
-                nextPath={safeNextPath}
-                submitIcon="login"
-                submitLabel="Sign in"
-              />
-            </TabsContent>
-            <TabsContent className="grid gap-5" value="create">
-              <div>
-                <h2 className="text-base font-semibold">Create account</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Set up a new account for this dashboard.
-                </p>
-              </div>
-              {defaultTab === "create" && errorMessage ? (
-                <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  <CircleAlert className="size-4 shrink-0" />
-                  {errorMessage}
+                <div className="grid gap-2">
+                  <label htmlFor="password" className="text-sm font-medium">
+                    Password
+                  </label>
+                  <Input
+                    id="password"
+                    autoComplete={isSignIn ? "current-password" : "new-password"}
+                    className="h-10"
+                    minLength={8}
+                    name="password"
+                    placeholder={isSignIn ? "Enter your password" : "Min. 8 characters"}
+                    required
+                    type="password"
+                  />
                 </div>
-              ) : null}
-              <AccountForm
-                action="/api/auth/register"
-                autoComplete="new-password"
-                nextPath={safeNextPath}
-                submitIcon="plus"
-                submitLabel="Create account"
-              />
-            </TabsContent>
-          </Tabs>
+                <Button className="mt-2 h-10 w-full text-sm font-semibold" type="submit" size="lg">
+                  {isSignIn ? "Sign in" : "Create account"}
+                  <ArrowRight className="size-4" />
+                </Button>
+              </form>
+            </motion.div>
+          </AnimatePresence>
+
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            {isSignIn ? "Don’t have an account?" : "Already have an account?"}{" "}
+            <button
+              type="button"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+              onClick={() => setMode(isSignIn ? "create" : "signin")}
+            >
+              {isSignIn ? "Create one" : "Sign in"}
+            </button>
+          </div>
         </CardContent>
       </Card>
     </AuthFlowShell>
+  );
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <motion.div
+      className="mb-1 flex items-center gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-3 text-sm text-destructive"
+      role="alert"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      transition={{ duration: 0.2 }}
+    >
+      <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+      {message}
+    </motion.div>
   );
 }
 
@@ -233,14 +281,14 @@ function AuthsomeSessionInput({ sessionId }: { sessionId: string }) {
       description="Enter the provider details required to continue this login flow."
       title={data.display_name}
     >
-      <form action={`/auth/input?session=${encodeURIComponent(sessionId)}`} className="grid gap-4" method="post">
+      <form action={`/auth/input?session=${encodeURIComponent(sessionId)}`} className="grid gap-3" method="post">
         {data.warning ? (
           <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
             {data.warning}
           </div>
         ) : null}
         {data.callback_url ? (
-          <label className="grid gap-2 text-sm">
+          <label className="grid gap-1.5 text-sm">
             <span className="text-muted-foreground">OAuth callback URL</span>
             <Input readOnly value={data.callback_url} />
           </label>
@@ -253,14 +301,14 @@ function AuthsomeSessionInput({ sessionId }: { sessionId: string }) {
             <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
               Advanced
             </summary>
-            <div className="mt-4 grid gap-4">
+            <div className="mt-3 grid gap-3">
               {advancedFields.map((field) => (
                 <SessionInputFieldControl field={field} key={field.name} />
               ))}
             </div>
           </details>
         ) : null}
-        <Button className="mt-2 w-full" type="submit">
+        <Button className="mt-1 w-full" type="submit">
           <LogIn />
           Continue
         </Button>
@@ -271,7 +319,7 @@ function AuthsomeSessionInput({ sessionId }: { sessionId: string }) {
 
 function SessionInputFieldControl({ field }: { field: SessionInputField }) {
   return (
-    <label className="grid gap-2 text-sm">
+    <label className="grid gap-1.5 text-sm">
       <span className="text-muted-foreground">{field.label}</span>
       <Input
         defaultValue={field.default || ""}
@@ -349,11 +397,12 @@ function AuthsomeSessionSuccess({ errorCode, sessionId }: { errorCode?: string; 
             className={cn(
               "flex size-10 shrink-0 items-center justify-center rounded-lg border",
               isCompleted
-                ? "border-emerald-800 bg-emerald-950/50 text-emerald-400"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400"
                 : isFailed
                   ? "border-destructive/40 bg-destructive/10 text-destructive"
-                  : "border-amber-800 bg-amber-950/40 text-amber-400",
+                  : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400",
             )}
+            aria-hidden="true"
           >
             {isCompleted ? <CheckCircle2 /> : <CircleAlert />}
           </div>
@@ -407,7 +456,7 @@ function AuthsomeSessionDevice({ sessionId }: { sessionId: string }) {
       description={`Use this code to finish signing in to ${data.display_name}.`}
       title="Device login"
     >
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center font-mono text-2xl font-semibold">
           {data.user_code}
         </div>
@@ -421,37 +470,5 @@ function AuthsomeSessionDevice({ sessionId }: { sessionId: string }) {
         </Link>
       </div>
     </AuthFlowShell>
-  );
-}
-
-function AccountForm({
-  action,
-  autoComplete,
-  nextPath,
-  submitIcon,
-  submitLabel,
-}: {
-  action: string;
-  autoComplete: "current-password" | "new-password";
-  nextPath: string;
-  submitIcon: "login" | "plus";
-  submitLabel: string;
-}) {
-  return (
-    <form action={action} className="grid gap-4" method="post">
-      <input name="next" type="hidden" value={nextPath} />
-      <label className="grid gap-2 text-sm">
-        <span className="text-muted-foreground">Email</span>
-        <Input autoComplete="email" name="email" required type="email" />
-      </label>
-      <label className="grid gap-2 text-sm">
-        <span className="text-muted-foreground">Password</span>
-        <Input autoComplete={autoComplete} minLength={8} name="password" required type="password" />
-      </label>
-      <Button className="mt-2 w-full" type="submit" variant={submitIcon === "plus" ? "outline" : "default"}>
-        {submitIcon === "plus" ? <Plus /> : <LogIn />}
-        {submitLabel}
-      </Button>
-    </form>
   );
 }

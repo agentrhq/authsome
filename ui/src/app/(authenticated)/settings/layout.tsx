@@ -6,7 +6,16 @@ import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 import useSWR from "swr";
 
-import { cn } from "@/lib/utils";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 import { fetchDashboard } from "@/lib/authsome-api";
 
 type SettingsNavItem = {
@@ -17,10 +26,10 @@ type SettingsNavItem = {
 };
 
 const SETTINGS_NAV: SettingsNavItem[] = [
-  { href: "/settings/general", label: "General", icon: <Settings2 className="size-4" /> },
-  { href: "/settings/principals", label: "Principals", icon: <Users className="size-4" />, adminOnly: true },
-  { href: "/settings/security", label: "Security", icon: <ShieldCheck className="size-4" /> },
-  { href: "/settings/about", label: "About", icon: <Info className="size-4" /> },
+  { href: "/settings/general", label: "General", icon: <Settings2 /> },
+  { href: "/settings/principals", label: "Principals", icon: <Users />, adminOnly: true },
+  { href: "/settings/security", label: "Security", icon: <ShieldCheck /> },
+  { href: "/settings/about", label: "About", icon: <Info /> },
 ];
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
@@ -30,31 +39,34 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
   const items = SETTINGS_NAV.filter((item) => !item.adminOnly || data?.account.isAdmin);
 
   return (
-    <div className="-ml-4 md:-ml-6 flex gap-4 min-h-full">
-      <nav className="w-40 shrink-0 border-r pl-4 md:pl-6 pr-3">
-        <ul className="grid gap-px">
-          {items.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                  )}
-                >
-                  {item.icon}
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-      <div className="flex-1 min-w-0">
+    <div className="-my-4 -mr-4 flex min-h-full">
+      <Sidebar
+        collapsible="none"
+        className="w-44 border-r"
+        style={{ "--sidebar-width": "11rem" } as React.CSSProperties}
+      >
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Settings</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {items.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      render={<Link href={item.href} />}
+                      isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+      <div className="flex-1 min-w-0 p-4">
         {children}
       </div>
     </div>
