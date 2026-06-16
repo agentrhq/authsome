@@ -179,14 +179,6 @@ async def get_protected_auth_service(
     return _build_service(request, ownership)
 
 
-async def get_admin_auth_service(
-    auth: CredentialService = Depends(get_protected_auth_service),
-) -> CredentialService:
-    if auth.principal_role != PrincipalRole.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
-    return auth
-
-
 async def get_daemon_or_browser_auth_service(request: Request) -> CredentialService:
     """Resolve auth from PoP headers or an existing browser dashboard session."""
     if request.headers.get("Authorization"):
