@@ -20,7 +20,7 @@ The child process never sees the raw secret.
     When the child makes an HTTP(S) call, mitmproxy decrypts and inspects the request. It looks at the destination host.
   </Step>
   <Step title="The proxy matches by api_url">
-    Authsome iterates the registered providers and matches the request host against each provider's `api_url` field. On a match, it asks the AuthLayer for fresh credentials (refreshing if necessary) and injects the right `Authorization` header.
+    Authsome iterates the registered providers and matches the request host against each provider's `api_url` field. On a match, it asks the daemon for fresh credentials (refreshing if necessary) and injects the right `Authorization` header.
   </Step>
   <Step title="The request is forwarded">
     The authenticated request goes to the external API. The response streams back through the proxy unchanged.

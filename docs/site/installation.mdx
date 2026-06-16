@@ -49,7 +49,7 @@ Authsome runs on Python 3.13 or newer. It ships as a single PyPI package with no
     Pin a version:
 
     ```bash
-    uvx authsome@0.2.4 --version
+    uvx authsome@0.7 --version
     ```
 
     Use `uvx` when you don't want a persistent install (sandboxed environments, one-off scripts). Every command shown in the rest of the docs as `authsome <subcommand>` works as `uvx authsome@latest <subcommand>` here.
@@ -87,15 +87,16 @@ On `authsome init`, authsome initializes its home directory at `~/.authsome/`, c
 
 ```text
 ~/.authsome/
-  config.json
-  audit.log
-  identities/<generated-handle>.json
-  identities/<generated-handle>.key
+  client/
+    config.json           active identity, proxy mode
+    logs/authsome.log
+    identities/<handle>.json
+    identities/<handle>.key
   server/
     master.key            mode 0600
-    kv_store/
-    identity_registry.json
-    daemon/
+    authsome.db           identity/principal/vault registries
+    kv_store/             encrypted credential blobs
+    logs/authsome.log
 ```
 
 On a fresh `init`, authsome resolves the master key source in this order:
@@ -113,7 +114,6 @@ export AUTHSOME_HOME=/var/lib/authsome
 authsome init
 ```
 
-
 ## Choose the encryption backend
 
 By default, authsome uses `encryption.mode = "auto"` and applies the precedence above. To pin the daemon to the local file or OS keychain instead, edit the Authsome config:
@@ -129,7 +129,7 @@ By default, authsome uses `encryption.mode = "auto"` and applies the precedence 
 
 Re-run `authsome doctor` to confirm the backend is reachable. The trade-offs are covered in [Encryption at rest](/security/encryption).
 
-Older installs that used the implicit `default` profile must run `authsome init` again. This release does not migrate credentials under old `profile:default:*` keys.
+Upgrading from releases before 0.4 (the old profile model) requires a fresh `authsome init` and re-login. Credentials under `profile:*` keys are not migrated automatically. See [Changelog](/changelog).
 
 ## Optional: trust the proxy CA
 

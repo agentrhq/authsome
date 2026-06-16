@@ -20,32 +20,24 @@ authsome run -- python -m <your_runner>
 
 The runner sees placeholder env vars. Outbound HTTPS to matched providers is authenticated at the proxy layer. This is the recommended path.
 
-## Embedding the library
+## Export when the proxy is not enough
 
-If you're wiring authsome into a larger orchestrator and want explicit per-call control, call the library directly from your agent code:
+If you need explicit env vars in the runner process:
 
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-
-github_token = auth.get_access_token("github")
-openai_key = auth.get_access_token("openai")
-
-# Pass to your runner's agent constructor however it expects credentials
-# (env vars, kwargs, config object: runner-specific).
+```bash
+eval "$(authsome export github --format env)"
+eval "$(authsome export openai --format env)"
+python -m <your_runner>
 ```
 
-Refresh is silent. The agent never holds an expired token long enough to matter.
-
-See [Python library](/reference/python-library) for the full surface.
+See [Python library](/reference/python-library) for the daemon HTTP API.
 
 ## When to use which
 
-| Use the proxy | Use the library |
-|----------------|------------------|
-| You want a single layer that catches every outbound call. | You want fine-grained control over which connection to use per agent. |
-| You're using third-party clients you can't easily modify. | The agent is yours and you can pass tokens directly. |
+| Use the proxy | Use export |
+|----------------|------------|
+| You want a single layer that catches every outbound call. | You need fine-grained control over which connection to use per agent. |
+| You're using third-party clients you can't easily modify. | The agent is yours and reads env vars directly. |
 | You need transparent injection for shell tools the agent spawns. | You don't spawn shell tools. |
 
 ## What's next
@@ -55,6 +47,6 @@ See [Python library](/reference/python-library) for the full surface.
     The proxy injection model.
   </Card>
   <Card title="Python library" icon="code" href="/reference/python-library">
-    `AuthService` and the auth-layer API.
+    the CLI export path or the daemon HTTP API.
   </Card>
 </Columns>

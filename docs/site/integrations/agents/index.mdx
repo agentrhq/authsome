@@ -9,7 +9,7 @@ Authsome is provider-side, not framework-side. It manages credentials for the se
 
 The supported pattern for every framework is the same: **wrap the agent invocation with `authsome run --`**. The local HTTP proxy intercepts outbound requests and injects the right `Authorization` header per provider. The agent's environment never contains real secrets.
 
-If your agent is Python-native and you're embedding authsome inside a larger orchestrator with custom storage or wiring, the library is available as a secondary surface. For everything else, the CLI and proxy are the right tools.
+If the proxy cannot intercept your SDK's traffic, use `authsome export` or the daemon HTTP API. See [Python library](/reference/python-library).
 
 This section has a page per agent framework with the install path, the proxy wiring, and any framework-specific notes.
 
@@ -29,7 +29,7 @@ This section has a page per agent framework with the install path, the proxy wir
     OpenCode CLI. Use the proxy or env-var export.
   </Card>
   <Card title="Cowork" icon="users" href="/integrations/agents/cowork">
-    Multi-agent runtime. Per-agent profiles isolate credentials.
+    Multi-agent runtime. Separate `AUTHSOME_HOME` directories isolate credentials.
   </Card>
   <Card title="Hermes Agent" icon="feather" href="/integrations/agents/hermes">
     Nous Research's self-improving agent. Installs the authsome skill via agentskills.io.
@@ -71,18 +71,9 @@ python my_agent.py
 
 Same vault, same refresh, but the key is in the agent's environment.
 
-### Embedding the library
+### Export or daemon API
 
-If you're building a larger Python orchestrator around authsome, you can drop below the CLI:
-
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-token = auth.get_access_token("github", connection="default")
-```
-
-This is the embedding case. For everything else, the proxy is simpler. See [Python library](/reference/python-library).
+If the proxy cannot intercept your SDK's traffic, use `authsome export` or the daemon HTTP API. See [Python library](/reference/python-library).
 
 ## Per-framework notes
 

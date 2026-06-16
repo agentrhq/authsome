@@ -106,26 +106,20 @@ Without authsome, agents inside Claude Code typically read tokens from environme
 
 `authsome run` is the recommended pattern for any Claude Code agent that calls third-party APIs. The child process never sees the real secret because the proxy injects headers at request time.
 
-## Embedding the library
+## Export when the proxy is not enough
 
-If you're orchestrating Claude Code from a larger Python program and want to inject credentials before launching Claude, you can drop below the skill into the library:
-
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-token = auth.get_access_token("github", connection="default")
-
-# pass `token` to your client of choice
+```bash
+eval "$(authsome export github --connection default --format env)"
+python my_agent.py
 ```
 
-Or use the proxy without library access:
+Or use the proxy without exporting:
 
 ```bash
 authsome run -- python my_agent.py
 ```
 
-The library is documented in [Python library reference](/reference/python-library).
+See [Python library reference](/reference/python-library) for the daemon HTTP API.
 
 ## Multi-account workflows
 
@@ -153,7 +147,6 @@ Claude runs:
 authsome get github --connection work --field access_token --show-secret
 ```
 
-
 ## What the skill cannot do
 
 - **It cannot type a `client_secret` for you.** Authsome refuses sensitive values as command-line arguments. The browser bridge is the only path.
@@ -166,7 +159,7 @@ If a Claude-driven login hangs:
 
 - Run `authsome doctor` directly from the terminal to surface initialization errors.
 - Run `authsome --verbose login <provider>` to see the full flow including the daemon round-trips.
-- Check `~/.authsome/audit.log` for the most recent action and outcome.
+- Run `authsome log` to inspect recent audit events from the daemon.
 
 For provider-specific errors, see [OAuth callbacks](/troubleshooting/oauth-callbacks) and [Token refresh](/troubleshooting/token-refresh).
 
@@ -177,7 +170,7 @@ For provider-specific errors, see [OAuth callbacks](/troubleshooting/oauth-callb
     The proxy injection model the skill uses under the hood.
   </Card>
   <Card title="Python library" icon="code" href="/reference/python-library">
-    Drop below the skill into `AuthService` for fine-grained control.
+    Use `authsome export` or the daemon HTTP API when the proxy is not enough.
   </Card>
   <Card title="All bundled providers" icon="plug" href="/reference/bundled-providers">
     Every service Claude can log you into out of the box.

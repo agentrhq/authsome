@@ -47,7 +47,7 @@ authsome get buffer --field status
 
 ## Use the key
 
-Run the agent under the proxy. The library tab is for embedding authsome inside a larger Python orchestrator.
+Run the agent under the proxy (recommended). 
 
 <CodeGroup>
 
@@ -58,13 +58,6 @@ authsome run -- python my_agent.py
 ```bash Environment
 eval "$(authsome export buffer --format env)"
 echo $BUFFER_API_KEY
-```
-
-```python Python library
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-key = auth.get_access_token("buffer", connection="default")
 ```
 
 </CodeGroup>
@@ -97,7 +90,6 @@ authsome inspect buffer > ~/.authsome/providers/buffer.json
 # edit fields
 authsome list   # source now shows "custom" for buffer
 ```
-
 
 ## What's next
 

@@ -94,7 +94,7 @@ GitHub doesn't support Dynamic Client Registration, so before your first `authso
   </Step>
 </Steps>
 
-You'll paste both values into authsome's local browser bridge on the next step. They're stored encrypted under your profile and reused on every subsequent login. They are never accepted as command-line arguments.
+You'll paste both values into authsome's local browser bridge on the next step. They're stored encrypted in your vault and reused on every subsequent login. They are never accepted as command-line arguments.
 
 ### Log in to a provider
 
@@ -114,7 +114,7 @@ You'll paste both values into authsome's local browser bridge on the next step. 
     </Frame>
   </Step>
   <Step title="Approve access on GitHub">
-    A second browser window opens to `https://github.com/login/oauth/authorize`. Click **Authorize** to grant the requested scopes (`repo` and `read:user` by default). GitHub exchanges the authorization for an OAuth access token, the callback lands on `http://127.0.0.1:7998/auth/callback/oauth`, and authsome stores the token encrypted under your profile. The terminal prints `Successfully logged in to github (default).`
+    A second browser window opens to `https://github.com/login/oauth/authorize`. Click **Authorize** to grant the requested scopes (`repo` and `read:user` by default). GitHub exchanges the authorization for an OAuth access token, the callback lands on `http://127.0.0.1:7998/auth/callback/oauth`, and authsome stores the token encrypted in your vault. The terminal prints `Successfully logged in to github (default).`
 
     The stored access token is what later commands inject. `client_id` and `client_secret` identify your OAuth app to GitHub; the access token is the user-level credential that makes API calls on your behalf. You don't need a separate PAT.
   </Step>
@@ -161,7 +161,6 @@ A minimal agent that uses both credentials you just set up: it stars `agentrhq/a
   import os
   import urllib.request
 
-
   def http(method: str, url: str, token: str, body: dict | None = None) -> dict | None:
       req = urllib.request.Request(
           url,
@@ -174,7 +173,6 @@ A minimal agent that uses both credentials you just set up: it stars `agentrhq/a
       with urllib.request.urlopen(req) as r:
           raw = r.read()
           return json.loads(raw) if raw else None
-
 
   # 1. Star agentrhq/authsome with your GitHub OAuth token.
   http(
@@ -237,7 +235,7 @@ What happens:
 
 <Steps>
   <Step title="Authsome registers a client">
-    Authsome POSTs to `https://mcp.notion.com/register` and Notion's OIDC server issues a fresh `client_id` and `client_secret`. They are stored encrypted under your profile.
+    Authsome POSTs to `https://mcp.notion.com/register` and Notion's OIDC server issues a fresh `client_id` and `client_secret`. They are stored encrypted in your vault.
   </Step>
   <Step title="Approve access in the browser">
     A browser window opens to `https://mcp.notion.com/authorize`. Click **Authorize** to grant access to your Notion workspace. The callback lands on `http://127.0.0.1:7998/auth/callback/oauth` and the terminal prints `Successfully logged in to notion_dcr (default).`

@@ -28,42 +28,21 @@ LlamaIndex's data readers cover dozens of services (Notion, Confluence, Slack, G
 
 For services not bundled, see [Custom providers](/guides/custom-providers).
 
-## Embedding the library
+## Export when the proxy is not enough
 
-If you're building a larger orchestrator around LlamaIndex and need explicit per-call control:
-
-```python
-from authsome.server.dependencies import create_auth_service
-from llama_index.core import Settings
-from llama_index.llms.openai import OpenAI
-from llama_index.readers.github import GithubRepositoryReader, GithubClient
-
-auth = create_auth_service()
-
-Settings.llm = OpenAI(api_key=auth.get_access_token("openai"))
-
-reader = GithubRepositoryReader(
-    github_client=GithubClient(auth.get_access_token("github")),
-    owner="agentrhq",
-    repo="authsome",
-)
-docs = reader.load_data(branch="main")
+```bash
+eval "$(authsome export openai --format env)"
+eval "$(authsome export github --format env)"
+python my_index.py
 ```
 
-Refresh is silent. Re-call `get_access_token` if your process lives long enough to outlast a token's TTL.
+LlamaIndex clients read the exported env vars as usual.
 
 ## Multi-account
 
-```python
-docs_personal = reader_personal.load_data()
-docs_work = reader_work.load_data()
-```
-
-with:
-
-```python
-auth.get_access_token("github", connection="personal")
-auth.get_access_token("github", connection="work")
+```bash
+eval "$(authsome export github --connection personal --format env)"
+eval "$(authsome export github --connection work --format env)"
 ```
 
 See [Multiple connections per provider](/guides/multiple-connections).
@@ -72,7 +51,7 @@ See [Multiple connections per provider](/guides/multiple-connections).
 
 <Columns cols={2}>
   <Card title="Python library" icon="code" href="/reference/python-library">
-    `AuthService` and the auth-layer API.
+    the CLI export path or the daemon HTTP API.
   </Card>
   <Card title="Custom providers" icon="puzzle-piece" href="/guides/custom-providers">
     Add a data-source provider authsome doesn't ship.

@@ -1,44 +1,48 @@
 ---
 title: "Diagnose with `doctor`"
-description: "Run health checks on directory layout, encryption, and provider parsing, and read the output."
+description: "Run health checks on the daemon, vault, and provider parsing, and read the output."
 ---
 
-`authsome doctor` is the first command to run when something looks wrong. It walks the home directory layout, verifies encryption is available, and parses every provider definition.
+`authsome doctor` is the first command to run when something looks wrong. It calls the daemon's `/api/ready` endpoint and reports subsystem status as JSON.
 
 ```bash
 authsome doctor
 ```
 
-A healthy machine prints `OK` for each check and exits with code `0`.
+A healthy machine returns `"status": "ready"` and exits with code `0`.
 
 ## Checks performed
 
 | Check | What it verifies |
 |-------|------------------|
-| Home directory | `~/.authsome` (or `AUTHSOME_HOME`) exists and is readable. |
-| Master key | `master.key` exists with mode `0600`, or the OS keyring is reachable. |
-| Profile store | `profiles/<active>/store.db` opens and is writable. |
-| Lock file | `profiles/<active>/lock` is acquirable. |
-| Provider parsing | Every JSON in `bundled_providers/` and `~/.authsome/providers/` validates against the schema. |
-| Audit log | `audit.log` is writable. |
+| `store` | The relational store (SQLite or Postgres) opens and passes a health probe. |
+| `vault` | The encrypted KV store accepts a read/write roundtrip. |
+| `integrity` | Vault integrity check succeeds for the active identity. |
+| `identity` | The caller's identity is registered and authorized. |
+| `providers` | Every bundled and custom provider definition parses. |
+| `connections` | Connection records for the active vault load successfully. |
+| `spec_version` | Server config schema version matches. |
+| `redis` | Present only when `AUTHSOME_REDIS_URL` is set; pings the Redis backend. |
+
+Non-fatal observations appear in `warnings` (for example, no active provider connections yet). Fatal problems appear in `issues` and set `"status": "not_ready"`.
 
 ## Common failures
 
 <AccordionGroup>
   <Accordion title="master.key not found" icon="key">
     ```text
-    [FAIL] Master key not found at ~/.authsome/server/master.key
+    vault: Master key not found at ~/.authsome/server/master.key
     ```
 
     Causes:
 
     - You haven't initialized authsome on this machine. Run `authsome init` to provision the home directory, identity, and master key.
-    - You moved or deleted `~/.authsome`. If you have a backup, restore it. Without the master key, encrypted records cannot be decrypted.
+    - You moved or deleted `~/.authsome/server/`. If you have a backup, restore it. Without the master key, encrypted records cannot be decrypted.
   </Accordion>
 
   <Accordion title="master.key has insecure permissions" icon="lock-open">
     ```text
-    [FAIL] ~/.authsome/server/master.key has mode 0644 (expected 0600)
+    vault: ~/.authsome/server/master.key has mode 0644 (expected 0600)
     ```
 
     Fix:
@@ -48,9 +52,9 @@ A healthy machine prints `OK` for each check and exits with code `0`.
     ```
   </Accordion>
 
-  <Accordion title="provider <name> failed to parse" icon="file-exclamation">
+  <Accordion title="provider failed to parse" icon="file-exclamation">
     ```text
-    [FAIL] Provider 'acmecrm' failed to parse: missing required field 'token_url'
+    providers: Provider 'acmecrm' failed to parse: missing required field 'token_url'
     ```
 
     A custom provider JSON in `~/.authsome/providers/` is malformed. Open the file, fix the indicated field, and re-run.
@@ -58,32 +62,29 @@ A healthy machine prints `OK` for each check and exits with code `0`.
 
   <Accordion title="keyring not available" icon="vault">
     ```text
-    [FAIL] Encryption mode is 'keyring' but no keyring backend is available
+    vault: Encryption mode is 'keyring' but no keyring backend is available
     ```
 
     Causes:
 
-    - On Linux without a graphical session, the `keyring` library can't reach a backend. Switch to `local_key` mode by editing `~/.authsome/config.json`:
-
-      ```json
-      { "encryption": { "mode": "local_key" } }
-      ```
-
+    - On Linux without a graphical session, the `keyring` library can't reach a backend. Switch to local file mode by editing `~/.authsome/client/config.json` or setting `AUTHSOME_MASTER_KEY`.
     - A required system package is missing. On Debian/Ubuntu: `sudo apt install gnome-keyring`.
   </Accordion>
 
-  <Accordion title="profile store locked" icon="lock">
+  <Accordion title="identity not registered" icon="user">
     ```text
-    [FAIL] Could not acquire lock on profiles/default/lock
+    identity: Unknown identity handle
     ```
 
-    Another authsome process is mid-write. Wait a few seconds and retry. If a stale lock persists (the previous process crashed):
+    Run `authsome init` to create a local identity, then complete the Principal claim flow at the URL the daemon prints.
+  </Accordion>
 
-    ```bash
-    rm ~/.authsome/profiles/default/lock
+  <Accordion title="daemon unreachable" icon="server">
+    ```text
+    Could not connect to daemon at http://127.0.0.1:7998
     ```
 
-    Only do this when you are certain no other authsome process is running.
+    The daemon is not running or `AUTHSOME_BASE_URL` points somewhere wrong. See [Daemon issues](/troubleshooting/daemon-issues).
   </Accordion>
 </AccordionGroup>
 
@@ -95,10 +96,10 @@ For deeper inspection of any command, enable verbose logging:
 authsome --verbose login github
 ```
 
-DEBUG logs go to stderr and to the rotating log file at `~/.authsome/logs/authsome.log`. Inspect the log:
+DEBUG logs go to stderr and to the rotating log file at `~/.authsome/client/logs/authsome.log`. Inspect the log:
 
 ```bash
-tail -f ~/.authsome/logs/authsome.log
+tail -f ~/.authsome/client/logs/authsome.log
 ```
 
 ## Reset to a clean slate
@@ -107,7 +108,7 @@ If your install is irrecoverably broken and you don't have any credentials to pr
 
 ```bash
 rm -rf ~/.authsome
-authsome whoami     # triggers re-initialization
+authsome init
 ```
 
 This destroys every stored credential. You will need to log in to every provider again.

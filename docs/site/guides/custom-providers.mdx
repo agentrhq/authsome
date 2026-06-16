@@ -169,7 +169,7 @@ authsome login acmecrm
 authsome get acmecrm --field status   # → connected
 ```
 
-For OAuth2 providers without DCR, authsome opens a local browser form on first login to collect `client_id` and `client_secret`. They are stored encrypted under the active profile and reused on every subsequent login. They are never accepted as command-line arguments.
+For OAuth2 providers without DCR, authsome opens a local browser form on first login to collect `client_id` and `client_secret`. They are stored encrypted in the active vault and reused on every subsequent login. They are never accepted as command-line arguments.
 
 ## Multi-tenant providers
 

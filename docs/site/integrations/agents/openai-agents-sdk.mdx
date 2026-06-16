@@ -17,22 +17,12 @@ authsome run -- python my_agent.py
 
 The Agents SDK initializes with `OPENAI_API_KEY=authsome-proxy-managed`. Outbound requests to `api.openai.com` are intercepted and authenticated at the proxy layer. The agent's process never sees the real key.
 
-## Alternative: pass the key explicitly
+## Alternative: export into the environment
 
-```python
-from authsome.server.dependencies import create_auth_service
-from openai import AsyncOpenAI
-from agents import Agent, Runner, set_default_openai_client
-
-auth = create_auth_service()
-client = AsyncOpenAI(api_key=auth.get_access_token("openai"))
-set_default_openai_client(client)
-
-agent = Agent(name="my-agent", instructions="...")
-result = await Runner.run(agent, "do the thing")
+```bash
+eval "$(authsome export openai --format env)"
+python my_agent.py
 ```
-
-Use this when you need to control which connection the SDK uses, or when the proxy isn't an option.
 
 ## Multi-account workflows
 
@@ -41,11 +31,8 @@ authsome login openai --connection personal
 authsome login openai --connection team
 ```
 
-Through the proxy, set the default with `--force`. In code, pass `connection=`:
-
-```python
-key = auth.get_access_token("openai", connection="team")
-client = AsyncOpenAI(api_key=key)
+```bash
+eval "$(authsome export openai --connection team --format env)"
 ```
 
 ## Tools that hit other providers

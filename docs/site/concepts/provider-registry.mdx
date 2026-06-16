@@ -46,7 +46,7 @@ For full templates and the field-by-field schema. For a worked OAuth example usi
 
 ## Bundled providers do not imply bundled credentials
 
-A bundled provider definition only describes how to talk to a service. It does not include OAuth client credentials. The first time you log in to an OAuth2 provider, authsome collects your `client_id` and `client_secret` through a secure browser bridge and stores them encrypted in your profile.
+A bundled provider definition only describes how to talk to a service. It does not include OAuth client credentials. The first time you log in to an OAuth2 provider, authsome collects your `client_id` and `client_secret` through a secure browser bridge and stores them encrypted in your vault.
 
 For services that support Dynamic Client Registration (DCR), the `dcr_pkce` flow registers a fresh OAuth client automatically, no `client_id` collection needed.
 
@@ -64,7 +64,7 @@ For services where the base URL varies per deployment (GitHub Enterprise, Okta, 
 }
 ```
 
-During `authsome login`, the user is prompted for the base URL with the JSON value as the default. A custom base URL is saved to the profile and used for all future token refreshes on that connection.
+During `authsome login`, the user is prompted for the base URL with the JSON value as the default. A custom base URL is saved to the vault and used for all future token refreshes on that connection.
 
 ## Adding your own providers
 

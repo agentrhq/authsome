@@ -38,30 +38,21 @@ print(r.json())
 
 No authsome import in the script. The proxy does the work. This is the recommended path for almost every script.
 
-## Embedding the library
+## Export when the proxy is not enough
 
-When you're wiring authsome into a larger Python orchestrator and want per-call connection selection or programmatic access to connection metadata:
+When you need to pass tokens explicitly (TLS-pinned SDKs, non-HTTP protocols, or per-call connection selection):
 
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-
-openai_key = auth.get_access_token("openai", connection="default")
-github_token = auth.get_access_token("github", connection="work")
-
-import httpx
-r = httpx.get(
-    "https://api.openai.com/v1/models",
-    headers={"Authorization": f"Bearer {openai_key}"},
-)
+```bash
+eval "$(authsome export openai --format env)"
+eval "$(authsome export github --connection work --format env)"
+python my_script.py
 ```
 
-Refresh is silent. Re-call `get_access_token` if your process outlives a token TTL. See [Python library](/reference/python-library) for the full surface.
+See [Python library](/reference/python-library) for the daemon HTTP API when building custom orchestration.
 
 ## When the proxy isn't enough
 
-The library is the right tool when:
+The export path is the right tool when:
 
 - The SDK pins TLS certificates and refuses to trust the mitmproxy CA.
 - You're using non-HTTP protocols (WebSockets, gRPC over HTTP/2, raw TCP) that the proxy can't intercept.
@@ -72,9 +63,9 @@ Otherwise, the proxy is simpler.
 
 ## Multi-account
 
-```python
-auth.get_access_token("github", connection="personal")
-auth.get_access_token("github", connection="work")
+```bash
+authsome export github --connection personal --format env
+authsome export github --connection work --format env
 ```
 
 See [Multiple connections per provider](/guides/multiple-connections).

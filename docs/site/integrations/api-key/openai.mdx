@@ -56,7 +56,7 @@ authsome get openai --field status
 
 ## Use the key
 
-Run the agent under the proxy. The library tab is for embedding authsome inside a larger Python orchestrator.
+Run the agent under the proxy (recommended). 
 
 <CodeGroup>
 
@@ -67,21 +67,6 @@ authsome run -- python my_agent.py
 ```bash Environment
 eval "$(authsome export openai --format env)"
 echo $OPENAI_API_KEY     # sk-...
-```
-
-```python Python library
-from authsome.server.dependencies import create_auth_service
-from openai import OpenAI
-
-auth = create_auth_service()
-key = auth.get_access_token("openai", connection="default")
-
-client = OpenAI(api_key=key)
-resp = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "ping"}],
-)
-print(resp.choices[0].message.content)
 ```
 
 </CodeGroup>

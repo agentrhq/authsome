@@ -59,7 +59,7 @@ authsome remove <provider>
 authsome login <provider>
 ```
 
-`remove` deletes provider state for the current profile, including any stored OAuth client credentials. The provider definition (bundled or custom) is unaffected. The next `login` triggers the browser form to collect fresh values.
+`remove` deletes provider state for the current vault, including any stored OAuth client credentials. The provider definition (bundled or custom) is unaffected. The next `login` triggers the browser form to collect fresh values.
 
 ## Provider not connected at all
 
@@ -74,7 +74,7 @@ If the provider isn't in the bundled set, register a custom definition first. Se
 ## Still failing
 
 - Run `authsome --verbose login <provider>` to surface the full daemon round-trip and the exact provider response.
-- Check `~/.authsome/audit.log` for the most recent action and outcome.
+- Run `authsome log` to inspect recent audit events from the daemon.
 - See [Diagnose with doctor](/troubleshooting/doctor) for installation-level checks.
 - For HTTPS / TLS errors specifically, see [Proxy networking](/troubleshooting/proxy-networking).
 - For token-refresh internals, see [Token refresh](/troubleshooting/token-refresh).

@@ -75,7 +75,6 @@ If you do want a hosted daemon and it's unreachable, the fix is on the daemon ho
 - `AUTHSOME_BASE_URL` on the daemon matches the URL you're calling.
 - Ingress is allowed from your client's network (private VPC, VPN, or whatever the team uses).
 
-
 ## Login was interrupted by a daemon restart
 
 Active auth sessions live in the daemon's memory. A restart loses them. The provider may or may not have accepted the authorization on its side. Re-run the login:

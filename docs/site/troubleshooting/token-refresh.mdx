@@ -3,7 +3,7 @@ title: "Token refresh failures"
 description: "Diagnose why a stored OAuth2 token failed to refresh and recover the connection."
 ---
 
-Authsome refreshes OAuth2 access tokens automatically. When you ask for a token (via `authsome get`, `export`, `run`, or the library `AuthLayer`), authsome checks the stored expiry. If the token is within ~5 minutes of expiring, it calls the provider's token endpoint with the stored refresh token, writes the fresh credentials back to the vault, and returns the new access token.
+Authsome refreshes OAuth2 access tokens automatically. When you ask for a token (via `authsome get`, `export`, `run`, or the daemon API), authsome checks the stored expiry. If the token is within ~5 minutes of expiring, it calls the provider's token endpoint with the stored refresh token, writes the fresh credentials back to the vault, and returns the new access token.
 
 When refresh fails, the connection moves into one of two states.
 
@@ -39,7 +39,7 @@ When refresh fails, the connection moves into one of two states.
     Error: refresh failed for <provider>: invalid_client
     ```
 
-    The OAuth client credentials stored under your profile no longer match the provider. This usually means the OAuth app's client secret was rotated.
+    The OAuth client credentials stored in your vault no longer match the provider. This usually means the OAuth app's client secret was rotated.
 
     ```bash
     authsome revoke <provider>

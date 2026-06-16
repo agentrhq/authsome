@@ -68,7 +68,7 @@ In CI, you can capture the authorization URL and code from the command output an
 authsome login github --flow device_code 2>&1 | tee login.log
 ```
 
-The login command waits until the device flow either completes, expires, or is cancelled. For unattended CI you typically log in once on a developer machine and then commit the encrypted profile (or, more often, run the agent only on machines that already have an authenticated profile).
+The login command waits until the device flow either completes, expires, or is cancelled. For unattended CI you typically log in once on a developer machine and then copy the encrypted vault data (or, more often, run the agent only on machines that already have an authenticated vault).
 
 ## API key providers
 

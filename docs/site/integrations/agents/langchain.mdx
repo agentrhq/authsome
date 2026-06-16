@@ -31,38 +31,26 @@ search = SerpAPIWrapper()
 
 For tools that authsome doesn't bundle, add a [custom provider](/guides/custom-providers) so the proxy can match by host.
 
-## Embedding the library
+## Export when the proxy is not enough
 
-If you're building a larger orchestrator around LangChain and need to pass tokens explicitly (different connection per call, or TLS-pinned SDKs that bypass the proxy), drop down to the library:
+If you're building a larger orchestrator around LangChain and need to pass tokens explicitly (different connection per call, or TLS-pinned SDKs that bypass the proxy), export credentials first:
 
-```python
-from authsome.server.dependencies import create_auth_service
-from langchain_openai import ChatOpenAI
-from langchain_community.tools.github.tool import GitHubAction
-
-auth = create_auth_service()
-
-llm = ChatOpenAI(
-    api_key=auth.get_access_token("openai"),
-    model="gpt-4o-mini",
-)
-
-github = GitHubAction(
-    github_access_token=auth.get_access_token("github"),
-)
+```bash
+eval "$(authsome export openai --format env)"
+eval "$(authsome export github --format env)"
 ```
 
-Refresh is transparent. Construct the clients once per request rather than caching them across long-running processes if your tokens have short TTLs.
+Then construct LangChain clients as usual — they read the exported env vars.
 
 ## Async clients
 
-`AsyncChatOpenAI` and other async wrappers work identically. Authsome's auth layer is synchronous; if you do use the library, call `get_access_token` once at client construction and pass the value in.
+`AsyncChatOpenAI` and other async wrappers work identically under `authsome run`.
 
 ## Multi-account workflows
 
-```python
-work = auth.get_access_token("github", connection="work")
-personal = auth.get_access_token("github", connection="personal")
+```bash
+eval "$(authsome export github --connection work --format env)"
+eval "$(authsome export github --connection personal --format env)"
 ```
 
 See [Multiple connections per provider](/guides/multiple-connections).

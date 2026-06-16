@@ -8,56 +8,66 @@ keywords: ["authsome changelog", "authsome release notes", "authsome version his
 
 A curated summary of authsome releases. For the full per-commit log, see [CHANGELOG.md](https://github.com/agentrhq/authsome/blob/main/CHANGELOG.md) in the repository.
 
-<Update label="0.2.4" description="2026-05-08">
-  **Admin audit dashboard.** The local daemon serves an interactive audit dashboard.
+<Update label="0.7" description="2026-06-16">
+  **Documentation refresh.** Public Mintlify docs updated for the Principal / Vault / Identity model. Retired profile-based terminology, removed references to the old in-process `AuthService` library API, and aligned installation, doctor, and daemon API pages with the current storage layout.
 
-  **Browser SSO.** Support for browser SSO via Chrome cookie reading.
-
-  **Customizable home directory.** `AUTHSOME_HOME` overrides the default `~/.authsome/` location. Useful for per-project credential isolation and CI.
-
-  **Notion DCR provider.** Added `notion_dcr` (Dynamic Client Registration) variant for the MCP endpoint at `mcp.notion.com`.
-
-  **Improved error handling.** Custom error propagation between the daemon server and CLI client.
-
-  **Non-interactive register.** New `--yes` flag on `authsome register` skips the confirmation prompt in scripts.
-
-  **Distinct exit code for cancelled credential entry** (exit code 8) so scripts can distinguish user cancellation from authentication failure.
+  **Current integration surface.** CLI commands, `authsome run` proxy injection, `authsome export`, and the daemon HTTP API (with PoP JWT auth) are the supported paths for agents and tooling.
 </Update>
 
-<Update label="0.2.3" description="2026-05-01">
-  Documentation pass. Added demo video to README.
+<Update label="0.6.x" description="2026-06-06 to 2026-06-09">
+  **Next.js dashboard.** Static dashboard served from the daemon root with provider and connection management UI.
+
+  **Self-hosting.** Docker Compose setup and self-hosting guide for running the daemon outside a laptop.
+
+  **Provider expansion.** Bundled providers for Google Workspace services, Jira, Confluence, YouTube, Vertex AI, Todoist, Cloudflare, Outlook, Word, Calendar, Zoom, Reddit, and more.
+
+  **Architecture cleanup.** Multi-server-compatible identities, cleaner UI auth flows, and client/server home directory split (`~/.authsome/client/` vs `~/.authsome/server/`).
 </Update>
 
-<Update label="0.2.2" description="2026-04-29">
-  **Audit logging.** Structured JSON event log written to `~/.authsome/audit.log` for every significant action (login, logout, revoke, export, register). See [Audit log format](/reference/audit-log).
+<Update label="0.5.0" description="2026-05-29">
+  ⚠ **Breaking:** Principal claim flow required for vault access. Existing local installs must register a Principal and accept the identity claim.
 
-  **List output rendered as a table.** `authsome list` shows providers, source (bundled / custom), auth type, default connection, and status in a single tabular view.
+  ⚠ **Breaking:** Vault encryption moved to Argon2id KEK/DEK model. Fernet-encrypted vaults cannot be read back; re-login required.
 
-  **Expanded `whoami` context.** Reports the home directory, encryption mode, registered identity handle, and DID.
+  **Audit events and principal roles.** Structured audit logging with admin/user roles. Admin audit dashboard.
 
-  **Regex proxy host URLs.** Provider definitions can declare `api_url: "regex:..."` to match multiple hosts behind a single provider (used by Google and Linear).
+  **Browser SSO.** Chrome cookie reading for providers that support it.
+
+  **Anthropic and Gemini** bundled providers added.
 </Update>
 
-<Update label="0.2.1" description="2026-04-28">
-  Fix: set connection `api_url` directly from the resolved provider definition.
+<Update label="0.4.0" description="2026-05-25">
+  ⚠ **Breaking:** Principal, Vault, and Identity replace the old profile model. Credentials are namespaced under `vault:<vault_id>:...`. See [Principal, Vault, and Identity](/concepts/principal-vault-identity).
+
+  **Claim flow.** Identities must claim a Principal before accessing credentials.
+
+  **Master key rotation.** `rekey` command and API endpoint.
+
+  **CLI restructure.** Provider and admin command namespaces.
 </Update>
 
-<Update label="0.2.0" description="2026-04-28">
-  **Architectural restructure.** Vault and AuthLayer split into separate layers with a documented protocol boundary. Public Python API consolidated around `AuthService` and `AuthLayer` (re-exported from the top-level `authsome` package). CLI commands and flags are unchanged. See [Architecture](/concepts/architecture).
+<Update label="0.3.x" description="2026-05-20">
+  **Configurable proxy scope.** `connected_allow` and related proxy modes in client config.
 
-  **Browser bridge for sensitive input.** OAuth `client_secret` and API keys are now collected through a local browser form (or `getpass` fallback). Sensitive values are no longer accepted as command-line arguments.
+  **Health checks.** Readiness validates connections for the active identity.
 
-  **`{base_url}` templating.** Multi-tenant providers (GitHub Enterprise, Okta, GitLab self-managed) declare a default `base_url` and `--base-url` overrides it at login time. See [Custom providers](/guides/custom-providers#multi-tenant-providers).
+  **Telemetry.** Opt-out PostHog analytics via environment variables.
+</Update>
 
-  **`--verbose` and `--log-file` flags.** loguru-backed file logging with `--verbose` for DEBUG to stderr.
+<Update label="0.2.x" description="2026-04-28 to 2026-05-08">
+  **Browser bridge for sensitive input.** OAuth `client_secret` and API keys collected through a local browser form.
 
-  **mitmproxy CA injection.** Subprocesses started by `authsome run` get a combined system + mitmproxy CA bundle so SDKs trust the proxy by default.
+  **`{base_url}` templating.** Multi-tenant providers (GitHub Enterprise, Okta, GitLab self-managed).
 
-  ⚠ **Breaking:** the older `AuthClient` entry point is gone. Library users should switch to `from authsome.server.dependencies import create_auth_service`. See [Python library](/reference/python-library).
+  **Audit logging.** Structured JSON event log for login, logout, revoke, and export.
+
+  **Admin audit dashboard** and **Notion DCR** provider.
+
+  **`AUTHSOME_HOME`** for per-project credential isolation.
 </Update>
 
 <Update label="0.1.x" description="up to 2026-04-24">
-  Initial public series. Established the CLI surface (`login`, `logout`, `revoke`, `remove`, `list`, `inspect`, `get`, `export`, `run`, `register`, `doctor`, `whoami`), the four flow types (PKCE, device code, DCR + PKCE, API key), and the bundled provider set. Major additions in this series include the proxy runner, RC publishing, OAuth scope support, the `--force` flag, and several bundled-provider additions (Ashby, Klaviyo, and others).
+  Initial public series. Established the CLI surface, four flow types (PKCE, device code, DCR + PKCE, API key), bundled providers, and the proxy runner.
 </Update>
 
 ## Versioning
@@ -79,7 +89,7 @@ pip install --upgrade authsome
 uvx authsome@latest --version
 ```
 
-Stored credentials, providers, and `config.json` persist across upgrades. The `schema_version` field in `~/.authsome/config.json` and on every `ConnectionRecord` is reserved for forward-compatibility migrations.
+Stored credentials, providers, and client config persist across upgrades. Connection records carry a `schema_version` field reserved for forward-compatibility migrations.
 
 ## What's next
 
