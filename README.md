@@ -102,14 +102,6 @@ Authsome gives agents one command for a valid token, without scattering long-liv
 
 ---
 
-## Comparing tools
-
-- [Authsome vs OneCLI vs Agent Vault](https://authsome.ai/docs/compared)
-
-This page covers architecture differences, OAuth nuances (including client-app ergonomics), and when each tool is a better fit.
-
----
-
 ## Install
 
 Requires Python 3.13+.
