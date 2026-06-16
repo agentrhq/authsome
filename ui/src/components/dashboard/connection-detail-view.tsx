@@ -1,20 +1,22 @@
 "use client";
 
-import { ArrowLeft, Check, Clipboard, Eye, EyeOff, Globe2, LogOut } from "lucide-react";
+import { Check, Clipboard, Clock, Eye, EyeOff, Globe2, KeyRound, Link2, LogOut, Server, Shield } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import useSWR from "swr";
 
 import {
-  KeyValue,
+  ProviderLogo,
+  StatusBadge,
   connectionDetailHref,
   providerDetailHref,
 } from "@/components/dashboard/dashboard-primitives";
 import { currentBrowserPath, isUnauthorized } from "@/components/dashboard/dashboard-routing";
 import { DashboardDetailShell, ErrorState, LoadingScreen } from "@/components/dashboard/dashboard-shell";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +25,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { H3 } from "@/components/ui/typography";
 import {
   ConnectionDetail,
+  DashboardData,
   fetchConnectionDetail,
   fetchDashboard,
   logoutConnection,
@@ -87,7 +91,7 @@ export function AuthsomeConnectionDetail({
 
   return (
     <DashboardDetailShell activeView="connections" data={dashboard}>
-      <ConnectionDetailBody data={data} onRefresh={() => { void mutate(); void mutateDashboard(); }} principal={principal} />
+      <ConnectionDetailBody data={data} onRefresh={() => { void mutate(); void mutateDashboard(); }} principal={principal} providers={dashboard.providers} />
     </DashboardDetailShell>
   );
 }
@@ -96,56 +100,171 @@ export function ConnectionDetailBody({
   data,
   onRefresh,
   principal,
+  providers,
 }: {
   data: ConnectionDetail;
   onRefresh: () => void;
   principal?: string;
+  providers?: DashboardData["providers"];
 }) {
+  const provider = providers?.find((p) => p.name === data.provider);
+  const hasSecrets = data.secrets.access_token || data.secrets.refresh_token || data.secrets.api_key || Object.keys(data.secrets.credentials).length > 0;
+  const hasEndpoints = data.base_url || data.api_url;
+
   return (
-    <div className="grid gap-6">
-      <Link className={cn(buttonVariants({ size: "sm", variant: "outline" }), "w-fit")} href="/connections">
-        <ArrowLeft />
-        Back to connections
-      </Link>
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-6">
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{data.provider_display_name}</p>
-          <h1 className="mt-0.5 text-2xl font-semibold leading-tight text-foreground">{data.connection_name}</h1>
+    <div className="grid gap-5">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/50 pb-4">
+        <div className="flex items-center gap-3 min-w-0">
+          {provider ? (
+            <ProviderLogo className="size-10 shrink-0" initial={provider.logoInitial} logo={provider.logo} />
+          ) : null}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Link className="text-sm text-muted-foreground hover:text-foreground hover:underline" href={providerDetailHref(data.provider)}>
+                {data.provider_display_name}
+              </Link>
+              {data.is_global ? (
+                <Badge className="border-primary/30 bg-primary/10 text-primary" variant="outline">
+                  <Globe2 className="size-3" />
+                  Global
+                </Badge>
+              ) : null}
+            </div>
+            <H3 className="mt-0.5 leading-tight">{data.connection_name}</H3>
+          </div>
         </div>
         <ConnectionActions data={data} onRefresh={onRefresh} principal={principal} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <Card className="border-border/50 shadow-none">
-          <CardContent className="grid gap-4 p-5 md:grid-cols-2">
-            <KeyValue label="Status" value={data.status} />
-            <KeyValue label="Auth Type" value={data.auth_type} />
-            <KeyValue label="Principal ID" value={data.principal_id || "-"} />
-            <KeyValue label="Agent" value={data.identity || "-"} />
-            <KeyValue label="Scopes" value={data.scopes.join(", ") || "-"} />
-            <KeyValue label="Token Type" value={data.token_type || "-"} />
-            <KeyValue label="Obtained" value={data.obtained_at || "-"} />
-            <KeyValue label="Expires" value={data.expires_at || "-"} />
-            <KeyValue label="Base URL" value={data.base_url || "-"} />
-            <KeyValue label="API URL" value={data.api_url || "-"} />
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 shadow-none">
-          <CardHeader>
-            <CardTitle>Secrets</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <SecretValue label="Access Token" value={data.secrets.access_token} />
-            <SecretValue label="Refresh Token" value={data.secrets.refresh_token} />
-            <SecretValue label="API Key" value={data.secrets.api_key} />
-            {Object.entries(data.secrets.credentials).map(([key, value]) => (
-              <SecretValue key={key} label={key} value={value} />
-            ))}
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="grid gap-4">
+          <Card className="border-border/50 shadow-none">
+            <CardHeader className="pb-0">
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="size-4 text-muted-foreground" />
+                Identity &amp; Access
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 pt-4 md:grid-cols-2">
+              <DetailField label="Status">
+                <StatusBadge status={data.status} />
+              </DetailField>
+              <DetailField label="Auth Type">
+                <span className="text-sm">{authTypeLabel(data.auth_type)}</span>
+              </DetailField>
+              <DetailField label="Principal ID">
+                <code className="text-xs font-mono text-muted-foreground">{data.principal_id || "-"}</code>
+              </DetailField>
+              <DetailField label="Agent">
+                <span className="text-sm">{data.identity || "-"}</span>
+              </DetailField>
+              {data.scopes.length > 0 ? (
+                <div className="md:col-span-2">
+                  <DetailField label="Scopes">
+                    <div className="flex flex-wrap gap-1.5">
+                      {data.scopes.map((scope) => (
+                        <Badge key={scope} variant="outline">{scope}</Badge>
+                      ))}
+                    </div>
+                  </DetailField>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 shadow-none">
+            <CardHeader className="pb-0">
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="size-4 text-muted-foreground" />
+                Token
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 pt-4 md:grid-cols-2">
+              <DetailField label="Token Type">
+                <span className="text-sm">{data.token_type || "-"}</span>
+              </DetailField>
+              <DetailField label="Obtained">
+                <span className="text-sm">{formatTimestamp(data.obtained_at)}</span>
+              </DetailField>
+              <DetailField label="Expires">
+                <span className="text-sm">{formatTimestamp(data.expires_at)}</span>
+              </DetailField>
+            </CardContent>
+          </Card>
+
+          {hasEndpoints ? (
+            <Card className="border-border/50 shadow-none">
+              <CardHeader className="pb-0">
+                <CardTitle className="flex items-center gap-2">
+                  <Server className="size-4 text-muted-foreground" />
+                  Endpoints
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 pt-4">
+                {data.base_url ? (
+                  <DetailField label="Base URL">
+                    <code className="text-xs font-mono break-all">{data.base_url}</code>
+                  </DetailField>
+                ) : null}
+                {data.api_url ? (
+                  <DetailField label="API URL">
+                    <code className="text-xs font-mono break-all">{data.api_url}</code>
+                  </DetailField>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
+
+        {hasSecrets ? (
+          <Card className="border-border/50 shadow-none h-fit">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <KeyRound className="size-4 text-muted-foreground" />
+                Secrets
+              </CardTitle>
+              <CardDescription>Encrypted at rest in the vault.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <SecretValue label="Access Token" value={data.secrets.access_token} />
+              <SecretValue label="Refresh Token" value={data.secrets.refresh_token} />
+              <SecretValue label="API Key" value={data.secrets.api_key} />
+              {Object.entries(data.secrets.credentials).map(([key, value]) => (
+                <SecretValue key={key} label={key} value={value} />
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </div>
   );
+}
+
+function DetailField({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div className="grid gap-1">
+      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function authTypeLabel(authType: string): string {
+  return authType === "oauth2" ? "OAuth 2.0" : authType === "api_key" ? "API Key" : authType || "-";
+}
+
+function formatTimestamp(value: string | null): string {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) return value;
+  return parsed.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
 }
 
 function redactedValue(value: string): string {
@@ -164,10 +283,10 @@ function SecretValue({ label, value }: { label: string; value: string | null }) 
   }
 
   return (
-    <div className="grid gap-2">
-      <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
-      <div className="flex min-w-0 items-start gap-2 rounded-lg border bg-muted p-3">
-        <code className="min-w-0 flex-1 break-all text-xs">{revealed ? value : redactedValue(value)}</code>
+    <div className="grid gap-1.5">
+      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="flex min-w-0 items-start gap-1.5 rounded-md border bg-muted/50 p-2.5">
+        <code className="min-w-0 flex-1 break-all pt-0.5 text-xs">{revealed ? value : redactedValue(value)}</code>
         <Button
           aria-label={revealed ? "Hide secret" : "Reveal secret"}
           onClick={() => setRevealed((current) => !current)}
@@ -179,13 +298,12 @@ function SecretValue({ label, value }: { label: string; value: string | null }) 
         </Button>
         <Button
           aria-label="Copy secret"
-          disabled={!revealed}
           onClick={() => void copy()}
           size="icon-sm"
           type="button"
           variant="ghost"
         >
-          {copied ? <Check /> : <Clipboard />}
+          {copied ? <Check className="text-emerald-600 dark:text-emerald-400" /> : <Clipboard />}
         </Button>
       </div>
     </div>
@@ -243,7 +361,7 @@ function ConnectionActions({
 
   return (
     <>
-      <div className="flex flex-col items-start gap-1 sm:items-end">
+      <div className="flex flex-col items-start gap-2 sm:items-end">
         <div className="flex flex-wrap items-center gap-2">
           {data.can_set_default ? (
             <form
@@ -251,12 +369,13 @@ function ConnectionActions({
               method="post"
             >
               <Button size="sm" type="submit" variant="outline">
+                <Link2 />
                 Set as default
               </Button>
             </form>
           ) : null}
           {data.can_set_global ? (
-            <Button disabled={globalWorking} onClick={() => void toggleGlobal()} type="button" variant="outline">
+            <Button disabled={globalWorking} onClick={() => void toggleGlobal()} size="sm" type="button" variant="outline">
               <Globe2 />
               {data.is_global ? "Unset global" : "Make global"}
             </Button>
@@ -269,21 +388,25 @@ function ConnectionActions({
             Logout
           </Button>
         </div>
-        <div
-          aria-live="polite"
-          className={cn(
-            "min-h-5 text-sm",
-            globalMessage?.tone === "success" ? "text-emerald-400" : "text-destructive"
-          )}
-        >
-          {globalMessage?.text}
-        </div>
+        {globalMessage ? (
+          <div
+            aria-live="polite"
+            className={cn(
+              "text-sm",
+              globalMessage.tone === "success" ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
+            )}
+          >
+            {globalMessage.text}
+          </div>
+        ) : null}
       </div>
       <Dialog onOpenChange={setOpen} open={open}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Logout connection</DialogTitle>
-            <DialogDescription>This removes the stored credentials for this connection.</DialogDescription>
+            <DialogDescription>
+              This removes the stored credentials for &ldquo;{data.connection_name}&rdquo; on {data.provider_display_name}.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button onClick={() => setOpen(false)} type="button" variant="outline">
