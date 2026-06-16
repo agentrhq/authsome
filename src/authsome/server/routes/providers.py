@@ -9,7 +9,6 @@ from authsome.server.analytics import capture_event
 from authsome.server.credential_service import CredentialService
 from authsome.server.routes._deps import (
     build_auth_service,
-    get_admin_auth_service,
     get_daemon_or_browser_auth_service,
     get_protected_auth_service,
     get_server_base_url,
@@ -168,12 +167,14 @@ async def update_provider_configuration(
 
 
 @router.post("")
-async def register_provider(body: dict, auth: CredentialService = Depends(get_admin_auth_service)):
+async def register_provider(body: dict, auth: CredentialService = Depends(get_daemon_or_browser_auth_service)):
+    if auth.principal_role != PrincipalRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
     definition_payload = body.get("definition", body)
     definition = ProviderDefinition.model_validate(definition_payload)
     await auth.register_provider(definition, force=bool(body.get("force", False)))
     capture_event(
-        auth.require_identity(),
+        _actor(auth),
         "provider registered",
         {
             "provider": definition.name,
@@ -184,11 +185,39 @@ async def register_provider(body: dict, auth: CredentialService = Depends(get_ad
     return {"status": "ok", "provider": definition.name}
 
 
+@router.put("/{provider}")
+async def update_provider(
+    provider: str,
+    body: dict,
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
+):
+    if auth.principal_role != PrincipalRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
+    definition_payload = body.get("definition", body)
+    definition = ProviderDefinition.model_validate(definition_payload)
+    await auth.update_provider(provider, definition)
+    capture_event(
+        _actor(auth),
+        "provider updated",
+        {
+            "provider": definition.name,
+            "auth_type": definition.auth_type.value if definition.auth_type else None,
+            "principal_id": auth.principal_id,
+        },
+    )
+    return {"status": "ok", "provider": definition.name}
+
+
 @router.delete("/{provider}")
-async def delete_provider(provider: str, auth: CredentialService = Depends(get_admin_auth_service)):
+async def delete_provider(
+    provider: str,
+    auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
+):
+    if auth.principal_role != PrincipalRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
     await auth.remove(provider)
     capture_event(
-        auth.require_identity(),
+        _actor(auth),
         "provider deleted",
         {
             "provider": provider,
