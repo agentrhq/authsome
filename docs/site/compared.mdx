@@ -16,7 +16,7 @@ Authsome is a local credential broker for AI agents. The space it competes with 
 | Built-in OAuth2 + API-key flows | Yes | No | No | Build it |
 | Headless agent runtime | Yes | Yes | Yes | Varies |
 | Local, no SaaS dependency | Yes | Yes | No | Yes |
-| Built-in providers, zero config | 45 bundled | None | None | None |
+| Built-in providers, zero config | Yes (see bundled providers list) | None | None | None |
 | Multi-account per provider | Yes | No (one env per key) | Sometimes | Build it |
 | Encrypted at rest | Yes (AES-256-GCM) | No (plaintext file) | Yes | Varies |
 | Secrets out of child env | Yes (proxy injection) | No | No | Build it |
@@ -92,6 +92,62 @@ There are a handful of credential-management tools in adjacent spaces. Worth a q
 - **`aws-vault`, `awsume`.** Specific to AWS. Authsome is general-purpose.
 - **OAuth2 client libraries (`httpx-oauth`, `authlib`).** Building blocks, not a complete broker. They're what authsome uses internally.
 - **`onecli` / OneCLI.** Closest comparison: also an open-source credential vault for AI agents. Different design choices around hosting, dashboard, and the policy layer.
+
+## Authsome vs other agent credential brokers
+
+For teams deciding between open-source agent credential brokers, the useful comparison is less "who has OAuth?" and more "which operating model fits your agents, team, and deployment?"
+
+| | Authsome | OneCLI | Agent Vault |
+|---|---|---|---|
+| Core model | Provider-centric credential broker for OAuth, API keys, and browser credentials | Dashboard-backed gateway for project/org-scoped secrets and app connections | Vault-scoped credential proxy with user/agent grants and proposal workflow |
+| Runtime delivery | Proxy resolves the matching provider and injects auth headers at request time | Gateway swaps placeholders and injects credentials into matching outbound requests | MITM proxy attaches credentials through vault service rules |
+| OAuth token lifecycle support | Yes: PKCE, device code, DCR, callback/token exchange, and refresh handling | Yes: OAuth app connections, callback/token exchange, and refresh-aware credentials where supported by the app definition | Yes: OAuth credential type with connect, token paste/import, and refresh handling |
+| Default client-app ergonomics | Bundled provider definitions; DCR-capable providers can avoid manual app setup, while other OAuth providers use your client app credentials | App registry with configurable OAuth app credentials and environment/default resolution paths | Provider URL presets help fill OAuth endpoints; operators typically supply client credentials or paste/import existing tokens |
+| API-key workflows | Yes | Yes | Yes |
+| Bundled provider / app registry | Yes: provider definitions | Yes: app/integration registry with OAuth, API-key, and import methods | Service + credential model rather than a fixed app registry |
+| Beyond auth-header injection | Focuses on provider-routed auth injection and token lifecycle | Supports gateway injection plus credential stubs for some tool bootstrapping workflows | Supports service-scoped placeholders in paths, query strings, headers, bodies, and WebSocket frames |
+| Main deployment posture | Local-first CLI + daemon, with server components available for shared setups | Web dashboard/API + Rust gateway + Postgres, commonly run through Docker/local mode | Single Go binary or container running API/UI + MITM proxy, often deployed as a separate broker host |
+| Team / multi-user | Principals, identity claims, per-principal vaults, admin/user roles, and multi-account provider connections | Org/project/team model with web UI, agents, policy rules, audit/request logs, and scoped secrets/app connections | Multi-user instance and vault model with users, agents, instance roles, vault roles, and proposal approvals |
+
+### OAuth nuance that is easy to miss
+
+A binary "OAuth: yes/no" row is usually misleading. A better split is:
+
+1. **OAuth protocol support**: can it do authorize/callback/token exchange/refresh?
+2. **Client app ergonomics**: how are OAuth client apps supplied, resolved, or overridden?
+
+All three can support OAuth token lifecycles. Where they differ is the client-app, provider, and operator model:
+
+- Authsome emphasizes reusable provider definitions and flow handling as first-class concepts.
+- OneCLI emphasizes app connections, gateway policy context, and app credential resolution from project config or defaults.
+- Agent Vault emphasizes vault-scoped credentials/services, approval workflows, and flexible service rules.
+
+### When to choose each
+
+#### Choose Authsome when
+
+- You want OAuth-heavy agent workflows with provider-centric login and token lifecycle handling.
+- You want a local-first CLI/daemon flow for developer machines, with room to grow into shared setups.
+- You want one broker that handles API-key and OAuth flows under the same provider model.
+
+#### Choose OneCLI when
+
+- You want a dashboard-first, team-oriented deployment with org/project abstractions.
+- You want a Rust gateway with web-managed agents, app connections, policies, and request logs.
+- You prefer operations centered around a web dashboard and Postgres-backed service.
+
+#### Choose Agent Vault when
+
+- You want a single-binary control plane + MITM runtime with explicit vault/user/agent roles.
+- You want proposal-based access expansion and strong vault-level governance workflows.
+- You want static, OAuth, external-store, and dynamic credential strategies in one vault model.
+
+### Caveats for fair comparisons
+
+- Feature names differ across tools (`provider`, `app`, `service`, `credential`) and are not one-to-one.
+- Deployment shape matters as much as features (local-first vs multi-user service footprint).
+- OAuth support does **not** always mean zero setup: client app requirements vary by provider, integration, and deployment policy.
+
 
 ## When authsome is the right tool
 
