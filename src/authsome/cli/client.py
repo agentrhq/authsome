@@ -156,7 +156,8 @@ class AuthsomeApiClient:
         if runtime.handle is None:
             runtime = await self._resolve_env_identity(runtime)
             self._identity = runtime
-        await self._check_server_registration(runtime)
+        runtime = await self._check_server_registration(runtime)
+        self._identity = runtime
         self._server_registered = True
         return runtime
 
@@ -177,7 +178,7 @@ class AuthsomeApiClient:
             handle = generate_handle()
         return runtime.model_copy(update={"handle": handle})
 
-    async def _check_server_registration(self, runtime: RuntimeIdentity) -> None:
+    async def _check_server_registration(self, runtime: RuntimeIdentity) -> RuntimeIdentity:
         """Verify registration with the server; register and claim if needed."""
         handle = runtime.handle
         if handle is None:
@@ -187,7 +188,17 @@ class AuthsomeApiClient:
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code != status.HTTP_404_NOT_FOUND:
                 raise
-            identity_status = await self.register_identity(handle, runtime.did)
+            try:
+                identity_status = await self.register_identity(handle, runtime.did)
+            except httpx.HTTPStatusError as reg_exc:
+                if reg_exc.response.status_code != status.HTTP_409_CONFLICT:
+                    raise
+                resolved_handle = await self.resolve_handle_by_did(runtime.did)
+                if resolved_handle is None:
+                    raise
+                handle = resolved_handle
+                runtime = runtime.model_copy(update={"handle": handle})
+                identity_status = await self.get_identity_status(handle)
 
         reg_status = identity_status.get("registration_status", "")
         if reg_status == "claim_required":
@@ -197,6 +208,7 @@ class AuthsomeApiClient:
             await self._poll_claim_completion(handle)
         elif reg_status == "rejected":
             raise RuntimeError(f"Agent '{handle}' claim was rejected by the server")
+        return runtime
 
     def _open_claim_url(self, claim_url: str) -> None:
         print(f"Open this URL in your browser to claim this agent:\n  {claim_url}", file=sys.stderr)
