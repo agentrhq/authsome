@@ -428,6 +428,14 @@ class IdentityRegistry:
 
     async def resolve(self, handle: str) -> IdentityRegistration | None:
         row = await self._db.fetch_one("SELECT * FROM identity_registrations WHERE handle = ?", [handle])
+        return self._registration_from_row(row)
+
+    async def resolve_by_did(self, did: str) -> IdentityRegistration | None:
+        row = await self._db.fetch_one("SELECT * FROM identity_registrations WHERE did = ?", [did])
+        return self._registration_from_row(row)
+
+    @staticmethod
+    def _registration_from_row(row: Any | None) -> IdentityRegistration | None:
         if row is None:
             return None
         return IdentityRegistration(

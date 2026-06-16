@@ -133,6 +133,29 @@ def test_registration_requires_claim(monkeypatch, tmp_path: Path) -> None:
     assert "/claim?" in response.json()["claim_url"]
 
 
+def test_resolve_identity_by_did_returns_handle(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+
+    with create_server_test_client() as client:
+        client.post("/api/identities/register", json={"handle": identity.handle, "did": identity.did})
+        response = client.get(f"/api/identities/by-did/{identity.did}")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["identity"] == identity.handle
+    assert response.json()["did"] == identity.did
+
+
+def test_resolve_identity_by_did_returns_404_for_unknown_did(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+
+    with create_server_test_client() as client:
+        response = client.get(f"/api/identities/by-did/{identity.did}")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
 def test_whoami_rejects_wrong_path_claim(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")

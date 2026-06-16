@@ -16,6 +16,7 @@ from fastapi import status
 import authsome.errors as err_mod
 from authsome.cli.identity import RuntimeIdentity
 from authsome.config import get_authsome_config
+from authsome.identity.helpers import generate_handle
 from authsome.identity.proof import POP_AUTH_SCHEME, create_proof_jwt
 from authsome.server.config import get_server_config
 
@@ -130,6 +131,8 @@ class AuthsomeApiClient:
 
     async def _proof_headers(self, method: str, path: str, body: bytes) -> dict[str, str]:
         identity = await self.ensure_identity_ready()
+        if identity.handle is None:
+            raise RuntimeError("Identity handle could not be resolved from the identity server")
         token = create_proof_jwt(
             private_key=identity.signer,
             issuer=identity.did,
@@ -150,7 +153,11 @@ class AuthsomeApiClient:
         runtime = self._runtime_identity()
         if self._server_registered:
             return runtime
-        await self._check_server_registration(runtime)
+        if runtime.handle is None:
+            runtime = await self._resolve_env_identity(runtime)
+            self._identity = runtime
+        runtime = await self._check_server_registration(runtime)
+        self._identity = runtime
         self._server_registered = True
         return runtime
 
@@ -159,23 +166,49 @@ class AuthsomeApiClient:
             self._identity = RuntimeIdentity.load(self._home)
         return self._identity
 
-    async def _check_server_registration(self, runtime: RuntimeIdentity) -> None:
+    async def _resolve_env_identity(self, runtime: RuntimeIdentity) -> RuntimeIdentity:
+        """Resolve a handle-less env identity's handle from the identity server.
+
+        Looks up the handle bound to the DID. When the DID is unknown the agent
+        is brand new, so a handle is generated; the existing registration/claim
+        flow then registers it.
+        """
+        handle = await self.resolve_handle_by_did(runtime.did)
+        if handle is None:
+            handle = generate_handle()
+        return runtime.model_copy(update={"handle": handle})
+
+    async def _check_server_registration(self, runtime: RuntimeIdentity) -> RuntimeIdentity:
         """Verify registration with the server; register and claim if needed."""
+        handle = runtime.handle
+        if handle is None:
+            raise RuntimeError("Identity handle could not be resolved from the identity server")
         try:
-            identity_status = await self.get_identity_status(runtime.handle)
+            identity_status = await self.get_identity_status(handle)
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code != status.HTTP_404_NOT_FOUND:
                 raise
-            identity_status = await self.register_identity(runtime.handle, runtime.did)
+            try:
+                identity_status = await self.register_identity(handle, runtime.did)
+            except httpx.HTTPStatusError as reg_exc:
+                if reg_exc.response.status_code != status.HTTP_409_CONFLICT:
+                    raise
+                resolved_handle = await self.resolve_handle_by_did(runtime.did)
+                if resolved_handle is None:
+                    raise
+                handle = resolved_handle
+                runtime = runtime.model_copy(update={"handle": handle})
+                identity_status = await self.get_identity_status(handle)
 
         reg_status = identity_status.get("registration_status", "")
         if reg_status == "claim_required":
             claim_url = identity_status.get("claim_url", "")
             if claim_url:
                 self._open_claim_url(claim_url)
-            await self._poll_claim_completion(runtime.handle)
+            await self._poll_claim_completion(handle)
         elif reg_status == "rejected":
-            raise RuntimeError(f"Agent '{runtime.handle}' claim was rejected by the server")
+            raise RuntimeError(f"Agent '{handle}' claim was rejected by the server")
+        return runtime
 
     def _open_claim_url(self, claim_url: str) -> None:
         print(f"Open this URL in your browser to claim this agent:\n  {claim_url}", file=sys.stderr)
@@ -258,6 +291,16 @@ class AuthsomeApiClient:
 
     async def get_identity_status(self, handle: str) -> dict[str, Any]:
         return await self._get(f"{API_PREFIX}/identities/{handle}", protected=False)
+
+    async def resolve_handle_by_did(self, did: str) -> str | None:
+        """Return the handle the identity server has bound to ``did``, or None if unknown."""
+        try:
+            payload = await self._get(f"{API_PREFIX}/identities/by-did/{did}", protected=False)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                return None
+            raise
+        return payload.get("identity")
 
     async def remove(self, provider: str) -> None:
         await self._delete(f"{API_PREFIX}/providers/{provider}")

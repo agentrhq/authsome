@@ -55,6 +55,14 @@ async def register_identity(body: RegisterIdentityRequest, request: Request) -> 
     return registration_status.to_payload()
 
 
+@router.get("/by-did/{did:path}")
+async def resolve_identity_by_did(did: str, request: Request) -> dict[str, str]:
+    registration = await request.app.state.store.identity_registry.resolve_by_did(did)
+    if registration is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Identity not found")
+    return {"identity": registration.handle, "did": registration.did}
+
+
 @router.get("/{handle}")
 async def get_identity_status(handle: str, request: Request) -> dict[str, str]:
     registration_status = await request.app.state.identity_bootstrap.get_identity_status(handle=handle)

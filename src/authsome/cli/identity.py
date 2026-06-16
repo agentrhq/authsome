@@ -23,9 +23,14 @@ from authsome.paths import get_client_home
 
 
 class RuntimeIdentity(BaseModel):
-    """Resolved acting identity for the current process."""
+    """Resolved acting identity for the current process.
 
-    handle: str
+    ``handle`` is server-registered metadata, not part of the cryptographic
+    identity. When only a private key is supplied via the environment the handle
+    is left unresolved (``None``) and filled in later from the identity server.
+    """
+
+    handle: str | None = None
     did: str
     signer: Ed25519PrivateKey
 
@@ -36,19 +41,30 @@ class RuntimeIdentity(BaseModel):
         return cls(handle=validate_handle(handle), did=public_key_to_did_key(signer.public_key()), signer=signer)
 
     @classmethod
+    def from_env_private_key(cls, signer: Ed25519PrivateKey) -> Self:
+        """Build a handle-less identity from a private key; the handle is resolved later."""
+        return cls(handle=None, did=public_key_to_did_key(signer.public_key()), signer=signer)
+
+    @classmethod
     def from_filesystem(cls, home: Path, handle: str) -> Self:
         metadata = cls.load_metadata(home, handle)
         return cls(handle=metadata.handle, did=metadata.did, signer=cls.load_private_key(home, handle))
 
     @classmethod
     def load(cls, home: Path, env: Mapping[str, str] | None = None) -> Self:
-        """Resolve the acting process identity from env or local identity files."""
+        """Resolve the acting process identity from env or local identity files.
+
+        A private key alone is sufficient: the DID is derived locally and the
+        handle is resolved from the identity server before first use. Supplying
+        ``AUTHSOME_IDENTITY`` alongside the key keeps the explicit handle.
+        """
         handle_override, private_key_hex = cls._env_identity_values(env)
-        if private_key_hex and not handle_override:
-            raise ValueError("AUTHSOME_IDENTITY_PRIVATE_KEY requires AUTHSOME_IDENTITY")
 
         if handle_override and private_key_hex:
             return cls.from_pkey(handle_override, private_key_from_hex(private_key_hex))
+
+        if private_key_hex:
+            return cls.from_env_private_key(private_key_from_hex(private_key_hex))
 
         return cls.ensure_local(home, active_handle=handle_override)
 
