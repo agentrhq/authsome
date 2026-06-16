@@ -48,7 +48,7 @@ authsome get wistia --field status
 
 ## Use the key
 
-Run the agent under the proxy. The library tab is for embedding authsome inside a larger Python orchestrator.
+Run the agent under the proxy (recommended). 
 
 <CodeGroup>
 
@@ -59,13 +59,6 @@ authsome run -- python my_agent.py
 ```bash Environment
 eval "$(authsome export wistia --format env)"
 echo $WISTIA_API_KEY
-```
-
-```python Python library
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-key = auth.get_access_token("wistia", connection="default")
 ```
 
 </CodeGroup>
@@ -98,7 +91,6 @@ authsome inspect wistia > ~/.authsome/providers/wistia.json
 # edit fields
 authsome list   # source now shows "custom" for wistia
 ```
-
 
 ## What's next
 

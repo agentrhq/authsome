@@ -66,7 +66,7 @@ There is no OAuth dance. The flow is:
     Some providers ship a regex (`key_pattern`). If your input doesn't match, authsome rejects it with a hint.
   </Step>
   <Step title="Encrypted store">
-    The key is encrypted under the active profile and written to the vault.
+    The key is encrypted in the active vault and written to the vault.
   </Step>
 </Steps>
 
@@ -92,14 +92,7 @@ eval "$(authsome export openai --format env)"
 
 ### From Python
 
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-key = auth.get_access_token("openai", connection="default")
-```
-
-The function `get_access_token` is shared with the OAuth path. For API-key providers it returns the stored key.
+Run under the proxy (recommended) or export into the environment before launching your script. See [Python library](/reference/python-library).
 
 ## Add an API-key provider
 
@@ -108,7 +101,6 @@ For a service authsome doesn't bundle (Anthropic, Stripe, Twilio, and many other
 1. Find the header shape (`Authorization: Bearer ...`, `X-API-Key: ...`, etc.).
 2. Write a JSON definition. See [Custom providers](/guides/custom-providers) for the template.
 3. `authsome register ./<name>.json`.
-
 
 ## What's next
 

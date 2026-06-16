@@ -1,34 +1,28 @@
 ---
 title: "Cowork"
 sidebarTitle: "Cowork"
-description: "Run multi-agent Cowork workflows with per-agent credential isolation using authsome profiles."
+description: "Run multi-agent Cowork workflows with per-agent credential isolation using separate AUTHSOME_HOME directories."
 icon: "users"
-keywords: ["cowork authsome", "multi-agent credentials", "per-agent profile", "cowork github oauth"]
+keywords: ["cowork authsome", "multi-agent credentials", "AUTHSOME_HOME isolation", "cowork github oauth"]
 ---
 
-Cowork is a multi-agent runtime that supervises several agents running concurrently. Authsome pairs naturally: give each agent its own profile so credentials never bleed between roles.
+Cowork is a multi-agent runtime that supervises several agents running concurrently. Authsome pairs naturally: give each agent role its own `AUTHSOME_HOME` so credentials never bleed between roles.
 
-## Per-agent profiles
+## Per-agent isolation
+
+Use a separate home directory per agent role. Each home gets its own identity, vault, daemon, and audit log.
 
 ```bash
-# create profiles for each agent role (programmatic; see below)
-# then login with the right home dir for each
+AUTHSOME_HOME=~/.authsome-pr-bot   authsome onboard
+AUTHSOME_HOME=~/.authsome-reviewer authsome onboard
+
 AUTHSOME_HOME=~/.authsome-pr-bot   authsome login github
 AUTHSOME_HOME=~/.authsome-reviewer authsome login github --connection read
 ```
 
-Each profile has its own vault file, own audit log, own master-key access. An agent running with `AUTHSOME_HOME=~/.authsome-pr-bot` cannot reach credentials in `~/.authsome-reviewer`.
+An agent running with `AUTHSOME_HOME=~/.authsome-pr-bot` cannot reach credentials in `~/.authsome-reviewer`.
 
-To create named profiles inside a single `AUTHSOME_HOME`:
-
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-auth.create_profile("pr-bot", description="Auto-PR agent")
-auth.create_profile("reviewer", description="Code review agent")
-```
-
+For multiple accounts on the same provider within one role, use [multiple connections](/guides/multiple-connections) inside a single home instead of splitting homes.
 
 ## Run each agent under its own proxy
 
@@ -40,18 +34,17 @@ AUTHSOME_HOME=~/.authsome-reviewer \
   authsome run -- python reviewer.py
 ```
 
-Each agent's HTTP_PROXY points at a different daemon instance, each backed by a different vault. The agents cannot read each other's credentials even if one is compromised.
+Each agent's `HTTP_PROXY` points at its own daemon instance, each backed by a different vault. The agents cannot read each other's credentials even if one is compromised.
 
 ## Multi-agent best practices
 
-- **One profile per role**, not one per developer. A developer with two agents should still have two profiles.
-- **Audit each profile separately.** `audit.log` is per-`AUTHSOME_HOME`. Logging is easy to forward.
-- **Rotate after compromise of one agent only.** Other profiles are unaffected.
+- **One home directory per role**, not one per developer. A developer with two agents should still use two homes.
+- **Audit each home separately.** Audit events are scoped to the daemon backing that home.
+- **Rotate after compromise of one agent only.** Other homes are unaffected.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
 | Two agents accidentally share credentials | They're using the same `AUTHSOME_HOME`. Split them. |
-| Port 7998 conflicts | Each `AUTHSOME_HOME` starts its own daemon on its own ephemeral port. Confirm with `lsof -i`. |
-
+| Port 7998 conflicts | Only one daemon can bind the default port per machine. Use separate hosts, containers, or configure a non-default port for secondary homes. |

@@ -49,21 +49,20 @@ authsome run -- python my_agent.py
 
 The SDK initializes with `ANTHROPIC_API_KEY=authsome-proxy-managed`. Outbound requests to `api.anthropic.com` are intercepted and authenticated at the proxy layer.
 
-## Alternative: pass the key explicitly
+## Alternative: export into the environment
+
+```bash
+eval "$(authsome export anthropic --format env)"
+python my_agent.py
+```
+
+Or read the key in Python after export:
 
 ```python
-from authsome.server.dependencies import create_auth_service
+import os
 from anthropic import Anthropic
 
-auth = create_auth_service()
-client = Anthropic(api_key=auth.get_access_token("anthropic"))
-
-resp = client.messages.create(
-    model="claude-sonnet-4-5",
-    max_tokens=1024,
-    messages=[{"role": "user", "content": "ping"}],
-)
-print(resp.content[0].text)
+client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 ```
 
 ## Multi-account workflows
@@ -73,11 +72,8 @@ authsome login anthropic --connection personal
 authsome login anthropic --connection team
 ```
 
-In code:
-
-```python
-key = auth.get_access_token("anthropic", connection="team")
-client = Anthropic(api_key=key)
+```bash
+eval "$(authsome export anthropic --connection team --format env)"
 ```
 
 ## What's next

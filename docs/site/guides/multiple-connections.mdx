@@ -66,13 +66,10 @@ authsome login github --connection work --force
 authsome run -- python my_agent.py
 ```
 
-Or use the library, which accepts `connection=` directly:
+Or export credentials for a specific connection:
 
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-token = auth.get_access_token("github", connection="work")
+```bash
+eval "$(authsome export github --connection work --format env)"
 ```
 
 ## Remove a connection

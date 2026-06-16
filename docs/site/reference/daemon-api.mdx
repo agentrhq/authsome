@@ -12,7 +12,7 @@ For the lifecycle, trust model, and `AUTHSOME_BASE_URL` / `AUTHSOME_BASE_URL` ov
 
 ## Health and readiness
 
-### `GET /health`
+### `GET /api/health`
 
 Liveness probe. Returns when the daemon process is up and responding, regardless of subsystem state.
 
@@ -32,28 +32,40 @@ Liveness probe. Returns when the daemon process is up and responding, regardless
   Human-readable description of the effective master-key source.
 </ResponseField>
 
-### `GET /ready`
+### `GET /api/ready`
 
-Readiness probe. Verifies vault, schema version, and provider parsing.
+Readiness probe. Verifies store, vault, identity, providers, and connections for the authenticated caller.
 
 <ResponseField name="status" type="string" required>
-  Overall readiness: `"ok"`, `"degraded"`, or `"unhealthy"`.
+  Overall readiness: `"ready"` when all checks pass, `"not_ready"` when `issues` is non-empty.
 </ResponseField>
 <ResponseField name="checks" type="object" required>
   Per-component status.
 
   <Expandable title="checks fields">
-    <ResponseField name="config" type="string" required>
-      `"ok"` if `~/.authsome/config.json` loaded and the schema version matches. Failures: `"missing"`, `"invalid_json"`, `"schema_version_mismatch"`.
-    </ResponseField>
-    <ResponseField name="schema" type="string" required>
-      `"ok"` if every stored record passes its Pydantic v2 model. Failures: `"version_mismatch"`, `"corrupt"`.
+    <ResponseField name="store" type="string" required>
+      `"ok"` if the relational store opens and passes a health probe. Failures: `"failed"`.
     </ResponseField>
     <ResponseField name="vault" type="string" required>
-      `"ok"` if the SQLite store for the active profile opens, the master key is reachable, and a no-op write succeeds. Failures: `"unreachable"`, `"locked"`, `"keyring_unavailable"`.
+      `"ok"` if the encrypted KV store accepts a read/write roundtrip. Failures: `"failed"`.
+    </ResponseField>
+    <ResponseField name="integrity" type="string" required>
+      `"ok"` if the vault integrity check succeeds. Failures: `"failed"`.
+    </ResponseField>
+    <ResponseField name="identity" type="string" required>
+      `"ok"` if the caller's identity is registered.
     </ResponseField>
     <ResponseField name="providers" type="string" required>
-      `"ok"` if every bundled and user-registered provider JSON parses. Failures name the offending provider.
+      `"ok"` if every bundled and custom provider definition parses. Failures: `"failed"`.
+    </ResponseField>
+    <ResponseField name="connections" type="string" required>
+      `"ok"` if connection records load for the active vault. Failures: `"failed"`.
+    </ResponseField>
+    <ResponseField name="spec_version" type="string" required>
+      `"ok"` if the server config schema version matches.
+    </ResponseField>
+    <ResponseField name="redis" type="string">
+      Present when Redis is configured. `"ok"` after a successful ping.
     </ResponseField>
   </Expandable>
 </ResponseField>
@@ -61,7 +73,7 @@ Readiness probe. Verifies vault, schema version, and provider parsing.
   Non-fatal observations that do not block readiness. Examples: a custom provider override of a bundled name, a master.key with mode 0644 instead of 0600.
 </ResponseField>
 <ResponseField name="issues" type="string[]">
-  Fatal problems. When non-empty, `status` is `"unhealthy"`. Each entry is a human-readable string suitable for surfacing in a monitoring alert.
+  Fatal problems. When non-empty, `status` is `"not_ready"`. Each entry is a human-readable string suitable for surfacing in a monitoring alert.
 </ResponseField>
 <ResponseField name="configured_encryption_mode" type="string">
   The configured master-key resolution mode.
@@ -73,24 +85,27 @@ Readiness probe. Verifies vault, schema version, and provider parsing.
   Human-readable description of the effective master-key source.
 </ResponseField>
 
-### `GET /whoami`
+### `GET /api/whoami`
 
-Returns the same payload as `authsome whoami`.
+Returns context for the authenticated caller (same data as `authsome whoami --json`).
 
 <ResponseField name="home" type="string" required>
   Absolute path to the authsome home directory.
 </ResponseField>
-<ResponseField name="configured_encryption_mode" type="string" required>
-  The configured master-key resolution mode.
-</ResponseField>
-<ResponseField name="effective_encryption_source" type="string" required>
-  The effective master-key source chosen at runtime.
-</ResponseField>
-<ResponseField name="encryption_backend" type="string" required>
-  Human-readable description of the effective master-key source.
-</ResponseField>
-<ResponseField name="profile" type="string" required>
+<ResponseField name="identity" type="string" required>
   Registered identity handle.
+</ResponseField>
+<ResponseField name="principal_id" type="string">
+  Opaque Principal identifier when the identity claim is accepted.
+</ResponseField>
+<ResponseField name="vault_id" type="string">
+  Opaque Vault identifier for the active credential store.
+</ResponseField>
+<ResponseField name="principal_role" type="string">
+  `admin` or `user`.
+</ResponseField>
+<ResponseField name="did" type="string">
+  The identity's `did:key` URI.
 </ResponseField>
 
 ## Auth sessions
@@ -99,36 +114,36 @@ These routes drive browser bridges and OAuth callbacks. The CLI starts a session
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `/auth/sessions` | Start a new auth session for a provider. |
-| `GET` | `/auth/sessions/{session_id}` | Get session status. |
-| `POST` | `/auth/sessions/{session_id}/resume` | Continue a paused or partial flow. |
-| `GET` | `/auth/callback/oauth` | OAuth2 callback target (PKCE / DCR). |
-| `GET` | `/auth/sessions/{session_id}/input` | Browser form for API-key or OAuth client credential entry. |
-| `GET` | `/auth/sessions/{session_id}/device` | Device-code verification page. |
-| `POST` | `/auth/sessions/{session_id}/input` | Submit values from the input form. |
+| `POST` | `/api/auth/sessions` | Start a new auth session for a provider. |
+| `GET` | `/api/auth/sessions/{session_id}` | Get session status. |
+| `POST` | `/api/auth/sessions/{session_id}/resume` | Continue a paused or partial flow. |
+| `GET` | `/auth/callback/oauth` | OAuth2 callback target (PKCE / DCR). Browser route, not under `/api`. |
+| `GET` | `/api/auth/sessions/{session_id}/input` | Browser form for API-key or OAuth client credential entry. |
+| `GET` | `/api/auth/sessions/{session_id}/device` | Device-code verification page. |
+| `POST` | `/api/auth/sessions/{session_id}/input` | Submit values from the input form. |
 
 Session state is held in daemon memory. A daemon restart loses any session that is mid-flight.
 
 ## Connections
 
-CRUD for connection records. Behind the scenes, every route goes through the AuthLayer, which manages decryption, refresh, and vault writes.
+CRUD for connection records. Behind the scenes, every route goes through the daemon's credential service, which manages decryption, refresh, and vault writes.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/connections` | List every connection across all bundled and custom providers. |
-| `GET` | `/connections/{provider}/{connection}` | Fetch one connection record. Secrets are redacted unless explicitly requested. |
-| `POST` | `/connections/{provider}/{connection}/logout` | Remove a single connection record from the local store. |
-| `POST` | `/connections/{provider}/revoke` | Call the provider's revocation endpoint (where supported) and clear all connections for the provider. |
-| `POST` | `/connections/{provider}/{connection}/default` | Set this connection as the provider's default. |
+| `GET` | `/api/connections` | List every connection across all bundled and custom providers. |
+| `GET` | `/api/connections/{provider}/{connection}` | Fetch one connection record. Secrets are redacted unless explicitly requested. |
+| `POST` | `/api/connections/{provider}/{connection}/logout` | Remove a single connection record from the local store. |
+| `POST` | `/api/connections/{provider}/revoke` | Call the provider's revocation endpoint (where supported) and clear all connections for the provider. |
+| `POST` | `/api/connections/{provider}/{connection}/default` | Set this connection as the provider's default. |
 
 ## Providers
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/providers` | List every bundled and custom provider with auth type, flow, and source. |
-| `GET` | `/providers/{provider}` | Full provider definition. |
-| `POST` | `/providers` | Register a custom provider definition. |
-| `DELETE` | `/providers/{provider}` | Remove a custom provider or reset a bundled one to its shipped form. |
+| `GET` | `/api/providers` | List every bundled and custom provider with auth type, flow, and source. |
+| `GET` | `/api/providers/{provider}` | Full provider definition. |
+| `POST` | `/api/providers` | Register a custom provider definition. |
+| `DELETE` | `/api/providers/{provider}` | Remove a custom provider or reset a bundled one to its shipped form. |
 
 ## Proxy resolution
 
@@ -136,8 +151,8 @@ These routes back the local HTTP proxy started by `authsome run`. The proxy neve
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/proxy/routes` | Return the provider-to-host routing table the proxy uses to decide which provider matches an outbound request. |
-| `POST` | `/credentials/resolve` | Resolve a credential for a host. Returns the value the proxy injects into the `Authorization` header (or whatever header the provider's `api_key.header_name` declares). |
+| `GET` | `/api/proxy/routes` | Return the provider-to-host routing table the proxy uses to decide which provider matches an outbound request. |
+| `POST` | `/api/credentials/resolve` | Resolve a credential for a host. Returns the value the proxy injects into the `Authorization` header (or whatever header the provider's `api_key.header_name` declares). |
 
 ## Dashboard UI
 
@@ -146,26 +161,32 @@ The Next.js dashboard is served as a static export at the daemon root. Browser-o
 | Method | Path | Purpose |
 |--------|------|---------|
 | `GET` | `/` | Static dashboard shell. |
-| `POST` | `/session` | Return the dashboard URL for a PoP-authenticated local client. |
-| `POST` | `/auth/login` | Create a browser dashboard session. |
-| `POST` | `/auth/register` | Register an account and create a browser dashboard session. |
-| `POST` | `/logout` | Clear the browser dashboard session. |
-| `GET` | `/claim/{token}` | Render the account claim confirmation page. |
-| `POST` | `/claim/{token}/confirm` | Attach a local identity to the signed-in account. |
-| `POST` | `/auth/providers/{provider_name}/connect` | Start a provider login flow from the dashboard. |
-
+| `POST` | `/api/session` | Return the dashboard URL for a PoP-authenticated local client. |
+| `POST` | `/api/auth/login` | Create a browser dashboard session. |
+| `POST` | `/api/auth/register` | Register an account and create a browser dashboard session. |
+| `POST` | `/api/logout` | Clear the browser dashboard session. |
+| `GET` | `/api/claim/{token}` | Render the account claim confirmation page. |
+| `POST` | `/api/claim/{token}/confirm` | Attach a local identity to the signed-in account. |
+| `POST` | `/api/auth/providers/{provider_name}/connect` | Start a provider login flow from the dashboard. |
 
 ## Auth
 
-There is **no** bearer token between the CLI, the proxy, and the daemon in v1. Loopback binding (`127.0.0.1`) is the only access control. See [Daemon trust boundary](/security/daemon-trust-boundary) for the trust model and known limitations.
+Protected `/api/*` routes require a **Proof-of-Possession (PoP) JWT** in the `Authorization: PoP <jwt>` header, signed by the caller's Ed25519 identity key. The CLI and proxy attach this automatically. See [Daemon trust boundary](/security/daemon-trust-boundary) for the trust model.
 
 ## Calling the API directly
 
+Unauthenticated liveness:
+
 ```bash
-curl -s http://127.0.0.1:7998/health
-curl -s http://127.0.0.1:7998/providers | jq '.[].name'
-curl -s http://127.0.0.1:7998/connections | jq
-curl -s http://127.0.0.1:7998/proxy/routes | jq
+curl -s http://127.0.0.1:7998/api/health
+```
+
+Protected routes require PoP signing (use the CLI or follow `src/authsome/cli/client.py`). Example paths:
+
+```bash
+curl -s http://127.0.0.1:7998/api/providers | jq '.[].name'
+curl -s http://127.0.0.1:7998/api/connections | jq
+curl -s http://127.0.0.1:7998/api/proxy/routes | jq
 ```
 
 When `AUTHSOME_BASE_URL` is set to a hosted daemon URL, replace `http://127.0.0.1:7998` with that URL.

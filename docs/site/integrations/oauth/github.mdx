@@ -84,7 +84,7 @@ What happens:
 
 <Steps>
   <Step title="Client credential collection (first time only)">
-    Authsome opens a local form at `http://127.0.0.1:7998`. Paste the `client_id` and `client_secret`. They are encrypted and stored under your profile, then reused on every subsequent login.
+    Authsome opens a local form at `http://127.0.0.1:7998`. Paste the `client_id` and `client_secret`. They are encrypted and stored in your vault, then reused on every subsequent login.
   </Step>
   <Step title="Authorization redirect">
     A second browser window opens to `https://github.com/login/oauth/authorize`. Approve the requested scopes.
@@ -158,7 +158,7 @@ authsome export github --connection personal --format env
 
 ## Use the token
 
-Run the agent under the proxy. The library tab is for embedding authsome inside a larger Python orchestrator.
+Run the agent under the proxy (recommended). 
 
 <CodeGroup>
 
@@ -169,20 +169,6 @@ authsome run -- python my_agent.py
 ```bash Environment
 eval "$(authsome export github --format env)"
 echo $GITHUB_ACCESS_TOKEN
-```
-
-```python Python library
-from authsome.server.dependencies import create_auth_service
-import httpx
-
-auth = create_auth_service()
-token = auth.get_access_token("github", connection="default")
-
-r = httpx.get(
-    "https://api.github.com/user",
-    headers={"Authorization": f"Bearer {token}"},
-)
-print(r.json())
 ```
 
 </CodeGroup>
@@ -198,8 +184,6 @@ authsome inspect github > ~/.authsome/providers/github.json
 # edit scopes, base_url, or anything else
 authsome list   # source now shows "custom" for github
 ```
-
-
 
 ## Troubleshooting
 

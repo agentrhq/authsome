@@ -16,7 +16,7 @@ Authentication flows hold state. They involve asynchronous steps like browser re
 - **Session state:** Multi-step operations and token refresh logic need a place to live.
 - **Secure injection:** The proxy needs an isolated component to fetch fresh tokens without exposing the Vault decryption keys to the proxy process itself.
 
-The daemon solves this. It runs a persistent, in-memory coordinator that manages browser bridges, handles OAuth callbacks, serves the dashboard, and orchestrates the Vault and Auth layers. 
+The daemon solves this. It runs a persistent coordinator that manages browser bridges, handles OAuth callbacks, serves the dashboard, and orchestrates vault access and credential lifecycle. 
 
 ## Trust boundary and authorization
 

@@ -47,7 +47,7 @@ Dashboard: [https://gitlab.com/-/user_settings/applications](https://gitlab.com/
 authsome login gitlab
 ```
 
-The first time, authsome opens a local form at `http://127.0.0.1:7998` to collect your `client_id` and `client_secret`. They are encrypted under your profile and reused on every subsequent login. A second browser window then opens to `https://gitlab.com/oauth/authorize` for the authorization step.
+The first time, authsome opens a local form at `http://127.0.0.1:7998` to collect your `client_id` and `client_secret`. They are encrypted in your vault and reused on every subsequent login. A second browser window then opens to `https://gitlab.com/oauth/authorize` for the authorization step.
 
 Verify:
 
@@ -87,7 +87,7 @@ authsome login gitlab --connection work
 
 ## Use the token
 
-Run the agent under the proxy. The library tab is for embedding authsome inside a larger Python orchestrator.
+Run the agent under the proxy (recommended). 
 
 <CodeGroup>
 
@@ -97,13 +97,6 @@ authsome run -- python my_agent.py
 
 ```bash Environment
 eval "$(authsome export gitlab --format env)"
-```
-
-```python Python library
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-token = auth.get_access_token("gitlab", connection="default")
 ```
 
 </CodeGroup>

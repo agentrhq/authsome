@@ -123,11 +123,9 @@ authsome run -- python my_agent.py
 
 Hermes can also drop below the CLI into the Python library when it needs explicit per-call control:
 
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-github_token = auth.get_access_token("github")
+```bash
+authsome run -- python my_agent.py
+# or: eval "$(authsome export <provider> --format env)"
 ```
 
 See [Run agents with the proxy](/guides/run-agents-with-proxy) and [Python library](/reference/python-library) for the full surface.
@@ -144,7 +142,7 @@ If a Hermes-driven login hangs:
 
 - Run `authsome doctor` directly from the terminal to surface initialization errors.
 - Run `authsome --verbose login <provider>` to see the full flow including the daemon round-trips.
-- Check `~/.authsome/audit.log` for the most recent action and outcome.
+- Run `authsome log` to inspect recent audit events from the daemon.
 
 For provider-specific errors, see [OAuth callbacks](/troubleshooting/oauth-callbacks) and [Token refresh](/troubleshooting/token-refresh).
 
@@ -155,7 +153,7 @@ For provider-specific errors, see [OAuth callbacks](/troubleshooting/oauth-callb
     The proxy injection model the skill uses under the hood.
   </Card>
   <Card title="Python library" icon="code" href="/reference/python-library">
-    Drop below the skill into `AuthService` for fine-grained control.
+    Use `authsome export` or the daemon HTTP API when the proxy is not enough.
   </Card>
   <Card title="All bundled providers" icon="plug" href="/reference/bundled-providers">
     Every service Hermes can log you into out of the box.

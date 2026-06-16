@@ -26,11 +26,9 @@ OpenCode sees placeholder env vars (`OPENAI_API_KEY=authsome-proxy-managed`) but
 
 If you're orchestrating OpenCode from a larger Python program and need explicit per-call control, drop below the proxy:
 
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-key = auth.get_access_token("openai", connection="default")
+```bash
+authsome run -- python my_agent.py
+# or: eval "$(authsome export <provider> --format env)"
 ```
 
 See [Python library](/reference/python-library).

@@ -1,15 +1,19 @@
 ---
 title: "Python library"
 sidebarTitle: "Python library"
-description: "Use authsome from Python. AuthService is the public entry point; AuthLayer composes the building blocks."
+description: "Use authsome from Python via the CLI, proxy, export, or daemon HTTP API."
 icon: "code"
-keywords: ["authsome python", "AuthService", "authsome library", "auth.get_access_token", "authsome programmatic"]
+keywords: ["authsome python", "authsome library", "authsome programmatic", "authsome daemon api"]
 ---
 
-Authsome is a Python library as well as a CLI. The public surface lives in the top-level `authsome` package.
+Authsome ships as a Python package, but the supported integration surface for agents is **not** an in-process credential API. Use one of these paths instead:
+
+1. **`authsome run -- <command>`** — recommended. The proxy injects credentials without exposing secrets to the child process.
+2. **`authsome export <provider> --format env`** — when the tool cannot route through an HTTP proxy.
+3. **Daemon HTTP API** — when you are building tooling that talks to the local daemon over PoP-authenticated HTTP.
 
 <Note>
-  The supported integration surface for almost every workflow is the **CLI plus the proxy** (`authsome run -- <your agent>`). The library exists for embedding authsome inside a larger Python orchestrator with custom storage, custom subprocess management, or per-call connection selection that the proxy can't yet do. If you're not in that case, the CLI is the right tool. See [Run agents with the proxy](/guides/run-agents-with-proxy).
+  The CLI plus proxy covers almost every workflow. Drop to export or the HTTP API only when embedding authsome in custom orchestration or non-Python runtimes. See [Run agents with the proxy](/guides/run-agents-with-proxy).
 </Note>
 
 ## Install
@@ -22,176 +26,67 @@ uv pip install authsome
 
 Python 3.13 or newer.
 
-## Quick start
+## Quick start (proxy)
 
-```python
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-token = auth.get_access_token("github", connection="default")
-
-import httpx
-r = httpx.get(
-    "https://api.github.com/user",
-    headers={"Authorization": f"Bearer {token}"},
-)
-print(r.json())
+```bash
+authsome onboard
+authsome login github
+authsome run -- python my_script.py
 ```
 
-`create_auth_service(..., identity="<handle>")` is the same constructor the daemon uses after it has validated a registered identity handle. It reads `~/.authsome/config.json`, opens the vault scoped to that identity, wires the provider registry, and returns an `AuthService`.
+Your script reads placeholder env vars; the proxy substitutes real credentials on outbound HTTP requests. No authsome import required in the script.
 
-To target a non-default home directory:
+## Quick start (export)
 
-```python
-from pathlib import Path
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service(home=Path("/var/lib/authsome"))
+```bash
+eval "$(authsome export github --format env)"
+python -c 'import os; print(os.environ["GITHUB_ACCESS_TOKEN"][:8] + "...")'
 ```
 
-## Public exports
+Refresh is handled by the daemon. Re-run export when you need fresh values in a long-lived shell.
 
-Everything below is re-exported from the top-level `authsome` package:
+## Quick start (daemon HTTP API)
+
+The CLI and proxy both call the daemon at `http://127.0.0.1:7998/api/...` with PoP JWT authentication. Every protected request carries `Authorization: PoP <jwt>` signed by the local Ed25519 identity key.
+
+```bash
+curl -s http://127.0.0.1:7998/api/health | jq
+curl -s http://127.0.0.1:7998/api/connections | jq
+```
+
+See [HTTP daemon API](/reference/daemon-api) for every route. For programmatic PoP signing, follow `src/authsome/cli/client.py` in the repository — that client is the reference implementation.
+
+## Public package exports
+
+The top-level `authsome` package re-exports models, errors, and the `Vault` interface for tests and advanced embedding:
 
 ```python
 from authsome import (
-    AuthLayer,            # building-block facade with vault, registry, identity, app_store
-    AuthService,          # full auth + credential lifecycle service
-    Vault,                # encrypted storage interface
-
-    # Models
-    AuthType, ConnectionStatus, ExportFormat, FlowType,
-    ConnectionRecord, ProviderDefinition, Sensitive,
-
-    # Errors (all subclass AuthsomeError)
+    Vault,
+    AuthType,
+    ConnectionRecord,
+    ConnectionStatus,
+    ExportFormat,
+    FlowType,
+    ProviderDefinition,
+    ProviderType,
+    Sensitive,
     AuthsomeError,
     AuthenticationFailedError,
     ConnectionNotFoundError,
     CredentialMissingError,
-    DiscoveryError,
-    EncryptionUnavailableError,
-    InputCancelledError,
-    InvalidProviderSchemaError,
-    ProfileNotFoundError,
+    IdentityNotFoundError,
     ProviderNotFoundError,
     RefreshFailedError,
-    StoreUnavailableError,
     TokenExpiredError,
-    UnsupportedAuthTypeError,
-    UnsupportedFlowError,
 )
 ```
 
-## AuthService
-
-The class that owns OAuth flows, token refresh, and the login/logout/revoke lifecycle. It receives a `Vault`, a `ProviderRegistry`, and an `AppStore` as dependencies. For most library use, build it with `create_auth_service()` as shown above.
-
-### Get a token or API key
-
-```python
-token = auth.get_access_token("github", connection="default")
-key   = auth.get_access_token("openai", connection="default")
-```
-
-`get_access_token` checks the stored expiry, refreshes the token if it's close to expiry (within 300 seconds), writes the fresh record back, and returns the usable string. For API-key providers the call returns the stored key value through the same code path.
-
-For pre-built headers ready to splice into a request:
-
-```python
-headers = auth.get_auth_headers("github", connection="default")
-# {"Authorization": "Bearer ghu_..."}
-```
-
-### Inspect connections
-
-```python
-record = auth.get_connection("github", connection="default")
-
-record.status        # ConnectionStatus enum: connected | expired | invalid | revoked | not_connected
-record.scopes        # list[str]
-record.expires_at    # datetime | None
-record.account.id    # provider-side account id
-record.account.label # display name
-```
-
-Sensitive fields on the record are encrypted on disk and decrypted on read.
-
-### List and inspect providers
-
-```python
-for definition in auth.list_providers():
-    print(definition.name, definition.display_name, definition.auth_type, definition.flow)
-
-# Grouped by source ("bundled" / "custom")
-by_source = auth.list_providers_by_source()
-
-# Single provider
-definition = auth.get_provider("github")
-definition.api_url
-definition.oauth.scopes
-```
-
-### Manage connections
-
-```python
-auth.set_default_connection("github", "work")
-auth.logout("github", connection="personal")
-auth.revoke("github")
-auth.remove("github")
-```
-
-`logout` removes a single local connection. `revoke` calls the provider's revocation endpoint (where supported) and clears all connections + client credentials for the provider in the active profile. `remove` uninstalls the provider definition entirely (for custom providers) or resets it to the bundled default.
-
-### Run a login flow
-
-Most library users rely on the CLI for login because the flows need a browser or a TTY. To drive a flow programmatically:
-
-```python
-from authsome.auth.sessions import AuthSession
-
-session = auth.begin_login_flow(
-    provider="github",
-    flow_type=FlowType.PKCE,
-    connection="default",
-)
-# Pop the browser, collect inputs, then:
-auth.resume_login_flow(session)
-```
-
-The exact session shape depends on the flow type. For automation, prefer driving `authsome login` and reading its `--json` output.
-
-### Manage Principals and Identities
-
-CLI-level Principal and Identity switching is managed via `authsome onboard` and `authsome login`. The library provides programmatic access to these constructs, but typically you rely on the daemon resolving the active context.
-
-### Register a custom provider
-
-```python
-from authsome import AuthService, ProviderDefinition
-
-definition = ProviderDefinition.model_validate_json(open("acmecrm.json").read())
-auth.register_provider(definition, force=False)
-```
-
-Equivalent to `authsome register ./acmecrm.json`.
-
-## AuthLayer
-
-A thin facade that holds the building blocks (`vault()`, `registry()`, `identity()`, `app_store()`). Useful when you need direct access to one component without going through the full `AuthService` surface . for example, reading a credential record without triggering refresh.
-
-```python
-from authsome import AuthLayer
-
-layer = AuthLayer(vault=..., registry=..., app_store=..., identity="local")
-vault = layer.vault()
-record_bytes = vault.get("profile:local:github:connection:default")
-```
-
-For typical library use, `AuthService` is the right entry point. Drop down to `AuthLayer` and `Vault` directly only when you're embedding authsome inside a larger orchestrator with custom storage.
+`CredentialService` (the daemon's credential lifecycle coordinator) lives in `authsome.server` and is constructed by the daemon's dependency injection layer. It is not a supported public embedding API.
 
 ## Vault
 
-A minimal key-value interface with field-level encryption applied transparently:
+A minimal encrypted key-value interface. Credential records are stored under keys like `vault:<vault_id>:<provider>:connection:<name>`. Direct vault access is rare outside tests:
 
 ```python
 vault.get(key)
@@ -200,45 +95,40 @@ vault.delete(key)
 vault.list(prefix)
 ```
 
-Direct vault access is rare. Prefer `AuthService`; it manages encryption, decryption, and connection lifecycle for you.
+Prefer the CLI or daemon API; they manage encryption, refresh, and Principal/Vault authorization for you.
 
 ## Errors
 
-All exceptions subclass `AuthsomeError`. Common ones you'll catch:
+All exceptions subclass `AuthsomeError`. Common ones:
 
 | Exception | When |
 |-----------|------|
-| `ProviderNotFoundError` | `get_provider("does-not-exist")` |
-| `ConnectionNotFoundError` | Requested connection doesn't exist on the provider |
-| `CredentialMissingError` | Provider is registered but no connection has been completed |
+| `ProviderNotFoundError` | Unknown provider name |
+| `ConnectionNotFoundError` | Requested connection doesn't exist |
+| `CredentialMissingError` | Provider registered but no completed connection |
 | `RefreshFailedError` | Provider rejected the refresh token |
 | `TokenExpiredError` | Token expired and refresh wasn't possible |
-| `AuthenticationFailedError` | Login flow returned an error or the user cancelled |
-| `InputCancelledError` | User cancelled credential entry |
-| `StoreUnavailableError` | Vault file is locked or unreadable |
-| `EncryptionUnavailableError` | OS keyring backend unreachable |
-| `InvalidProviderSchemaError` | `register_provider` got a malformed `ProviderDefinition` |
+| `AuthenticationFailedError` | Login flow failed or was cancelled |
+| `IdentityNotFoundError` | Identity handle not registered with the daemon |
+| `StoreUnavailableError` | Vault or store unreachable |
 
 Exit codes in [CLI reference](/reference/cli) map one-to-one to these classes.
 
-## When to use the library vs the CLI
+## When to use which surface
 
-| Use the library | Use the CLI |
-|-----------------|--------------|
-| Embedding authsome in an existing Python agent. | Driving authsome from any non-Python runtime. |
-| Fine-grained per-call connection selection. | Default-connection model is enough. |
-| Reading connection metadata without parsing CLI output. | `--json` output is enough. |
-| Stubbing the vault or auth layer in tests. | You're a human running commands. |
-
-For most agent workflows, `authsome run -- <agent>` is simpler than embedding the library directly. The library exists for cases where the CLI shape doesn't fit.
+| Use the proxy | Use export | Use the HTTP API |
+|---------------|------------|------------------|
+| Python/Node/any HTTP agent | SDKs that ignore proxies | Custom tooling on top of authsome |
+| Secrets must not appear in env | Short-lived shell sessions | Non-Python orchestrators |
+| Default for new integrations | TLS-pinned SDKs | Dashboards and automation |
 
 ## What's next
 
 <Columns cols={2}>
   <Card title="Architecture" icon="layer-group" href="/concepts/architecture">
-    Where AuthService and Vault sit in the layered model.
+    Identity, Vault, Principal, and the daemon.
   </Card>
-  <Card title="CLI reference" icon="terminal" href="/reference/cli">
-    Every command. The CLI is a client of the same code.
+  <Card title="HTTP daemon API" icon="server" href="/reference/daemon-api">
+    Every route the daemon exposes.
   </Card>
 </Columns>

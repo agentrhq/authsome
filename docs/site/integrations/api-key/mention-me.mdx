@@ -48,7 +48,7 @@ authsome get mention-me --field status
 
 ## Use the key
 
-Run the agent under the proxy. The library tab is for embedding authsome inside a larger Python orchestrator.
+Run the agent under the proxy (recommended). 
 
 <CodeGroup>
 
@@ -59,13 +59,6 @@ authsome run -- python my_agent.py
 ```bash Environment
 eval "$(authsome export mention-me --format env)"
 echo $MENTIONME_API_KEY
-```
-
-```python Python library
-from authsome.server.dependencies import create_auth_service
-
-auth = create_auth_service()
-key = auth.get_access_token("mention-me", connection="default")
 ```
 
 </CodeGroup>
@@ -98,7 +91,6 @@ authsome inspect mention-me > ~/.authsome/providers/mention-me.json
 # edit fields
 authsome list   # source now shows "custom" for mention-me
 ```
-
 
 ## What's next
 

@@ -11,7 +11,7 @@ Authsome interacts with environment variables in three roles: **inputs** that ch
 |----------|---------|
 | `AUTHSOME_BASE_URL` | The daemon URL. On client machines, set this to point the CLI and proxy at a remote daemon instead of auto-starting one locally. On the daemon host, set this to the public URL when behind a reverse proxy — authsome uses it to build OAuth callback URLs such as `/auth/callback/oauth`. Defaults to `http://127.0.0.1:7998`. |
 | `AUTHSOME_HOME` | Override the default `~/.authsome` directory. Useful for tests, ephemeral environments, and per-project vaults. |
-| `AUTHSOME_IDENTITY_PRIVATE_KEY` | Hex-encoded Ed25519 private key. The agent's full identity is derived from this single value: the DID is computed locally and the human-readable handle is resolved from the identity server. Sufficient on its own — no `authsome init` or local identity files required. |
+| `AUTHSOME_IDENTITY_PRIVATE_KEY` | Hex-encoded Ed25519 private key. The agent's full identity is derived from this single value: the DID is computed locally and the human-readable handle is resolved from the identity server. Sufficient on its own — no `authsome onboard` or local identity files required. |
 | `AUTHSOME_IDENTITY` | *(Optional, deprecated)* Explicit handle override used alongside `AUTHSOME_IDENTITY_PRIVATE_KEY`. No longer required: the handle is resolved from the identity server. See the migration note below. |
 | `HTTP_PROXY` / `HTTPS_PROXY` | Honored by authsome's own outbound HTTP requests (token endpoints, device flow polling). The proxy started by `authsome run` is **set** as these variables in the child process; it does not chain through them. |
 
