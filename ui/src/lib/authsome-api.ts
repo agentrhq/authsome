@@ -34,7 +34,7 @@ export type GlobalConnectionRow = ConnectionRow & {
   accountLabel: string | null;
 };
 
-export type IdentityRow = {
+export type AgentRow = {
   handle: string;
   isActive: boolean;
 };
@@ -42,12 +42,25 @@ export type IdentityRow = {
 export type AuditRow = {
   eventId: string;
   time: string;
+  eventName: string;
   event: string;
   source: string;
   actor: string;
   target: string;
   status: string;
   metadata: Record<string, unknown>;
+};
+
+export type AuditEventsQuery = {
+  cursor?: string | null;
+  limit?: number;
+};
+
+export type AuditEventsData = {
+  scope: "global" | "principal";
+  nextCursor: string | null;
+  events: AuditRow[];
+  total: number;
 };
 
 export type DashboardData = {
@@ -57,15 +70,15 @@ export type DashboardData = {
     roleLabel: string | null;
     isAdmin: boolean;
     principalId: string | null;
-    identity: string | null;
+    agent: string | null;
   };
   stats: DashboardStats;
-  lastActivity: string;
+  latestTokenExpiry: string;
   providers: ProviderView[];
   connectedProviders: ProviderView[];
   connections: ConnectionRow[];
   globalConnections: GlobalConnectionRow[];
-  identities: IdentityRow[];
+  agents: AgentRow[];
   vault: {
     vaultId: string | null;
     handle: string;
@@ -73,6 +86,8 @@ export type DashboardData = {
   };
   audit: {
     canView: boolean;
+    scope: "global" | "principal";
+    nextCursor: string | null;
     total: number;
     events: AuditRow[];
   };
@@ -218,6 +233,8 @@ type ConnectionsResponse = {
 
 type AuditResponse = {
   entries: Array<Record<string, unknown>>;
+  next_cursor?: string | null;
+  scope?: "global" | "principal";
 };
 
 export type PrincipalRow = {
@@ -450,7 +467,7 @@ function formatRelative(value: string | null | undefined): string | null {
   return direction === "in" ? `in ${label}` : `${label} ago`;
 }
 
-function lastActivity(data: ConnectionsResponse): string {
+function latestTokenExpiry(data: ConnectionsResponse): string {
   const latest = data.connections
     .flatMap((group) => group.connections)
     .map((connection) => connection.expires_at)
@@ -484,6 +501,7 @@ function buildAuditRows(entries: AuditResponse["entries"]): AuditRow[] {
     return {
       eventId: String(entry.event_id || `${entry.timestamp || "event"}-${index}`),
       time: formatAuditTime(entry.timestamp),
+      eventName: String(entry.event || "audit_event"),
       event: humanize(entry.event),
       source: String(entry.source || "internal"),
       actor: String(entry.identity || entry.principal_id || "system"),
@@ -492,6 +510,24 @@ function buildAuditRows(entries: AuditResponse["entries"]): AuditRow[] {
       metadata,
     };
   });
+}
+
+function auditQueryString(query: AuditEventsQuery = {}): string {
+  const params = new URLSearchParams();
+  params.set("limit", String(query.limit ?? 50));
+  if (query.cursor) params.set("cursor", query.cursor);
+  return params.toString();
+}
+
+export async function fetchAuditEvents(query: AuditEventsQuery = {}): Promise<AuditEventsData> {
+  const data = await requestJson<AuditResponse>(`/api/audit/events?${auditQueryString(query)}`);
+  const events = buildAuditRows(data.entries);
+  return {
+    scope: data.scope ?? "principal",
+    nextCursor: data.next_cursor ?? null,
+    events,
+    total: events.length,
+  };
 }
 
 function roleLabel(role: string | undefined): string | null {
@@ -508,15 +544,15 @@ export async function fetchDashboard(): Promise<DashboardData> {
     requestJson<ConnectionsResponse>("/api/connections"),
   ]);
   const isAdmin = whoami.principal_role === "admin";
-  const audit = isAdmin ? await requestJson<AuditResponse>("/api/audit/events?limit=100") : { entries: [] };
+  const audit = await fetchAuditEvents({ limit: 100 });
   const providers = buildProviders(connectionsData);
   const connections = buildConnectionRows(connectionsData, providers);
   const globalConnections = buildGlobalConnectionRows(connectionsData);
   const connectedProviders = providers.filter((provider) => provider.status !== "available");
-  const activeIdentity = whoami.identity || whoami.active_identity || null;
-  const identityHandles = new Set(identitiesData.identities.map((identity) => identity.handle));
-  if (activeIdentity) {
-    identityHandles.add(activeIdentity);
+  const activeAgent = whoami.identity || whoami.active_identity || null;
+  const agentHandles = new Set(identitiesData.identities.map((identity) => identity.handle));
+  if (activeAgent) {
+    agentHandles.add(activeAgent);
   }
 
   return {
@@ -526,7 +562,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
       roleLabel: roleLabel(whoami.principal_role),
       isAdmin,
       principalId: whoami.principal_id || null,
-      identity: activeIdentity,
+      agent: activeAgent,
     },
     stats: {
       connected: connectedProviders.length,
@@ -534,21 +570,23 @@ export async function fetchDashboard(): Promise<DashboardData> {
       oauth: connectedProviders.filter((provider) => provider.authType === "oauth2").length,
       apiKey: connectedProviders.filter((provider) => provider.authType === "api_key").length,
     },
-    lastActivity: lastActivity(connectionsData),
+    latestTokenExpiry: latestTokenExpiry(connectionsData),
     providers,
     connectedProviders: connectedProviders.slice(0, 6),
     connections,
     globalConnections,
-    identities: Array.from(identityHandles, (handle) => ({ handle, isActive: handle === activeIdentity })),
+    agents: Array.from(agentHandles, (handle) => ({ handle, isActive: handle === activeAgent })),
     vault: {
       vaultId: whoami.vault_id || null,
       handle: "default",
       isDefault: true,
     },
     audit: {
-      canView: isAdmin,
-      total: audit.entries.length,
-      events: buildAuditRows(audit.entries),
+      canView: true,
+      scope: audit.scope,
+      nextCursor: audit.nextCursor,
+      total: audit.total,
+      events: audit.events,
     },
   };
 }

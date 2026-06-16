@@ -64,11 +64,30 @@ class AccountAuthService:
         principal = await self._principals.get_by_email(self._normalize_email(email))
         if principal is None or not principal.password_hash:
             raise ValueError("Invalid email or password")
-        try:
-            self._hasher.verify(principal.password_hash, password)
-        except (VerificationError, VerifyMismatchError) as exc:
-            raise ValueError("Invalid email or password") from exc
+        self._verify_password(principal.password_hash, password, message="Invalid email or password")
         return self._sessions.create_browser_session(principal_id=principal.principal_id, email=principal.email)
+
+    async def change_password(
+        self,
+        *,
+        principal_id: str,
+        current_password: str,
+        new_password: str,
+    ) -> PrincipalRecord:
+        principal = await self._principals.get(principal_id)
+        if principal is None or not principal.password_hash:
+            raise ValueError("Invalid current password")
+        self._verify_password(principal.password_hash, current_password, message="Invalid current password")
+        self._validate_password(new_password)
+        return await self._principals.update_password(principal_id, password_hash=self._hasher.hash(new_password))
+
+    def _verify_password(self, password_hash: str, password: str, *, message: str) -> None:
+        try:
+            self._hasher.verify(password_hash, password)
+        except (VerificationError, VerifyMismatchError) as exc:
+            raise ValueError(message) from exc
+        except ValueError as exc:
+            raise ValueError(message) from exc
 
     @staticmethod
     def _normalize_email(email: str) -> str:

@@ -12,11 +12,11 @@ All commands support `--json` for machine-readable output, `--quiet` to suppress
 | `connections` | Inspect and manage stored provider connections. |
 | `daemon` | Manage the local Authsome daemon. |
 | `doctor` | Run health checks on directory layout and encryption. |
-| `init` | Initialize local storage and register a fresh profile. |
+| `agent` | Manage local agents backed by signing keys. |
+| `init` | Initialize local storage and register a fresh agent. |
 | `log` | View structured audit entries or the raw client debug log. |
 | `login <provider>` | Authenticate with PROVIDER using the configured flow. |
 | `logout <provider>` | Log out of the specified PROVIDER connection. |
-| `profile` | Manage local profiles backed by identity keys. |
 | `provider` | Manage provider definitions and provider-level operations. |
 | `run -- <cmd>` | Run COMMAND as a subprocess injected with authentication credentials. |
 | `scan` | Scan env files and process env for provider API keys. |
@@ -38,8 +38,8 @@ All commands support `--json` for machine-readable output, `--quiet` to suppress
 ### `init` / `whoami` / `doctor`
 
 ```bash
-authsome init             # initialize local storage and register profile
-authsome whoami           # show identity context and encryption mode
+authsome init             # initialize local storage and register agent
+authsome whoami           # show agent context and encryption mode
 authsome doctor           # run health checks
 authsome doctor --json    # structured output for monitoring
 ```
@@ -153,14 +153,14 @@ Sets the default connection for a provider. The proxy and library calls use the 
 authsome connections set-default github work
 ```
 
-### `profile`
+### `agent`
 
 ```bash
-authsome profile create   # create a new local profile keypair
-authsome profile use      # switch the active local profile
+authsome agent create   # create a new local agent keypair
+authsome agent use      # switch the active local agent
 ```
 
-Profiles are backed by Ed25519 identity keys at `~/.authsome/identities/`. Each profile has its own credential namespace in the vault.
+Agents are backed by Ed25519 signing keys at `~/.authsome/identities/`. Credentials are scoped to the active vault, not to the agent key.
 
 ### `daemon`
 

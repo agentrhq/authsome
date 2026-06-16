@@ -26,7 +26,8 @@ def test_init_removes_legacy_default_state_and_registers_identity(
 
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
-    assert data["profile"] != "default"
+    assert data["agent"] != "default"
+    assert "profile" not in data
     assert data["registration_status"] == "registered"
     assert data["configured_encryption_mode"] == "auto"
     assert data["effective_encryption_source"] == "local_key"
@@ -38,10 +39,10 @@ def test_init_removes_legacy_default_state_and_registers_identity(
 
     config_data = ClientConfig.load(tmp_path)
     assert config_data.version == __version__
-    assert config_data.active_identity == data["profile"]
+    assert config_data.active_identity == data["agent"]
 
 
-def test_init_skips_registration_for_registered_active_profile(
+def test_init_skips_registration_for_registered_active_agent(
     runner,
     mock_client,
     tmp_path: Path,
@@ -53,6 +54,7 @@ def test_init_skips_registration_for_registered_active_profile(
 
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
-    assert data["profile"] == identity.handle
+    assert data["agent"] == identity.handle
+    assert "profile" not in data
     assert data["configured_encryption_mode"] == "auto"
     mock_client.ensure_identity_ready.assert_called_once()

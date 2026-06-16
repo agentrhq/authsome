@@ -2,16 +2,17 @@
 
 import { UserRound } from "lucide-react";
 import Link from "next/link";
+import { useRef, useState } from "react";
 import useSWR from "swr";
 
 import { PageEmptyState, PageErrorState, PageLoadingState } from "@/components/dashboard/page-state";
 import { ProviderSummary } from "@/components/dashboard/provider-views";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DashboardData, PrincipalRow, fetchPrincipals } from "@/lib/authsome-api";
+import { DashboardData, PrincipalRow, fetchAuditEvents, fetchPrincipals } from "@/lib/authsome-api";
 
 export function DashboardView({ data }: { data: DashboardData }) {
   const recentEvents = data.audit.events.slice(0, 5);
@@ -44,23 +45,23 @@ export function DashboardView({ data }: { data: DashboardData }) {
         <div className="mb-4">
           <h2 className="text-base font-semibold">Agents</h2>
         </div>
-        {data.identities.length ? (
+        {data.agents.length ? (
           <div className="grid gap-2">
-            {data.identities.map((identity) => (
+            {data.agents.map((agent) => (
               <div
                 className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3"
-                key={identity.handle}
+                key={agent.handle}
               >
                 <div className="flex items-center gap-3">
                   <UserRound className="size-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{identity.handle}</span>
+                  <span className="text-sm font-medium">{agent.handle}</span>
                 </div>
-                {identity.isActive ? <Badge variant="outline">Active</Badge> : null}
+                {agent.isActive ? <Badge variant="outline">Active</Badge> : null}
               </div>
             ))}
           </div>
         ) : (
-          <PageEmptyState title="No identities found" />
+          <PageEmptyState title="No agents found" />
         )}
       </section>
 
@@ -101,7 +102,7 @@ export function AgentsView({ data }: { data: DashboardData }) {
       <SectionHeader description="Local Ed25519 key pairs (agents) claimed to this account." title="Agents" />
       <Card className="shadow-none border-border/50">
         <CardContent className="p-0">
-          {data.identities.length ? (
+          {data.agents.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -109,14 +110,14 @@ export function AgentsView({ data }: { data: DashboardData }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.identities.map((identity) => (
-                  <TableRow key={identity.handle}>
+                {data.agents.map((agent) => (
+                  <TableRow key={agent.handle}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
                           <UserRound className="size-3.5 text-muted-foreground" />
                         </span>
-                        <span className="font-medium">{identity.handle}</span>
+                        <span className="font-medium">{agent.handle}</span>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -182,12 +183,57 @@ export function PrincipalsView() {
 }
 
 export function AuditView({ data }: { data: DashboardData }) {
+  const [auditResult, setAuditResult] = useState<{
+    events: DashboardData["audit"]["events"];
+    nextCursor: string | null;
+  } | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const requestSequence = useRef(0);
+  const events = auditResult?.events ?? data.audit.events;
+  const nextCursor = auditResult?.nextCursor ?? data.audit.nextCursor;
+  const description = data.account.isAdmin
+    ? "Recent administrative and credential events."
+    : "Recent account, identity, vault, and credential events for this principal.";
+
+  function nextRequestId(): number {
+    requestSequence.current += 1;
+    return requestSequence.current;
+  }
+
+  function isLatestRequest(requestId: number): boolean {
+    return requestSequence.current === requestId;
+  }
+
+  async function loadMore() {
+    if (!nextCursor) return;
+    const requestId = nextRequestId();
+    setLoadingMore(true);
+    setErrorMessage("");
+    try {
+      const result = await fetchAuditEvents({ cursor: nextCursor, limit: 50 });
+      if (!isLatestRequest(requestId)) return;
+      setAuditResult({
+        events: [...events, ...result.events],
+        nextCursor: result.nextCursor,
+      });
+    } catch (error) {
+      if (!isLatestRequest(requestId)) return;
+      setErrorMessage(error instanceof Error ? error.message : "Failed to load more audit events.");
+    } finally {
+      if (isLatestRequest(requestId)) {
+        setLoadingMore(false);
+      }
+    }
+  }
+
   return (
     <div className="grid gap-5">
-      <SectionHeader description="Recent administrative and credential events." title="Audit Log" />
+      <SectionHeader description={description} title="Audit Log" />
+      {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
       <Card className="shadow-none border-border/50">
         <CardContent className="p-0">
-          {data.audit.events.length ? (
+          {events.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -199,7 +245,7 @@ export function AuditView({ data }: { data: DashboardData }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.audit.events.map((event) => (
+                {events.map((event) => (
                   <TableRow key={event.eventId}>
                     <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{event.time}</TableCell>
                     <TableCell className="font-medium">{event.event}</TableCell>
@@ -225,6 +271,13 @@ export function AuditView({ data }: { data: DashboardData }) {
           ) : <PageEmptyState title="No audit events found" />}
         </CardContent>
       </Card>
+      {nextCursor ? (
+        <div className="flex justify-center">
+          <Button disabled={loadingMore} onClick={() => void loadMore()} type="button" variant="outline">
+            {loadingMore ? "Loading..." : "Load more"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

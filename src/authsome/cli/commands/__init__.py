@@ -1,9 +1,9 @@
 """CLI command registration."""
 
+import authsome.cli.commands.agent as agent_module
 import authsome.cli.commands.connections as connections_module
 import authsome.cli.commands.core as core_module
 import authsome.cli.commands.daemon as daemon_module
-import authsome.cli.commands.profile as profile_module
 import authsome.cli.commands.provider as provider_module
 
 
@@ -19,5 +19,5 @@ def register_commands(cli) -> None:
     cli.add_command(core_module.log_cmd)
     cli.add_command(provider_module.provider)
     cli.add_command(connections_module.connections)
-    cli.add_command(profile_module.profile)
+    cli.add_command(agent_module.agent)
     cli.add_command(daemon_module.daemon)

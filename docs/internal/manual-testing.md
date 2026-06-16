@@ -39,17 +39,17 @@ uv run authsome whoami
 **Expected (first run):** the command prints a claim URL to stderr, opens it in a
 browser, and blocks while polling:
 ```
-Open this URL in your browser to claim this identity:
+Open this URL in your browser to claim this agent:
   http://127.0.0.1:7998/claim?token=claim_<token>
 ```
 
 **Human action:**
 1. The browser opens the claim page automatically (open the printed URL yourself if it doesn't, e.g. on a headless box).
 2. Register with an email + password — or log in if the account already exists. The first account on a fresh server becomes the **admin** Principal.
-3. Confirm that the displayed identity handle is yours.
+3. Confirm that the displayed agent handle is yours.
 4. The CLI unblocks and `whoami` prints your context. Subsequent commands reuse the accepted claim — no browser step.
 
-**Expected (after claim):** a JSON object (`{"v": 1, ...}`) with key fields `authsome_version`, `home_directory`, `profile` (registered non-default identity handle), `principal_id`, `vault_id`, `did`, `registration_status`, `daemon_url`, `configured_encryption_mode`, `effective_encryption_source`, `encryption_backend`, `vault_status` (`OK`), `connected_providers_count` (`0`), `connected_providers` (`[]`), and `issues` (`[]`).
+**Expected (after claim):** a JSON object (`{"v": 1, ...}`) with key fields `authsome_version`, `home_directory`, `agent` (registered non-default agent handle), `principal_id`, `vault_id`, `did`, `registration_status`, `daemon_url`, `configured_encryption_mode`, `effective_encryption_source`, `encryption_backend`, `vault_status` (`OK`), `connected_providers_count` (`0`), `connected_providers` (`[]`), and `issues` (`[]`).
 
 ```bash
 uv run authsome doctor
@@ -327,20 +327,20 @@ uv run authsome provider list   # github connection gone
 
 ---
 
-## 15. Profiles
+## 15. Agents
 
 ```bash
-uv run authsome profile create --handle work
+uv run authsome agent create --handle work
 ```
 
-**Expected:** `{"v": 1, "status": "created", "profile": "work", "did": "did:key:...", ...}`. A new local Ed25519 keypair; the next protected command for this profile triggers its own browser claim.
+**Expected:** `{"v": 1, "status": "created", "agent": "work", "did": "did:key:...", ...}`. A new local Ed25519 keypair; the next protected command for this agent triggers its own browser claim.
 
 ```bash
-uv run authsome profile use work
-uv run authsome whoami   # profile reflects "work" (claim required on first use)
+uv run authsome agent use work
+uv run authsome whoami   # agent reflects "work" (claim required on first use)
 ```
 
-**Expected:** `profile use` → `{"status": "active", "profile": "work", ...}`.
+**Expected:** `agent use` -> `{"status": "active", "agent": "work", ...}`.
 
 ---
 
