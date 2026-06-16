@@ -12,7 +12,6 @@ import {
   LogOut,
   Settings,
   UserRound,
-  Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -40,7 +39,7 @@ import {
 } from "@/components/ui/sidebar";
 import { DashboardData } from "@/lib/authsome-api";
 
-export type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "audit" | "settings";
+export type View = "dashboard" | "providers" | "connections" | "agents" | "audit" | "settings";
 
 type NavItem = {
   id: View;
@@ -55,7 +54,6 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "providers", href: "/providers", label: "Providers", icon: <KeyRound /> },
   { id: "connections", href: "/connections", label: "Connections", icon: <Link2 /> },
   { id: "agents", href: "/agents", label: "Agents", icon: <UserRound /> },
-  { id: "principals", href: "/principal", label: "Principals", icon: <Users />, adminOnly: true },
   { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList /> },
   { id: "settings", href: "/settings", label: "Settings", icon: <Settings /> },
 ];

@@ -35,7 +35,6 @@ function pathToView(pathname: string): View {
     providers: "providers",
     connections: "connections",
     agents: "agents",
-    principal: "principals",
     audit: "audit",
     settings: "settings",
   };
@@ -54,15 +53,29 @@ function buildBreadcrumbs(
     providers: "Providers",
     connections: "Connections",
     agents: "Agents",
-    principal: "Principals",
     audit: "Audit Log",
     settings: "Settings",
+    principal: "Principals",
+  };
+
+  const settingsSubLabel: Record<string, string> = {
+    general: "General",
+    security: "Security",
+    about: "About",
+    principals: "Principals",
   };
 
   if (!first) return [{ label: "Dashboard" }];
 
   const parent = navLabel[first];
   if (!parent) return [{ label: "Dashboard", href: "/" }];
+
+  if (first === "settings" && segments[1] && settingsSubLabel[segments[1]]) {
+    return [
+      { label: "Settings", href: "/settings" },
+      { label: settingsSubLabel[segments[1]] },
+    ];
+  }
 
   const isDetail = segments[1] === "detail";
   if (!isDetail) return [{ label: parent }];

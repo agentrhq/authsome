@@ -8,41 +8,45 @@ import { SectionHeader } from "@/components/dashboard/section-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DashboardData } from "@/lib/authsome-api";
 
-const SETTINGS_TABS = new Set(["account", "about", "security"]);
+export function GeneralSettingsContent({ data }: { data: DashboardData }) {
+  return (
+    <div className="grid gap-4">
+      <SectionHeader description="Account and vault context for this principal." title="General" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SettingsAccountCard data={data} />
+        <SettingsVaultCard data={data} />
+      </div>
+    </div>
+  );
+}
 
-export function SettingsView({ data }: { data: DashboardData }) {
+export function SecuritySettingsContent({ data }: { data: DashboardData }) {
   const searchParams = useSearchParams();
-  const requestedTab = searchParams.get("tab") || "account";
-  const defaultTab = SETTINGS_TABS.has(requestedTab) ? requestedTab : "account";
   const passwordChanged = searchParams.get("password_changed") === "1";
   const passwordError = searchParams.get("password_error");
 
   return (
-    <div className="grid gap-5">
-      <SectionHeader description="Account, runtime, and security context." title="Settings" />
-      <Tabs className="gap-5" defaultValue={defaultTab}>
-        <TabsList className="grid h-auto w-full grid-cols-3 md:w-fit">
-          <TabsTrigger value="account">General</TabsTrigger>
-          <TabsTrigger value="about">About</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
-        <TabsContent className="grid gap-4 lg:grid-cols-2" value="account">
-          <SettingsAccountCard data={data} />
-          <SettingsVaultCard data={data} />
-        </TabsContent>
-        <TabsContent className="grid gap-4 lg:grid-cols-2" value="about">
-          <SettingsDaemonCard data={data} />
-          <SettingsAboutCard />
-        </TabsContent>
-        <TabsContent className="grid gap-4 lg:grid-cols-2" value="security">
-          <SettingsSecurityCard data={data} />
-          <SettingsPasswordCard passwordChanged={passwordChanged} passwordError={passwordError} />
-        </TabsContent>
-      </Tabs>
+    <div className="grid gap-4">
+      <SectionHeader description="Credential protection and access controls." title="Security" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SettingsSecurityCard data={data} />
+        <SettingsPasswordCard passwordChanged={passwordChanged} passwordError={passwordError} />
+      </div>
+    </div>
+  );
+}
+
+export function AboutSettingsContent({ data }: { data: DashboardData }) {
+  return (
+    <div className="grid gap-4">
+      <SectionHeader description="Runtime details and project references." title="About" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SettingsDaemonCard data={data} />
+        <SettingsAboutCard />
+      </div>
     </div>
   );
 }
@@ -174,7 +178,7 @@ function SettingsPasswordCard({
       </CardHeader>
       <CardContent>
         <form action="/api/auth/password" className="grid gap-4" method="post">
-          <input name="next" type="hidden" value="/settings?tab=security" />
+          <input name="next" type="hidden" value="/settings/security?password_changed=1" />
           {passwordChanged ? (
             <div className="rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-300">
               Password updated.
@@ -203,7 +207,7 @@ function SettingsPasswordCard({
   );
 }
 
-function SettingsKeyValue({ label, value }: { label: string; value: string }) {
+export function SettingsKeyValue({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1">
       <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
