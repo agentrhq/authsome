@@ -1,5 +1,92 @@
 # Changelog
 
+## [0.7.0](https://github.com/agentrhq/authsome/compare/authsome-v0.6.4...authsome-v0.7.0) (2026-06-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* replace init and scan with authsome onboard
+
+### Features
+
+* add auth session store contract ([604d18e](https://github.com/agentrhq/authsome/commit/604d18e24a4682aa8330ba0a5c2dd925344c2af5))
+* add global connection fallback registry ([9c50afc](https://github.com/agentrhq/authsome/commit/9c50afc585158127eb98154221b45ea270faf68e))
+* add paged audit event queries ([3a1a564](https://github.com/agentrhq/authsome/commit/3a1a564673e054be14880c44782c42fcc9741ce6))
+* add production backend config ([f4a6cf5](https://github.com/agentrhq/authsome/commit/f4a6cf5a16f9eb711f943b97226db442149b3107))
+* add ProviderType classification and JSONC support for providers ([dfabe6c](https://github.com/agentrhq/authsome/commit/dfabe6cfcc7e1c5e2c21f5c30000ead706fa9e01))
+* add ProviderType classification and JSONC support for providers ([ea42284](https://github.com/agentrhq/authsome/commit/ea42284ff80efcb52384ddb43ab18a8c479d67f7)), closes [#362](https://github.com/agentrhq/authsome/issues/362)
+* add root health check ([3b8cfd0](https://github.com/agentrhq/authsome/commit/3b8cfd01bb7ddd2c1e5cd2e2781138463a186b22))
+* add store migrations and postgres pooling ([8a817d9](https://github.com/agentrhq/authsome/commit/8a817d99c218f95e3af6b8a80eeae0c0c645dc78))
+* added support for agents ([4c79bb0](https://github.com/agentrhq/authsome/commit/4c79bb0a5906343be3ad464fb709a3a116568f1d))
+* derive agent identity from a single private-key env var ([0890c0b](https://github.com/agentrhq/authsome/commit/0890c0bc61946e07015c7fc83fdb6bf8f8899181))
+* derive agent identity from a single private-key env var ([d9d2c60](https://github.com/agentrhq/authsome/commit/d9d2c60563dde88cc4b585f16b0372f65346c589))
+* enforce role-aware audit event queries ([08446d1](https://github.com/agentrhq/authsome/commit/08446d1e2837c2553fd6c7b537161dc2c83367bf))
+* expose global connection CLI controls ([0975ab8](https://github.com/agentrhq/authsome/commit/0975ab82e04f9fe117cf2e73d976488d436da004))
+* global connection pointers ([16af935](https://github.com/agentrhq/authsome/commit/16af935137c9874b3d87ba272e4aba4a73968a65))
+* implement custom provider management with CRUD support, registration schema updates, and a dedicated UI form. ([8dbf579](https://github.com/agentrhq/authsome/commit/8dbf579e21d89b737c5fc15910572df1296c10f9))
+* implement custom provider management with CRUD support, registration schema updates, and a dedicated UI form. ([8f4029e](https://github.com/agentrhq/authsome/commit/8f4029ec7e96e9d107d1e4029ff00d8fb4911504))
+* implement tooltip help text and collapsible advanced sections in custom provider form ([54ba7b2](https://github.com/agentrhq/authsome/commit/54ba7b23e2949cf4b162ab2a31769929239110c6))
+* replace init and scan with authsome onboard ([d9936d5](https://github.com/agentrhq/authsome/commit/d9936d569956cb852c07516e0d1043fda8dcb2b5)), closes [#434](https://github.com/agentrhq/authsome/issues/434)
+* select redis runtime state ([d828d2b](https://github.com/agentrhq/authsome/commit/d828d2b775c526ef7c8ac700a0396afe0ff88d77))
+* show global connections in dashboard ([b21f5b1](https://github.com/agentrhq/authsome/commit/b21f5b11b21daa70fc7cd2146bbe6a98d6ce19b6))
+* show scoped audit log in dashboard ([0b8d752](https://github.com/agentrhq/authsome/commit/0b8d752392eb8d87277a423501df012b127b8fb8))
+* stateless production deployments ([c55448d](https://github.com/agentrhq/authsome/commit/c55448dca085c63417d3a51735edab37e0e657b7))
+* **ui:** add authenticated layout with sidebar and breadcrumbs ([d27267f](https://github.com/agentrhq/authsome/commit/d27267fc029b4bf166613bc05437fa24a5df6aa4))
+* **ui:** redesign provider/connection detail pages and fix accent token ([384dd20](https://github.com/agentrhq/authsome/commit/384dd2094e68fd7d2554dfd3b04cb86ea8883b5b))
+* **ui:** redesign provider/connection detail pages and fix accent token ([ae806a3](https://github.com/agentrhq/authsome/commit/ae806a311683531cd74c9a8df959f3365485d03a))
+* user scoped audit log ([151e0af](https://github.com/agentrhq/authsome/commit/151e0afa186c5b11f1072637ba5728721bd611ef))
+
+
+### Bug Fixes
+
+* 'broker' to 'gateway' in README ([976d4a5](https://github.com/agentrhq/authsome/commit/976d4a59f4419d39ac0ab33fd7ab30bd0167e210))
+* add env field to config and disable PostHog in non-prod environments ([c1a9f66](https://github.com/agentrhq/authsome/commit/c1a9f6639387a5537b7c75128e469281064a3bd4))
+* address production readiness review ([b374fb4](https://github.com/agentrhq/authsome/commit/b374fb49a01a8706842f76c905f48451ed71e5e8))
+* atomically consume redis pending claims ([b754b80](https://github.com/agentrhq/authsome/commit/b754b80227906925670dbe4adb7844ac0be012b9))
+* avoid audit shutdown deadlock ([d54c415](https://github.com/agentrhq/authsome/commit/d54c4159bac2145e62b1ad1e89b8570284cdf932))
+* avoid hardcoded compose secrets ([5a15e41](https://github.com/agentrhq/authsome/commit/5a15e4179b5c14c8c2dab986fcdf461a39b82b0c))
+* bind store transactions to pooled connection ([9c141f3](https://github.com/agentrhq/authsome/commit/9c141f3c81c1412ee51a1f3cd1a7e967dbc68af7))
+* clarify clickable surface hover states ([e5ee9b9](https://github.com/agentrhq/authsome/commit/e5ee9b9d3e265f61b350d1b6c9ef26f5f38ce56d))
+* clarify compose master key secret ([ee25d5c](https://github.com/agentrhq/authsome/commit/ee25d5ce4922c0c74efa2d314e6c402fe2e2ee54))
+* clean redis auth session indexes ([60e21e1](https://github.com/agentrhq/authsome/commit/60e21e1ceb1ab7611fa02edd576cb0e5f4b11a18))
+* clean up failed runtime startup ([448c8b2](https://github.com/agentrhq/authsome/commit/448c8b24174ea4224faf0a713cd358c098c1b32b))
+* close redis client on ping failure ([ea0fd94](https://github.com/agentrhq/authsome/commit/ea0fd94e5bff9f652899334a3a485293cde07218))
+* env field in config, PostHog no-op in dev/test ([dd6f8d2](https://github.com/agentrhq/authsome/commit/dd6f8d21b57c6e0f972dc9673680167a18481dba))
+* exclude local build artifacts from package ([69b263b](https://github.com/agentrhq/authsome/commit/69b263b071432bd0f139154d30c2680d5b55a429))
+* harden container startup path ([ff3d542](https://github.com/agentrhq/authsome/commit/ff3d5426a51ae0ab9a74e4cb67f95f92cd1f62b5))
+* hide optional asyncpg import from ty ([eb37f84](https://github.com/agentrhq/authsome/commit/eb37f84c9fbbc1b940eacaa8baa2afbb09ad59c7))
+* keep connections page unfiltered after detail navigation ([13cbd0d](https://github.com/agentrhq/authsome/commit/13cbd0d54db4250c2a7ab6a16dcfde1a15ba9bdb))
+* lazy load postgres driver ([a87328f](https://github.com/agentrhq/authsome/commit/a87328f578c734e9f58de93a41e65e6bdf73b6cb))
+* pass global connection props to connections page ([e6e51fd](https://github.com/agentrhq/authsome/commit/e6e51fddf3134c39d385afcb4c53b24616d4fcac))
+* polish connection action feedback ([8d93438](https://github.com/agentrhq/authsome/commit/8d934387fc10b5ac1ce694a895139d1c3d3684b3))
+* polish dashboard connection flows ([913ec09](https://github.com/agentrhq/authsome/commit/913ec0984c533356d7f06904516109c0788e182d))
+* polish dashboard connection flows ([8f35bf1](https://github.com/agentrhq/authsome/commit/8f35bf1216813afa21fe893f9411f3dda70cf388))
+* preserve pop replay auth errors ([c68de27](https://github.com/agentrhq/authsome/commit/c68de27a155cacde3a21bef6e446857921a4d7f4))
+* prevent daemon error card clipping ([29d2813](https://github.com/agentrhq/authsome/commit/29d28137ad9c6c930dfeba3b340c30b6dfe254a5))
+* recover from 409 when concurrent agents register the same DID ([3a9f17e](https://github.com/agentrhq/authsome/commit/3a9f17e9bce010d197b639f6af57e36b2932008a))
+* refine provider and connection dashboard states ([da7a401](https://github.com/agentrhq/authsome/commit/da7a4017b14ac3d162bbba05ab8beb23cba65281))
+* remove blocking future result call in audit event persistence to prevent thread deadlock ([e33fc3c](https://github.com/agentrhq/authsome/commit/e33fc3c18e6c24eb5a5739e14f7cfbe5f47933f6))
+* remove duplicate health route ([5457d10](https://github.com/agentrhq/authsome/commit/5457d10940613636adec71b322d02a6963f921d0))
+* require production backend URLs ([be5c646](https://github.com/agentrhq/authsome/commit/be5c646b5ba3762f1627067f8f5e5d0af2ab453e))
+* restore logo dev token ([de814ee](https://github.com/agentrhq/authsome/commit/de814ee15ed6d06520093e55d4197e0a5d2ee72f))
+* restore sqlite store branch ([7a39de6](https://github.com/agentrhq/authsome/commit/7a39de61d0cbf993dee307a556249ab147b57e31))
+* ruff check ([8d94e4d](https://github.com/agentrhq/authsome/commit/8d94e4d37f9081109d49b159354a3c86143635e6))
+* **ui:** replace Button render-as-link with Link+buttonVariants; img→Image, a→Link ([67fbe48](https://github.com/agentrhq/authsome/commit/67fbe483ddb64cb615c50f70f6df141441f0e476))
+
+
+### Documentation
+
+* add production self-hosting path ([ea4eaa7](https://github.com/agentrhq/authsome/commit/ea4eaa791bd3a47214304d6d7b3e2406eae930e9))
+* describe scoped audit log access ([80cb249](https://github.com/agentrhq/authsome/commit/80cb2499844ac9373420dff1a895e0ac0641f892))
+* design stateless production deployments ([80e5ad9](https://github.com/agentrhq/authsome/commit/80e5ad9218f6e57c3795451c6a63ee76928c4ff6))
+* design user-scoped audit log ([224be18](https://github.com/agentrhq/authsome/commit/224be18855ce222ef99acbaa84e35cf3be949924))
+* plan user-scoped audit log ([32a7275](https://github.com/agentrhq/authsome/commit/32a7275b0c122bb80344b9f1a989340af4947df8))
+* refine credential broker comparison ([44b37bf](https://github.com/agentrhq/authsome/commit/44b37bf6f0bd95ba2001220b6ca2733d7f6c439b))
+* refresh Mintlify site for v0.7 and remove stale profile/library references ([6151535](https://github.com/agentrhq/authsome/commit/61515356a2c2828f4e3d810b10148cf71a5c44da))
+* refresh Mintlify site for v0.7 and remove stale references ([6204a47](https://github.com/agentrhq/authsome/commit/6204a474d7270d1c0d082bf75e41df934551fdca))
+* unified messaging ([841c0d6](https://github.com/agentrhq/authsome/commit/841c0d698b545e90d5d32583448dee656aa0af2a))
+* updated broker credentials comparison ([9253aa8](https://github.com/agentrhq/authsome/commit/9253aa8d97cf0255e94fa74662f7de0ba6682a6d))
+
 ## [0.6.4](https://github.com/agentrhq/authsome/compare/authsome-v0.6.3...authsome-v0.6.4) (2026-06-09)
 
 
