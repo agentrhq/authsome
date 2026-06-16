@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Save, Trash2 } from "lucide-react";
+import { ChevronDown, CircleHelp, Plus, Save, Trash2 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   ApiError,
   ProviderDefinitionPayload,
@@ -419,19 +420,61 @@ function Field({
   children,
   className,
   error,
+  help,
   label,
 }: {
   children: React.ReactNode;
   className?: string;
   error?: string;
+  help?: string;
   label: string;
 }) {
   return (
     <label className={cn("grid gap-2 text-sm", className)}>
-      <span className="text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-1.5 text-muted-foreground">
+        {label}
+        {help ? <HelpTip text={help} /> : null}
+      </span>
       {children}
       {error ? <span className="text-xs text-destructive">{error}</span> : null}
     </label>
+  );
+}
+
+function HelpTip({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        aria-label="Field help"
+        className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        type="button"
+      >
+        <CircleHelp className="size-3.5" />
+      </TooltipTrigger>
+      <TooltipContent align="start" className="max-w-72 whitespace-normal leading-relaxed" side="top">
+        {text}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function AdvancedSection({
+  children,
+  defaultOpen = false,
+  title,
+}: {
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  title: string;
+}) {
+  return (
+    <details className="group rounded-lg border border-border/50 bg-muted/20" open={defaultOpen}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium">
+        <span>{title}</span>
+        <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="grid gap-4 border-t border-border/50 p-4 md:grid-cols-2">{children}</div>
+    </details>
   );
 }
 
@@ -449,12 +492,14 @@ function TextArea({ className, ...props }: React.ComponentProps<"textarea">) {
 
 function ListEditor({
   error,
+  help,
   label,
   onChange,
   placeholder,
   values,
 }: {
   error?: string;
+  help?: string;
   label: string;
   onChange: (values: string[]) => void;
   placeholder?: string;
@@ -462,7 +507,10 @@ function ListEditor({
 }) {
   return (
     <div className="grid gap-2">
-      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {label}
+        {help ? <HelpTip text={help} /> : null}
+      </div>
       <div className="grid gap-2">
         {values.map((value, index) => (
           <div className="flex gap-2" key={index}>
@@ -494,12 +542,14 @@ function ListEditor({
 }
 
 function KeyValueEditor({
+  help,
   keyPlaceholder = "Key",
   label,
   onChange,
   rows,
   valuePlaceholder = "Value",
 }: {
+  help?: string;
   keyPlaceholder?: string;
   label: string;
   onChange: (rows: KeyValueRow[]) => void;
@@ -508,7 +558,10 @@ function KeyValueEditor({
 }) {
   return (
     <div className="grid gap-2">
-      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {label}
+        {help ? <HelpTip text={help} /> : null}
+      </div>
       <div className="grid gap-2">
         {rows.map((row) => (
           <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem]" key={row.id}>
@@ -547,15 +600,20 @@ function KeyValueEditor({
 }
 
 function ExtractEditor({
+  help,
   onChange,
   rows,
 }: {
+  help?: string;
   onChange: (rows: ExtractRow[]) => void;
   rows: ExtractRow[];
 }) {
   return (
     <div className="grid gap-2">
-      <div className="text-sm text-muted-foreground">Cookie extraction</div>
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        Cookie extraction
+        {help ? <HelpTip text={help} /> : null}
+      </div>
       <div className="grid gap-2">
         {rows.map((row) => (
           <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)_2rem]" key={row.id}>
@@ -674,131 +732,144 @@ export function CustomProviderDialog({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Define how Authsome should authenticate and route this provider.</DialogDescription>
-        </DialogHeader>
-        <form className="grid gap-5" onSubmit={(event) => void save(event)}>
-          <Card className="border-border/50 shadow-none">
-            <CardHeader>
-              <CardTitle>Basics</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <Field error={fieldErrors.name} label="Provider name">
-                <Input
-                  aria-invalid={Boolean(fieldErrors.name)}
-                  disabled={mode === "edit"}
-                  onChange={(event) => setState((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="custom-api"
-                  required
-                  value={state.name}
-                />
-              </Field>
-              <Field error={fieldErrors.displayName} label="Display name">
-                <Input
-                  aria-invalid={Boolean(fieldErrors.displayName)}
-                  onChange={(event) => setState((current) => ({ ...current, displayName: event.target.value }))}
-                  placeholder="Custom API"
-                  required
-                  value={state.displayName}
-                />
-              </Field>
-              <Field label="Type">
-                <Select
-                  onChange={(event) => setState((current) => ({ ...current, providerType: event.target.value as ProviderType }))}
-                  value={state.providerType}
+        <TooltipProvider>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>Start with the required setup, then open advanced sections only when the provider needs them.</DialogDescription>
+          </DialogHeader>
+          <form className="grid gap-5" onSubmit={(event) => void save(event)}>
+            <Card className="border-border/50 shadow-none">
+              <CardHeader>
+                <CardTitle>Basics</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <Field
+                  error={fieldErrors.name}
+                  help="Stable provider id used in URLs and storage keys. Use letters, numbers, hyphens, underscores, or dots. Example: github-enterprise."
+                  label="Provider name"
                 >
-                  {PROVIDER_TYPES.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Auth type">
-                <Select onChange={(event) => setAuthType(event.target.value as AuthType)} value={state.authType}>
-                  {AUTH_TYPES.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Flow">
-                <Select
-                  onChange={(event) => setState((current) => ({ ...current, flow: event.target.value as FlowType }))}
-                  value={state.flow}
+                  <Input
+                    aria-invalid={Boolean(fieldErrors.name)}
+                    disabled={mode === "edit"}
+                    onChange={(event) => setState((current) => ({ ...current, name: event.target.value }))}
+                    placeholder="custom-api"
+                    required
+                    value={state.name}
+                  />
+                </Field>
+                <Field
+                  error={fieldErrors.displayName}
+                  help="Human-friendly name shown in the dashboard. Example: GitHub Enterprise."
+                  label="Display name"
                 >
-                  {flowOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Logo">
-                <Input
-                  onChange={(event) => setState((current) => ({ ...current, logo: event.target.value }))}
-                  placeholder="img.logo.dev/name/example"
-                  value={state.logo}
-                />
-              </Field>
-              <Field className="md:col-span-2" label="Description">
-                <TextArea
-                  onChange={(event) => setState((current) => ({ ...current, description: event.target.value }))}
-                  value={state.description}
-                />
-              </Field>
-              <Field className="md:col-span-2" error={fieldErrors.docsUrl} label="Docs URL">
-                <Input
-                  aria-invalid={Boolean(fieldErrors.docsUrl)}
-                  onChange={(event) => setState((current) => ({ ...current, docsUrl: event.target.value }))}
-                  placeholder="https://docs.example.com/oauth"
-                  value={state.docsUrl}
-                />
-              </Field>
+                  <Input
+                    aria-invalid={Boolean(fieldErrors.displayName)}
+                    onChange={(event) => setState((current) => ({ ...current, displayName: event.target.value }))}
+                    placeholder="Custom API"
+                    required
+                    value={state.displayName}
+                  />
+                </Field>
+                <Field help="Provider category for filtering and display. Apps are normal SaaS providers; LLM is model/API platforms; MCP is Model Context Protocol servers." label="Type">
+                  <Select
+                    onChange={(event) => setState((current) => ({ ...current, providerType: event.target.value as ProviderType }))}
+                    value={state.providerType}
+                  >
+                    {PROVIDER_TYPES.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field help="Authentication mechanism this provider uses. This choice controls which setup fields are shown below." label="Auth type">
+                  <Select onChange={(event) => setAuthType(event.target.value as AuthType)} value={state.authType}>
+                    {AUTH_TYPES.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field help="Specific login flow. OAuth providers commonly use PKCE; headless providers may use device code; MCP OAuth servers may use DCR + PKCE." label="Flow">
+                  <Select
+                    onChange={(event) => setState((current) => ({ ...current, flow: event.target.value as FlowType }))}
+                    value={state.flow}
+                  >
+                    {flowOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <div className="md:col-span-2">
+                  <ListEditor
+                    error={fieldErrors.apiTargets}
+                    help="Hosts, URLs, or regex patterns Authsome can route credentials to. Examples: api.github.com, https://api.example.com/v1, regex:.*githubusercontent\\.com$."
+                    label="API targets"
+                    onChange={(apiTargets) => setState((current) => ({ ...current, apiTargets }))}
+                    placeholder="api.example.com"
+                    values={state.apiTargets}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <AdvancedSection title="Display and docs">
+                    <Field help="Optional logo source shown on provider cards. Example: img.logo.dev/name/github." label="Logo">
+                      <Input
+                        onChange={(event) => setState((current) => ({ ...current, logo: event.target.value }))}
+                        placeholder="img.logo.dev/name/example"
+                        value={state.logo}
+                      />
+                    </Field>
+                    <Field error={fieldErrors.docsUrl} help="Optional documentation URL shown with the provider. Must be a full http(s) URL." label="Docs URL">
+                      <Input
+                        aria-invalid={Boolean(fieldErrors.docsUrl)}
+                        onChange={(event) => setState((current) => ({ ...current, docsUrl: event.target.value }))}
+                        placeholder="https://docs.example.com/oauth"
+                        value={state.docsUrl}
+                      />
+                    </Field>
+                    <Field className="md:col-span-2" help="Short description shown on provider cards and detail views." label="Description">
+                      <TextArea
+                        onChange={(event) => setState((current) => ({ ...current, description: event.target.value }))}
+                        value={state.description}
+                      />
+                    </Field>
+                  </AdvancedSection>
+                </div>
+              </CardContent>
+            </Card>
+
+            {state.authType === "oauth2" ? (
+              <OAuthSection fieldErrors={fieldErrors} state={state} setState={setState} />
+            ) : null}
+            {state.authType === "api_key" ? (
+              <ApiKeySection state={state} setState={setState} />
+            ) : null}
+            {state.authType === "browser" ? (
+              <BrowserSection fieldErrors={fieldErrors} state={state} setState={setState} />
+            ) : null}
+
+            <AdvancedSection title="Export mapping">
               <div className="md:col-span-2">
-                <ListEditor
-                  error={fieldErrors.apiTargets}
-                  label="API targets"
-                  onChange={(apiTargets) => setState((current) => ({ ...current, apiTargets }))}
-                  placeholder="https://api.example.com or regex:.*example\\.com$"
-                  values={state.apiTargets}
+                <KeyValueEditor
+                  help="Optional environment variable mapping used when credentials are exported. Example: GITHUB_ACCESS_TOKEN -> ACCESS_TOKEN."
+                  keyPlaceholder="Environment variable"
+                  label="Export mapping"
+                  onChange={(exportRows) => setState((current) => ({ ...current, exportRows }))}
+                  rows={state.exportRows}
+                  valuePlaceholder="Credential field"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </AdvancedSection>
 
-          {state.authType === "oauth2" ? (
-            <OAuthSection fieldErrors={fieldErrors} state={state} setState={setState} />
-          ) : null}
-          {state.authType === "api_key" ? (
-            <ApiKeySection state={state} setState={setState} />
-          ) : null}
-          {state.authType === "browser" ? (
-            <BrowserSection fieldErrors={fieldErrors} state={state} setState={setState} />
-          ) : null}
-
-          <Card className="border-border/50 shadow-none">
-            <CardHeader>
-              <CardTitle>Export</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <KeyValueEditor
-                keyPlaceholder="Environment variable"
-                label="Export mapping"
-                onChange={(exportRows) => setState((current) => ({ ...current, exportRows }))}
-                rows={state.exportRows}
-                valuePlaceholder="Credential field"
-              />
-            </CardContent>
-          </Card>
-
-          {message ? <div className="text-sm text-destructive">{message}</div> : null}
-          <DialogFooter>
-            <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
-              Cancel
-            </Button>
-            <Button disabled={saving} type="submit">
-              <Save />
-              {saving ? "Saving" : "Save"}
-            </Button>
-          </DialogFooter>
-        </form>
+            {message ? <div className="text-sm text-destructive">{message}</div> : null}
+            <DialogFooter>
+              <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+                Cancel
+              </Button>
+              <Button disabled={saving} type="submit">
+                <Save />
+                {saving ? "Saving" : "Save"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </TooltipProvider>
       </DialogContent>
     </Dialog>
   );
@@ -816,10 +887,14 @@ function OAuthSection({
   return (
     <Card className="border-border/50 shadow-none">
       <CardHeader>
-        <CardTitle>OAuth</CardTitle>
+        <CardTitle>OAuth required setup</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
-        <Field error={fieldErrors.oauthBaseUrl} label="Base URL">
+        <Field
+          error={fieldErrors.oauthBaseUrl}
+          help="Optional base used by URL templates. Example: https://github.com lets you use {base_url}/login/oauth/authorize."
+          label="Base URL"
+        >
           <Input
             aria-invalid={Boolean(fieldErrors.oauthBaseUrl)}
             onChange={(event) => setState((current) => ({ ...current, oauth: { ...current.oauth, baseUrl: event.target.value } }))}
@@ -827,7 +902,7 @@ function OAuthSection({
             value={state.oauth.baseUrl}
           />
         </Field>
-        <Field label="Authorization method">
+        <Field help="How client credentials are sent to the token endpoint. Most providers use Body; some providers, such as Reddit or Notion, require Basic." label="Authorization method">
           <Select
             onChange={(event) =>
               setState((current) => ({
@@ -841,7 +916,11 @@ function OAuthSection({
             <option value="basic">Basic</option>
           </Select>
         </Field>
-        <Field error={fieldErrors.oauthAuthorizationUrl} label="Authorization URL">
+        <Field
+          error={fieldErrors.oauthAuthorizationUrl}
+          help="OAuth authorize endpoint. Use a full URL or a {base_url} template. Example: {base_url}/login/oauth/authorize."
+          label="Authorization URL"
+        >
           <Input
             aria-invalid={Boolean(fieldErrors.oauthAuthorizationUrl)}
             onChange={(event) => setState((current) => ({ ...current, oauth: { ...current.oauth, authorizationUrl: event.target.value } }))}
@@ -850,7 +929,11 @@ function OAuthSection({
             value={state.oauth.authorizationUrl}
           />
         </Field>
-        <Field error={fieldErrors.oauthTokenUrl} label="Token URL">
+        <Field
+          error={fieldErrors.oauthTokenUrl}
+          help="OAuth token endpoint used to exchange authorization codes or device codes. Example: {base_url}/login/oauth/access_token."
+          label="Token URL"
+        >
           <Input
             aria-invalid={Boolean(fieldErrors.oauthTokenUrl)}
             onChange={(event) => setState((current) => ({ ...current, oauth: { ...current.oauth, tokenUrl: event.target.value } }))}
@@ -859,66 +942,9 @@ function OAuthSection({
             value={state.oauth.tokenUrl}
           />
         </Field>
-        <Field error={fieldErrors.oauthRevocationUrl} label="Revocation URL">
-          <Input
-            aria-invalid={Boolean(fieldErrors.oauthRevocationUrl)}
-            onChange={(event) => setState((current) => ({ ...current, oauth: { ...current.oauth, revocationUrl: event.target.value } }))}
-            value={state.oauth.revocationUrl}
-          />
-        </Field>
-        <Field error={fieldErrors.oauthDeviceAuthorizationUrl} label="Device authorization URL">
-          <Input
-            aria-invalid={Boolean(fieldErrors.oauthDeviceAuthorizationUrl)}
-            onChange={(event) =>
-              setState((current) => ({ ...current, oauth: { ...current.oauth, deviceAuthorizationUrl: event.target.value } }))
-            }
-            value={state.oauth.deviceAuthorizationUrl}
-          />
-        </Field>
-        <Field label="Device token request">
-          <Select
-            onChange={(event) =>
-              setState((current) => ({
-                ...current,
-                oauth: { ...current.oauth, deviceTokenRequest: event.target.value as "oauth2_form" | "json" },
-              }))
-            }
-            value={state.oauth.deviceTokenRequest}
-          >
-            <option value="oauth2_form">OAuth2 form</option>
-            <option value="json">JSON</option>
-          </Select>
-        </Field>
-        <Field error={fieldErrors.registrationEndpoint} label="DCR registration endpoint">
-          <Input
-            aria-invalid={Boolean(fieldErrors.registrationEndpoint)}
-            onChange={(event) => setState((current) => ({ ...current, registrationEndpoint: event.target.value }))}
-            value={state.registrationEndpoint}
-          />
-        </Field>
-        <div className="grid gap-2 md:col-span-2">
-          <div className="flex flex-wrap gap-4">
-            <BooleanField
-              checked={state.oauth.pkce}
-              label="PKCE"
-              onChange={(pkce) => setState((current) => ({ ...current, oauth: { ...current.oauth, pkce } }))}
-            />
-            <BooleanField
-              checked={state.oauth.supportsDeviceCode}
-              label="Supports device code"
-              onChange={(supportsDeviceCode) =>
-                setState((current) => ({ ...current, oauth: { ...current.oauth, supportsDeviceCode } }))
-              }
-            />
-            <BooleanField
-              checked={state.oauth.supportsDcr}
-              label="Supports DCR"
-              onChange={(supportsDcr) => setState((current) => ({ ...current, oauth: { ...current.oauth, supportsDcr } }))}
-            />
-          </div>
-        </div>
         <div className="md:col-span-2">
           <ListEditor
+            help="OAuth scopes requested during login. Example: repo, read:user."
             label="Scopes"
             onChange={(scopes) => setState((current) => ({ ...current, oauth: { ...current.oauth, scopes } }))}
             placeholder="repo"
@@ -926,13 +952,88 @@ function OAuthSection({
           />
         </div>
         <div className="md:col-span-2">
-          <KeyValueEditor
-            label="Authorization params"
-            onChange={(authorizationParams) =>
-              setState((current) => ({ ...current, oauth: { ...current.oauth, authorizationParams } }))
-            }
-            rows={state.oauth.authorizationParams}
-          />
+          <AdvancedSection title="OAuth advanced">
+            <Field
+              error={fieldErrors.oauthRevocationUrl}
+              help="Optional endpoint used to revoke tokens. Example: https://api.example.com/oauth/revoke."
+              label="Revocation URL"
+            >
+              <Input
+                aria-invalid={Boolean(fieldErrors.oauthRevocationUrl)}
+                onChange={(event) => setState((current) => ({ ...current, oauth: { ...current.oauth, revocationUrl: event.target.value } }))}
+                value={state.oauth.revocationUrl}
+              />
+            </Field>
+            <Field
+              error={fieldErrors.oauthDeviceAuthorizationUrl}
+              help="Required for device-code flow. This endpoint returns the user code and verification URL."
+              label="Device authorization URL"
+            >
+              <Input
+                aria-invalid={Boolean(fieldErrors.oauthDeviceAuthorizationUrl)}
+                onChange={(event) =>
+                  setState((current) => ({ ...current, oauth: { ...current.oauth, deviceAuthorizationUrl: event.target.value } }))
+                }
+                value={state.oauth.deviceAuthorizationUrl}
+              />
+            </Field>
+            <Field help="How Authsome polls the token endpoint during device-code login. Most providers use OAuth2 form; Postiz-style providers use JSON." label="Device token request">
+              <Select
+                onChange={(event) =>
+                  setState((current) => ({
+                    ...current,
+                    oauth: { ...current.oauth, deviceTokenRequest: event.target.value as "oauth2_form" | "json" },
+                  }))
+                }
+                value={state.oauth.deviceTokenRequest}
+              >
+                <option value="oauth2_form">OAuth2 form</option>
+                <option value="json">JSON</option>
+              </Select>
+            </Field>
+            <Field
+              error={fieldErrors.registrationEndpoint}
+              help="Dynamic Client Registration endpoint for DCR + PKCE providers. Example: https://mcp.example.com/register."
+              label="DCR registration endpoint"
+            >
+              <Input
+                aria-invalid={Boolean(fieldErrors.registrationEndpoint)}
+                onChange={(event) => setState((current) => ({ ...current, registrationEndpoint: event.target.value }))}
+                value={state.registrationEndpoint}
+              />
+            </Field>
+            <div className="grid gap-2 md:col-span-2">
+              <div className="flex flex-wrap gap-4">
+                <BooleanField
+                  checked={state.oauth.pkce}
+                  label="PKCE"
+                  onChange={(pkce) => setState((current) => ({ ...current, oauth: { ...current.oauth, pkce } }))}
+                />
+                <BooleanField
+                  checked={state.oauth.supportsDeviceCode}
+                  label="Supports device code"
+                  onChange={(supportsDeviceCode) =>
+                    setState((current) => ({ ...current, oauth: { ...current.oauth, supportsDeviceCode } }))
+                  }
+                />
+                <BooleanField
+                  checked={state.oauth.supportsDcr}
+                  label="Supports DCR"
+                  onChange={(supportsDcr) => setState((current) => ({ ...current, oauth: { ...current.oauth, supportsDcr } }))}
+                />
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <KeyValueEditor
+                help="Extra query parameters sent to the authorization endpoint. Example: duration -> permanent."
+                label="Authorization params"
+                onChange={(authorizationParams) =>
+                  setState((current) => ({ ...current, oauth: { ...current.oauth, authorizationParams } }))
+                }
+                rows={state.oauth.authorizationParams}
+              />
+            </div>
+          </AdvancedSection>
         </div>
       </CardContent>
     </Card>
@@ -949,16 +1050,16 @@ function ApiKeySection({
   return (
     <Card className="border-border/50 shadow-none">
       <CardHeader>
-        <CardTitle>API Key</CardTitle>
+        <CardTitle>API key required setup</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
-        <Field label="Header name">
+        <Field help="HTTP header that carries the API key. Common values: Authorization, x-api-key, api-key." label="Header name">
           <Input
             onChange={(event) => setState((current) => ({ ...current, apiKey: { ...current.apiKey, headerName: event.target.value } }))}
             value={state.apiKey.headerName}
           />
         </Field>
-        <Field label="Header prefix">
+        <Field help="Text placed before the key. Bearer produces Authorization: Bearer <key>; empty string sends the raw key; None omits the prefix." label="Header prefix">
           <Select
             onChange={(event) =>
               setState((current) => ({
@@ -977,7 +1078,7 @@ function ApiKeySection({
           </Select>
         </Field>
         {state.apiKey.headerPrefixMode === "custom" ? (
-          <Field label="Custom header prefix">
+          <Field help="Custom text placed before the API key. Example: Klaviyo-API-Key." label="Custom header prefix">
             <Input
               onChange={(event) =>
                 setState((current) => ({ ...current, apiKey: { ...current.apiKey, headerPrefixCustom: event.target.value } }))
@@ -986,21 +1087,25 @@ function ApiKeySection({
             />
           </Field>
         ) : null}
-        <Field label="Key pattern">
-          <Input
-            onChange={(event) => setState((current) => ({ ...current, apiKey: { ...current.apiKey, keyPattern: event.target.value } }))}
-            placeholder="^sk-[A-Za-z0-9_-]{20,}$"
-            value={state.apiKey.keyPattern}
-          />
-        </Field>
-        <Field className="md:col-span-2" label="Key pattern hint">
-          <Input
-            onChange={(event) =>
-              setState((current) => ({ ...current, apiKey: { ...current.apiKey, keyPatternHint: event.target.value } }))
-            }
-            value={state.apiKey.keyPatternHint}
-          />
-        </Field>
+        <div className="md:col-span-2">
+          <AdvancedSection title="API key advanced">
+            <Field help="Optional regular expression used to validate keys before saving. Example: ^sk-[A-Za-z0-9_-]{20,}$." label="Key pattern">
+              <Input
+                onChange={(event) => setState((current) => ({ ...current, apiKey: { ...current.apiKey, keyPattern: event.target.value } }))}
+                placeholder="^sk-[A-Za-z0-9_-]{20,}$"
+                value={state.apiKey.keyPattern}
+              />
+            </Field>
+            <Field help="Message shown when a key does not match the pattern. Example: Keys start with sk-." label="Key pattern hint">
+              <Input
+                onChange={(event) =>
+                  setState((current) => ({ ...current, apiKey: { ...current.apiKey, keyPatternHint: event.target.value } }))
+                }
+                value={state.apiKey.keyPatternHint}
+              />
+            </Field>
+          </AdvancedSection>
+        </div>
       </CardContent>
     </Card>
   );
@@ -1018,10 +1123,14 @@ function BrowserSection({
   return (
     <Card className="border-border/50 shadow-none">
       <CardHeader>
-        <CardTitle>Browser Session</CardTitle>
+        <CardTitle>Browser session required setup</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
-        <Field error={fieldErrors.browserEntryUrl} label="Entry URL">
+        <Field
+          error={fieldErrors.browserEntryUrl}
+          help="Login page Authsome opens when cookies are missing. Example: https://www.linkedin.com/login."
+          label="Entry URL"
+        >
           <Input
             aria-invalid={Boolean(fieldErrors.browserEntryUrl)}
             onChange={(event) => setState((current) => ({ ...current, browser: { ...current.browser, entryUrl: event.target.value } }))}
@@ -1030,32 +1139,9 @@ function BrowserSection({
             value={state.browser.entryUrl}
           />
         </Field>
-        <Field error={fieldErrors.browserValidateUrl} label="Validate URL">
-          <Input
-            aria-invalid={Boolean(fieldErrors.browserValidateUrl)}
-            onChange={(event) => setState((current) => ({ ...current, browser: { ...current.browser, validateUrl: event.target.value } }))}
-            value={state.browser.validateUrl}
-          />
-        </Field>
-        <Field error={fieldErrors.browserTtlHours} label="TTL hours">
-          <Input
-            aria-invalid={Boolean(fieldErrors.browserTtlHours)}
-            min={1}
-            onChange={(event) => setState((current) => ({ ...current, browser: { ...current.browser, ttlHours: event.target.value } }))}
-            type="number"
-            value={state.browser.ttlHours}
-          />
-        </Field>
-        <Field label="TTL from cookie">
-          <Input
-            onChange={(event) =>
-              setState((current) => ({ ...current, browser: { ...current.browser, ttlFromCookie: event.target.value } }))
-            }
-            value={state.browser.ttlFromCookie}
-          />
-        </Field>
         <div className="md:col-span-2">
           <ListEditor
+            help="Cookie domains Authsome reads from Chrome. Include root and dotted domains when needed. Example: .linkedin.com and linkedin.com."
             label="Cookie domains"
             onChange={(domains) => setState((current) => ({ ...current, browser: { ...current.browser, domains } }))}
             placeholder=".example.com"
@@ -1064,6 +1150,7 @@ function BrowserSection({
         </div>
         <div className="md:col-span-2">
           <ListEditor
+            help="Cookies that prove the browser session is authenticated. Example: li_at for LinkedIn or auth_token for X."
             label="Auth cookies"
             onChange={(authCookies) => setState((current) => ({ ...current, browser: { ...current.browser, authCookies } }))}
             placeholder="session"
@@ -1071,17 +1158,55 @@ function BrowserSection({
           />
         </div>
         <div className="md:col-span-2">
-          <KeyValueEditor
-            label="Extra headers"
-            onChange={(extraHeaders) => setState((current) => ({ ...current, browser: { ...current.browser, extraHeaders } }))}
-            rows={state.browser.extraHeaders}
-          />
-        </div>
-        <div className="md:col-span-2">
-          <ExtractEditor
-            onChange={(extract) => setState((current) => ({ ...current, browser: { ...current.browser, extract } }))}
-            rows={state.browser.extract}
-          />
+          <AdvancedSection title="Browser advanced">
+            <Field
+              error={fieldErrors.browserValidateUrl}
+              help="Optional URL used to validate that captured cookies still work. Must be a full http(s) URL."
+              label="Validate URL"
+            >
+              <Input
+                aria-invalid={Boolean(fieldErrors.browserValidateUrl)}
+                onChange={(event) => setState((current) => ({ ...current, browser: { ...current.browser, validateUrl: event.target.value } }))}
+                value={state.browser.validateUrl}
+              />
+            </Field>
+            <Field
+              error={fieldErrors.browserTtlHours}
+              help="Fallback lifetime for captured cookies when no cookie expiry is available. Example: 24."
+              label="TTL hours"
+            >
+              <Input
+                aria-invalid={Boolean(fieldErrors.browserTtlHours)}
+                min={1}
+                onChange={(event) => setState((current) => ({ ...current, browser: { ...current.browser, ttlHours: event.target.value } }))}
+                type="number"
+                value={state.browser.ttlHours}
+              />
+            </Field>
+            <Field help="Cookie whose browser expiry should be used instead of TTL hours. Example: li_at." label="TTL from cookie">
+              <Input
+                onChange={(event) =>
+                  setState((current) => ({ ...current, browser: { ...current.browser, ttlFromCookie: event.target.value } }))
+                }
+                value={state.browser.ttlFromCookie}
+              />
+            </Field>
+            <div className="md:col-span-2">
+              <KeyValueEditor
+                help="Headers included when using captured browser credentials. Example: x-twitter-active-user -> yes."
+                label="Extra headers"
+                onChange={(extraHeaders) => setState((current) => ({ ...current, browser: { ...current.browser, extraHeaders } }))}
+                rows={state.browser.extraHeaders}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <ExtractEditor
+                help="Map captured cookies to HTTP headers. Example: JSESSIONID -> csrf-token."
+                onChange={(extract) => setState((current) => ({ ...current, browser: { ...current.browser, extract } }))}
+                rows={state.browser.extract}
+              />
+            </div>
+          </AdvancedSection>
         </div>
       </CardContent>
     </Card>
