@@ -347,9 +347,7 @@ async def test_env_private_key_only_resolves_handle_from_server(monkeypatch, tmp
 
 
 @pytest.mark.asyncio
-async def test_env_private_key_only_registers_generated_handle_when_did_unknown(
-    monkeypatch, tmp_path: Path
-) -> None:
+async def test_env_private_key_only_registers_generated_handle_when_did_unknown(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     source = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
     private_key_hex = RuntimeIdentity.key_path(tmp_path, source.handle).read_text(encoding="utf-8").strip()
