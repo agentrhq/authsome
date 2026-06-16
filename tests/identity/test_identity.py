@@ -95,6 +95,11 @@ def test_runtime_identity_creates_missing_handle_override(tmp_path: Path) -> Non
     assert RuntimeIdentity.key_path(tmp_path, runtime.handle).exists()
 
 
-def test_runtime_identity_rejects_private_key_without_handle(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="AUTHSOME_IDENTITY"):
-        RuntimeIdentity.load(tmp_path, env={"AUTHSOME_IDENTITY_PRIVATE_KEY": "00" * 32})
+def test_runtime_identity_env_private_key_only_defers_handle(tmp_path: Path) -> None:
+    source = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    private_key_hex = RuntimeIdentity.key_path(tmp_path, source.handle).read_text(encoding="utf-8").strip()
+
+    runtime = RuntimeIdentity.load(tmp_path, env={"AUTHSOME_IDENTITY_PRIVATE_KEY": private_key_hex})
+
+    assert runtime.handle is None
+    assert runtime.did == source.did

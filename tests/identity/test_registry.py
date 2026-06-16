@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from authsome.cli.identity import RuntimeIdentity
 from authsome.identity.principal import ClaimStatus
 from authsome.server.store import ServerStore, create_server_store
 from authsome.server.store.repositories import IdentityClaimRegistry
@@ -30,6 +31,35 @@ async def test_claim_creates_principal_and_default_vault(tmp_path: Path) -> None
         assert binding.is_default is True
         assert claim.identity_handle == "steady-wisely-boldly-0042"
         assert claim.claim_status == ClaimStatus.PENDING
+    finally:
+        await store.close()
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_did_returns_registered_handle(tmp_path: Path) -> None:
+    store = await _store(tmp_path)
+
+    try:
+        identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+        await store.identity_registry.register(handle=identity.handle, did=identity.did)
+
+        resolved = await store.identity_registry.resolve_by_did(identity.did)
+
+        assert resolved is not None
+        assert resolved.handle == identity.handle
+        assert resolved.did == identity.did
+    finally:
+        await store.close()
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_did_returns_none_for_unknown_did(tmp_path: Path) -> None:
+    store = await _store(tmp_path)
+
+    try:
+        identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+
+        assert await store.identity_registry.resolve_by_did(identity.did) is None
     finally:
         await store.close()
 

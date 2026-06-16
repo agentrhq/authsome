@@ -311,14 +311,87 @@ async def test_env_identity_protected_request_signs_without_identity_file(monkey
 
 
 @pytest.mark.asyncio
-async def test_env_identity_private_key_without_handle_errors(monkeypatch, tmp_path: Path) -> None:
+async def test_env_private_key_only_resolves_handle_from_server(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
-    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", "00" * 32)
+    source = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    private_key_hex = RuntimeIdentity.key_path(tmp_path, source.handle).read_text(encoding="utf-8").strip()
+    RuntimeIdentity.key_path(tmp_path, source.handle).unlink()
+    RuntimeIdentity.metadata_path(tmp_path, source.handle).unlink()
+    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", private_key_hex)
+    resolved_handle = "resolved-from-server-0001"
+    calls: list[tuple[str, str]] = []
 
-    client = AuthsomeApiClient("http://127.0.0.1:7998")
+    def fake_request(method, url, data=None, headers=None, timeout=None):
+        calls.append((method, url))
+        response = Mock()
+        response.status_code = status.HTTP_200_OK
+        response.raise_for_status.return_value = None
+        if "/api/identities/by-did/" in url:
+            response.json.return_value = {"identity": resolved_handle, "did": source.did}
+        elif f"/api/identities/{resolved_handle}" in url:
+            response.json.return_value = {"identity": resolved_handle, "registration_status": "claimed"}
+        else:
+            response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
+        return response
 
-    with pytest.raises(ValueError, match="AUTHSOME_IDENTITY"):
-        await client.ensure_identity_ready()
+    _patch_httpx_request(monkeypatch, fake_request)
+
+    identity = await AuthsomeApiClient("http://127.0.0.1:7998").ensure_identity_ready()
+
+    assert identity.handle == resolved_handle
+    assert identity.did == source.did
+    assert (
+        "GET",
+        f"http://127.0.0.1:7998/api/identities/by-did/{source.did}",
+    ) in calls
+
+
+@pytest.mark.asyncio
+async def test_env_private_key_only_registers_generated_handle_when_did_unknown(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    source = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+    private_key_hex = RuntimeIdentity.key_path(tmp_path, source.handle).read_text(encoding="utf-8").strip()
+    RuntimeIdentity.key_path(tmp_path, source.handle).unlink()
+    RuntimeIdentity.metadata_path(tmp_path, source.handle).unlink()
+    monkeypatch.setenv("AUTHSOME_IDENTITY_PRIVATE_KEY", private_key_hex)
+    registered: dict = {}
+
+    def fake_request(method, url, data=None, headers=None, timeout=None):
+        response = Mock()
+        if "/api/identities/by-did/" in url:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            response.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "Not Found", request=Mock(), response=Mock(status_code=status.HTTP_404_NOT_FOUND)
+            )
+        elif url.endswith("/api/identities/register"):
+            response.status_code = status.HTTP_200_OK
+            response.raise_for_status.return_value = None
+            registered.update(json.loads(data.decode("utf-8")))
+            response.json.return_value = {
+                "identity": registered["handle"],
+                "did": registered["did"],
+                "registration_status": "claimed",
+            }
+        elif "/api/identities/" in url and method == "GET":
+            response.status_code = status.HTTP_404_NOT_FOUND
+            response.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "Not Found", request=Mock(), response=Mock(status_code=status.HTTP_404_NOT_FOUND)
+            )
+        else:
+            response.status_code = status.HTTP_200_OK
+            response.raise_for_status.return_value = None
+            response.json.return_value = {"connections": [], "by_source": {"bundled": [], "custom": []}}
+        return response
+
+    _patch_httpx_request(monkeypatch, fake_request)
+
+    identity = await AuthsomeApiClient("http://127.0.0.1:7998").ensure_identity_ready()
+
+    assert identity.handle is not None
+    assert registered["handle"] == identity.handle
+    assert registered["did"] == source.did
 
 
 @pytest.mark.asyncio
