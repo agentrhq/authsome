@@ -18,6 +18,7 @@ class ClientConfig(AuthsomeConfig):
     """
 
     active_identity: str | None = None
+    daemon_base_url: str | None = None
     proxy_ca_installed: bool = False
     proxy_mode: ProxyMode = "connected_allow"
 

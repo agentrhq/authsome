@@ -13,13 +13,12 @@ All commands support `--json` for machine-readable output, `--quiet` to suppress
 | `daemon` | Manage the local Authsome daemon. |
 | `doctor` | Run health checks on directory layout and encryption. |
 | `agent` | Manage local agents backed by signing keys. |
-| `init` | Initialize local storage and register a fresh agent. |
+| `onboard` | First-run setup: identity, claim, and API key import from env. |
 | `log` | View structured audit entries or the raw client debug log. |
 | `login <provider>` | Authenticate with PROVIDER using the configured flow. |
 | `logout <provider>` | Log out of the specified PROVIDER connection. |
 | `provider` | Manage provider definitions and provider-level operations. |
 | `run -- <cmd>` | Run COMMAND as a subprocess injected with authentication credentials. |
-| `scan` | Scan env files and process env for provider API keys. |
 | `whoami` | Show basic local context. |
 
 ## Global flags
@@ -35,14 +34,27 @@ All commands support `--json` for machine-readable output, `--quiet` to suppress
 
 ## Command details
 
-### `init` / `whoami` / `doctor`
+### `onboard` / `whoami` / `doctor`
 
 ```bash
-authsome init             # initialize local storage and register agent
-authsome whoami           # show agent context and encryption mode
-authsome doctor           # run health checks
-authsome doctor --json    # structured output for monitoring
+authsome onboard                              # identity + claim + import API keys from env
+authsome onboard --base-url https://host:7998 # point at a remote daemon (saved for later runs)
+authsome onboard --scan-only                  # drift report without importing
+authsome whoami                               # show agent context and encryption mode
+authsome doctor                               # run health checks
+authsome doctor --json                        # structured output for monitoring
 ```
+
+`onboard` is idempotent — safe to re-run. It creates a local identity when needed, completes daemon registration and claim, then imports API keys discovered in `.env` files and the process environment. OAuth providers still require `authsome login <provider>`.
+
+When `--base-url` is passed, the URL is persisted in `~/.authsome/client/config.json` as `daemon_base_url` and used automatically on subsequent commands (unless overridden by `AUTHSOME_BASE_URL`).
+
+| Option | Description |
+|--------|-------------|
+| `--base-url <url>` | Daemon URL to connect to; saved in client config for future commands. |
+| `--scan-only` | Report env/vault drift without importing discovered keys. |
+
+`onboard` does not support `--quiet`. Use `--json` for headless contexts.
 
 `doctor` runs six checks and exits `0` when all pass:
 
@@ -117,29 +129,6 @@ How it works:
 6. Returns the child's exit code.
 
 See [Proxy injection](/concepts/proxy-injection) for the routing contract.
-
-### `scan`
-
-```bash
-authsome scan [OPTIONS]
-```
-
-Scans `.env` files in the current directory tree and the active process environment for credentials matching bundled providers. By default it prints a drift report (what's in your env vs. what's in the vault).
-
-| Option | Description |
-|--------|-------------|
-| `--import` | Apply the discovered values, creating connections in the vault. |
-| `--connection <name>` | Target a non-default connection name when importing. |
-| `--json` | Machine-readable drift report. Combine with `--import` to apply. |
-
-```bash
-authsome scan                           # report-only
-authsome scan --json                    # report-only, JSON output
-authsome scan --import                  # write discovered keys into the vault
-authsome scan --import --connection ci  # import into a named connection
-```
-
-`scan` does not support `--quiet`. Use `--json` for headless contexts.
 
 ### `connections set-default`
 
@@ -218,7 +207,7 @@ authsome log --raw        # raw client debug log (loguru format)
 authsome log --raw -n 20  # last 20 lines of the client debug log
 ```
 
-Reads from `~/.authsome/server/logs/authsome.log` (the server-side structured audit log). Each entry records actions like `login`, `logout`, `revoke`, and `scan`, with fields: `timestamp`, `event`, `provider`, `connection`, `identity`, `status`.
+Reads from `~/.authsome/server/logs/authsome.log` (the server-side structured audit log). Each entry records actions like `login`, `logout`, `revoke`, and `onboard`, with fields: `timestamp`, `event`, `provider`, `connection`, `identity`, `status`.
 
 The `--raw` flag switches to the client-side debug log at `~/.authsome/client/logs/authsome.log` (loguru format, DEBUG level).
 

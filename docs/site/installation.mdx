@@ -83,7 +83,7 @@ If `doctor` reports failures, see [Diagnose with doctor](/troubleshooting/doctor
 
 ## First-run initialization
 
-On `authsome init`, authsome initializes its home directory at `~/.authsome/`, creates a generated identity handle and Ed25519 DID, and registers that identity with the local daemon:
+On `authsome onboard`, authsome initializes its home directory at `~/.authsome/`, creates a generated identity handle and Ed25519 DID, registers that identity with the daemon, completes claim, and imports API keys from `.env` files and the process environment:
 
 ```text
 ~/.authsome/
@@ -98,7 +98,7 @@ On `authsome init`, authsome initializes its home directory at `~/.authsome/`, c
     daemon/
 ```
 
-On a fresh `init`, authsome resolves the master key source in this order:
+On a fresh `onboard`, authsome resolves the master key source in this order:
 
 1. `AUTHSOME_MASTER_KEY` from the environment, when set. The value must be a base64-encoded 32-byte key.
 2. An existing OS keyring entry.
@@ -110,7 +110,13 @@ Override the home location with `AUTHSOME_HOME` for ephemeral or per-project set
 
 ```bash
 export AUTHSOME_HOME=/var/lib/authsome
-authsome init
+authsome onboard
+```
+
+For a remote or self-hosted daemon, pass `--base-url` once; authsome saves it in client config for later commands:
+
+```bash
+authsome onboard --base-url https://authsome.example.com
 ```
 
 
@@ -129,7 +135,7 @@ By default, authsome uses `encryption.mode = "auto"` and applies the precedence 
 
 Re-run `authsome doctor` to confirm the backend is reachable. The trade-offs are covered in [Encryption at rest](/security/encryption).
 
-Older installs that used the implicit `default` profile must run `authsome init` again. This release does not migrate credentials under old `profile:default:*` keys.
+Older installs that used the implicit `default` profile must run `authsome onboard` again. This release does not migrate credentials under old `profile:default:*` keys.
 
 ## Optional: trust the proxy CA
 

@@ -14,6 +14,7 @@ import httpx
 from fastapi import status
 
 import authsome.errors as err_mod
+from authsome.cli.config import ClientConfig
 from authsome.cli.identity import RuntimeIdentity
 from authsome.config import get_authsome_config
 from authsome.identity.helpers import generate_handle
@@ -23,11 +24,21 @@ from authsome.server.config import get_server_config
 API_PREFIX = "/api"
 
 
-def resolve_daemon_url(env: Mapping[str, str] | None = None) -> str:
-    """Return the top-level configured Authsome server URL."""
-    configured = get_authsome_config().base_url
-    raw = (env or {}).get("AUTHSOME_BASE_URL", configured).strip()
-    return raw.rstrip("/") or configured
+def resolve_daemon_url(env: Mapping[str, str] | None = None, home: Path | None = None) -> str:
+    """Return the top-level configured Authsome server URL.
+
+    Precedence: ``AUTHSOME_BASE_URL`` env, then ``daemon_base_url`` in client
+    config (set by ``authsome onboard --base-url``), then the default from
+    ``AuthsomeConfig``.
+    """
+    configured = get_authsome_config(home).base_url.rstrip("/")
+    raw = (env or {}).get("AUTHSOME_BASE_URL", "").strip()
+    if raw:
+        return raw.rstrip("/") or configured
+    saved = ClientConfig.load(home).daemon_base_url
+    if saved:
+        return saved.rstrip("/")
+    return configured
 
 
 def is_local_daemon_url(url: str) -> bool:
