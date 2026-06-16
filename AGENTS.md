@@ -37,7 +37,7 @@ uv run ty check src/
 
 The CLI entry point after install:
 ```bash
-uv run authsome init
+uv run authsome onboard
 uv run authsome login github
 uv run authsome provider list
 ```
@@ -144,9 +144,9 @@ vault:<vault_id>:<provider>:state
 server:<provider>:client
 ```
 
-**Config** (`GlobalConfig`) is stored in the KV store under `config/global`. Key fields: `active_identity` (the handle of the current identity), `vault_id` (the active vault resolved at `authsome init`). Encryption mode is set via `config.encryption.mode` (`local_key` or `keyring`).
+**Config** (`GlobalConfig`) is stored in the KV store under `config/global`. Key fields: `active_identity` (the handle of the current identity), `vault_id` (the active vault resolved at `authsome onboard`). Encryption mode is set via `config.encryption.mode` (`local_key` or `keyring`).
 
-**CLI (`src/authsome/cli/main.py`)** is Click-based. All commands support `--json` for machine-readable output. `authsome init` creates the local identity, registers it with the daemon, and writes `active_identity` to config.
+**CLI (`src/authsome/cli/main.py`)** is Click-based. All commands support `--json` for machine-readable output. `authsome onboard` creates the local identity, registers it with the daemon, imports API keys from env, and writes `active_identity` to config.
 
 ## Agent skills
 

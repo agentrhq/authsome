@@ -36,7 +36,7 @@ Non-fatal observations appear in `warnings` (for example, no active provider con
 
     Causes:
 
-    - You haven't initialized authsome on this machine. Run `authsome init` to provision the home directory, identity, and master key.
+    - You haven't initialized authsome on this machine. Run `authsome onboard` to provision the home directory, identity, and master key.
     - You moved or deleted `~/.authsome/server/`. If you have a backup, restore it. Without the master key, encrypted records cannot be decrypted.
   </Accordion>
 
@@ -76,7 +76,7 @@ Non-fatal observations appear in `warnings` (for example, no active provider con
     identity: Unknown identity handle
     ```
 
-    Run `authsome init` to create a local identity, then complete the Principal claim flow at the URL the daemon prints.
+    Run `authsome onboard` to create a local identity, then complete the Principal claim flow at the URL the daemon prints.
   </Accordion>
 
   <Accordion title="daemon unreachable" icon="server">
@@ -108,7 +108,7 @@ If your install is irrecoverably broken and you don't have any credentials to pr
 
 ```bash
 rm -rf ~/.authsome
-authsome init
+authsome onboard
 ```
 
 This destroys every stored credential. You will need to log in to every provider again.

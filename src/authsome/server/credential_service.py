@@ -5,6 +5,7 @@ Lives in server/ because it coordinates auth/ flows with vault/ storage and audi
 """
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Self
@@ -40,6 +41,7 @@ from authsome.errors import (
     CredentialMissingError,
     InvalidProviderSchemaError,
     OperationNotAllowedError,
+    ProviderNotFoundError,
     RefreshFailedError,
     TokenExpiredError,
     UnsupportedFlowError,
@@ -172,6 +174,28 @@ class CredentialService:
         )
         logger.info("Registered provider: {}", definition.name)
 
+    async def update_provider(self, provider: str, definition: ProviderDefinition) -> None:
+        """Update an existing custom provider definition."""
+        self._require_admin("update", "update requires an admin principal", provider)
+        if provider != definition.name:
+            raise InvalidProviderSchemaError(
+                f"Provider name '{definition.name}' must match route provider '{provider}'",
+                provider=provider,
+            )
+        if not await self.is_custom_provider(provider):
+            raise ProviderNotFoundError(provider)
+        self._validate_provider(definition)
+        await self._providers.save_custom(definition, force=True)
+        audit.emit_event(
+            "provider.updated",
+            provider=definition.name,
+            identity=self._identity,
+            principal_id=self._principal_id,
+            status="success",
+            auth_type=definition.auth_type.value if definition.auth_type else None,
+        )
+        logger.info("Updated provider: {}", definition.name)
+
     def _require_admin(self, operation: str, message: str, provider: str) -> None:
         """Allow an operation only for admin principals."""
         if self._principal_role == PrincipalRole.ADMIN:
@@ -180,19 +204,84 @@ class CredentialService:
 
     def _validate_provider(self, definition: ProviderDefinition) -> None:
         validate_provider_definition(definition)
+        self._validate_api_targets(definition.api_urls(), "api_url", definition.name)
+        self._validate_optional_url(definition.docs_url, "docs_url", definition.name)
         if definition.oauth:
-            for field_name in ("authorization_url", "token_url"):
+            for field_name in (
+                "authorization_url",
+                "token_url",
+                "revocation_url",
+                "device_authorization_url",
+                "base_url",
+            ):
                 url = getattr(definition.oauth, field_name, None)
                 if url:
-                    self._validate_url(url, field_name, definition.name)
+                    self._validate_optional_url(url, field_name, definition.name, allow_base_url_template=True)
+        if definition.registration:
+            self._validate_optional_url(
+                definition.registration.registration_endpoint,
+                "registration.registration_endpoint",
+                definition.name,
+            )
+        if definition.browser:
+            self._validate_optional_url(definition.browser.entry_url, "browser.entry_url", definition.name)
+            self._validate_optional_url(definition.browser.validate_url, "browser.validate_url", definition.name)
 
     @staticmethod
-    def _validate_url(url: str, field_name: str, provider_name: str) -> None:
-        if "{base_url}" in url:
+    def _validate_optional_url(
+        url: str | None,
+        field_name: str,
+        provider_name: str,
+        *,
+        allow_base_url_template: bool = False,
+    ) -> None:
+        if not url:
             return
+        CredentialService._validate_url(url, field_name, provider_name, allow_base_url_template=allow_base_url_template)
+
+    @staticmethod
+    def _validate_url(
+        url: str,
+        field_name: str,
+        provider_name: str,
+        *,
+        allow_base_url_template: bool = False,
+    ) -> None:
+        if allow_base_url_template and "{base_url}" in url:
+            return
+        if "{base_url}" in url:
+            raise InvalidProviderSchemaError(
+                f"Invalid URL for '{field_name}': {url}",
+                provider=provider_name,
+            )
         parsed = urlparse(url)
-        if not parsed.scheme or not parsed.netloc:
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise InvalidProviderSchemaError(f"Invalid URL for '{field_name}': {url}", provider=provider_name)
+
+    @staticmethod
+    def _validate_api_targets(targets: tuple[str, ...], field_name: str, provider_name: str) -> None:
+        for target in targets:
+            cleaned = target.strip()
+            if not cleaned or any(char.isspace() for char in cleaned):
+                raise InvalidProviderSchemaError(
+                    f"Invalid API target for '{field_name}': {target}",
+                    provider=provider_name,
+                )
+            if cleaned.startswith("regex:"):
+                try:
+                    re.compile(cleaned.removeprefix("regex:"))
+                except re.error as exc:
+                    raise InvalidProviderSchemaError(
+                        f"Invalid API target for '{field_name}': {target}",
+                        provider=provider_name,
+                    ) from exc
+                continue
+            parsed = urlparse(cleaned if "://" in cleaned else f"https://{cleaned}")
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise InvalidProviderSchemaError(
+                    f"Invalid API target for '{field_name}': {target}",
+                    provider=provider_name,
+                )
 
     # ── Connection operations ─────────────────────────────────────────────
 
@@ -904,6 +993,13 @@ class CredentialService:
         await self.revoke(provider)
         if await self.is_custom_provider(provider):
             await self._providers.delete_custom(provider)
+            audit.emit_event(
+                "provider.deleted",
+                provider=provider,
+                identity=self._identity,
+                principal_id=self._principal_id,
+                status="success",
+            )
             logger.info("Removed local provider definition: {}", provider)
         else:
             logger.info("Revoked bundled provider: {} (definition kept)", provider)

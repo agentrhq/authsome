@@ -123,6 +123,18 @@ See the [self-hosting guide](docs/guides/self-hosting.md) for volume backup, TLS
 
 ## Quick Start
 
+Install and run first-time setup (identity, claim, and API key import from `.env`):
+
+```bash
+authsome onboard
+```
+
+For a remote daemon, pass `--base-url` once — it is saved in client config for later commands:
+
+```bash
+authsome onboard --base-url https://authsome.example.com
+```
+
 Add the authsome skill to your agent (claude, codex, cursor, hermes, etc.):
 
 ```bash

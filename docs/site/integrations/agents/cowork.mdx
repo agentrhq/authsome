@@ -13,8 +13,8 @@ Cowork is a multi-agent runtime that supervises several agents running concurren
 Use a separate home directory per agent role. Each home gets its own identity, vault, daemon, and audit log.
 
 ```bash
-AUTHSOME_HOME=~/.authsome-pr-bot   authsome init
-AUTHSOME_HOME=~/.authsome-reviewer authsome init
+AUTHSOME_HOME=~/.authsome-pr-bot   authsome onboard
+AUTHSOME_HOME=~/.authsome-reviewer authsome onboard
 
 AUTHSOME_HOME=~/.authsome-pr-bot   authsome login github
 AUTHSOME_HOME=~/.authsome-reviewer authsome login github --connection read

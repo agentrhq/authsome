@@ -57,7 +57,7 @@ uv run authsome doctor
 
 **Expected:** Exit code `0`; JSON `{"v": 1, "status": "ready", "checks": {"spec_version": "ok", "store": "ok", "identity": "ok", "providers": "ok", "connections": "ok", "vault": "ok", "integrity": "ok"}, "issues": [], "warnings": [...]}`. The `warnings` array is non-empty on a fresh install with no connections (e.g. "no active provider connections found"). A non-`ready` status exits `1`.
 
-> **Tip:** `authsome init` performs the same register + claim flow explicitly and prints an `{"status": "initialized", ...}` payload.
+> **Tip:** `authsome onboard` performs register + claim and imports API keys from env in one step, printing a combined JSON payload.
 
 ---
 

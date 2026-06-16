@@ -22,7 +22,7 @@ An **Identity** does not own credentials directly. Instead, an Identity claims a
 
 Here is how the initialization and claim flow works:
 
-1. **Initialize Identity:** Running `authsome init` creates a new Identity and registers it with the daemon. The daemon returns a claim URL.
+1. **Initialize Identity:** Running `authsome onboard` creates a new Identity and registers it with the daemon. The daemon returns a claim URL.
 2. **Register/Login Principal:** The user opens the claim URL and signs in (with email and password). The first Principal created becomes the server `admin`, subsequent ones are `user`.
 3. **Accept Claim:** The authenticated Principal confirms the claim, binding the Identity to the Principal and creating the Principal's default Vault.
 4. **Access Granted:** Vault access is granted only after the claim is `accepted`.

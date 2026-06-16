@@ -8,6 +8,7 @@ export type DashboardStats = {
 export type ProviderView = {
   name: string;
   displayName: string;
+  definition: ProviderResponse;
   authType: "oauth2" | "api_key" | string;
   authTypeLabel: string;
   apiUrl: string;
@@ -134,15 +135,71 @@ export type ProviderResponse = {
   display_name?: string;
   logo?: string | null;
   description?: string | null;
+  type?: "app" | "llm" | "mcp" | "browser" | string | null;
   auth_type?: string;
+  flow?: string;
   api_url?: string | string[] | null;
   oauth?: {
+    authorization_url?: string;
+    token_url?: string;
+    revocation_url?: string | null;
+    device_authorization_url?: string | null;
+    device_token_request?: "oauth2_form" | "json";
+    scopes?: string[];
+    authorization_params?: Record<string, string>;
+    pkce?: boolean;
+    supports_device_code?: boolean;
+    supports_dcr?: boolean;
     base_url?: string | null;
+    authorization_method?: "body" | "basic";
   } | null;
+  registration?: {
+    registration_endpoint?: string | null;
+  } | null;
+  api_key?: {
+    header_name?: string;
+    header_prefix?: string | null;
+    key_pattern?: string | null;
+    key_pattern_hint?: string | null;
+  } | null;
+  browser?: {
+    entry_url?: string;
+    domains?: string[];
+    auth_cookies?: string[];
+    validate_url?: string | null;
+    extra_headers?: Record<string, string>;
+    ttl_hours?: number;
+    ttl_from_cookie?: string | null;
+    extract?: Array<{
+      cookie: string;
+      header: string;
+      prefix?: string;
+    }>;
+  } | null;
+  export?: Record<string, string> | { env?: Record<string, string> } | null;
   metadata?: {
     description?: string;
   };
   docs_url?: string | null;
+};
+
+export type ProviderDefinitionPayload = {
+  schema_version?: number;
+  name: string;
+  display_name: string;
+  logo?: string | null;
+  description?: string | null;
+  type?: "app" | "llm" | "mcp" | "browser" | null;
+  auth_type: "oauth2" | "api_key" | "browser";
+  flow: "pkce" | "device_code" | "dcr_pkce" | "api_key" | "browser";
+  oauth?: NonNullable<ProviderResponse["oauth"]> | null;
+  registration?: NonNullable<ProviderResponse["registration"]> | null;
+  api_key?: NonNullable<ProviderResponse["api_key"]> | null;
+  browser?: NonNullable<ProviderResponse["browser"]> | null;
+  export?: ProviderResponse["export"];
+  docs_url?: string | null;
+  api_url?: string | string[] | null;
+  metadata?: Record<string, unknown>;
 };
 
 export type ProviderClientDetail = {
@@ -378,6 +435,7 @@ function providerView(
   return {
     name: provider.name,
     displayName,
+    definition: provider,
     authType: provider.auth_type || "provider",
     authTypeLabel: authTypeLabel(provider.auth_type),
     apiUrl: providerApiUrl(provider),
@@ -623,6 +681,32 @@ export async function updateProviderConfiguration(
   return sendJson(`/api/providers/${encodeURIComponent(provider)}/configuration`, {
     method: "PUT",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function createCustomProvider(
+  definition: ProviderDefinitionPayload,
+): Promise<{ status: "ok"; provider: string }> {
+  return sendJson("/api/providers", {
+    method: "POST",
+    body: JSON.stringify({ definition }),
+  });
+}
+
+export async function updateCustomProvider(
+  provider: string,
+  definition: ProviderDefinitionPayload,
+): Promise<{ status: "ok"; provider: string }> {
+  return sendJson(`/api/providers/${encodeURIComponent(provider)}`, {
+    method: "PUT",
+    body: JSON.stringify({ definition }),
+  });
+}
+
+export async function deleteCustomProvider(provider: string): Promise<{ status: "ok"; provider: string }> {
+  return sendJson(`/api/providers/${encodeURIComponent(provider)}`, {
+    method: "DELETE",
+    body: "{}",
   });
 }
 

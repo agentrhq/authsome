@@ -67,7 +67,9 @@ function ActiveView({
   onRefresh: () => void;
   view: View;
 }) {
-  if (view === "providers") return <ProvidersView providers={data.providers} />;
+  if (view === "providers") {
+    return <ProvidersView isAdmin={data.account.isAdmin} onRefresh={onRefresh} providers={data.providers} />;
+  }
   if (view === "connections") {
     return (
       <ConnectionsView

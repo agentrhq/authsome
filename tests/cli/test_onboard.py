@@ -1,7 +1,11 @@
-"""Tests for `authsome scan`."""
+"""Tests for `authsome onboard`."""
 
 import json
+from pathlib import Path
 
+from authsome import __version__
+from authsome.cli.config import ClientConfig
+from authsome.cli.identity import RuntimeIdentity
 from authsome.cli.main import cli
 
 
@@ -28,10 +32,12 @@ def _oauth_provider(name: str) -> dict:
     }
 
 
-class TestScanCommand:
-    """Behavior tests for scan and import workflow."""
+class TestOnboardCommand:
+    """Behavior tests for onboard setup and credential import."""
 
-    def test_scan_import_flag_imports_key_from_dotenv(self, runner, mock_client, monkeypatch, tmp_path) -> None:
+    def test_onboard_creates_identity_and_imports_key_from_dotenv(
+        self, runner, mock_client, monkeypatch, tmp_path: Path
+    ) -> None:
         mock_client.list_connections.return_value = {
             "connections": [],
             "by_source": {
@@ -42,20 +48,60 @@ class TestScanCommand:
         mock_client.get_connection.side_effect = Exception("not found")
         mock_client.start_login.return_value = {"id": "sess-1", "status": "pending"}
         mock_client.resume_login_session.return_value = {"id": "sess-1", "status": "completed"}
+        created = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+        mock_client.ensure_identity_ready.return_value = created
         monkeypatch.chdir(tmp_path)
         (tmp_path / ".env").write_text("BREVO_API_KEY=test123\n", encoding="utf-8")
 
-        result = runner.invoke(cli, ["--log-file", "", "scan", "--import"])
+        result = runner.invoke(cli, ["--log-file", "", "onboard"])
 
         assert result.exit_code == 0, result.output
+        mock_client.ensure_identity_ready.assert_called_once()
+        mock_client.whoami.assert_called_once()
         mock_client.start_login.assert_called_once_with(
             provider="brevo", connection="default", flow="api_key", force=True
         )
         mock_client.resume_login_session.assert_called_once_with("sess-1", api_key="test123")
         data = json.loads(result.output)
+        assert data["status"] == "onboarded"
         assert data["import"] is True
+        assert data["imported_count"] == 1
 
-    def test_scan_defaults_to_report_only(self, runner, mock_client, monkeypatch) -> None:
+    def test_onboard_removes_legacy_default_state(self, runner, mock_client, tmp_path: Path) -> None:
+        identities = tmp_path / "client" / "identities"
+        identities.mkdir(parents=True)
+        (identities / "default.json").write_text("{}", encoding="utf-8")
+        (identities / "default.key").write_text("legacy\n", encoding="utf-8")
+
+        created = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+        mock_client.ensure_identity_ready.return_value = created
+
+        result = runner.invoke(cli, ["--log-file", "", "onboard", "--scan-only"])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["agent"] != "default"
+        assert data["registration_status"] == "registered"
+        assert not (identities / "default.json").exists()
+        assert not (identities / "default.key").exists()
+        mock_client.ensure_identity_ready.assert_called_once()
+
+        config_data = ClientConfig.load(tmp_path)
+        assert config_data.version == __version__
+        assert config_data.active_identity == data["agent"]
+
+    def test_onboard_skips_registration_for_registered_active_agent(self, runner, mock_client, tmp_path: Path) -> None:
+        identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+        ClientConfig(active_identity=identity.handle).save(tmp_path)
+
+        result = runner.invoke(cli, ["--log-file", "", "onboard", "--scan-only"])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["agent"] == identity.handle
+        mock_client.ensure_identity_ready.assert_called_once()
+
+    def test_onboard_scan_only_does_not_import(self, runner, mock_client, monkeypatch) -> None:
         mock_client.list_connections.return_value = {
             "connections": [],
             "by_source": {"bundled": [_api_key_provider("openai", "OPENAI_API_KEY")], "custom": []},
@@ -63,7 +109,7 @@ class TestScanCommand:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-value")
         mock_client.get_connection.return_value = {}
 
-        result = runner.invoke(cli, ["--log-file", "", "scan"])
+        result = runner.invoke(cli, ["--log-file", "", "onboard", "--scan-only"])
 
         assert result.exit_code == 0, result.output
         mock_client.start_login.assert_not_called()
@@ -71,14 +117,14 @@ class TestScanCommand:
         data = json.loads(result.output)
         assert data["import"] is False
 
-    def test_scan_rejects_quiet_flag(self, runner, mock_client) -> None:
-        result = runner.invoke(cli, ["--log-file", "", "scan", "--quiet"])
+    def test_onboard_rejects_quiet_flag(self, runner, mock_client) -> None:
+        result = runner.invoke(cli, ["--log-file", "", "onboard", "--quiet"])
         assert result.exit_code == 1
         data = json.loads(result.output)
         assert data["error"] == "UsageError"
         mock_client.list_connections.assert_not_called()
 
-    def test_scan_reports_drift_states(self, runner, mock_client, monkeypatch) -> None:
+    def test_onboard_reports_drift_states(self, runner, mock_client, monkeypatch) -> None:
         mock_client.list_connections.return_value = {
             "connections": [],
             "by_source": {
@@ -103,7 +149,7 @@ class TestScanCommand:
 
         mock_client.get_connection.side_effect = _get_connection
 
-        result = runner.invoke(cli, ["--log-file", "", "scan"])
+        result = runner.invoke(cli, ["--log-file", "", "onboard", "--scan-only"])
 
         assert result.exit_code == 0, result.output
         payload = json.loads(result.output)
@@ -111,3 +157,14 @@ class TestScanCommand:
         assert statuses["openai"] == "env_and_authsome_different"
         assert statuses["brevo"] == "authsome_only"
         assert statuses["resend"] == "both_missing"
+
+    def test_onboard_persists_base_url_in_client_config(self, runner, mock_client, tmp_path: Path) -> None:
+        result = runner.invoke(
+            cli,
+            ["--log-file", "", "onboard", "--base-url", "https://authsome.example.com", "--scan-only"],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["daemon_base_url"] == "https://authsome.example.com"
+        assert ClientConfig.load(tmp_path).daemon_base_url == "https://authsome.example.com"
