@@ -139,6 +139,7 @@ class AuditEventRegistry:
         *,
         limit: int = 50,
         principal_id: str | None = None,
+        identity: str | None = None,
         cursor: str | None = None,
     ) -> AuditEventPage:
         bounded_limit = min(max(limit, 1), 500)
@@ -148,6 +149,9 @@ class AuditEventRegistry:
         if principal_id is not None:
             conditions.append("principal_id = ?")
             params.append(principal_id)
+        if identity is not None:
+            conditions.append("identity = ?")
+            params.append(identity)
 
         if cursor:
             cursor_timestamp, cursor_event_id = _decode_audit_cursor(cursor)
@@ -334,12 +338,14 @@ class ServerAuditLog:
         *,
         limit: int = 50,
         principal_id: str | None = None,
+        identity: str | None = None,
         cursor: str | None = None,
     ) -> AuditEventPage:
         await self.async_force_flush()
         return await self._registry.query_events(
             limit=limit,
             principal_id=principal_id,
+            identity=identity,
             cursor=cursor,
         )
 

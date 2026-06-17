@@ -20,14 +20,25 @@ async def list_audit_events(
     request: Request,
     limit: int = 50,
     cursor: str | None = None,
+    identity: str | None = None,
     auth: CredentialService = Depends(get_daemon_or_browser_auth_service),
 ) -> dict[str, Any]:
     effective_principal_id = None if auth.principal_role == PrincipalRole.ADMIN else auth.principal_id
     scope: Literal["global", "principal"] = "global" if effective_principal_id is None else "principal"
+
+    if identity is not None and effective_principal_id is not None:
+        claim = await request.app.state.store.identity_claims.resolve(identity)
+        if claim is None or claim.principal_id != effective_principal_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Identity does not belong to this principal",
+            )
+
     try:
         page = await request.app.state.audit_log.query_events(
             limit=limit,
             principal_id=effective_principal_id,
+            identity=identity,
             cursor=cursor,
         )
     except ValueError as exc:

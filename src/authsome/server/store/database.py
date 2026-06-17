@@ -33,7 +33,12 @@ class StoreMigration:
 
 
 def build_migrations(backend: StoreBackend) -> list[StoreMigration]:
-    return [StoreMigration(version=1, statements=tuple(build_schema(backend)))]
+    return [
+        StoreMigration(version=1, statements=tuple(build_schema(backend))),
+        StoreMigration(
+            version=2, statements=("CREATE INDEX IF NOT EXISTS idx_audit_events_identity ON audit_events(identity)",)
+        ),
+    ]
 
 
 class StoreDatabase:
@@ -292,6 +297,7 @@ def build_schema(backend: StoreBackend) -> list[str]:
         ")",
         "CREATE INDEX IF NOT EXISTS idx_audit_events_timestamp ON audit_events(timestamp DESC, event_id DESC)",
         "CREATE INDEX IF NOT EXISTS idx_audit_events_principal ON audit_events(principal_id)",
+        "CREATE INDEX IF NOT EXISTS idx_audit_events_identity ON audit_events(identity)",
     ]
 
 

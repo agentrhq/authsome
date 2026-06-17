@@ -90,7 +90,7 @@ def test_audit_events_endpoint_only_documents_pagination_params(monkeypatch, tmp
 
     assert response.status_code == status.HTTP_200_OK
     params = response.json()["paths"]["/api/audit/events"]["get"]["parameters"]
-    assert {param["name"] for param in params} == {"limit", "cursor"}
+    assert {param["name"] for param in params} == {"limit", "cursor", "identity"}
 
 
 def test_external_audit_post_is_enriched_from_pop_identity(monkeypatch, tmp_path: Path) -> None:
@@ -266,13 +266,42 @@ def test_non_admin_audit_query_cannot_widen_scope_with_principal_or_identity(
             ),
         )
 
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+def test_audit_events_can_filter_current_principal_by_identity(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+
+    with create_server_test_client() as client:
+        _claim_identity(client, tmp_path, "steady-wisely-boldly-0042", email="user@example.com")
+        _claim_identity(client, tmp_path, "calmly-simply-boldly-0043", email="user@example.com")
+        whoami = client.get(
+            "/api/whoami",
+            headers=_auth_header(tmp_path, "GET", "/api/whoami", handle="steady-wisely-boldly-0042"),
+        ).json()
+        _emit_audit_event(
+            "audit_020",
+            "connection.login",
+            principal_id=whoami["principal_id"],
+            identity="steady-wisely-boldly-0042",
+            provider="github",
+        )
+        _emit_audit_event(
+            "audit_021",
+            "connection.logout",
+            principal_id=whoami["principal_id"],
+            identity="calmly-simply-boldly-0043",
+            provider="linear",
+        )
+        path = "/api/audit/events?identity=calmly-simply-boldly-0043&limit=10"
+        response = client.get(
+            path,
+            headers=_auth_header(tmp_path, "GET", path, handle="steady-wisely-boldly-0042"),
+        )
+
     assert response.status_code == status.HTTP_200_OK
-    body = response.json()
-    assert body["scope"] == "principal"
-    event_ids = {entry["event_id"] for entry in body["entries"]}
-    assert "audit_011" in event_ids
-    assert "audit_010" not in event_ids
-    assert all(entry["principal_id"] == user_whoami["principal_id"] for entry in body["entries"])
+    manual_entries = [entry for entry in response.json()["entries"] if entry["event_id"].startswith("audit_02")]
+    assert [entry["event_id"] for entry in manual_entries] == ["audit_021"]
 
 
 def test_admin_audit_events_support_cursor_pagination(monkeypatch, tmp_path: Path) -> None:

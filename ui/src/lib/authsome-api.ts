@@ -56,6 +56,7 @@ export type AuditRow = {
 
 export type AuditEventsQuery = {
   cursor?: string | null;
+  identity?: string | null;
   limit?: number;
 };
 
@@ -94,6 +95,19 @@ export type DashboardData = {
     total: number;
     events: AuditRow[];
   };
+};
+
+export type AgentDetail = {
+  handle: string;
+  did: string;
+  registration_status: string;
+  claim_status: string | null;
+  principal_id: string | null;
+  principal_email: string | null;
+  is_active: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+  claimed_at: string | null;
 };
 
 type WhoamiResponse = {
@@ -577,6 +591,7 @@ function auditQueryString(query: AuditEventsQuery = {}): string {
   const params = new URLSearchParams();
   params.set("limit", String(query.limit ?? 50));
   if (query.cursor) params.set("cursor", query.cursor);
+  if (query.identity) params.set("identity", query.identity);
   return params.toString();
 }
 
@@ -675,6 +690,10 @@ export async function fetchAuthSessionStatus(sessionId: string): Promise<AuthSes
 
 export async function fetchProviderDetail(provider: string): Promise<ProviderDetail> {
   return requestJson<ProviderDetail>(`/api/providers/${encodeURIComponent(provider)}/detail`);
+}
+
+export async function fetchAgentDetail(agent: string): Promise<AgentDetail> {
+  return requestJson<AgentDetail>(`/api/identities/${encodeURIComponent(agent)}/detail`);
 }
 
 export async function updateProviderConfiguration(

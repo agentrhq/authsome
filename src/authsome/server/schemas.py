@@ -227,3 +227,16 @@ class ConnectionDetailResponse(BaseModel):
     can_set_default: bool = False
     can_set_global: bool = False
     is_global: bool = False
+
+
+class AgentDetailResponse(BaseModel):
+    handle: str
+    did: str
+    registration_status: str
+    claim_status: str | None = None
+    principal_id: str | None = None
+    principal_email: str | None = None
+    is_active: bool = False
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    claimed_at: datetime | None = None

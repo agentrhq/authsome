@@ -103,10 +103,9 @@ function buildBreadcrumbs(
   }
 
   if (first === "agents") {
-    const agentHandle = searchParams.get("agent") ?? "";
     return [
       { label: parent, href: parentHref },
-      { label: agentHandle || "Detail" },
+      { label: searchParams.get("agent") || "Detail" },
     ];
   }
 

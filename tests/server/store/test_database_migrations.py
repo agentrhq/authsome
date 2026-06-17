@@ -60,7 +60,7 @@ async def test_sqlite_migrations_are_idempotent(tmp_path: Path) -> None:
     finally:
         await second.close()
 
-    assert row == {"count": 1}
+    assert row == {"count": len(build_migrations("sqlite"))}
 
 
 def test_postgres_url_uses_postgres_backend(tmp_path: Path) -> None:

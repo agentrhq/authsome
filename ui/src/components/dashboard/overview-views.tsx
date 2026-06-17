@@ -2,13 +2,14 @@
 
 import { UserRound } from "lucide-react";
 import Link from "next/link";
-import { useRef, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 
 import {
   INTERACTIVE_ROW_CLASS,
   SearchInput,
+  agentDetailHref,
 } from "@/components/dashboard/dashboard-primitives";
 import { PageEmptyState, PageErrorState, PageLoadingState } from "@/components/dashboard/page-state";
 import { ProviderSummary } from "@/components/dashboard/provider-views";
@@ -17,8 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { H4, Muted } from "@/components/ui/typography";
-import { AgentRow, DashboardData, PrincipalRow, fetchAuditEvents, fetchPrincipals } from "@/lib/authsome-api";
+import { H4 } from "@/components/ui/typography";
+import { DashboardData, PrincipalRow, fetchAuditEvents, fetchPrincipals } from "@/lib/authsome-api";
 
 export function DashboardView({ data }: { data: DashboardData }) {
   const recentEvents = data.audit.events.slice(0, 5);
@@ -114,10 +115,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
       ) : null}
     </div>
   );
-}
-
-export function agentDetailHref(handle: string): string {
-  return `/agents/detail?${new URLSearchParams({ agent: handle }).toString()}`;
 }
 
 function AgentClaimBadge({ status }: { status: string }) {
