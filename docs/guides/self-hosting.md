@@ -7,15 +7,31 @@ Run Authsome as a production service with Postgres for the server registries and
 The repository ships a compose file that wires the daemon to Postgres and Redis. Set a stable master key source first, then bring the stack up and verify the root health check.
 
 ```bash
-export AUTHSOME_POSTGRES_PASSWORD='change-me-to-a-long-random-password'
-export AUTHSOME_MASTER_KEY='base64-encoded-32-byte-key'
-export AUTHSOME_UI_SESSION_KEY='base64-encoded-32-byte-key'
+export AUTHSOME_POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+export AUTHSOME_MASTER_KEY="$(openssl rand -base64 32)"
+export AUTHSOME_UI_SESSION_KEY="$(openssl rand -base64 32)"
 docker compose up -d
 curl http://localhost:7998/health
 ```
 
 The daemon should answer on `http://localhost:7998`. The root `/health` endpoint is the container health target used by the image and by `docker compose`.
 The included compose file reads `AUTHSOME_MASTER_KEY` and `AUTHSOME_UI_SESSION_KEY` from the host environment. The `_FILE` variants are supported by Authsome itself, but if you want to use file-mounted secrets you must add those mounts and pass the file paths yourself in a custom compose file.
+
+## First run
+
+After `/health` responds, point the CLI at the daemon and run onboarding:
+
+```bash
+authsome onboard --base-url http://localhost:7998
+```
+
+For a hosted deployment, use the same public URL that you configured as `AUTHSOME_BASE_URL`:
+
+```bash
+authsome onboard --base-url https://authsome.example.com
+```
+
+Onboarding creates a local Identity, registers it with the daemon, and opens the browser claim flow. On a fresh hosted daemon the claim page first asks you to register an account with an email and password; that account becomes the Principal that owns the vault. On later runs you sign in to the same account instead of registering again. Completing the claim binds the Identity to that Principal and its default Vault, after which the daemon is ready for agent commands.
 
 ## What this deployment does
 
@@ -115,5 +131,6 @@ Because schema migrations run at startup, keep the Postgres and Redis services h
 
 - Use your platform secret store for `AUTHSOME_MASTER_KEY` and `AUTHSOME_UI_SESSION_KEY`. Only switch to `_FILE` variables if you have added real secret mounts and file paths to your own compose file.
 - Set `AUTHSOME_BASE_URL` to the public URL behind your reverse proxy.
+- Terminate TLS at your reverse proxy, such as Caddy, nginx, Traefik, or your platform load balancer. The Authsome container serves plain HTTP on port `7998` inside the private network.
 - Keep `AUTHSOME_HOME` mounted only if you want local logs or fallback key material to persist.
 - Consider pointing `AUTHSOME_POSTHOG_API_KEY` at a real analytics key only if you have opted in to telemetry.
