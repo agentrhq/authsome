@@ -14,9 +14,8 @@ import {
   isDashboardView,
 } from "@/components/dashboard/dashboard-shell";
 import type { View } from "@/components/dashboard/dashboard-shell";
-import { AgentsView, AuditView, DashboardView, PrincipalsView } from "@/components/dashboard/overview-views";
+import { AgentsView, AuditView, DashboardView } from "@/components/dashboard/overview-views";
 import { ProvidersView } from "@/components/dashboard/provider-views";
-import { SettingsView } from "@/components/dashboard/settings-view";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { DashboardData, fetchDashboard } from "@/lib/authsome-api";
 
@@ -46,7 +45,6 @@ export {
   AgentsView,
   AuditView,
   DashboardView,
-  PrincipalsView,
 } from "@/components/dashboard/overview-views";
 export {
   AuthsomeProviderDetail,
@@ -54,8 +52,6 @@ export {
   ProviderDetailBody,
 } from "@/components/dashboard/provider-detail-view";
 export { ProvidersView } from "@/components/dashboard/provider-views";
-export { SettingsView } from "@/components/dashboard/settings-view";
-
 function ActiveView({
   connectionFilter,
   data,
@@ -82,9 +78,7 @@ function ActiveView({
     );
   }
   if (view === "agents") return <AgentsView data={data} />;
-  if (view === "principals") return <PrincipalsView />;
   if (view === "audit") return <AuditView data={data} />;
-  if (view === "settings") return <SettingsView data={data} />;
   return <DashboardView data={data} />;
 }
 

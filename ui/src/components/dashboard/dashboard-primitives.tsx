@@ -65,16 +65,16 @@ function providerLogoUrl(logo: string): string {
 export function StatusBadge({ status }: { status: string }) {
   if (status === "connected") {
     return (
-      <Badge className="border-emerald-800 bg-emerald-950/50 text-emerald-400" variant="outline">
-        <CheckCircle2 />
+      <Badge className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400" variant="outline">
+        <CheckCircle2 aria-hidden="true" />
         Connected
       </Badge>
     );
   }
   if (status === "reauth" || status === "expired" || status === "error") {
     return (
-      <Badge className="border-amber-800 bg-amber-950/50 text-amber-400" variant="outline">
-        <CircleAlert />
+      <Badge className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-400" variant="outline">
+        <CircleAlert aria-hidden="true" />
         Re-auth
       </Badge>
     );
@@ -118,8 +118,8 @@ export function SearchInput({
 
 export function KeyValue({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1">
-      <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
+    <div className="grid gap-1.5">
+      <div className="text-sm text-muted-foreground">{label}</div>
       <Tooltip>
         <TooltipTrigger render={<div className="truncate rounded-lg border bg-muted px-3 py-2 font-mono text-sm" />}>
           {value}

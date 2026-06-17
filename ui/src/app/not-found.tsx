@@ -9,7 +9,7 @@ export default function NotFound() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
       <Card className="w-full max-w-md border-border/70 shadow-none">
         <CardHeader>
-          <div className="mb-3 flex size-10 items-center justify-center rounded-lg border border-amber-800 bg-amber-950/40 text-amber-400">
+          <div className="mb-3 flex size-10 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400" aria-hidden="true">
             <CircleAlert className="size-5" />
           </div>
           <CardTitle>Page not found</CardTitle>

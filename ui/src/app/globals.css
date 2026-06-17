@@ -48,72 +48,70 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ─── Light mode (fallback) ──────────────────────────────────────────────── */
+/* ─── Light mode ─────────────────────────────────────────────────────────── */
 :root {
   --background: oklch(0.985 0 0);
-  --foreground: oklch(0.18 0.01 260);
+  --foreground: oklch(0.145 0.004 285.823);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.01 260);
+  --card-foreground: oklch(0.145 0.004 285.823);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.01 260);
-  --primary: oklch(0.65 0.16 163);
-  --primary-foreground: oklch(0.23 0.09 163);
+  --popover-foreground: oklch(0.145 0.004 285.823);
+  --primary: oklch(0.55 0.16 163);
+  --primary-foreground: oklch(0.985 0.002 163);
   --secondary: oklch(0.96 0.015 163);
   --secondary-foreground: oklch(0.28 0.06 163);
-  --muted: oklch(0.965 0.012 260);
-  --muted-foreground: oklch(0.5 0.03 260);
-  --accent: oklch(0.65 0.16 163);
-  --accent-foreground: oklch(0.23 0.09 163);
+  --muted: oklch(0.96 0.005 285.823);
+  --muted-foreground: oklch(0.556 0.02 285.823);
+  --accent: oklch(0.96 0.005 285.823);
+  --accent-foreground: oklch(0.145 0.004 285.823);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.015 260);
-  --input: oklch(0.91 0.015 260);
-  --ring: oklch(0.65 0.16 163);
-  --chart-1: oklch(0.65 0.16 163);
+  --border: oklch(0.907 0.006 285.823);
+  --input: oklch(0.907 0.006 285.823);
+  --ring: oklch(0.55 0.16 163);
+  --chart-1: oklch(0.55 0.16 163);
   --chart-2: oklch(0.84 0.13 163);
   --chart-3: oklch(0.74 0.14 82);
   --chart-4: oklch(0.58 0.12 18);
   --chart-5: oklch(0.48 0.04 260);
   --radius: 0.375rem;
   --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.18 0.01 260);
-  --sidebar-primary: oklch(0.65 0.16 163);
-  --sidebar-primary-foreground: oklch(0.23 0.09 163);
-  --sidebar-accent: oklch(0.94 0.02 163);
-  --sidebar-accent-foreground: oklch(0.18 0.01 260);
-  --sidebar-border: oklch(0.91 0.015 260);
-  --sidebar-ring: oklch(0.65 0.16 163);
+  --sidebar-foreground: oklch(0.145 0.004 285.823);
+  --sidebar-primary: oklch(0.55 0.16 163);
+  --sidebar-primary-foreground: oklch(0.985 0.002 163);
+  --sidebar-accent: oklch(0.96 0.005 285.823);
+  --sidebar-accent-foreground: oklch(0.145 0.004 285.823);
+  --sidebar-border: oklch(0.907 0.006 285.823);
+  --sidebar-ring: oklch(0.55 0.16 163);
 }
 
 /* ─── Dark mode — Authsome Secure Console design system ─────────────────── */
 /*     Palette: Deep Emerald (#10B981) + Obsidian (#09090B)                  */
-/*     Ref: ui/DESIGN.md                                                     */
 .dark {
-  --background:         oklch(0.088 0.002 277);   /* #09090b obsidian        */
-  --foreground:         oklch(0.912 0.007 338);   /* #e5e1e4 on-surface      */
+  --background:         oklch(0.088 0.002 277);
+  --foreground:         oklch(0.912 0.007 338);
 
-  --card:               oklch(0.118 0.003 285);   /* #131315 surface panel   */
+  --card:               oklch(0.118 0.003 285);
   --card-foreground:    oklch(0.912 0.007 338);
 
   --popover:            oklch(0.118 0.003 285);
   --popover-foreground: oklch(0.912 0.007 338);
 
-  /* Emerald primary */
-  --primary:            oklch(0.69 0.162 162);    /* #10b981                 */
-  --primary-foreground: oklch(0.23 0.094 162);    /* #003824                 */
+  --primary:            oklch(0.69 0.162 162);
+  --primary-foreground: oklch(0.23 0.094 162);
 
-  --secondary:          oklch(0.17 0.007 308);    /* #201f22 surface-high    */
+  --secondary:          oklch(0.17 0.007 308);
   --secondary-foreground: oklch(0.912 0.007 338);
 
-  --muted:              oklch(0.17 0.007 308);    /* #201f22                 */
-  --muted-foreground:   oklch(0.60 0.019 152);    /* #86948a                 */
+  --muted:              oklch(0.17 0.007 308);
+  --muted-foreground:   oklch(0.60 0.019 152);
 
-  --accent:             oklch(0.205 0.004 292);   /* #2a2a2c surface-container-high — neutral hover surface */
-  --accent-foreground:  oklch(0.912 0.007 338);   /* on-surface — NOT emerald; emerald is --primary only    */
+  --accent:             oklch(0.205 0.004 292);
+  --accent-foreground:  oklch(0.912 0.007 338);
 
   --destructive:        oklch(0.704 0.191 22.216);
-  --border:             oklch(0.21 0.005 300);    /* #27272a                 */
+  --border:             oklch(0.21 0.005 300);
   --input:              oklch(0.21 0.005 300);
-  --ring:               oklch(0.69 0.162 162);    /* emerald ring            */
+  --ring:               oklch(0.69 0.162 162);
 
   --chart-1: oklch(0.69 0.162 162);
   --chart-2: oklch(0.84 0.133 162);
@@ -121,12 +119,12 @@
   --chart-4: oklch(0.58 0.12 18);
   --chart-5: oklch(0.40 0.02 300);
 
-  --sidebar:                  oklch(0.09 0.003 285);  /* #0e0e10 dim surface */
+  --sidebar:                  oklch(0.09 0.003 285);
   --sidebar-foreground:       oklch(0.912 0.007 338);
   --sidebar-primary:          oklch(0.69 0.162 162);
   --sidebar-primary-foreground: oklch(0.23 0.094 162);
-  --sidebar-accent:           oklch(0.205 0.004 292);  /* matches --accent */
-  --sidebar-accent-foreground: oklch(0.80 0.021 153);  /* #bbcabf            */
+  --sidebar-accent:           oklch(0.205 0.004 292);
+  --sidebar-accent-foreground: oklch(0.80 0.021 153);
   --sidebar-border:           oklch(0.21 0.005 300);
   --sidebar-ring:             oklch(0.69 0.162 162);
 }
@@ -155,5 +153,72 @@
   button:disabled,
   [role="button"][aria-disabled="true"] {
     cursor: not-allowed;
+  }
+
+  /* ─── Enterprise-grade refinements ─────────────────────────────────────── */
+
+  /* Tighter card spacing for dense dashboards */
+  [data-slot="card"] {
+    @apply rounded-lg;
+  }
+
+  /* Consistent table density */
+  [data-slot="table-cell"] {
+    @apply py-2.5 px-3 text-sm;
+  }
+  [data-slot="table-head"] {
+    @apply py-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground;
+  }
+
+  /* Sharper badge styling */
+  [data-slot="badge"] {
+    @apply text-[0.7rem] font-medium tracking-wide;
+  }
+
+  /* Card header — keep title at base size, tighten the gap */
+  [data-slot="card-header"] {
+    @apply gap-1;
+  }
+  [data-slot="card-title"] {
+    @apply text-base font-semibold tracking-tight;
+  }
+  [data-slot="card-description"] {
+    @apply text-sm;
+  }
+
+  /* Tighter dialog spacing */
+  [data-slot="dialog-header"] {
+    @apply gap-1;
+  }
+
+  /* Improve focus-visible ring for accessibility */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+
+  /* Skip-to-content link (screen readers and keyboard nav) */
+  .skip-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .skip-link:focus {
+    position: fixed;
+    left: 1rem;
+    top: 1rem;
+    z-index: 50;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    @apply rounded-md bg-primary px-4 py-2 text-primary-foreground;
   }
 }

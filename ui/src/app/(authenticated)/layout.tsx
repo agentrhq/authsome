@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LogOut } from "lucide-react";
@@ -22,10 +22,10 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardData, fetchDashboard, ProviderView } from "@/lib/authsome-api";
+import { cn } from "@/lib/utils";
 
 type CrumbItem = { label: string; href?: string };
 
@@ -35,7 +35,6 @@ function pathToView(pathname: string): View {
     providers: "providers",
     connections: "connections",
     agents: "agents",
-    principal: "principals",
     audit: "audit",
     settings: "settings",
   };
@@ -54,15 +53,29 @@ function buildBreadcrumbs(
     providers: "Providers",
     connections: "Connections",
     agents: "Agents",
-    principal: "Principals",
     audit: "Audit Log",
     settings: "Settings",
+    principal: "Principals",
+  };
+
+  const settingsSubLabel: Record<string, string> = {
+    general: "General",
+    security: "Security",
+    about: "About",
+    principals: "Principals",
   };
 
   if (!first) return [{ label: "Dashboard" }];
 
   const parent = navLabel[first];
   if (!parent) return [{ label: "Dashboard", href: "/" }];
+
+  if (first === "settings" && segments[1] && settingsSubLabel[segments[1]]) {
+    return [
+      { label: "Settings", href: "/settings" },
+      { label: settingsSubLabel[segments[1]] },
+    ];
+  }
 
   const isDetail = segments[1] === "detail";
   if (!isDetail) return [{ label: parent }];
@@ -103,9 +116,9 @@ function AppBreadcrumb({ data }: { data: DashboardData }) {
         {crumbs.map((crumb, i) => {
           const isLast = i === crumbs.length - 1;
           return (
-            <>
-              {i > 0 && <BreadcrumbSeparator key={`sep-${i}`} />}
-              <BreadcrumbItem key={i}>
+            <React.Fragment key={crumb.href ?? crumb.label}>
+              {i > 0 && <BreadcrumbSeparator />}
+              <BreadcrumbItem>
                 {isLast ? (
                   <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
                 ) : (
@@ -114,7 +127,7 @@ function AppBreadcrumb({ data }: { data: DashboardData }) {
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
-            </>
+            </React.Fragment>
           );
         })}
       </BreadcrumbList>
@@ -140,32 +153,46 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
   if (error) return <ErrorState onRetry={() => void mutate()} />;
 
   const activeView = pathToView(pathname);
+  const isSettingsRoute = pathname.startsWith("/settings");
 
   return (
     <SidebarProvider className="h-svh overflow-hidden">
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <AppSidebar activeView={activeView} data={data} />
       <SidebarInset className="min-h-0">
-        <header className="flex min-h-14 items-center gap-2 border-b bg-card px-4 py-3 md:px-6">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="mr-1 h-4" />
-          <Suspense fallback={<Skeleton className="h-4 w-32" />}>
-            <AppBreadcrumb data={data} />
-          </Suspense>
-          <div className="ml-auto">
-            <form action="/api/logout" method="post">
+        <header
+          className="flex h-14 shrink-0 items-center justify-between border-b bg-background/60 px-4 backdrop-blur-sm"
+          role="banner"
+        >
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="-ml-1" />
+            <span className="mx-1 hidden h-5 w-px bg-border md:block" aria-hidden="true" />
+            <Suspense fallback={<Skeleton className="h-5 w-36" />}>
+              <AppBreadcrumb data={data} />
+            </Suspense>
+          </div>
+          <div className="flex items-center gap-1">
+            <form action="/api/logout" method="post" aria-label="Sign out">
               <input name="return_url" type="hidden" value="/" />
-              <Button size="sm" type="submit" variant="ghost">
-                <LogOut />
-                Sign out
+              <Button size="default" type="submit" variant="ghost" className="text-muted-foreground hover:text-foreground">
+                <LogOut className="size-4" />
+                <span className="hidden sm:inline">Sign out</span>
               </Button>
             </form>
           </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto grid w-full max-w-[86rem] gap-6 p-4 md:p-6">
+        <main className="min-h-0 flex-1 overflow-y-auto" id="main-content">
+          <div
+            className={cn(
+              "grid w-full gap-5",
+              isSettingsRoute ? "min-h-full" : "mx-auto max-w-[86rem] p-4",
+            )}
+          >
             {children}
           </div>
-        </div>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

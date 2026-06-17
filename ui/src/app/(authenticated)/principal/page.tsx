@@ -1,7 +1,5 @@
-"use client";
-
-import { PrincipalsView } from "@/components/dashboard/overview-views";
+import { redirect } from "next/navigation";
 
 export default function PrincipalPage() {
-  return <PrincipalsView />;
+  redirect("/settings/principals");
 }

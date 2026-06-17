@@ -1,6 +1,6 @@
 "use client";
 
-import { LogIn, Pencil, Plus, Trash2 } from "lucide-react";
+import { Globe2, KeyRound, Link2, LogIn, Pencil, Plus, Shield, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
@@ -49,6 +49,21 @@ export function ProviderSummary({ provider }: { provider: ProviderView }) {
   );
 }
 
+type AuthTypeFilter = "all" | "oauth2" | "api_key";
+type StatusFilter = "all" | "connected" | "available";
+
+const AUTH_TYPE_FILTERS: { label: string; value: AuthTypeFilter }[] = [
+  { label: "All Types", value: "all" },
+  { label: "OAuth", value: "oauth2" },
+  { label: "API Key", value: "api_key" },
+];
+
+const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
+  { label: "All", value: "all" },
+  { label: "Connected", value: "connected" },
+  { label: "Available", value: "available" },
+];
+
 export function ProvidersView({
   isAdmin = false,
   onRefresh,
@@ -59,25 +74,33 @@ export function ProvidersView({
   providers: ProviderView[];
 }) {
   const [query, setQuery] = useState("");
+  const [authTypeFilter, setAuthTypeFilter] = useState<AuthTypeFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [dialogProvider, setDialogProvider] = useState<NamedConnectionProvider | null>(null);
   const [formState, setFormState] = useState<{ mode: "create" | "edit"; provider?: ProviderView } | null>(null);
   const [deleteProvider, setDeleteProvider] = useState<ProviderView | null>(null);
 
   const filteredProviders = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    const matches = normalized
-      ? providers.filter((provider) =>
-        `${provider.displayName} ${provider.name} ${provider.authTypeLabel} ${provider.description}`
-          .toLowerCase()
-          .includes(normalized),
-      )
-      : providers;
+    const matches = providers.filter((provider) => {
+      if (normalized && !`${provider.displayName} ${provider.name} ${provider.authTypeLabel} ${provider.description}`
+        .toLowerCase()
+        .includes(normalized)) {
+        return false;
+      }
+      if (authTypeFilter !== "all" && provider.authType !== authTypeFilter) return false;
+      if (statusFilter === "connected" && provider.status === "available") return false;
+      if (statusFilter === "available" && provider.status !== "available") return false;
+      return true;
+    });
 
     return [...matches].sort((a, b) =>
       providerSortRank(a) - providerSortRank(b)
       || a.displayName.localeCompare(b.displayName),
     );
-  }, [providers, query]);
+  }, [providers, query, authTypeFilter, statusFilter]);
+
+  const hasActiveFilters = authTypeFilter !== "all" || statusFilter !== "all" || query.trim().length > 0;
 
   return (
     <div className="grid gap-5">
@@ -90,7 +113,52 @@ export function ProvidersView({
           </Button>
         ) : null}
       </div>
-      <SearchInput onChange={setQuery} placeholder="Search providers..." value={query} />
+      <div className="grid gap-3">
+        <SearchInput onChange={setQuery} placeholder="Search providers..." value={query} />
+        <div className="flex flex-wrap items-center gap-2">
+          {AUTH_TYPE_FILTERS.map((filter) => (
+            <button
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors",
+                authTypeFilter === filter.value
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border/50 bg-background text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+              key={filter.value}
+              onClick={() => setAuthTypeFilter(filter.value)}
+              type="button"
+            >
+              {filter.value === "oauth2" ? <Shield className="size-3" /> : null}
+              {filter.value === "api_key" ? <KeyRound className="size-3" /> : null}
+              {filter.label}
+            </button>
+          ))}
+          <span className="mx-1 h-4 w-px bg-border/50" />
+          {STATUS_FILTERS.map((filter) => (
+            <button
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors",
+                statusFilter === filter.value
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border/50 bg-background text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+              key={filter.value}
+              onClick={() => setStatusFilter(filter.value)}
+              type="button"
+            >
+              {filter.label}
+            </button>
+          ))}
+          {hasActiveFilters ? (
+            <>
+              <span className="mx-1 h-4 w-px bg-border/50" />
+              <span className="text-xs text-muted-foreground">
+                {filteredProviders.length} of {providers.length}
+              </span>
+            </>
+          ) : null}
+        </div>
+      </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {filteredProviders.map((provider) => (
           <ProviderCard
@@ -104,11 +172,11 @@ export function ProvidersView({
         ))}
       </div>
       {!filteredProviders.length ? (
-        query.trim() ? (
+        hasActiveFilters ? (
           <PageEmptyState
-            actionLabel="Clear search"
-            onAction={() => setQuery("")}
-            title="No providers found"
+            actionLabel="Clear filters"
+            onAction={() => { setQuery(""); setAuthTypeFilter("all"); setStatusFilter("all"); }}
+            title="No matching providers"
           />
         ) : (
           <PageEmptyState title="No providers available" />
@@ -162,9 +230,29 @@ function ProviderCard({
       onClick={() => router.push(providerDetailHref(provider.name))}
     >
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <ProviderLogo className="size-10 shrink-0" initial={provider.logoInitial} logo={provider.logo} />
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-3 min-w-0">
+            <ProviderLogo className="size-11 shrink-0" initial={provider.logoInitial} logo={provider.logo} />
+            <div className="min-w-0">
+              <CardTitle className="truncate text-base leading-tight">{provider.displayName}</CardTitle>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline" className="gap-1">
+                  {provider.authType === "oauth2" ? <Shield className="size-3" /> : <KeyRound className="size-3" />}
+                  {provider.authTypeLabel}
+                </Badge>
+                {provider.globalConnectionCount ? (
+                  <Badge className="gap-1 border-primary/30 bg-primary/10 text-primary" variant="outline">
+                    <Globe2 className="size-3" />
+                    Global
+                  </Badge>
+                ) : null}
+                {provider.source === "custom" ? (
+                  <Badge variant="outline">Custom</Badge>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
             {canManage ? (
               <>
                 <Button
@@ -198,31 +286,43 @@ function ProviderCard({
             <StatusBadge status={provider.status} />
           </div>
         </div>
-        <div className="mt-1">
-          <CardTitle className="text-base leading-tight">{provider.displayName}</CardTitle>
-          <CardDescription className="mt-0.5 text-xs">
-            {provider.source === "custom" ? "Custom provider" : "Bundled provider"}
-          </CardDescription>
-        </div>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4 pt-0">
-        <p className="line-clamp-2 min-h-12 text-sm leading-relaxed text-muted-foreground">
-          {provider.description || "Connect this provider to store and inject credentials from your Authsome vault."}
+      <CardContent className="flex flex-1 flex-col gap-3 pt-0">
+        <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          {provider.description || "Connect to store and inject credentials from your vault."}
         </p>
-        <div className="flex min-h-7 flex-wrap content-start gap-1.5">
-          <Badge variant="outline">{provider.authTypeLabel}</Badge>
-          {provider.connectionCount ? (
-            <Badge variant="outline">
-              {provider.connectionCount} connection{provider.connectionCount !== 1 ? "s" : ""}
-            </Badge>
-          ) : null}
-          {provider.globalConnectionCount ? <Badge variant="outline">Global</Badge> : null}
-        </div>
-        <div className="mt-auto" onClick={(e) => e.stopPropagation()}>
-          {provider.requiresNamedLogin ? (
+        <div className="mt-auto border-t border-border/40 pt-3" onClick={(e) => e.stopPropagation()}>
+          {provider.status !== "available" ? (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                {provider.connectionCount} connection{provider.connectionCount !== 1 ? "s" : ""}
+              </span>
+              {provider.requiresNamedLogin ? (
+                <Button
+                  onClick={(e) => { e.preventDefault(); onNamedLogin(); }}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Plus className="size-3.5" />
+                  Add
+                </Button>
+              ) : (
+                <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
+                  <input name="connection" type="hidden" value="default" />
+                  <input name="return_url" type="hidden" value="/connections" />
+                  <Button size="sm" type="submit" variant="ghost">
+                    <Plus className="size-3.5" />
+                    Add
+                  </Button>
+                </form>
+              )}
+            </div>
+          ) : provider.requiresNamedLogin ? (
             <Button
               className="w-full"
               onClick={(e) => { e.preventDefault(); onNamedLogin(); }}
+              size="sm"
               type="button"
             >
               <LogIn />
@@ -232,7 +332,7 @@ function ProviderCard({
             <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
               <input name="connection" type="hidden" value="default" />
               <input name="return_url" type="hidden" value="/connections" />
-              <Button className="w-full" type="submit">
+              <Button className="w-full" size="sm" type="submit">
                 <LogIn />
                 Connect
               </Button>
@@ -330,12 +430,12 @@ export function NamedConnectionDialog({
         </DialogHeader>
         <form
           action={provider ? `/api/auth/providers/${provider.name}/connect` : "#"}
-          className="grid gap-4"
+          className="grid gap-3"
           method="post"
           onSubmit={handleSubmit}
         >
           <input name="return_url" type="hidden" value="/connections" />
-          <label className="grid gap-2 text-sm">
+          <label className="grid gap-1.5 text-sm">
             <span className="text-muted-foreground">Connection name</span>
             <Input
               autoFocus

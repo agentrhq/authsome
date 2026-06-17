@@ -14,6 +14,7 @@ export default function ConnectionsPage() {
       globalConnections={data.globalConnections}
       isAdmin={data.account.isAdmin}
       onRefresh={() => void mutate()}
+      providers={data.providers}
     />
   );
 }

@@ -20,7 +20,7 @@ function ConnectionDetailContent() {
     provider && connection ? ["authsome-connection-detail", provider, connection, principal] : null,
     () => fetchConnectionDetail(provider, connection, principal),
   );
-  const { mutate: mutateDashboard } = useSWR("authsome-dashboard", fetchDashboard);
+  const { data: dashboard, mutate: mutateDashboard } = useSWR("authsome-dashboard", fetchDashboard);
 
   if (!provider || !connection) {
     return (
@@ -45,6 +45,7 @@ function ConnectionDetailContent() {
       data={data}
       onRefresh={() => { void mutate(); void mutateDashboard(); }}
       principal={principal}
+      providers={dashboard?.providers}
     />
   );
 }

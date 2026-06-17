@@ -12,12 +12,12 @@ import {
   LogOut,
   Settings,
   UserRound,
-  Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { ReactNode } from "react";
 
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/sidebar";
 import { DashboardData } from "@/lib/authsome-api";
 
-export type View = "dashboard" | "providers" | "connections" | "agents" | "principals" | "audit" | "settings";
+export type View = "dashboard" | "providers" | "connections" | "agents" | "audit" | "settings";
 
 type NavItem = {
   id: View;
@@ -55,7 +55,6 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "providers", href: "/providers", label: "Providers", icon: <KeyRound /> },
   { id: "connections", href: "/connections", label: "Connections", icon: <Link2 /> },
   { id: "agents", href: "/agents", label: "Agents", icon: <UserRound /> },
-  { id: "principals", href: "/principal", label: "Principals", icon: <Users />, adminOnly: true },
   { id: "audit", href: "/audit", label: "Audit Log", icon: <ClipboardList /> },
   { id: "settings", href: "/settings", label: "Settings", icon: <Settings /> },
 ];
@@ -142,7 +141,7 @@ export function DashboardDetailShell({
       <SidebarInset className="min-h-0">
         <Topbar />
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto grid w-full max-w-[86rem] gap-6 p-4 md:p-6">
+          <div className="mx-auto grid w-full max-w-[86rem] gap-5 py-4 pr-4">
             {children}
           </div>
         </div>
@@ -214,11 +213,14 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarSeparator />
-        <div className="px-2 py-1">
-          <div className="truncate text-sm font-medium">{data.account.email || data.account.agent}</div>
-          {data.account.roleLabel ? (
-            <div className="mt-0.5 text-xs text-muted-foreground">{data.account.roleLabel}</div>
-          ) : null}
+        <div className="flex items-center justify-between px-2 py-1">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium">{data.account.email || data.account.agent}</div>
+            {data.account.roleLabel ? (
+              <div className="mt-0.5 text-xs text-muted-foreground">{data.account.roleLabel}</div>
+            ) : null}
+          </div>
+          <ThemeToggle />
         </div>
       </SidebarFooter>
       <SidebarRail />
@@ -228,15 +230,20 @@ export function AppSidebar({
 
 export function Topbar() {
   return (
-    <header className="flex min-h-14 items-center justify-between gap-3 border-b bg-card px-4 py-3 md:px-6">
-      <SidebarTrigger />
-      <form action="/api/logout" method="post">
-        <input name="return_url" type="hidden" value={NEXT_URL} />
-        <Button size="sm" type="submit" variant="ghost">
-          <LogOut />
-          Sign out
-        </Button>
-      </form>
+    <header
+      className="flex h-14 shrink-0 items-center justify-between border-b bg-background/60 px-4 backdrop-blur-sm"
+      role="banner"
+    >
+      <SidebarTrigger className="-ml-1" />
+      <div className="flex items-center gap-1">
+        <form action="/api/logout" method="post" aria-label="Sign out">
+          <input name="return_url" type="hidden" value={NEXT_URL} />
+          <Button size="default" type="submit" variant="ghost" className="text-muted-foreground hover:text-foreground">
+            <LogOut className="size-4" />
+            <span className="hidden sm:inline">Sign out</span>
+          </Button>
+        </form>
+      </div>
     </header>
   );
 }

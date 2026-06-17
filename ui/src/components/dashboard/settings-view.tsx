@@ -8,41 +8,45 @@ import { SectionHeader } from "@/components/dashboard/section-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DashboardData } from "@/lib/authsome-api";
 
-const SETTINGS_TABS = new Set(["account", "about", "security"]);
+export function GeneralSettingsContent({ data }: { data: DashboardData }) {
+  return (
+    <div className="grid gap-5">
+      <SectionHeader description="Account and vault context for this principal." title="General" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SettingsAccountCard data={data} />
+        <SettingsVaultCard data={data} />
+      </div>
+    </div>
+  );
+}
 
-export function SettingsView({ data }: { data: DashboardData }) {
+export function SecuritySettingsContent({ data }: { data: DashboardData }) {
   const searchParams = useSearchParams();
-  const requestedTab = searchParams.get("tab") || "account";
-  const defaultTab = SETTINGS_TABS.has(requestedTab) ? requestedTab : "account";
   const passwordChanged = searchParams.get("password_changed") === "1";
   const passwordError = searchParams.get("password_error");
 
   return (
     <div className="grid gap-5">
-      <SectionHeader description="Account, runtime, and security context." title="Settings" />
-      <Tabs className="gap-5" defaultValue={defaultTab}>
-        <TabsList className="grid h-auto w-full grid-cols-3 md:w-fit">
-          <TabsTrigger value="account">General</TabsTrigger>
-          <TabsTrigger value="about">About</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
-        <TabsContent className="grid gap-4 lg:grid-cols-2" value="account">
-          <SettingsAccountCard data={data} />
-          <SettingsVaultCard data={data} />
-        </TabsContent>
-        <TabsContent className="grid gap-4 lg:grid-cols-2" value="about">
-          <SettingsDaemonCard data={data} />
-          <SettingsAboutCard />
-        </TabsContent>
-        <TabsContent className="grid gap-4 lg:grid-cols-2" value="security">
-          <SettingsSecurityCard data={data} />
-          <SettingsPasswordCard passwordChanged={passwordChanged} passwordError={passwordError} />
-        </TabsContent>
-      </Tabs>
+      <SectionHeader description="Credential protection and access controls." title="Security" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SettingsSecurityCard data={data} />
+        <SettingsPasswordCard passwordChanged={passwordChanged} passwordError={passwordError} />
+      </div>
+    </div>
+  );
+}
+
+export function AboutSettingsContent({ data }: { data: DashboardData }) {
+  return (
+    <div className="grid gap-5">
+      <SectionHeader description="Runtime details and project references." title="About" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SettingsDaemonCard data={data} />
+        <SettingsAboutCard />
+      </div>
     </div>
   );
 }
@@ -57,7 +61,7 @@ function SettingsAccountCard({ data }: { data: DashboardData }) {
         </CardTitle>
         <CardDescription>Principal and dashboard session context.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-3">
         <SettingsKeyValue label="Email" value={data.account.email || "-"} />
         <SettingsKeyValue label="Role" value={data.account.roleLabel || "-"} />
         <SettingsKeyValue label="Principal ID" value={data.account.principalId || "-"} />
@@ -76,7 +80,7 @@ function SettingsVaultCard({ data }: { data: DashboardData }) {
         </CardTitle>
         <CardDescription>Credential namespace used by this account.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-3">
         <SettingsKeyValue label="Handle" value={data.vault.handle || "-"} />
         <SettingsKeyValue label="Vault ID" value={data.vault.vaultId || "-"} />
         <SettingsKeyValue label="Default Vault" value={data.vault.isDefault ? "Yes" : "No"} />
@@ -95,7 +99,7 @@ function SettingsDaemonCard({ data }: { data: DashboardData }) {
         </CardTitle>
         <CardDescription>Runtime and local service details.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-3">
         <SettingsKeyValue label="Version" value={data.version} />
         <SettingsKeyValue label="Latest Token Expiry" value={data.latestTokenExpiry || "-"} />
       </CardContent>
@@ -115,7 +119,7 @@ function SettingsAboutCard() {
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <Link
-          className={buttonVariants({ size: "sm", variant: "outline" })}
+          className={buttonVariants({ variant: "outline" })}
           href="https://authsome.ai/docs"
           rel="noreferrer"
           target="_blank"
@@ -124,7 +128,7 @@ function SettingsAboutCard() {
           <ExternalLink />
         </Link>
         <Link
-          className={buttonVariants({ size: "sm", variant: "outline" })}
+          className={buttonVariants({ variant: "outline" })}
           href="https://github.com/agentrhq/authsome/releases"
           rel="noreferrer"
           target="_blank"
@@ -147,7 +151,7 @@ function SettingsSecurityCard({ data }: { data: DashboardData }) {
         </CardTitle>
         <CardDescription>Credential protection and administrative visibility.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-3">
         <SettingsKeyValue label="Encryption" value={data.account.principalId ? "AES-256-GCM" : "-"} />
         <SettingsKeyValue label="Audit Access" value={data.audit.canView ? "Available" : "Unavailable"} />
         <SettingsKeyValue label="Audit Events" value={String(data.audit.total)} />
@@ -173,27 +177,27 @@ function SettingsPasswordCard({
         <CardDescription>Hosted account credential.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action="/api/auth/password" className="grid gap-4" method="post">
-          <input name="next" type="hidden" value="/settings?tab=security" />
+        <form action="/api/auth/password" className="grid gap-3" method="post">
+          <input name="next" type="hidden" value="/settings/security?password_changed=1" />
           {passwordChanged ? (
-            <div className="rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-300">
+            <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300" role="status">
               Password updated.
             </div>
           ) : null}
           {passwordError ? (
-            <div className="rounded-lg border border-destructive/60 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div className="rounded-lg border border-destructive/60 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
               {passwordError}
             </div>
           ) : null}
-          <label className="grid gap-1 text-sm font-medium">
-            Current password
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-muted-foreground">Current password</span>
             <Input autoComplete="current-password" name="current_password" required type="password" />
           </label>
-          <label className="grid gap-1 text-sm font-medium">
-            New password
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-muted-foreground">New password</span>
             <Input autoComplete="new-password" minLength={8} name="new_password" required type="password" />
           </label>
-          <Button className="w-fit" size="sm" type="submit">
+          <Button className="w-fit" type="submit">
             <KeyRound />
             Change password
           </Button>
@@ -203,12 +207,12 @@ function SettingsPasswordCard({
   );
 }
 
-function SettingsKeyValue({ label, value }: { label: string; value: string }) {
+export function SettingsKeyValue({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1">
-      <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
+    <div className="grid gap-1.5">
+      <div className="text-sm text-muted-foreground">{label}</div>
       <Tooltip>
-        <TooltipTrigger render={<div className="truncate rounded-lg border bg-muted px-3 py-2 font-mono text-sm" />}>
+        <TooltipTrigger render={<div className="truncate rounded-md border bg-muted/50 px-3 py-2 font-mono text-sm" />}>
           {value}
         </TooltipTrigger>
         <TooltipContent>{value}</TooltipContent>
