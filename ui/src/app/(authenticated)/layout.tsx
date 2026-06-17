@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardData, fetchDashboard, ProviderView } from "@/lib/authsome-api";
+import { cn } from "@/lib/utils";
 
 type CrumbItem = { label: string; href?: string };
 
@@ -152,6 +153,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
   if (error) return <ErrorState onRetry={() => void mutate()} />;
 
   const activeView = pathToView(pathname);
+  const isSettingsRoute = pathname.startsWith("/settings");
 
   return (
     <SidebarProvider className="h-svh overflow-hidden">
@@ -182,7 +184,12 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto" id="main-content">
-          <div className="mx-auto grid w-full max-w-[86rem] gap-5 py-4 pr-4">
+          <div
+            className={cn(
+              "grid w-full gap-5",
+              isSettingsRoute ? "min-h-full" : "mx-auto max-w-[86rem] p-4",
+            )}
+          >
             {children}
           </div>
         </main>

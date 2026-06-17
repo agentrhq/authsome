@@ -39,10 +39,10 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
   const items = SETTINGS_NAV.filter((item) => !item.adminOnly || data?.account.isAdmin);
 
   return (
-    <div className="-my-4 -mr-4 flex min-h-full">
+    <div className="flex min-h-full">
       <Sidebar
         collapsible="none"
-        className="w-44 border-r"
+        className="sticky top-0 h-full w-44 shrink-0 border-r"
         style={{ "--sidebar-width": "11rem" } as React.CSSProperties}
       >
         <SidebarContent>
