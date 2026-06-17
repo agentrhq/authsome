@@ -115,11 +115,14 @@ uv tool install authsome
 Run a persistent daemon in Docker — no Python required on the host:
 
 ```bash
+export AUTHSOME_POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+export AUTHSOME_MASTER_KEY="$(openssl rand -base64 32)"
+export AUTHSOME_UI_SESSION_KEY="$(openssl rand -base64 32)"
 docker compose up -d
-export AUTHSOME_BASE_URL=http://localhost:7998
+curl http://localhost:7998/health
 ```
 
-See the [self-hosting guide](docs/guides/self-hosting.md) for volume backup, TLS termination, and environment variable reference.
+For a hosted daemon, set `AUTHSOME_BASE_URL` to the public HTTPS URL before starting the stack. See the [self-hosting guide](docs/guides/self-hosting.md) for first-run setup, volume backup, TLS termination, and environment variable reference.
 
 ## Quick Start
 
