@@ -31,7 +31,7 @@ For a hosted deployment, use the same public URL that you configured as `AUTHSOM
 authsome onboard --base-url https://authsome.example.com
 ```
 
-Onboarding creates a local Identity, registers it with the daemon, and opens the browser claim flow. Complete the claim to bind the Identity to a Principal and its default Vault before running agent commands against the hosted daemon.
+Onboarding creates a local Identity, registers it with the daemon, and opens the browser claim flow. On a fresh hosted daemon the claim page first asks you to register an account with an email and password; that account becomes the Principal that owns the vault. On later runs you sign in to the same account instead of registering again. Completing the claim binds the Identity to that Principal and its default Vault, after which the daemon is ready for agent commands.
 
 ## What this deployment does
 
