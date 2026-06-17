@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.1](https://github.com/agentrhq/authsome/compare/authsome-v0.7.0...authsome-v0.7.1) (2026-06-17)
+
+
+### Features
+
+* improve connections and providers page design ([ab122f6](https://github.com/agentrhq/authsome/commit/ab122f60d767b0b3642b85dbd3cef58fc2736a1d))
+* Improve settings page ([3e04eff](https://github.com/agentrhq/authsome/commit/3e04eff5a4e6c57db8499957561bf935eb088446))
+* improve UI design system, layouts, and remaining pages ([969c068](https://github.com/agentrhq/authsome/commit/969c068e23d4a37b50dfd307415524df4faa2b3a))
+
+
+### Bug Fixes
+
+* **ui:** remove sidebar gaps in main and settings layouts ([e0e6498](https://github.com/agentrhq/authsome/commit/e0e6498b35e93cec444c8c998d321de985ccaaed))
+
 ## [0.7.0](https://github.com/agentrhq/authsome/compare/authsome-v0.6.4...authsome-v0.7.0) (2026-06-16)
 
 
