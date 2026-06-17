@@ -11,6 +11,7 @@ export type ProviderView = {
   definition: ProviderResponse;
   authType: "oauth2" | "api_key" | string;
   authTypeLabel: string;
+  providerType: "app" | "llm" | "mcp" | "browser" | null;
   apiUrl: string;
   description: string;
   source: "bundled" | "custom" | string;
@@ -38,6 +39,7 @@ export type GlobalConnectionRow = ConnectionRow & {
 export type AgentRow = {
   handle: string;
   isActive: boolean;
+  claimStatus: string;
 };
 
 export type AuditRow = {
@@ -438,6 +440,7 @@ function providerView(
     definition: provider,
     authType: provider.auth_type || "provider",
     authTypeLabel: authTypeLabel(provider.auth_type),
+    providerType: (provider.type as ProviderView["providerType"]) || null,
     apiUrl: providerApiUrl(provider),
     description: provider.description || provider.metadata?.description || "",
     source,
@@ -608,9 +611,9 @@ export async function fetchDashboard(): Promise<DashboardData> {
   const globalConnections = buildGlobalConnectionRows(connectionsData);
   const connectedProviders = providers.filter((provider) => provider.status !== "available");
   const activeAgent = whoami.identity || whoami.active_identity || null;
-  const agentHandles = new Set(identitiesData.identities.map((identity) => identity.handle));
-  if (activeAgent) {
-    agentHandles.add(activeAgent);
+  const identityStatusMap = new Map(identitiesData.identities.map((identity) => [identity.handle, identity.status || "accepted"]));
+  if (activeAgent && !identityStatusMap.has(activeAgent)) {
+    identityStatusMap.set(activeAgent, "accepted");
   }
 
   return {
@@ -633,7 +636,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
     connectedProviders: connectedProviders.slice(0, 6),
     connections,
     globalConnections,
-    agents: Array.from(agentHandles, (handle) => ({ handle, isActive: handle === activeAgent })),
+    agents: Array.from(identityStatusMap, ([handle, claimStatus]) => ({ handle, isActive: handle === activeAgent, claimStatus })),
     vault: {
       vaultId: whoami.vault_id || null,
       handle: "default",

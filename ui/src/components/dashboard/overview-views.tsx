@@ -2,18 +2,23 @@
 
 import { UserRound } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 
+import {
+  INTERACTIVE_ROW_CLASS,
+  SearchInput,
+} from "@/components/dashboard/dashboard-primitives";
 import { PageEmptyState, PageErrorState, PageLoadingState } from "@/components/dashboard/page-state";
 import { ProviderSummary } from "@/components/dashboard/provider-views";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { H4, Muted } from "@/components/ui/typography";
-import { DashboardData, PrincipalRow, fetchAuditEvents, fetchPrincipals } from "@/lib/authsome-api";
+import { AgentRow, DashboardData, PrincipalRow, fetchAuditEvents, fetchPrincipals } from "@/lib/authsome-api";
 
 export function DashboardView({ data }: { data: DashboardData }) {
   const recentEvents = data.audit.events.slice(0, 5);
@@ -43,26 +48,40 @@ export function DashboardView({ data }: { data: DashboardData }) {
       </section>
 
       <section aria-labelledby="agents-heading">
-        <div className="mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <H4 id="agents-heading">Agents</H4>
+          <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/agents">
+            View all
+          </Link>
         </div>
         {data.agents.length ? (
           <div className="grid gap-1.5">
             {data.agents.map((agent) => (
-              <div
-                className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2.5"
+              <Link
+                className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2.5 transition-colors hover:border-primary/60 hover:bg-primary/[0.03]"
+                href={agentDetailHref(agent.handle)}
                 key={agent.handle}
               >
                 <div className="flex items-center gap-2.5">
                   <UserRound className="size-4 text-muted-foreground" />
                   <span className="text-sm font-medium">{agent.handle}</span>
                 </div>
-                {agent.isActive ? <Badge variant="outline">Active</Badge> : null}
-              </div>
+                <div className="flex items-center gap-2">
+                  <AgentClaimBadge status={agent.claimStatus} />
+                  {agent.isActive ? (
+                    <Badge className="border-primary/30 bg-primary/10 text-primary" variant="outline">
+                      Active
+                    </Badge>
+                  ) : null}
+                </div>
+              </Link>
             ))}
           </div>
         ) : (
-          <PageEmptyState title="No agents found" />
+          <PageEmptyState
+            description="Run 'authsome onboard' from an agent to register it."
+            title="No agents found"
+          />
         )}
       </section>
 
@@ -97,35 +116,139 @@ export function DashboardView({ data }: { data: DashboardData }) {
   );
 }
 
+export function agentDetailHref(handle: string): string {
+  return `/agents/detail?${new URLSearchParams({ agent: handle }).toString()}`;
+}
+
+function AgentClaimBadge({ status }: { status: string }) {
+  if (status === "accepted") {
+    return (
+      <Badge className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400" variant="outline">
+        Accepted
+      </Badge>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <Badge className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-400" variant="outline">
+        Pending
+      </Badge>
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <Badge className="border-destructive/60 bg-destructive/10 text-destructive" variant="outline">
+        Rejected
+      </Badge>
+    );
+  }
+  return <Badge variant="outline">{status}</Badge>;
+}
+
 export function AgentsView({ data }: { data: DashboardData }) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+
+  const filteredAgents = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return data.agents;
+    return data.agents.filter((agent) =>
+      `${agent.handle} ${agent.claimStatus}`.toLowerCase().includes(normalized),
+    );
+  }, [data.agents, query]);
+
+  const isFiltering = query.trim().length > 0;
+
   return (
     <div className="grid gap-5">
       <SectionHeader description="Local Ed25519 key pairs (agents) claimed to this account." title="Agents" />
+      {data.agents.length > 1 ? (
+        <SearchInput onChange={setQuery} placeholder="Search agents..." value={query} />
+      ) : null}
+
       <Card className="shadow-none border-border/50">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <UserRound className="size-4 text-muted-foreground" />
+                Claimed Agents
+              </CardTitle>
+              <CardDescription>Agents with accepted identity claims in this account.</CardDescription>
+            </div>
+            {isFiltering ? (
+              <Badge variant="outline">
+                {filteredAgents.length} of {data.agents.length}
+              </Badge>
+            ) : data.agents.length ? (
+              <Badge variant="outline">{data.agents.length}</Badge>
+            ) : null}
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
-          {data.agents.length ? (
+          {filteredAgents.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Agent</TableHead>
+                  <TableHead>Claim</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.agents.map((agent) => (
-                  <TableRow key={agent.handle}>
-                    <TableCell>
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                          <UserRound className="size-3.5 text-muted-foreground" />
-                        </span>
-                        <span className="font-medium">{agent.handle}</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredAgents.map((agent) => {
+                  const href = agentDetailHref(agent.handle);
+                  return (
+                    <TableRow
+                      className={INTERACTIVE_ROW_CLASS}
+                      key={agent.handle}
+                      onClick={() => router.push(href)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          router.push(href);
+                        }
+                      }}
+                      role="link"
+                      tabIndex={0}
+                    >
+                      <TableCell>
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted">
+                            <UserRound className="size-3.5 text-muted-foreground" />
+                          </span>
+                          <span className="truncate font-medium">{agent.handle}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <AgentClaimBadge status={agent.claimStatus} />
+                      </TableCell>
+                      <TableCell>
+                        {agent.isActive ? (
+                          <Badge className="border-primary/30 bg-primary/10 text-primary" variant="outline">
+                            Active
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
-          ) : <PageEmptyState title="No agents found" />}
+          ) : (
+            <div className="p-4">
+              {isFiltering ? (
+                <PageEmptyState title="No matching agents" />
+              ) : (
+                <PageEmptyState
+                  description="Run 'authsome onboard' from an agent to register it."
+                  title="No agents found"
+                />
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

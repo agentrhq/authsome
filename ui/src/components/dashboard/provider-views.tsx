@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe2, KeyRound, Link2, LogIn, Pencil, Plus, Shield, Trash2 } from "lucide-react";
+import { Bot, Boxes, Globe2, GlobeIcon, KeyRound, Link2, LogIn, Monitor, Pencil, Plus, Shield, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
@@ -50,12 +50,21 @@ export function ProviderSummary({ provider }: { provider: ProviderView }) {
 }
 
 type AuthTypeFilter = "all" | "oauth2" | "api_key";
+type ProviderTypeFilter = "all" | "app" | "llm" | "mcp" | "browser";
 type StatusFilter = "all" | "connected" | "available";
 
 const AUTH_TYPE_FILTERS: { label: string; value: AuthTypeFilter }[] = [
   { label: "All Types", value: "all" },
   { label: "OAuth", value: "oauth2" },
   { label: "API Key", value: "api_key" },
+];
+
+const PROVIDER_TYPE_FILTERS: { icon: typeof Bot; label: string; value: ProviderTypeFilter }[] = [
+  { icon: Boxes, label: "All", value: "all" },
+  { icon: Monitor, label: "App", value: "app" },
+  { icon: Bot, label: "LLM", value: "llm" },
+  { icon: Link2, label: "MCP", value: "mcp" },
+  { icon: GlobeIcon, label: "Browser", value: "browser" },
 ];
 
 const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
@@ -75,10 +84,16 @@ export function ProvidersView({
 }) {
   const [query, setQuery] = useState("");
   const [authTypeFilter, setAuthTypeFilter] = useState<AuthTypeFilter>("all");
+  const [providerTypeFilter, setProviderTypeFilter] = useState<ProviderTypeFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [dialogProvider, setDialogProvider] = useState<NamedConnectionProvider | null>(null);
   const [formState, setFormState] = useState<{ mode: "create" | "edit"; provider?: ProviderView } | null>(null);
   const [deleteProvider, setDeleteProvider] = useState<ProviderView | null>(null);
+
+  const hasProviderTypes = useMemo(
+    () => providers.some((p) => p.providerType),
+    [providers],
+  );
 
   const filteredProviders = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -89,6 +104,7 @@ export function ProvidersView({
         return false;
       }
       if (authTypeFilter !== "all" && provider.authType !== authTypeFilter) return false;
+      if (providerTypeFilter !== "all" && provider.providerType !== providerTypeFilter) return false;
       if (statusFilter === "connected" && provider.status === "available") return false;
       if (statusFilter === "available" && provider.status !== "available") return false;
       return true;
@@ -98,9 +114,9 @@ export function ProvidersView({
       providerSortRank(a) - providerSortRank(b)
       || a.displayName.localeCompare(b.displayName),
     );
-  }, [providers, query, authTypeFilter, statusFilter]);
+  }, [providers, query, authTypeFilter, providerTypeFilter, statusFilter]);
 
-  const hasActiveFilters = authTypeFilter !== "all" || statusFilter !== "all" || query.trim().length > 0;
+  const hasActiveFilters = authTypeFilter !== "all" || providerTypeFilter !== "all" || statusFilter !== "all" || query.trim().length > 0;
 
   return (
     <div className="grid gap-5">
@@ -133,6 +149,30 @@ export function ProvidersView({
               {filter.label}
             </button>
           ))}
+          {hasProviderTypes ? (
+            <>
+              <span className="mx-1 h-4 w-px bg-border/50" />
+              {PROVIDER_TYPE_FILTERS.map((filter) => {
+                const Icon = filter.value !== "all" ? filter.icon : null;
+                return (
+                  <button
+                    className={cn(
+                      "inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors",
+                      providerTypeFilter === filter.value
+                        ? "border-primary/50 bg-primary/10 text-primary"
+                        : "border-border/50 bg-background text-muted-foreground hover:border-border hover:text-foreground",
+                    )}
+                    key={filter.value}
+                    onClick={() => setProviderTypeFilter(filter.value)}
+                    type="button"
+                  >
+                    {Icon ? <Icon className="size-3" /> : null}
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </>
+          ) : null}
           <span className="mx-1 h-4 w-px bg-border/50" />
           {STATUS_FILTERS.map((filter) => (
             <button
@@ -175,7 +215,7 @@ export function ProvidersView({
         hasActiveFilters ? (
           <PageEmptyState
             actionLabel="Clear filters"
-            onAction={() => { setQuery(""); setAuthTypeFilter("all"); setStatusFilter("all"); }}
+            onAction={() => { setQuery(""); setAuthTypeFilter("all"); setProviderTypeFilter("all"); setStatusFilter("all"); }}
             title="No matching providers"
           />
         ) : (
