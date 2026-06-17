@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.7.2](https://github.com/agentrhq/authsome/compare/authsome-v0.7.1...authsome-v0.7.2) (2026-06-17)
+
+
+### Features
+
+* add agent detail view ([256753f](https://github.com/agentrhq/authsome/commit/256753f3200701f2382319db78c9d5f4e4cbd162))
+* Improve agents page ([02658d1](https://github.com/agentrhq/authsome/commit/02658d1aee7211a446eb21b785c8ce0482c31d7c))
+* merge agent detail view with enhanced agents list and review fixes ([749e703](https://github.com/agentrhq/authsome/commit/749e7032746d54eadc0ba408979de3682fcedcb9))
+
+
+### Bug Fixes
+
+* simplify agent detail metadata layout ([43f9b4e](https://github.com/agentrhq/authsome/commit/43f9b4ebde17717f243ebe972e567c1c4db96595))
+
+
+### Documentation
+
+* fix self-hosting quick start and first-run flow ([48f7c6f](https://github.com/agentrhq/authsome/commit/48f7c6fbb7d592a18c5bd101433b00bce03f20f3))
+* updated self hosting docs ([57c8409](https://github.com/agentrhq/authsome/commit/57c8409e6eea9190e672531bad7b83b959e2bab8))
+
 ## [0.7.1](https://github.com/agentrhq/authsome/compare/authsome-v0.7.0...authsome-v0.7.1) (2026-06-17)
 
 
