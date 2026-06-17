@@ -102,6 +102,13 @@ function buildBreadcrumbs(
     ];
   }
 
+  if (first === "agents") {
+    return [
+      { label: parent, href: parentHref },
+      { label: searchParams.get("agent") || "Detail" },
+    ];
+  }
+
   return [{ label: parent }];
 }
 

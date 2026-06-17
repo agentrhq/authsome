@@ -2,9 +2,11 @@
 
 import { UserRound } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import useSWR from "swr";
 
+import { INTERACTIVE_ROW_CLASS, agentDetailHref } from "@/components/dashboard/dashboard-primitives";
 import { PageEmptyState, PageErrorState, PageLoadingState } from "@/components/dashboard/page-state";
 import { ProviderSummary } from "@/components/dashboard/provider-views";
 import { SectionHeader } from "@/components/dashboard/section-header";
@@ -12,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { H4, Muted } from "@/components/ui/typography";
+import { H4 } from "@/components/ui/typography";
 import { DashboardData, PrincipalRow, fetchAuditEvents, fetchPrincipals } from "@/lib/authsome-api";
 
 export function DashboardView({ data }: { data: DashboardData }) {
@@ -49,8 +51,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
         {data.agents.length ? (
           <div className="grid gap-1.5">
             {data.agents.map((agent) => (
-              <div
+              <Link
                 className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2.5"
+                href={agentDetailHref(agent.handle)}
                 key={agent.handle}
               >
                 <div className="flex items-center gap-2.5">
@@ -58,7 +61,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   <span className="text-sm font-medium">{agent.handle}</span>
                 </div>
                 {agent.isActive ? <Badge variant="outline">Active</Badge> : null}
-              </div>
+              </Link>
             ))}
           </div>
         ) : (
@@ -98,6 +101,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
 }
 
 export function AgentsView({ data }: { data: DashboardData }) {
+  const router = useRouter();
+
   return (
     <div className="grid gap-5">
       <SectionHeader description="Local Ed25519 key pairs (agents) claimed to this account." title="Agents" />
@@ -108,21 +113,38 @@ export function AgentsView({ data }: { data: DashboardData }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Agent</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.agents.map((agent) => (
-                  <TableRow key={agent.handle}>
-                    <TableCell>
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                          <UserRound className="size-3.5 text-muted-foreground" />
-                        </span>
-                        <span className="font-medium">{agent.handle}</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {data.agents.map((agent) => {
+                  const href = agentDetailHref(agent.handle);
+                  return (
+                    <TableRow
+                      className={INTERACTIVE_ROW_CLASS}
+                      key={agent.handle}
+                      onClick={() => router.push(href)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          router.push(href);
+                        }
+                      }}
+                      role="link"
+                      tabIndex={0}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                            <UserRound className="size-3.5 text-muted-foreground" />
+                          </span>
+                          <span className="font-medium">{agent.handle}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{agent.isActive ? <Badge variant="outline">Active</Badge> : null}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : <PageEmptyState title="No agents found" />}

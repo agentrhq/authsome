@@ -94,6 +94,10 @@ export function providerDetailHref(provider: string): string {
   return `/providers/detail?${new URLSearchParams({ provider }).toString()}`;
 }
 
+export function agentDetailHref(agent: string): string {
+  return `/agents/detail?${new URLSearchParams({ agent }).toString()}`;
+}
+
 export function SearchInput({
   onChange,
   placeholder,

@@ -146,6 +146,27 @@ def test_resolve_identity_by_did_returns_handle(monkeypatch, tmp_path: Path) -> 
     assert response.json()["did"] == identity.did
 
 
+def test_identity_detail_returns_owner_status_and_active_flag(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
+    identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
+
+    with create_server_test_client() as client:
+        register_and_claim_identity(client, tmp_path, identity.handle)
+        response = client.get(
+            f"/api/identities/{identity.handle}/detail",
+            headers=_auth_header(tmp_path, "GET", f"/api/identities/{identity.handle}/detail"),
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert body["handle"] == identity.handle
+    assert body["did"] == identity.did
+    assert body["claim_status"] == "accepted"
+    assert body["principal_id"].startswith("principal_")
+    assert body["is_active"] is True
+    assert body["created_at"]
+
+
 def test_resolve_identity_by_did_returns_404_for_unknown_did(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUTHSOME_HOME", str(tmp_path))
     identity = RuntimeIdentity.create(tmp_path, "steady-wisely-boldly-0042")
