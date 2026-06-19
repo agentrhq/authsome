@@ -27,7 +27,7 @@ jobs:
     env:
       AUTHSOME_ENV: test
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v7
 
