@@ -70,12 +70,12 @@ def _make_provider(*, flow: FlowType = FlowType.PKCE) -> ProviderDefinition:
     )
 
 
-def _make_session(*, flow_type: FlowType) -> AuthSession:
+def _make_session(*, flow_type: FlowType, connection_name: str = "default") -> AuthSession:
     return AuthSession(
         session_id="sess_123",
         provider="github",
         identity="steady-wisely-boldly-0042",
-        connection_name="default",
+        connection_name=connection_name,
         flow_type=flow_type.value,
     )
 
@@ -259,7 +259,7 @@ async def test_begin_login_flow_reuses_server_scopes() -> None:
         scopes=["repo", "read:user"],
     ).model_dump_json()
     service = _service(vault, identity="second-identity")
-    session = _make_session(flow_type=FlowType.PKCE)
+    session = _make_session(flow_type=FlowType.PKCE, connection_name="work")
     handler = mock.AsyncMock()
 
     handlers = {FlowType.PKCE: mock.Mock(return_value=handler)}

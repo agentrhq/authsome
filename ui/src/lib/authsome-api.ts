@@ -21,7 +21,6 @@ export type ProviderView = {
   scopeCount: number;
   connectionCount: number;
   globalConnectionCount: number;
-  requiresNamedLogin: boolean;
 };
 
 export type ConnectionRow = {
@@ -464,7 +463,6 @@ function providerView(
     scopeCount: connections[0]?.scopes?.length || 0,
     connectionCount,
     globalConnectionCount: globalConnections.length,
-    requiresNamedLogin: connections.some((connection) => connection.connection_name === "default"),
   };
 }
 

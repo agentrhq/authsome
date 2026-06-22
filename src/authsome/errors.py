@@ -132,6 +132,13 @@ class AuthenticationFailedError(AuthsomeError):
         super().__init__(f"Authentication failed: {reason}", provider=provider)
 
 
+class InvalidConnectionNameError(AuthsomeError):
+    """Raised when a login is attempted without a valid, user-chosen connection name."""
+
+    def __init__(self, reason: str, *, provider: str | None = None) -> None:
+        super().__init__(reason, provider=provider, operation="login")
+
+
 class DiscoveryError(AuthsomeError):
     """Raised when OAuth discovery (.well-known) fails."""
 

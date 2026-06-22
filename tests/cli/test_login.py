@@ -31,7 +31,7 @@ class TestLoginCommand:
 
     def test_started_flow_returns_json(self, runner, mock_client) -> None:
         mock_client.start_login.return_value = _started_session()
-        result = runner.invoke(cli, ["--log-file", "", "login", "github"])
+        result = runner.invoke(cli, ["--log-file", "", "login", "github", "--connection", "work"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["provider"] == "github"
@@ -39,7 +39,7 @@ class TestLoginCommand:
 
     def test_completed_flow_returns_json(self, runner, mock_client) -> None:
         mock_client.start_login.return_value = _completed_session()
-        result = runner.invoke(cli, ["--log-file", "", "login", "openai"])
+        result = runner.invoke(cli, ["--log-file", "", "login", "openai", "--connection", "work"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["provider"] == "openai"
@@ -47,21 +47,21 @@ class TestLoginCommand:
 
     def test_force_flag_still_returns_json(self, runner, mock_client) -> None:
         mock_client.start_login.return_value = _started_session()
-        result = runner.invoke(cli, ["--log-file", "", "login", "github", "--force"])
+        result = runner.invoke(cli, ["--log-file", "", "login", "github", "--connection", "work", "--force"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["status"] == "started"
 
     def test_force_flag_quiet_returns_json(self, runner, mock_client) -> None:
         mock_client.start_login.return_value = _started_session()
-        result = runner.invoke(cli, ["--log-file", "", "login", "github", "--force", "--quiet"])
+        result = runner.invoke(cli, ["--log-file", "", "login", "github", "--connection", "work", "--force", "--quiet"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["status"] == "started"
 
     def test_start_login_called_with_provider(self, runner, mock_client) -> None:
         mock_client.start_login.return_value = _started_session()
-        runner.invoke(cli, ["--log-file", "", "login", "github"])
+        runner.invoke(cli, ["--log-file", "", "login", "github", "--connection", "work"])
         mock_client.start_login.assert_called_once()
         kwargs = mock_client.start_login.call_args.kwargs
         assert kwargs["provider"] == "github"
@@ -74,15 +74,25 @@ class TestLoginCommand:
 
     def test_scopes_option_parsed_as_list(self, runner, mock_client) -> None:
         mock_client.start_login.return_value = _started_session()
-        runner.invoke(cli, ["--log-file", "", "login", "github", "--scopes", "repo,read:user"])
+        runner.invoke(cli, ["--log-file", "", "login", "github", "--connection", "work", "--scopes", "repo,read:user"])
         kwargs = mock_client.start_login.call_args.kwargs
         assert kwargs["scopes"] == ["repo", "read:user"]
+
+    def test_login_requires_connection_in_non_interactive_context(self, runner, mock_client) -> None:
+        result = runner.invoke(cli, ["--log-file", "", "login", "github"])
+        assert result.exit_code != 0
+        mock_client.start_login.assert_not_called()
+
+    def test_login_rejects_reserved_default_connection(self, runner, mock_client) -> None:
+        result = runner.invoke(cli, ["--log-file", "", "login", "github", "--connection", "default"])
+        assert result.exit_code != 0
+        mock_client.start_login.assert_not_called()
 
     def test_login_failure_exits_4(self, runner, mock_client) -> None:
         from authsome.errors import ProviderNotFoundError
 
         mock_client.start_login.side_effect = ProviderNotFoundError("nope")
-        result = runner.invoke(cli, ["--log-file", "", "login", "nope"])
+        result = runner.invoke(cli, ["--log-file", "", "login", "nope", "--connection", "work"])
         assert result.exit_code == 4
         data = json.loads(result.output)
         assert data["error"] == "ProviderNotFoundError"

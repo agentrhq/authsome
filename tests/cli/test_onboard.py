@@ -59,7 +59,7 @@ class TestOnboardCommand:
         mock_client.ensure_identity_ready.assert_called_once()
         mock_client.whoami.assert_called_once()
         mock_client.start_login.assert_called_once_with(
-            provider="brevo", connection="default", flow="api_key", force=True
+            provider="brevo", connection="brevo", flow="api_key", force=True
         )
         mock_client.resume_login_session.assert_called_once_with("sess-1", api_key="test123")
         data = json.loads(result.output)

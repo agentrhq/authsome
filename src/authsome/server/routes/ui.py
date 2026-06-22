@@ -11,8 +11,9 @@ from fastapi.responses import RedirectResponse
 from authsome import audit
 from authsome.auth.models.enums import FlowType
 from authsome.auth.sessions import AuthSessionRepository
+from authsome.errors import InvalidConnectionNameError
 from authsome.server.analytics import capture_event
-from authsome.server.credential_service import CredentialService
+from authsome.server.credential_service import CredentialService, validate_login_connection_name
 from authsome.server.routes._deps import (
     UI_SESSION_COOKIE_NAME,
     get_auth_service,
@@ -118,9 +119,14 @@ async def connect_provider(  # noqa: PLR0913
 ) -> Response:
     """Start a provider connection from the static dashboard."""
     form = await request.form()
-    connection_name = str(form.get("connection") or form.get("connection_name") or "default")
+    raw_connection = str(form.get("connection") or form.get("connection_name") or "")
     force = str(form.get("force", "false")).lower() in {"1", "true", "on", "yes"}
     return_path = _account_auth_next_url(form.get("return_url") or "/")
+
+    try:
+        connection_name = validate_login_connection_name(raw_connection, provider=provider_name)
+    except InvalidConnectionNameError as exc:
+        return _redirect(request, _append_query(return_path, {"connect_error": str(exc.args[0])}))
 
     definition = await auth.get_provider(provider_name)
     flow = definition.flow

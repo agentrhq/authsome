@@ -9,7 +9,7 @@ from authsome.auth.input_provider import InputField
 from authsome.auth.models.enums import AuthType, FlowType
 from authsome.auth.sessions import AuthSession, AuthSessionRepository, AuthSessionStatus
 from authsome.server.analytics import capture_event
-from authsome.server.credential_service import CredentialService
+from authsome.server.credential_service import CredentialService, validate_login_connection_name
 from authsome.server.routes._deps import (
     get_auth_sessions,
     get_protected_auth_service,
@@ -88,13 +88,14 @@ async def start_session(
     sessions: AuthSessionRepository = Depends(get_auth_sessions),
     server_base_url: str = Depends(get_server_base_url),
 ) -> AuthSessionResponse:
+    connection_name = validate_login_connection_name(body.connection, provider=body.provider)
     definition = await auth.get_provider(body.provider)
     flow = FlowType(body.flow) if body.flow else definition.flow
     session = await sessions.create(
         provider=body.provider,
         identity=auth.identity,
         principal_id=auth.principal_id,
-        connection_name=body.connection,
+        connection_name=connection_name,
         flow_type=flow.value,
     )
     session.payload["force"] = body.force
@@ -106,7 +107,7 @@ async def start_session(
 
     if not body.force:
         try:
-            existing = await auth.get_connection(body.provider, body.connection)
+            existing = await auth.get_connection(body.provider, connection_name)
             if auth.has_usable_connection(existing, scopes=body.scopes, base_url=body.base_url):
                 session.state = AuthSessionStatus.COMPLETED
                 session.status_message = "Already connected"

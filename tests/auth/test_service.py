@@ -10,10 +10,15 @@ from pydantic import ValidationError
 from authsome.auth.models.connection import ConnectionRecord, ProviderMetadataRecord
 from authsome.auth.models.enums import AuthType, ConnectionStatus, FlowType
 from authsome.auth.models.provider import OAuthConfig, ProviderDefinition
-from authsome.errors import ConnectionNotFoundError, OperationNotAllowedError, RefreshFailedError
+from authsome.errors import (
+    ConnectionNotFoundError,
+    InvalidConnectionNameError,
+    OperationNotAllowedError,
+    RefreshFailedError,
+)
 from authsome.identity.principal import PrincipalRole
 from authsome.server.credential_repository import CredentialRepository
-from authsome.server.credential_service import CredentialService
+from authsome.server.credential_service import CredentialService, validate_login_connection_name
 from authsome.server.dependencies import create_vault
 from authsome.server.schemas import CredentialResolutionResponse, GlobalProviderConnectionRecord
 from authsome.server.store import create_server_store
@@ -882,3 +887,104 @@ async def test_logout_of_other_local_connection_keeps_pointer(tmp_path) -> None:
 
     assert global_connections.pointer is not None
     assert global_connections.pointer.connection_name == "default"
+
+
+def _named_first_service(vault) -> CredentialService:  # noqa: ANN001
+    return CredentialService(
+        credentials=_credentials(vault, identity="agent-a", principal_id="principal_1", vault_id="vault_user"),
+        providers=StaticProviders(),
+        global_connections=MemoryGlobalConnections(),
+        identity="agent-a",
+        principal_id="principal_1",
+        vault_id="vault_user",
+    )
+
+
+async def _save_named_connection(service: CredentialService, name: str) -> None:
+    await service._credentials.save_connection(
+        ConnectionRecord(
+            provider="github",
+            identity="agent-a",
+            principal_id="principal_1",
+            vault_id="vault_user",
+            connection_name=name,
+            auth_type=AuthType.OAUTH2,
+            status=ConnectionStatus.CONNECTED,
+            access_token=f"token-{name}",
+        )
+    )
+    await service._update_provider_metadata("github", name)
+
+
+@pytest.mark.asyncio
+async def test_first_connection_becomes_default(tmp_path) -> None:  # noqa: ANN001
+    vault = await create_vault(tmp_path)
+    service = _named_first_service(vault)
+
+    await _save_named_connection(service, "work")
+
+    metadata = await service._credentials.get_provider_metadata("github")
+    assert metadata is not None
+    assert metadata.default_connection == "work"
+
+
+@pytest.mark.asyncio
+async def test_second_connection_leaves_default_unchanged(tmp_path) -> None:  # noqa: ANN001
+    vault = await create_vault(tmp_path)
+    service = _named_first_service(vault)
+
+    await _save_named_connection(service, "work")
+    await _save_named_connection(service, "personal")
+
+    metadata = await service._credentials.get_provider_metadata("github")
+    assert metadata is not None
+    assert metadata.default_connection == "work"
+    assert set(metadata.connection_names) == {"work", "personal"}
+
+
+@pytest.mark.asyncio
+async def test_resolve_connection_name_uses_metadata_default(tmp_path) -> None:  # noqa: ANN001
+    vault = await create_vault(tmp_path)
+    service = _named_first_service(vault)
+    await _save_named_connection(service, "work")
+
+    # Both an omitted name and the reserved "default" alias resolve to the
+    # provider's metadata default — no record literally named "default" exists.
+    assert await service.resolve_connection_name("github", None) == "work"
+    assert await service.resolve_connection_name("github", "default") == "work"
+    assert await service.resolve_connection_name("github", "personal") == "personal"
+
+
+@pytest.mark.asyncio
+async def test_omitted_connection_resolves_to_default_record(tmp_path) -> None:  # noqa: ANN001
+    vault = await create_vault(tmp_path)
+    service = _named_first_service(vault)
+    await _save_named_connection(service, "work")
+
+    record = await service.get_connection("github")
+    assert record.connection_name == "work"
+
+
+@pytest.mark.asyncio
+async def test_legacy_default_record_still_resolves(tmp_path) -> None:  # noqa: ANN001
+    vault = await create_vault(tmp_path)
+    service = _named_first_service(vault)
+
+    # Simulate a pre-existing vault whose metadata predates named-first
+    # connections: a literal "default" record plus matching metadata.
+    await _save_named_connection(service, "default")
+
+    metadata = await service._credentials.get_provider_metadata("github")
+    assert metadata is not None and metadata.default_connection == "default"
+    record = await service.get_connection("github")
+    assert record.connection_name == "default"
+
+
+def test_validate_login_connection_name_rejects_reserved_and_empty() -> None:
+    assert validate_login_connection_name("  work ", provider="github") == "work"
+    with pytest.raises(InvalidConnectionNameError):
+        validate_login_connection_name("", provider="github")
+    with pytest.raises(InvalidConnectionNameError):
+        validate_login_connection_name("   ", provider="github")
+    with pytest.raises(InvalidConnectionNameError):
+        validate_login_connection_name("default", provider="github")

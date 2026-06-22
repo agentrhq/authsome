@@ -275,7 +275,7 @@ class TestProviderMetadataRecord:
 
     def test_defaults(self) -> None:
         meta = ProviderMetadataRecord(identity="default", provider="github")
-        assert meta.default_connection == "default"
+        assert meta.default_connection is None
         assert meta.connection_names == []
 
     def test_connection_tracking(self) -> None:
