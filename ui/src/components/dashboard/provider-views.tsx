@@ -337,28 +337,17 @@ function ProviderCard({
               <span className="text-xs text-muted-foreground">
                 {provider.connectionCount} connection{provider.connectionCount !== 1 ? "s" : ""}
               </span>
-              {provider.requiresNamedLogin ? (
-                <Button
-                  onClick={(e) => { e.preventDefault(); onNamedLogin(); }}
-                  size="sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <Plus className="size-3.5" />
-                  Add
-                </Button>
-              ) : (
-                <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
-                  <input name="connection" type="hidden" value="default" />
-                  <input name="return_url" type="hidden" value="/connections" />
-                  <Button size="sm" type="submit" variant="ghost">
-                    <Plus className="size-3.5" />
-                    Add
-                  </Button>
-                </form>
-              )}
+              <Button
+                onClick={(e) => { e.preventDefault(); onNamedLogin(); }}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                <Plus className="size-3.5" />
+                Add
+              </Button>
             </div>
-          ) : provider.requiresNamedLogin ? (
+          ) : (
             <Button
               className="w-full"
               onClick={(e) => { e.preventDefault(); onNamedLogin(); }}
@@ -368,15 +357,6 @@ function ProviderCard({
               <LogIn />
               Connect
             </Button>
-          ) : (
-            <form action={`/api/auth/providers/${provider.name}/connect`} method="post">
-              <input name="connection" type="hidden" value="default" />
-              <input name="return_url" type="hidden" value="/connections" />
-              <Button className="w-full" size="sm" type="submit">
-                <LogIn />
-                Connect
-              </Button>
-            </form>
           )}
         </div>
       </CardContent>
@@ -446,9 +426,11 @@ export function NamedConnectionDialog({
   provider: NamedConnectionProvider | null;
 }) {
   const [connectionName, setConnectionName] = useState("");
+  const trimmed = connectionName.trim();
+  const isReserved = trimmed.toLowerCase() === "default";
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    if (!connectionName.trim()) {
+    if (!trimmed || isReserved) {
       event.preventDefault();
     }
   }
@@ -466,7 +448,9 @@ export function NamedConnectionDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Connection name</DialogTitle>
-          <DialogDescription>{provider?.displayName} already has a default connection.</DialogDescription>
+          <DialogDescription>
+            Name this {provider?.displayName} connection so you can tell it apart from others.
+          </DialogDescription>
         </DialogHeader>
         <form
           action={provider ? `/api/auth/providers/${provider.name}/connect` : "#"}
@@ -484,10 +468,13 @@ export function NamedConnectionDialog({
               required
               value={connectionName}
             />
+            {isReserved ? (
+              <span className="text-xs text-destructive">&quot;default&quot; is reserved. Choose another name.</span>
+            ) : null}
           </label>
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-            <Button type="submit">Continue</Button>
+            <Button disabled={!trimmed || isReserved} type="submit">Continue</Button>
           </DialogFooter>
         </form>
       </DialogContent>

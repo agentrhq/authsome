@@ -107,7 +107,6 @@ export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; 
   const description = data.provider.description || data.provider.metadata?.description || "";
   const showsConfiguration = data.provider.auth_type !== "api_key";
   const [dialogProvider, setDialogProvider] = useState<NamedConnectionProvider | null>(null);
-  const hasDefaultConnection = data.connections.some((connection) => connection.connection_name === "default");
   const dialogData = { displayName, name: data.provider.name };
   const hasConnections = data.connections.length > 0 || data.principal_usage.some((g) => g.connections.length > 0);
   const providerStatus = hasConnections ? "connected" : "available";
@@ -127,21 +126,10 @@ export function ProviderDetailBody({ data, onRefresh }: { data: ProviderDetail; 
             </span>
           </div>
         </div>
-        {hasDefaultConnection ? (
-          <Button onClick={() => setDialogProvider(dialogData)} size="sm" type="button">
-            <LogIn />
-            New connection
-          </Button>
-        ) : (
-          <form action={`/api/auth/providers/${data.provider.name}/connect`} method="post">
-            <input name="connection" type="hidden" value="default" />
-            <input name="return_url" type="hidden" value="/connections" />
-            <Button size="sm" type="submit">
-              <LogIn />
-              New connection
-            </Button>
-          </form>
-        )}
+        <Button onClick={() => setDialogProvider(dialogData)} size="sm" type="button">
+          <LogIn />
+          New connection
+        </Button>
       </div>
       <NamedConnectionDialog onOpenChange={setDialogProvider} provider={dialogProvider} />
 

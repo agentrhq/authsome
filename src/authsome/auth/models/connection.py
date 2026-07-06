@@ -16,6 +16,11 @@ from authsome.auth.models.enums import AuthType, ConnectionStatus
 # TODO: Auth module shouldn't worry about storage. Remove all key references
 # TODO: Remvoe hardcoded schema versions everywhere
 
+# Reserved connection name. New connections may never be stored under this name;
+# it survives only as a read-time alias for vaults created before named-first
+# connections existed (it resolves to the provider's ``default_connection``).
+DEFAULT_CONNECTION_NAME = "default"
+
 
 # TODO: Pydantic as secretstr, why not just use that?
 class Sensitive:
@@ -83,7 +88,9 @@ class ProviderMetadataRecord(BaseModel):
     principal_id: str | None = None
     vault_id: str | None = None
     provider: str
-    default_connection: str = "default"
+    # None until the first connection is saved, at which point it is set to that
+    # connection's name. The literal "default" only appears in legacy vaults.
+    default_connection: str | None = None
     connection_names: list[str] = Field(default_factory=list)
     last_used_connection: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)

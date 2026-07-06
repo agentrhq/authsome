@@ -10,6 +10,7 @@ from loguru import logger
 
 from authsome import FlowType
 from authsome.auth.flows.browser import BrowserFlow
+from authsome.auth.models.connection import DEFAULT_CONNECTION_NAME
 from authsome.auth.models.enums import AuthType
 from authsome.auth.models.provider import ProviderDefinition
 from authsome.cli.config import ClientConfig
@@ -52,11 +53,15 @@ def _build_login_json_payload(session_info: dict[str, Any], provider: str, conne
 async def _run_credential_scan(  # noqa: PLR0912, PLR0915
     actx: ContextObj,
     *,
-    connection: str,
     auto_import: bool,
     event_name: str,
 ) -> dict[str, Any]:
-    """Scan env sources for API keys and optionally import them into the vault."""
+    """Scan env sources for API keys and optionally import them into the vault.
+
+    Imported keys are stored under a connection named after the provider (e.g.
+    ``openai``) rather than the reserved ``default`` name; that connection
+    automatically becomes the provider's default.
+    """
     scanned_env = _scan_env_sources()
 
     provider_defs: list[ProviderDefinition] = []
@@ -72,6 +77,7 @@ async def _run_credential_scan(  # noqa: PLR0912, PLR0915
         if definition.auth_type != AuthType.API_KEY:
             continue
 
+        connection = definition.name
         existing_record: dict[str, Any] | None = None
         try:
             existing_record = await actx.runtime_client.get_connection(definition.name, connection)
@@ -142,7 +148,7 @@ async def _run_credential_scan(  # noqa: PLR0912, PLR0915
 
             session_info = await actx.runtime_client.start_login(
                 provider=provider_name,
-                connection=connection,
+                connection=provider_name,
                 flow=FlowType.API_KEY.value,
                 force=True,
             )
@@ -155,18 +161,24 @@ async def _run_credential_scan(  # noqa: PLR0912, PLR0915
                 )
 
             imported += 1
-            results.append({"provider": provider_name, "status": "imported", "env_var": item["env_var"]})
+            results.append(
+                {
+                    "provider": provider_name,
+                    "status": "imported",
+                    "env_var": item["env_var"],
+                    "connection": provider_name,
+                }
+            )
             logger.info(
                 "client_event event={} provider={} connection={} source={} source_env={} status=success",
                 event_name,
                 provider_name,
-                connection,
+                provider_name,
                 item["source"],
                 item["env_var"],
             )
 
     return {
-        "connection": connection,
         "import": should_import,
         "configured_count": len(configured),
         "imported_count": imported,
@@ -174,9 +186,28 @@ async def _run_credential_scan(  # noqa: PLR0912, PLR0915
     }
 
 
+def _resolve_login_connection_name(ctx_obj: ContextObj, provider: str, connection: str | None) -> str:
+    """Resolve the connection name for `login`, prompting interactively when omitted.
+
+    Logins always require a user-chosen name. When `--connection` is omitted we
+    prompt on stderr (keeping stdout JSON clean) if attached to a TTY; otherwise
+    we raise a usage error so automation fails fast instead of hanging.
+    """
+    name = (connection or "").strip()
+    if not name:
+        if ctx_obj.quiet or not sys.stdin.isatty():
+            raise click.UsageError("Provide a connection name with --connection NAME.")
+        name = click.prompt("Connection name", default=provider, err=True).strip()
+    if not name:
+        raise click.UsageError("Connection name must not be empty.")
+    if name == DEFAULT_CONNECTION_NAME:
+        raise click.UsageError(f"'{DEFAULT_CONNECTION_NAME}' is a reserved connection name; choose another name.")
+    return name
+
+
 @click.command()
 @click.argument("provider")
-@click.option("--connection", default="default", metavar="NAME", help="Connection name.")
+@click.option("--connection", default=None, metavar="NAME", help="Connection name (prompted when omitted).")
 @click.option(
     "--flow",
     type=click.Choice([e.value for e in FlowType], case_sensitive=False),
@@ -190,13 +221,14 @@ async def _run_credential_scan(  # noqa: PLR0912, PLR0915
 async def login(  # noqa: PLR0913
     ctx_obj: ContextObj,
     provider: str,
-    connection: str,
+    connection: str | None,
     flow: str | None,
     scopes: str | None,
     base_url: str | None,
     force: bool,
 ) -> None:
     """Authenticate with PROVIDER using the configured flow."""
+    connection = _resolve_login_connection_name(ctx_obj, provider, connection)
     actx = await ctx_obj.initialize()
     flow_value = FlowType(flow).value if flow else None
     scope_list = [s.strip() for s in scopes.split(",")] if scopes else None
@@ -275,7 +307,6 @@ async def onboard(ctx_obj: ContextObj, base_url: str | None, scan_only: bool) ->
 
     scan_result = await _run_credential_scan(
         actx,
-        connection="default",
         auto_import=not scan_only,
         event_name="onboard",
     )

@@ -74,13 +74,15 @@ class TestRouting:
         assert await _route(auth, "http", "api.openai.com", 80, "/v1/responses") is None
 
     @pytest.mark.asyncio
-    async def test_ignores_named_connection_without_default(self, tmp_path: Path) -> None:
+    async def test_routes_lone_named_connection_as_default(self, tmp_path: Path) -> None:
+        # The first connection saved for a provider becomes its default, so a
+        # single named connection (no literal "default" record) still routes.
         auth = await _make_auth(tmp_path)
         await _save_connection_record(auth, "openai", "sk-work-padded-for-regex-12", "work")
 
         match = await _route(auth, "https", "api.openai.com", 443, "/v1/responses")
 
-        assert match is None
+        assert match == RouteMatch(provider="openai", connection="work")
 
     @pytest.mark.asyncio
     async def test_routes_default_when_named_connection_also_exists(self, tmp_path: Path) -> None:

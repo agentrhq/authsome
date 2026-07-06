@@ -6,19 +6,24 @@ icon: "users"
 keywords: ["authsome multiple accounts", "authsome connection flag", "multiple github authsome", "two openai keys authsome"]
 ---
 
-A connection is a named credential record within one provider. The default connection is called `default`. You can have as many additional connections as you want, each scoped by name.
+A connection is a named credential record within one provider. **Every connection has a name that you choose — including the first one.** You can have as many connections as you want, each scoped by name. The provider's *default* connection is a pointer to one of your named connections, not a connection literally called `default`.
+
+<Note>
+`default` is a reserved name. You cannot create a connection called `default`; it survives only as a read-time alias for the provider's default connection (and for vaults created before named-first connections existed).
+</Note>
 
 This is the right pattern when you want two accounts on the same provider both reachable from the same context. If you want credential sets that never see each other, use multiple Vaults or Principals instead. The distinction is covered in [Principal, Vault, and Identity](/concepts/principal-vault-identity).
 
-## Create a second connection
+## Name your connections
 
-Pass `--connection <name>` to `login`. The name is arbitrary; pick what reads well.
+Pass `--connection <name>` to `login`. The name is arbitrary; pick what reads well. If you omit `--connection`, `authsome login` prompts you for a name (and fails with a usage error in non-interactive contexts such as `--quiet` or a non-TTY, so scripts must pass it explicitly).
 
 ```bash
-authsome login github                        # default connection
-authsome login github --connection work
-authsome login github --connection personal
+authsome login github --connection work       # first connection: becomes the default
+authsome login github --connection personal    # second connection
 ```
+
+The first connection you create automatically becomes the provider's default. Subsequent connections leave the default unchanged unless you switch it.
 
 For an OAuth2 provider, each `login` runs its own browser flow. The connections share the OAuth `client_id`/`client_secret` you configured for the provider, but each receives an independent access token bound to its own scopes.
 
@@ -34,7 +39,7 @@ authsome get github --connection personal --field status
 authsome export github --connection work --format env
 ```
 
-Without `--connection`, the command uses the default.
+Without `--connection`, the command resolves the provider's default connection from metadata.
 
 ## List connections
 
@@ -47,22 +52,26 @@ authsome inspect github       # shows every connection on the provider
 
 ## Switch the default
 
-There is no `set-default` command in v1. To change which connection authsome treats as default, log in to it with `--force`:
+The default is a pointer stored in provider metadata. Point it at any existing connection with `connections set-default`:
+
+```bash
+authsome connections set-default github work
+```
+
+Use `--force` on `login` to re-authenticate an existing connection in place:
 
 ```bash
 authsome login github --connection work --force
 ```
 
-The `--force` flag overwrites the existing `default` slot. Programmatic default switching is on the roadmap.
-
 ## In the proxy
 
 `authsome run` injects credentials from each provider's **default** connection. Per-request connection selection is future work.
 
-To run an agent against a non-default connection, set the active default first:
+To run an agent against a non-default connection, point the default at it first:
 
 ```bash
-authsome login github --connection work --force
+authsome connections set-default github work
 authsome run -- python my_agent.py
 ```
 

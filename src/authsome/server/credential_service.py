@@ -21,6 +21,7 @@ from authsome.auth.flows.device_code import DeviceCodeFlow
 from authsome.auth.flows.pkce import PkceFlow
 from authsome.auth.input_provider import InputField
 from authsome.auth.models.connection import (
+    DEFAULT_CONNECTION_NAME,
     ConnectionRecord,
     ProviderClientRecord,
     ProviderMetadataRecord,
@@ -39,6 +40,7 @@ from authsome.auth.utils import (
 from authsome.errors import (
     ConnectionNotFoundError,
     CredentialMissingError,
+    InvalidConnectionNameError,
     InvalidProviderSchemaError,
     OperationNotAllowedError,
     ProviderNotFoundError,
@@ -62,6 +64,24 @@ _FLOW_HANDLERS = {
     FlowType.API_KEY: ApiKeyFlow,
     FlowType.BROWSER: BrowserFlow,
 }
+
+
+def validate_login_connection_name(connection: str | None, *, provider: str | None = None) -> str:
+    """Return a normalized, loginable connection name or raise.
+
+    Logins must always target a user-chosen name. Empty names and the reserved
+    ``"default"`` alias are rejected so that new credentials are never written
+    under the legacy ``"default"`` key.
+    """
+    name = (connection or "").strip()
+    if not name:
+        raise InvalidConnectionNameError("A connection name is required to log in.", provider=provider)
+    if name == DEFAULT_CONNECTION_NAME:
+        raise InvalidConnectionNameError(
+            f"'{DEFAULT_CONNECTION_NAME}' is a reserved connection name; choose another name.",
+            provider=provider,
+        )
+    return name
 
 
 @dataclass(slots=True)
@@ -297,7 +317,11 @@ class CredentialService:
                 connection_name = parts.connection
                 if provider_name not in defaults:
                     metadata = await self._credentials.get_provider_metadata(provider_name)
-                    defaults[provider_name] = metadata.default_connection if metadata else "default"
+                    defaults[provider_name] = (
+                        metadata.default_connection
+                        if metadata and metadata.default_connection
+                        else DEFAULT_CONNECTION_NAME
+                    )
                 record = await self._credentials.get_connection(provider_name, connection_name)
                 if record is None:
                     continue
@@ -384,11 +408,19 @@ class CredentialService:
         return sorted(summaries, key=lambda row: (row.provider_display_name.lower(), row.connection_name))
 
     async def resolve_connection_name(self, provider: str, connection: str | None = None) -> str:
-        """Resolve an optional connection name to the provider default."""
-        if connection:
+        """Resolve a connection name to the provider's default.
+
+        An explicit name (other than the reserved ``"default"`` alias) is returned
+        as-is. ``None`` or ``"default"`` resolve through ``default_connection``
+        metadata, falling back to the literal ``"default"`` only for legacy vaults
+        whose metadata predates named-first connections.
+        """
+        if connection and connection != DEFAULT_CONNECTION_NAME:
             return connection
         metadata = await self._credentials.get_provider_metadata(provider)
-        return metadata.default_connection if metadata else "default"
+        if metadata and metadata.default_connection:
+            return metadata.default_connection
+        return DEFAULT_CONNECTION_NAME
 
     async def resolve_effective_connection(
         self,
@@ -396,11 +428,11 @@ class CredentialService:
         connection: str | None = None,
     ) -> EffectiveConnection:
         """Resolve the connection used for credential access, including global fallback."""
-        if connection is not None and connection != "default":
+        if connection is not None and connection != DEFAULT_CONNECTION_NAME:
             record = await self.get_connection(provider, connection)
             return EffectiveConnection(record=record, credentials=self._credentials, source="local")
 
-        local_default = "default" if connection == "default" else await self.resolve_connection_name(provider, None)
+        local_default = await self.resolve_connection_name(provider, None)
         record = await self._credentials.get_connection(provider, local_default)
         if record is not None:
             return EffectiveConnection(record=record, credentials=self._credentials, source="local")
@@ -699,7 +731,7 @@ class CredentialService:
         base_url: str | None = None,
     ) -> None:
         provider = session.provider
-        connection_name = session.connection_name
+        connection_name = validate_login_connection_name(session.connection_name, provider=provider)
         definition = await self.get_provider(provider)
 
         flow_type = flow_override or FlowType(session.flow_type)
@@ -1113,6 +1145,8 @@ class CredentialService:
             )
         if connection_name not in metadata.connection_names:
             metadata.connection_names.append(connection_name)
+        if not metadata.default_connection:
+            metadata.default_connection = connection_name
         metadata.last_used_connection = connection_name
         await self._credentials.save_provider_metadata(metadata)
 
